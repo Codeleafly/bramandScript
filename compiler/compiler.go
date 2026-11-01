@@ -93,6 +93,20 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.ExpressionStatement:
+		if fnLit, ok := node.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
+			err := c.Compile(node.Expression)
+			if err != nil {
+				return err
+			}
+			symbol := c.symbolTable.Define(fnLit.Name, false)
+			if symbol.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, symbol.Index)
+			} else {
+				c.emit(code.OpSetLocal, symbol.Index)
+			}
+			c.emit(code.OpNull)
+			return nil
+		}
 		err := c.Compile(node.Expression)
 		if err != nil {
 			return err

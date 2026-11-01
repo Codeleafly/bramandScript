@@ -193,6 +193,42 @@ func TestConditionals(t *testing.T) {
 		{"if (false) { 10 } else { 20 }", 20},
 		{"if (1 < 2) { 10 }", 10},
 		{"if (1 > 2) { 10 } else { 20 }", 20},
+		{"if true { 99 } else { 0 }", 99},
+		{"if 5 > 2 { 42 } else { 0 }", 42},
+	}
+	runVmTests(t, tests)
+}
+
+func TestCleanBeginnerFriendlySyntax(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let a = 10
+			let b = 20
+			a + b
+			`,
+			expected: 30,
+		},
+		{
+			input: `
+			let age = 14
+			if age >= 14 {
+				100
+			} else {
+				50
+			}
+			`,
+			expected: 100,
+		},
+		{
+			input: `
+			fn add(x, y) {
+				return x + y
+			}
+			add(7, 8)
+			`,
+			expected: 15,
+		},
 	}
 	runVmTests(t, tests)
 }

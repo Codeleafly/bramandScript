@@ -13,15 +13,22 @@
 
 ---
 
-## 2. Directory & Task Tracking Convention (`./date/MMYY/`)
+## 2. Directory & Task Tracking Convention (`./date/MMYY/` & `bmd-task` CLI)
 Agents must strictly follow the repository's date-based progress tracking system:
 1. **Folder Path**: `./date/MMYY/` where `MM` is two-digit month and `YY` is two-digit year (e.g., `date/1126/` for November 2026).
 2. **Weekly Task Files**:
    - `First_week_task.md`: Tasks for Days 1 to 7.
    - `Second_week_task.md`: Tasks for Days 8 to 14.
    - Subsequent weeks follow the same convention.
-3. **Monthly Rollover**: When a new month begins, the active AI agent creates a new directory `./date/MMYY/` and initializes `First_week_task.md`.
-4. **Live Status Tracking**: Checkboxes `- [ ]` must be updated to `- [x]` as features are implemented and verified with passing unit tests. Never mark a feature complete without passing tests.
+3. **Mandatory CLI Task Tool (`bmd-task` / `node tools/task.js`)**:
+   - AI agents MUST NOT manually edit markdown task files to avoid syntax corruption or formatting errors.
+   - Always execute the built-in task tool to inspect and update task items:
+     - View tasks: `bmd-task list` or `bmd-task list Day 2`
+     - Mark task complete: `bmd-task check <task_number_or_keyword>`
+     - Mark task pending: `bmd-task uncheck <task_number_or_keyword>`
+     - Add new task: `bmd-task add "Task name" --day=N`
+     - Initialize new month: `bmd-task init [MMYY]`
+4. **Live Status Tracking**: Checkboxes `- [ ]` must be updated to `- [x]` using `bmd-task check` as features are implemented and verified with passing unit tests. Never mark a feature complete without passing tests.
 
 ---
 

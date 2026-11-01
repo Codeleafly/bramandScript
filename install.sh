@@ -12,5 +12,8 @@ cp bramand "${INSTALL_DIR}/bramand"
 chmod +x "${INSTALL_DIR}/bramand"
 ln -sf "${INSTALL_DIR}/bramand" "${INSTALL_DIR}/bmd"
 
+chmod +x tools/task.js
+ln -sf "$(pwd)/tools/task.js" "${INSTALL_DIR}/bmd-task"
+
 echo "[OK] BramandScript successfully installed globally!"
-echo "     Available commands: 'bramand' or 'bmd'"
+echo "     Available commands: 'bramand', 'bmd', and 'bmd-task'"
