@@ -82,6 +82,25 @@ func (cs *ConstStatement) String() string {
 	return out.String()
 }
 
+type ReassignStatement struct {
+	Token    token.Token // '=', '+=', etc.
+	Name     *Identifier
+	Operator string
+	Value    Expression
+}
+
+func (rs *ReassignStatement) statementNode()       {}
+func (rs *ReassignStatement) TokenLiteral() string { return rs.Token.Literal }
+func (rs *ReassignStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(rs.Name.String() + " " + rs.Operator + " ")
+	if rs.Value != nil {
+		out.WriteString(rs.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 type ReturnStatement struct {
 	Token       token.Token // token.RETURN
 	ReturnValue Expression
@@ -127,6 +146,43 @@ func (bs *BlockStatement) String() string {
 	}
 	return out.String()
 }
+
+type WhileStatement struct {
+	Token     token.Token // token.WHILE
+	Condition Expression
+	Body      *BlockStatement
+}
+
+func (ws *WhileStatement) statementNode()       {}
+func (ws *WhileStatement) TokenLiteral() string { return ws.Token.Literal }
+func (ws *WhileStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("while ")
+	if ws.Condition != nil {
+		out.WriteString(ws.Condition.String())
+	}
+	out.WriteString(" ")
+	if ws.Body != nil {
+		out.WriteString(ws.Body.String())
+	}
+	return out.String()
+}
+
+type BreakStatement struct {
+	Token token.Token // token.BREAK
+}
+
+func (bs *BreakStatement) statementNode()       {}
+func (bs *BreakStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BreakStatement) String() string       { return "break;" }
+
+type ContinueStatement struct {
+	Token token.Token // token.CONTINUE
+}
+
+func (cs *ContinueStatement) statementNode()       {}
+func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
+func (cs *ContinueStatement) String() string       { return "continue;" }
 
 // ---------------- Expressions ----------------
 

@@ -24,14 +24,14 @@
 ---
 
 ## Day 2: Functions, Closures, Scopes & Control Flow
-- [ ] First-class functions (`fn`)
-- [ ] Local scope management & stack frames
-- [ ] Function arguments & return values
-- [ ] Closures & Free variables (`OpClosure`, `OpGetFree`)
-- [ ] Conditionals: `if`, `else if`, `else` with bytecode jumps
-- [ ] Loops: `while` loops, `break`, `continue`
-- [ ] Stack trace & runtime error reporting
-- [ ] Day 2 test suite verification
+- [x] First-class functions (`fn`)
+- [x] Local scope management & stack frames
+- [x] Function arguments & return values
+- [x] Closures & Free variables (`OpClosure`, `OpGetFree`)
+- [x] Conditionals: `if`, `else if`, `else` with bytecode jumps
+- [x] Loops: `while` loops, `break`, `continue`
+- [x] Stack trace & runtime error reporting
+- [x] Day 2 test suite verification
 
 ---
 

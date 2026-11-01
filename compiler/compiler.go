@@ -23,11 +23,17 @@ type Bytecode struct {
 	Constants    []object.Object
 }
 
+type LoopContext struct {
+	continuePos int
+	breakJumps  []int
+}
+
 type Compiler struct {
 	constants   []object.Object
 	symbolTable *SymbolTable
 	scopes      []CompilationScope
 	scopeIndex  int
+	loops       []LoopContext
 }
 
 func New() *Compiler {
@@ -143,6 +149,48 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpSetGlobal, symbol.Index)
 		} else {
 			c.emit(code.OpSetLocal, symbol.Index)
+		}
+
+	case *ast.ReassignStatement:
+		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
+		if !ok {
+			return fmt.Errorf("cannot assign to undefined variable %s", node.Name.Value)
+		}
+		if symbol.IsConst {
+			return fmt.Errorf("cannot reassign to constant variable %s", node.Name.Value)
+		}
+
+		if node.Operator == "=" {
+			err := c.Compile(node.Value)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.loadSymbol(symbol)
+			err := c.Compile(node.Value)
+			if err != nil {
+				return err
+			}
+			switch node.Operator {
+			case "+=":
+				c.emit(code.OpAdd)
+			case "-=":
+				c.emit(code.OpSub)
+			case "*=":
+				c.emit(code.OpMul)
+			case "/=":
+				c.emit(code.OpDiv)
+			default:
+				return fmt.Errorf("unsupported compound operator %s", node.Operator)
+			}
+		}
+
+		if symbol.Scope == GlobalScope {
+			c.emit(code.OpSetGlobal, symbol.Index)
+		} else if symbol.Scope == LocalScope {
+			c.emit(code.OpSetLocal, symbol.Index)
+		} else {
+			return fmt.Errorf("cannot assign to %s variable %s", symbol.Scope, node.Name.Value)
 		}
 
 	case *ast.InfixExpression:
@@ -262,6 +310,46 @@ func (c *Compiler) Compile(node ast.Node) error {
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterAlternativePos)
 
+	case *ast.WhileStatement:
+		loopStart := len(c.currentInstructions())
+		c.loops = append(c.loops, LoopContext{continuePos: loopStart, breakJumps: []int{}})
+
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
+		err = c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpJump, loopStart)
+
+		afterBodyPos := len(c.currentInstructions())
+		c.changeOperand(jumpNotTruthyPos, afterBodyPos)
+
+		currentLoop := c.loops[len(c.loops)-1]
+		c.loops = c.loops[:len(c.loops)-1]
+		for _, breakPos := range currentLoop.breakJumps {
+			c.changeOperand(breakPos, afterBodyPos)
+		}
+
+	case *ast.BreakStatement:
+		if len(c.loops) == 0 {
+			return fmt.Errorf("break statement outside of loop")
+		}
+		breakPos := c.emit(code.OpJump, 9999)
+		c.loops[len(c.loops)-1].breakJumps = append(c.loops[len(c.loops)-1].breakJumps, breakPos)
+
+	case *ast.ContinueStatement:
+		if len(c.loops) == 0 {
+			return fmt.Errorf("continue statement outside of loop")
+		}
+		c.emit(code.OpJump, c.loops[len(c.loops)-1].continuePos)
+
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
@@ -343,8 +431,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
+		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScope()
+
+		for _, s := range freeSymbols {
+			c.loadSymbol(s)
+		}
 
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
@@ -352,7 +445,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			NumParameters: len(node.Parameters),
 		}
 
-		c.emit(code.OpConstant, c.addConstant(compiledFn))
+		fnIndex := c.addConstant(compiledFn)
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)
@@ -386,6 +480,8 @@ func (c *Compiler) loadSymbol(s Symbol) {
 		c.emit(code.OpGetLocal, s.Index)
 	case BuiltinScope:
 		c.emit(code.OpGetBuiltin, s.Index)
+	case FreeScope:
+		c.emit(code.OpGetFree, s.Index)
 	}
 }
 

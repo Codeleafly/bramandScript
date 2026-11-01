@@ -9,36 +9,16 @@ import (
 	"bramandscript/vm"
 	"fmt"
 	"io"
+	"os"
+	"runtime"
 	"strings"
 )
 
-// ANSI Color Codes
-const (
-	colorReset   = "\033[0m"
-	colorBold    = "\033[1m"
-	colorDim     = "\033[2m"
-	colorRed     = "\033[1;31m"
-	colorGreen   = "\033[1;32m"
-	colorYellow  = "\033[1;33m"
-	colorBlue    = "\033[1;34m"
-	colorMagenta = "\033[1;35m"
-	colorCyan    = "\033[1;36m"
-	colorWhite   = "\033[1;37m"
-)
-
-const BANNER = "\033[1;36m========================================================\033[0m\n" +
-	"\033[1m   ____                                          __    \033[0m\n" +
-	"\033[1m  / __ )_________ _____ ___  ____ _____  ____   / /    \033[0m\n" +
-	"\033[1m / __  / ___/ __ `/ __ `__ \\/ __ `/ __ \\/ __ \\ / /     \033[0m\n" +
-	"\033[1m/ /_/ / /  / /_/ / / / / / / /_/ / / / / /_/ // /      \033[0m\n" +
-	"\033[1m/_____/_/   \\__,_/_/ /_/ /_/\\__,_/_/ /_/\\__,_//_/       \033[0m\n" +
-	"\033[1;36m========================================================\033[0m\n" +
-	"\033[1m✦ BramandScript v0.1.0\033[0m \033[2m(Universe Bytecode Virtual Machine)\033[0m\n" +
-	"\033[2mCommands: :help, :clear, :reset, :exit\033[0m\n"
-
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	fmt.Fprint(out, BANNER)
+
+	fmt.Fprintf(out, "BramandScript 0.1.0 (%s/%s)\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Fprintf(out, "Type \":help\" for help, \":editor\" for multi-line editor, \":exit\" to quit.\n\n")
 
 	constants := []object.Object{}
 	globals := make([]object.Object, vm.GlobalsSize)
@@ -53,10 +33,10 @@ func Start(in io.Reader, out io.Writer) {
 
 	for {
 		if depth == 0 {
-			fmt.Fprintf(out, "%s%sbmd%s %s❯%s ", colorBold, colorCyan, colorReset, colorGreen, colorReset)
+			fmt.Fprint(out, "bmd > ")
 		} else {
 			indent := strings.Repeat("  ", depth)
-			fmt.Fprintf(out, "%s···%s %s", colorDim, colorReset, indent)
+			fmt.Fprintf(out, "... %s", indent)
 		}
 
 		scanned := scanner.Scan()
@@ -70,7 +50,6 @@ func Start(in io.Reader, out io.Writer) {
 		// REPL Commands
 		if depth == 0 {
 			if trimmed == ":exit" || trimmed == ":quit" || trimmed == "exit" || trimmed == "quit" {
-				fmt.Fprintf(out, "%s[Terminated] Farewell from BramandScript.%s\n", colorDim, colorReset)
 				return
 			}
 			if trimmed == ":clear" {
@@ -84,11 +63,15 @@ func Start(in io.Reader, out io.Writer) {
 				for i, v := range compiler.Builtins {
 					symbolTable.DefineBuiltin(i, v.Name)
 				}
-				fmt.Fprintf(out, "%s[OK] Runtime state reset.%s\n", colorGreen, colorReset)
+				fmt.Fprintln(out, "[OK] Session state reset.")
 				continue
 			}
 			if trimmed == ":help" {
 				printHelp(out)
+				continue
+			}
+			if strings.HasPrefix(trimmed, ":editor") || strings.HasPrefix(trimmed, ":edit") {
+				runEditorMode(scanner, out, symbolTable, &constants, globals, trimmed)
 				continue
 			}
 		}
@@ -97,7 +80,7 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		// Calculate block depth: count unclosed '{' or '('
+		// Calculate block depth
 		for _, ch := range line {
 			if ch == '{' || ch == '(' {
 				depth++
@@ -111,7 +94,6 @@ func Start(in io.Reader, out io.Writer) {
 		buffer.WriteString(line)
 		buffer.WriteString("\n")
 
-		// If still inside open block, continue reading
 		if depth > 0 {
 			continue
 		}
@@ -119,52 +101,120 @@ func Start(in io.Reader, out io.Writer) {
 		source := buffer.String()
 		buffer.Reset()
 
-		l := lexer.New(source)
-		p := parser.New(l)
-		program := p.ParseProgram()
+		executeCode(source, out, symbolTable, &constants, globals)
+	}
+}
 
-		if len(p.Errors()) > 0 {
-			fmt.Fprintf(out, "%s[SYNTAX ERROR]%s\n", colorRed, colorReset)
-			for _, msg := range p.Errors() {
-				fmt.Fprintf(out, "  %s%s%s\n", colorRed, msg, colorReset)
+func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object, cmd string) {
+	fmt.Fprintln(out, "// Entering editor mode. Type ':done' to execute, ':cancel' to abort.")
+	fmt.Fprintln(out, "// To save to file, type ':done <filename.bmd>' or ':save <filename.bmd>'.")
+
+	var defaultSavePath string
+	cmdParts := strings.Fields(cmd)
+	if len(cmdParts) > 1 {
+		if cmdParts[1] == "save" && len(cmdParts) > 2 {
+			defaultSavePath = cmdParts[2]
+		} else if cmdParts[1] != "save" {
+			defaultSavePath = cmdParts[1]
+		}
+	}
+
+	var editorBuffer strings.Builder
+	lineNum := 1
+
+	for {
+		fmt.Fprintf(out, "%02d | ", lineNum)
+		if !scanner.Scan() {
+			break
+		}
+
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == ":cancel" || trimmed == ":abort" {
+			fmt.Fprintln(out, "[ABORTED] Editor buffer discarded.")
+			return
+		}
+
+		if trimmed == ":done" || strings.HasPrefix(trimmed, ":done ") || strings.HasPrefix(trimmed, ":save ") {
+			savePath := defaultSavePath
+			parts := strings.Fields(trimmed)
+			if len(parts) > 1 {
+				savePath = parts[1]
 			}
-			continue
+
+			source := editorBuffer.String()
+			if savePath != "" {
+				err := os.WriteFile(savePath, []byte(source), 0644)
+				if err != nil {
+					fmt.Fprintf(out, "[ERROR] Could not save file %s: %s\n", savePath, err)
+				} else {
+					fmt.Fprintf(out, "[OK] Saved %d bytes to %s\n", len(source), savePath)
+				}
+			}
+
+			fmt.Fprintln(out, "// Executing editor buffer...")
+			executeCode(source, out, symbolTable, constants, globals)
+			return
 		}
 
-		comp := compiler.NewWithState(symbolTable, constants)
-		err := comp.Compile(program)
-		if err != nil {
-			fmt.Fprintf(out, "%s[COMPILATION ERROR]%s %s\n", colorRed, colorReset, err)
-			continue
-		}
+		editorBuffer.WriteString(line)
+		editorBuffer.WriteString("\n")
+		lineNum++
+	}
+}
 
-		code := comp.Bytecode()
-		constants = code.Constants
+func executeCode(source string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
+	l := lexer.New(source)
+	p := parser.New(l)
+	program := p.ParseProgram()
 
-		machine := vm.NewWithGlobalsStore(code, globals)
-		err = machine.Run()
-		if err != nil {
-			fmt.Fprintf(out, "%s[RUNTIME ERROR]%s %s\n", colorRed, colorReset, err)
-			continue
+	if len(p.Errors()) > 0 {
+		fmt.Fprintln(out, "SyntaxError:")
+		for _, msg := range p.Errors() {
+			fmt.Fprintf(out, "  %s\n", msg)
 		}
+		return
+	}
 
-		lastPopped := machine.LastPoppedStackElem()
-		if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
-			fmt.Fprintf(out, "%s→%s %s%s%s\n", colorDim, colorReset, colorYellow, lastPopped.Inspect(), colorReset)
-		}
+	comp := compiler.NewWithState(symbolTable, *constants)
+	err := comp.Compile(program)
+	if err != nil {
+		fmt.Fprintf(out, "CompileError: %s\n", err)
+		return
+	}
+
+	code := comp.Bytecode()
+	*constants = code.Constants
+
+	machine := vm.NewWithGlobalsStore(code, globals)
+	err = machine.Run()
+	if err != nil {
+		fmt.Fprintf(out, "RuntimeError: %s\n", err)
+		return
+	}
+
+	lastPopped := machine.LastPoppedStackElem()
+	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
+		fmt.Fprintln(out, lastPopped.Inspect())
 	}
 }
 
 func printHelp(out io.Writer) {
-	fmt.Fprintf(out, "\n%sBramandScript Interactive REPL Guide:%s\n", colorBold, colorReset)
-	fmt.Fprintf(out, "  %sVariables:%s    let x = 10, const PI = 3.14159 (semicolons optional)\n", colorCyan, colorReset)
-	fmt.Fprintf(out, "  %sConditionals:%s if x > 5 { print(\"Big\") } else { print(\"Small\") }\n", colorCyan, colorReset)
-	fmt.Fprintf(out, "  %sFunctions:%s    fn add(a, b) { return a + b }\n", colorCyan, colorReset)
-	fmt.Fprintf(out, "  %sPrinting:%s     print(\"Value is:\", x)\n", colorCyan, colorReset)
-	fmt.Fprintf(out, "  %sLists & Maps:%s [1, 2, 3], {\"name\": \"Earth\"}\n", colorCyan, colorReset)
-	fmt.Fprintf(out, "\n%sREPL Commands:%s\n", colorBold, colorReset)
-	fmt.Fprintf(out, "  %s:help%s         Show this guide\n", colorGreen, colorReset)
-	fmt.Fprintf(out, "  %s:clear%s        Clear screen\n", colorGreen, colorReset)
-	fmt.Fprintf(out, "  %s:reset%s        Reset VM state & variables\n", colorGreen, colorReset)
-	fmt.Fprintf(out, "  %s:exit%s         Quit REPL\n\n", colorGreen, colorReset)
+	fmt.Fprintln(out, `
+BramandScript REPL Help:
+  Variables:     let x = 10, const PI = 3.14159
+  Conditionals:  if x > 5 { ... } else if x == 5 { ... } else { ... }
+  Loops:         while count < 10 { count = count + 1 } (break, continue)
+  Functions:     fn greet(name) { return "Hello " + name }
+  Builtins:      print(...), input(prompt), len(arr), type(v), keys(m), values(m)
+  Types:         int(v), float(v), str(v), bool(v), slice(arr, 0, 2)
+
+REPL Commands:
+  :editor                 Enter multi-line editor mode
+  :editor save <file.bmd> Save buffer to file and execute
+  :clear                  Clear terminal screen
+  :reset                  Reset runtime variables
+  :help                   Show this help message
+  :exit                   Exit REPL`)
 }

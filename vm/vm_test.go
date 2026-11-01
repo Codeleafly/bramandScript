@@ -339,6 +339,101 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`type("universe")`, "STRING"},
 		{`type(42)`, "INTEGER"},
 		{`len(push([1, 2], 3))`, 3},
+		{`int("42")`, 42},
+		{`float("3.14")`, 3.14},
+		{`str(100)`, "100"},
+		{`bool(1)`, true},
+		{`bool(null)`, false},
+		{`len(slice([1, 2, 3, 4, 5], 1, 4))`, 3},
+	}
+	runVmTests(t, tests)
+}
+
+func TestWhileLoops(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let i = 0
+			let sum = 0
+			while i < 5 {
+				i = i + 1
+				sum = sum + i
+			}
+			sum
+			`,
+			expected: 15,
+		},
+		{
+			input: `
+			let i = 0
+			while i < 10 {
+				i = i + 1
+				if i == 5 {
+					break
+				}
+			}
+			i
+			`,
+			expected: 5,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestElseIfConditionals(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let x = 2
+			if x == 1 {
+				10
+			} else if x == 2 {
+				20
+			} else {
+				30
+			}
+			`,
+			expected: 20,
+		},
+		{
+			input: `
+			let x = 99
+			if x == 1 {
+				10
+			} else if x == 2 {
+				20
+			} else {
+				30
+			}
+			`,
+			expected: 30,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestClosures(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let newClosure = fn(a) {
+				return fn() { return a; };
+			};
+			let closure = newClosure(99);
+			closure();
+			`,
+			expected: 99,
+		},
+		{
+			input: `
+			let newAdder = fn(a, b) {
+				return fn(c) { return a + b + c; };
+			};
+			let adder = newAdder(1, 2);
+			adder(8);
+			`,
+			expected: 11,
+		},
 	}
 	runVmTests(t, tests)
 }

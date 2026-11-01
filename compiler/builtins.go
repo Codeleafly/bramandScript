@@ -12,4 +12,13 @@ var Builtins = []BuiltinDef{
 	{Name: "type"},
 	{Name: "push"},
 	{Name: "now"},
+	{Name: "input"},
+	{Name: "int"},
+	{Name: "float"},
+	{Name: "str"},
+	{Name: "bool"},
+	{Name: "keys"},
+	{Name: "values"},
+	{Name: "slice"},
+	{Name: "exit"},
 }
