@@ -2,7 +2,7 @@
 // Day 1 Comprehensive Showcase
 
 println("=================================================");
-println("  🌌 Welcome to BramandScript v0.1.0 🌌");
+println("  ✦ Welcome to BramandScript v0.1.0 ✦");
 println("  A High-Performance Universal Programming Language");
 println("=================================================");
 
@@ -61,5 +61,5 @@ println("Type of cosmos: " + type(cosmos));
 println("Current Unix Time: " + now());
 
 println("=================================================");
-println("  🚀 Day 1 Bytecode VM execution successfully completed! ");
+println("  [OK] Day 1 Bytecode VM execution successfully completed! ");
 println("=================================================");

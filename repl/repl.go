@@ -11,7 +11,7 @@ import (
 	"io"
 )
 
-const PROMPT = "bmd >> "
+const PROMPT = "bmd ❯ "
 
 const BANNER = "========================================================\n" +
 	"   ____                                          __    \n" +
@@ -20,7 +20,7 @@ const BANNER = "========================================================\n" +
 	"/ /_/ / /  / /_/ / / / / / / /_/ / / / / /_/ // /      \n" +
 	"/_____/_/   \\__,_/_/ /_/ /_/\\__,_/_/ /_/\\__,_//_/       \n" +
 	"========================================================\n" +
-	"🌌 BramandScript v0.1.0 (Bytecode Virtual Machine)\n" +
+	"✦ BramandScript v0.1.0 (Bytecode Virtual Machine)\n" +
 	"Universe Standard Language | Pure Go Stdlib (0 Dependencies)\n" +
 	"Type 'exit' or 'quit' to leave REPL.\n"
 
@@ -46,7 +46,7 @@ func Start(in io.Reader, out io.Writer) {
 
 		line := scanner.Text()
 		if line == "exit" || line == "quit" {
-			fmt.Fprintln(out, "Farewell from BramandScript! 🌌")
+			fmt.Fprintln(out, "Farewell from BramandScript. [Terminated]")
 			return
 		}
 

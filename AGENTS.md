@@ -83,3 +83,4 @@ Every agent MUST execute and verify using the local Go toolchain without interne
 2. **Bytecode First**: Do NOT fall back to tree-walk interpretation. All features must be compiled into bytecodes and executed on the Bramand VM.
 3. **Documentation Integrity**: Maintain English documentation and comments in all Go code and markdown specifications.
 4. **No Fake Implementations**: Every implemented feature must have concrete execution logic and automated unit test coverage.
+5. **No Emojis Policy (Compulsory Unicode / ASCII Symbols)**: Never use emojis anywhere in the language codebase, CLI, REPL banners, runtime diagnostics, error handlers, example scripts, or documentation. Emojis compromise international programming language standards and break terminal compatibility. Instead, use clean Unicode symbols (e.g., `✦`, `❯`, `→`, `·`, `●`, `■`, `::`) or standard bracketed ASCII tokens (e.g., `[INFO]`, `[OK]`, `[ERROR]`, `[WARN]`).
