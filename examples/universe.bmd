@@ -1,0 +1,65 @@
+// Welcome to BramandScript (Universe Script)
+// Day 1 Comprehensive Showcase
+
+println("=================================================");
+println("  🌌 Welcome to BramandScript v0.1.0 🌌");
+println("  A High-Performance Universal Programming Language");
+println("=================================================");
+
+// 1. Primitive Variables & Constants
+let universe = "Brahmand";
+const speedOfLight = 299792458;
+let pi = 3.14159;
+let isInfinite = true;
+
+println("Language: " + universe);
+println("Speed of Light (m/s): " + speedOfLight);
+println("Pi constant: " + pi);
+println("Is Brahmand infinite? " + isInfinite);
+
+// 2. Arithmetic & Exponentiation
+let base = 2;
+let exponent = 10;
+let twoToTheTen = base ** exponent;
+println("2 ** 10 = " + twoToTheTen);
+
+let mathResult = (50 * 2 + 100) / 4;
+println("(50 * 2 + 100) / 4 = " + mathResult);
+
+// 3. Conditionals & Logic
+if (twoToTheTen == 1024 && isInfinite) {
+    println("Logic verification: PASSED [twoToTheTen == 1024]");
+} else {
+    println("Logic verification: FAILED");
+}
+
+// 4. Data Structures (Arrays & Maps)
+let planets = ["Mercury", "Venus", "Earth", "Mars", "Jupiter"];
+println("Total Planets in list: " + len(planets));
+println("Home Planet: " + planets[2]);
+
+let cosmos = {
+    "name": "Observable Universe",
+    "galaxies": 2000000000000,
+    "diameter_ly": 93000000000
+};
+println("Cosmos Name: " + cosmos["name"]);
+println("Galaxies estimate: " + cosmos["galaxies"]);
+
+// 5. First-Class Functions & Closures
+let calculateEnergy = fn(mass) {
+    return mass * (speedOfLight ** 2);
+};
+
+let energy = calculateEnergy(1);
+println("E = mc^2 for 1 kg: " + energy + " Joules");
+
+// 6. Builtin Functions
+println("Type of speedOfLight: " + type(speedOfLight));
+println("Type of planets: " + type(planets));
+println("Type of cosmos: " + type(cosmos));
+println("Current Unix Time: " + now());
+
+println("=================================================");
+println("  🚀 Day 1 Bytecode VM execution successfully completed! ");
+println("=================================================");
