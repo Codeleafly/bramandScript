@@ -18,7 +18,7 @@ app.get("/api/health", fn(req, res) {
         res.json({
                 "status": "healthy",
                 "runtime": "BramandScript VM",
-                "version": "0.2.0"
+                "version": "0.1.0"
         });
 });
 

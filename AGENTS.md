@@ -97,3 +97,8 @@ Every agent MUST execute and verify using the local Go toolchain without interne
 7. **Feature Branching Protocol**: Always create and switch to a dedicated feature branch (e.g., `feature/<feature-name>` or `feat/<day-N>`) before implementing or updating any feature.
 8. **Main Branch Protection**: Never develop or commit new feature implementations directly onto the `main`/`master` branch. Keep `main` in a pristine, releasable state at all times.
 9. **User Confirmation Protocol**: Upon completing feature implementations, test verifications, or milestones on a feature branch, always summarize progress and prompt the user for review and confirmation before proceeding to the next phase or merging.
+10. **Strict 1GB Daily Data Limit & Offline-First Mandate**: The developer has a strict mobile data allotment of **1 GB per day**. Agents must treat internet bandwidth as extremely scarce and precious:
+    - **100% Offline-First Development**: BramandScript uses zero third-party dependencies. All compilation, unit tests (`go test ./...`), end-to-end testing (`bramand test`), formatting (`bramand fmt`), and benchmarks MUST be executed strictly locally without internet access.
+    - **No Network Bandwidth Waste**: NEVER stream or poll GitHub Actions or network logs continuously (e.g. avoid `gh run watch` or polling loops that consume data rapidly).
+    - **Lean Git Transfers**: Minimize git push/fetch payload sizes. Avoid repeatedly committing or pushing large compiled binary blobs across remote branches.
+    - **Zero Unnecessary Network Requests**: Never download external assets, packages, or tools unless explicitly requested by the user.
