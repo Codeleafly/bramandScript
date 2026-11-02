@@ -3,6 +3,7 @@ package ast
 import (
 	"bramandscript/token"
 	"bytes"
+	"math/big"
 	"strings"
 )
 
@@ -273,8 +274,9 @@ func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string       { return i.Value }
 
 type IntegerLiteral struct {
-	Token token.Token
-	Value int64
+	Token    token.Token
+	Value    int64
+	BigValue *big.Int
 }
 
 func (il *IntegerLiteral) expressionNode()      {}

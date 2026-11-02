@@ -193,6 +193,18 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 		}
 		fmt.Fprint(out, diag.Format())
 		return
+	} else if len(p.Errors()) > 0 {
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Line:     1,
+			Col:      1,
+			Kind:     "SyntaxError",
+			Message:  p.Errors()[0],
+			Hint:     diagnostics.GenerateHint(p.Errors()[0]),
+		}
+		fmt.Fprint(out, diag.Format())
+		return
 	}
 
 	comp := compiler.NewWithState(symbolTable, *constants)

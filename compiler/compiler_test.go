@@ -175,3 +175,22 @@ func testIntegerObject(expected int64, actual object.Object) error {
 
 	return nil
 }
+
+func TestBlockScopingCompilation(t *testing.T) {
+	// A variable declared in an 'if' block should not be accessible outside
+	input := `
+	let x = 10;
+	if (true) {
+		let blockVar = 20;
+	}
+	blockVar;
+	`
+	l := lexer.New(input)
+	p := parser.New(l)
+	prog := p.ParseProgram()
+	c := New()
+	err := c.Compile(prog)
+	if err == nil {
+		t.Fatalf("expected error compiling out-of-scope variable, got nil")
+	}
+}

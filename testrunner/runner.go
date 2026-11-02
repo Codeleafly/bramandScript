@@ -147,7 +147,11 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 func discoverTestFiles(paths []string) []string {
 	var files []string
 	if len(paths) == 0 {
-		paths = []string{"."}
+		if _, err := os.Stat("tests"); err == nil {
+			paths = []string{"tests"}
+		} else {
+			paths = []string{"."}
+		}
 	}
 
 	for _, p := range paths {

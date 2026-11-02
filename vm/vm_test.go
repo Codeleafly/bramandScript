@@ -8,6 +8,7 @@ import (
 	"bramandscript/parser"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -966,8 +967,33 @@ func TestBigIntAndBigFloat(t *testing.T) {
 			`,
 			expected: true,
 		},
+		{
+			input: `
+			let x = 99999999999999999999999999999 ** 2;
+			x.str();
+			`,
+			expected: "9999999999999999999999999999800000000000000000000000000001",
+		},
 	}
 	runVmTests(t, tests)
+}
+
+func TestBigIntPowerOverflowSafety(t *testing.T) {
+	input := `let x = 99999999999999999999999999999 ** 99999999999999999999999;`
+	program := parse(input)
+	compiler := compiler.New()
+	err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("unexpected compiler error: %s", err)
+	}
+	vm := New(compiler.Bytecode())
+	err = vm.Run()
+	if err == nil {
+		t.Fatalf("expected exponent overflow error, got nil")
+	}
+	if !strings.Contains(err.Error(), "exponent too large") {
+		t.Fatalf("expected 'exponent too large' error, got %s", err)
+	}
 }
 
 func TestVectorsAndMatrices(t *testing.T) {
@@ -1654,6 +1680,69 @@ func TestTimeAndBenchmarking(t *testing.T) {
 			b["name"] == "simple_add" && b["iterations"] == 100 && b["total_ms"] >= 0;
 			`,
 			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestLargeLocalVariables(t *testing.T) {
+	// Generate a function with 300 local variables (exceeding previous 8-bit limit of 255)
+	var sb strings.Builder
+	sb.WriteString("let testFn = fn() {\n")
+	for i := 0; i < 300; i++ {
+		sb.WriteString(fmt.Sprintf("    let v%d = %d;\n", i, i))
+	}
+	sb.WriteString("    return v0 + v299;\n")
+	sb.WriteString("};\n")
+	sb.WriteString("testFn();\n")
+
+	tests := []vmTestCase{
+		{input: sb.String(), expected: 299},
+	}
+	runVmTests(t, tests)
+}
+
+func TestBlockScopingExecution(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			// Shadowing in an if block: outer x remains 10
+			input: `
+			let x = 10;
+			let innerVal = 0;
+			if (true) {
+				let x = 99;
+				innerVal = x;
+			}
+			x + innerVal;
+			`,
+			expected: 109,
+		},
+		{
+			// Function-level block scoping
+			input: `
+			let f = fn() {
+				let a = 1;
+				if (true) {
+					let b = 2;
+					let a = 10;
+					return a + b;
+				}
+				return a;
+			};
+			f();
+			`,
+			expected: 12,
+		},
+		{
+			// For-in loop block scoping
+			input: `
+			let sum = 0;
+			for x in [1, 2, 3] {
+				sum = sum + x;
+			}
+			sum;
+			`,
+			expected: 6,
 		},
 	}
 	runVmTests(t, tests)
