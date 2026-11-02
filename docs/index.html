@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BramandScript Documentation ✦ Pure Go Bytecode VM Language</title>
+  <meta name="description" content="Official documentation for BramandScript (bmd), a high-performance general-purpose programming language built in pure Go standard library with zero external dependencies.">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            },
+            accent: {
+              cyan: '#06b6d4',
+              teal: '#14b8a6',
+              purple: '#a855f7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Global Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Version -->
+      <div class="flex items-center gap-3">
+        <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none" aria-label="Toggle Menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="#ch1" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
+          <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
+        </a>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-md relative hidden sm:block">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <input type="text" id="search-input" placeholder="Search chapters, syntax, builtins... (Press '/' to focus)" 
+            class="w-full pl-9 pr-14 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+          <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+            <kbd class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 shadow-sm">/</kbd>
+          </div>
+        </div>
+        <span id="search-count" class="hidden absolute right-16 top-2 text-[11px] font-mono text-blue-600 dark:text-blue-400"></span>
+      </div>
+
+      <!-- Action Utilities -->
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/bramandscript/bramandScript" target="_blank" rel="noopener" class="text-xs font-medium px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <span class="font-mono">❯_</span>
+          <span>GitHub</span>
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none flex items-center gap-1.5 text-xs font-medium" title="Toggle Dark/Light Mode">
+          <svg id="theme-icon-light" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-dark" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <span id="theme-toggle-text" class="hidden md:inline">Theme</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Drawer Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 z-40 hidden backdrop-blur-sm lg:hidden"></div>
+
+  <!-- Layout Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex gap-8 py-6">
+
+    <!-- Responsive Sidebar Navigation -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-5 transform -translate-x-full transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 lg:p-0 lg:bg-transparent lg:border-none flex flex-col">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 lg:hidden mb-4">
+        <span class="font-bold text-sm tracking-wide uppercase text-slate-500">Chapters</span>
+        <button id="mobile-close-btn" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" onclick="document.getElementById('sidebar-overlay').click()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="sidebar-nav" class="flex-1 overflow-y-auto pr-2 space-y-6 text-sm">
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Getting Started</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch1" class="nav-link active"><span>1.</span> Introduction & Vision</a></li>
+            <li><a href="#ch2" class="nav-link"><span>2.</span> Quickstart & CLI</a></li>
+            <li><a href="#ch3" class="nav-link"><span>3.</span> REPL & :editor Mode</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Language Fundamentals</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch4" class="nav-link"><span>4.</span> Syntax & Semicolons</a></li>
+            <li><a href="#ch5" class="nav-link"><span>5.</span> Variables & Scoping</a></li>
+            <li><a href="#ch6" class="nav-link"><span>6.</span> Data Types & Literals</a></li>
+            <li><a href="#ch7" class="nav-link"><span>7.</span> Operators & Precedence</a></li>
+            <li><a href="#ch8" class="nav-link"><span>8.</span> Control Flow & Loops</a></li>
+            <li><a href="#ch9" class="nav-link"><span>9.</span> Functions & Closures</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Data Structures & OOP</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch10" class="nav-link"><span>10.</span> Arrays & Hash Maps</a></li>
+            <li><a href="#ch11" class="nav-link"><span>11.</span> For-In Iterators</a></li>
+            <li><a href="#ch12" class="nav-link"><span>12.</span> Structs & Methods</a></li>
+            <li><a href="#ch13" class="nav-link"><span>13.</span> Pattern Matching</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem & Architecture</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch14" class="nav-link"><span>14.</span> Modules & Package Store</a></li>
+            <li><a href="#ch15" class="nav-link"><span>15.</span> Standard Builtins Reference</a></li>
+            <li><a href="#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
+            <li><a href="#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
+            <li><a href="#ch18" class="nav-link"><span>18.</span> Contributing Guide</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 max-w-4xl space-y-16 pb-24">
+
+      <!-- Hero Header -->
+      <div class="border-b border-slate-200 dark:border-slate-800 pb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mb-4">
+          <span>✦ Pure Go Standard Library</span>
+          <span>·</span>
+          <span>Zero External Dependencies</span>
+          <span>·</span>
+          <span>Stack Bytecode VM</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+          BramandScript Documentation
+        </h1>
+        <p class="text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+          An international-grade, general-purpose programming language featuring a clean English syntax, semicolons-optional parsing, first-class mutable lexical closures, OOP structs, pattern matching, and a lightning-fast bytecode virtual machine.
+        </p>
+      </div>
+
+      <!-- ================= CHAPTER 1 ================= -->
+      <section id="ch1" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 1</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Introduction, Vision & Zero-Dependency Pure Go Philosophy</h2>
+        
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript (from the Sanskrit <em>Brahmand</em>, meaning "Universe" or "Cosmos") is an independent, general-purpose programming language created to provide complete execution sovereignty. It is engineered from scratch in Go's standard library (<code class="font-mono">stdlib</code>) without relying on a single external package or third-party runtime.
+        </p>
+
+        <div class="callout callout-info">
+          <strong class="font-semibold text-blue-700 dark:text-blue-300">Architectural Principle: Zero Dependencies</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            The entire pipeline—from Unicode scanner, Pratt parser, and bytecode compiler, to the register-free stack virtual machine, memory globals, symbol table, and terminal REPL—builds completely offline with <code class="font-mono">go build</code>. It guarantees 100% deterministic compilation across Termux (Android ARM64), Linux, macOS, and Windows.
+          </p>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Core Pillars</h3>
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside">
+          <li><strong>Clean, International English Syntax:</strong> Familiar to developers from Python, JavaScript, and Go, with no syntactic noise or forced ceremony.</li>
+          <li><strong>Bytecode Virtual Machine:</strong> Every source program is compiled to dense, BigEndian binary instructions executed by a high-throughput stack loop.</li>
+          <li><strong>Zero Emojis Standard:</strong> Clean, professional developer diagnostics utilizing Unicode geometric symbols (<code class="font-mono">✦</code>, <code class="font-mono">❯</code>, <code class="font-mono">·</code>) and standard bracketed status badges (<code class="font-mono">[OK]</code>, <code class="font-mono">[INFO]</code>, <code class="font-mono">[ERROR]</code>).</li>
+          <li><strong>First-Class Termux & ARM64 Support:</strong> Developed directly on Android mobile workstations with native performance.</li>
+        </ul>
+      </section>
+
+      <!-- ================= CHAPTER 2 ================= -->
+      <section id="ch2" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Chapter 2</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Quickstart, Installation & Global CLI (<code class="font-mono">bramand</code> / <code class="font-mono">bmd</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides a unified native binary executable with aliases <code class="font-mono">bramand</code> and <code class="font-mono">bmd</code>.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">One-Line Automated Global Install</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Run the provided installation script in the root directory:</p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — terminal</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>chmod +x install.sh
+./install.sh</code></pre>
+        </div>
+
+        <p class="text-slate-600 dark:text-slate-300 mt-4 mb-2">Or compile manually with the Go toolchain:</p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — compilation</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Build native binary
+go build -o bramand main.go
+
+# Copy to system PATH (Termux: $PREFIX/bin, Linux: /usr/local/bin)
+cp bramand "${PREFIX:-/usr/local}/bin/bramand"
+ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">CLI Command Matrix</h3>
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Command</th>
+                <th>Description</th>
+                <th>Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="font-mono">bmd</code> or <code class="font-mono">bramand</code></td>
+                <td>Launch interactive terminal REPL</td>
+                <td><code class="font-mono">bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd run &lt;file.bmd&gt;</code></td>
+                <td>Execute a BramandScript source file</td>
+                <td><code class="font-mono">bmd run app.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd &lt;file.bmd&gt;</code></td>
+                <td>Direct file execution shortcut</td>
+                <td><code class="font-mono">bmd script.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd version</code></td>
+                <td>Print version and runtime platform architecture</td>
+                <td><code class="font-mono">bmd version</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd help</code></td>
+                <td>Display unified CLI command overview</td>
+                <td><code class="font-mono">bmd help</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 3 ================= -->
+      <section id="ch3" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 3</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">REPL & In-Terminal Multi-Line <code class="font-mono">:editor</code> Mode</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript includes a high-powered REPL equipped with intelligent multi-line block detection, brace balancing, runtime diagnostics, and a dedicated full-buffer terminal editor mode.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Interactive REPL Session</h3>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — bmd repl</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>BramandScript 0.1.0 (arm64-linux)
+__________________________________________________________________
+Welcome to BramandScript. Type :help for documentation, :exit to quit.
+__________________________________________________________________
+
+bmd > let greeting = "Hello, Universe!"
+bmd > print(greeting)
+Hello, Universe!
+bmd > fn square(n) {
+....   return n * n
+.... }
+bmd > square(12)
+144</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Built-in Multi-Line <code class="font-mono">:editor</code> Mode</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">
+          When writing complex algorithms, structs, or functions in the REPL, type <code class="font-mono">:editor</code> (or <code class="font-mono">:edit</code>) to switch into multi-line buffered mode. Line numbers are automatically rendered. You can execute immediately with <code class="font-mono">:done</code> or write directly to disk with <code class="font-mono">:done &lt;filename.bmd&gt;</code>!
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — :editor mode</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>bmd > :editor fib.bmd
+__________________________________________________________________
+Multi-Line Editor Mode
+Type code line-by-line. Type :done to execute, :cancel to abort.
+To save to file on disk: :done &lt;filename.bmd&gt;
+__________________________________________________________________
+01 | fn fib(n) {
+02 |   if n <= 1 { return n }
+03 |   return fib(n - 1) + fib(n - 2)
+04 | }
+05 | print("Fib(10) =", fib(10))
+06 | :done
+[OK] Saved 108 bytes to fib.bmd
+Executing buffer...
+Fib(10) = 55</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">REPL Commands Reference</h3>
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside">
+          <li><code class="font-mono">:editor</code> — Launch multi-line editor buffer</li>
+          <li><code class="font-mono">:editor &lt;file.bmd&gt;</code> — Open editor with an automatic save target</li>
+          <li><code class="font-mono">:clear</code> — Clear terminal screen</li>
+          <li><code class="font-mono">:reset</code> — Reset VM constant pool, symbol table, and global variable store</li>
+          <li><code class="font-mono">:help</code> — Print language quick reference</li>
+          <li><code class="font-mono">:exit</code> or <code class="font-mono">:quit</code> — Exit REPL</li>
+        </ul>
+      </section>
+
+      <!-- ================= CHAPTER 4 ================= -->
+      <section id="ch4" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Chapter 4</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Syntax, Semicolon-Optional Model & Comments</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript features a modern, semicolon-optional grammar. Semicolons (<code class="font-mono">;</code>) may be used to separate statements on the same line, but are never required at line endings.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — syntax and comments</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Single-line comments start with double slashes</span>
+
+<span class="token-comment">/*
+   Multi-line comments can span
+   across multiple lines cleanly.
+*/</span>
+
+<span class="token-comment">// Clean, semicolon-free statements</span>
+<span class="token-kw">let</span> <span class="token-fn">title</span> <span class="token-op">=</span> <span class="token-str">"BramandScript"</span>
+<span class="token-kw">let</span> <span class="token-fn">version</span> <span class="token-op">=</span> <span class="token-num">0.1</span>
+
+<span class="token-comment">// Semicolons can be used for multi-statement single lines:</span>
+<span class="token-kw">let</span> <span class="token-fn">a</span> <span class="token-op">=</span> <span class="token-num">1</span>; <span class="token-kw">let</span> <span class="token-fn">b</span> <span class="token-op">=</span> <span class="token-num">2</span>; <span class="token-kw">let</span> <span class="token-fn">c</span> <span class="token-op">=</span> <span class="token-fn">a</span> <span class="token-op">+</span> <span class="token-fn">b</span>
+<span class="token-fn">print</span>(<span class="token-fn">c</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 5 ================= -->
+      <section id="ch5" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 5</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Variables (<code class="font-mono">let</code>), Constants (<code class="font-mono">const</code>), and Scoping</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Identifiers are declared using <code class="font-mono">let</code> (for mutable bindings) or <code class="font-mono">const</code> (for immutable bindings). Variables are lexically scoped.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — variables and constants</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Mutable variable</span>
+<span class="token-kw">let</span> <span class="token-fn">score</span> <span class="token-op">=</span> <span class="token-num">100</span>
+<span class="token-fn">score</span> <span class="token-op">=</span> <span class="token-num">150</span>        <span class="token-comment">// Direct reassignment</span>
+<span class="token-fn">score</span> <span class="token-op">+=</span> <span class="token-num">25</span>        <span class="token-comment">// Compound addition (score is now 175)</span>
+<span class="token-fn">score</span> <span class="token-op">-=</span> <span class="token-num">10</span>        <span class="token-comment">// Compound subtraction</span>
+<span class="token-fn">score</span> <span class="token-op">*=</span> <span class="token-num">2</span>         <span class="token-comment">// Compound multiplication</span>
+<span class="token-fn">score</span> <span class="token-op">/=</span> <span class="token-num">4</span>         <span class="token-comment">// Compound division</span>
+
+<span class="token-comment">// Immutable constant</span>
+<span class="token-kw">const</span> <span class="token-fn">MAX_CONNECTIONS</span> <span class="token-op">=</span> <span class="token-num">1024</span>
+
+<span class="token-comment">// Trying to reassign a const raises a CompileError:</span>
+<span class="token-comment">// MAX_CONNECTIONS = 2048 // error[CompileError]: cannot reassign to constant variable 'MAX_CONNECTIONS'</span></code></pre>
+        </div>
+
+        <div class="callout callout-tip">
+          <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Lexical Scoping Rules</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            Top-level variables reside in the <code class="font-mono">GlobalScope</code> (indexed up to 65,536 globals). Variables declared inside functions belong to the <code class="font-mono">LocalScope</code> mapped to the VM frame's base pointer. Variables referenced from an enclosing function outer scope are converted into <code class="font-mono">FreeScope</code> closure cells!
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 6 ================= -->
+      <section id="ch6" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Chapter 6</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Data Types & Literals (Int, Float, String, Boolean, Null)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript supports five primary primitive data types, all represented by dedicated runtime objects inside <code class="font-mono">object/object.go</code>:
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Underlying Representation</th>
+                <th>Literal Syntax Examples</th>
+                <th>Hashable?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="font-mono">INTEGER</code></td>
+                <td>64-bit Signed Integer (<code class="font-mono">int64</code>)</td>
+                <td><code class="font-mono">0</code>, <code class="font-mono">42</code>, <code class="font-mono">-999</code>, <code class="font-mono">1000000</code></td>
+                <td><span class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">YES</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">FLOAT</code></td>
+                <td>64-bit IEEE 754 Floating-Point (<code class="font-mono">float64</code>)</td>
+                <td><code class="font-mono">3.14159</code>, <code class="font-mono">0.05</code>, <code class="font-mono">-12.75</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">STRING</code></td>
+                <td>UTF-8 Character String with escape sequences</td>
+                <td><code class="font-mono">"Hello"</code>, <code class="font-mono">"Line\nTab\t"</code></td>
+                <td><span class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">YES (FNV-1a 64)</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">BOOLEAN</code></td>
+                <td>Canonical Singleton Booleans</td>
+                <td><code class="font-mono">true</code>, <code class="font-mono">false</code></td>
+                <td><span class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">YES</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">NULL</code></td>
+                <td>Canonical Null Object</td>
+                <td><code class="font-mono">null</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — literal demonstrations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">intVal</span> <span class="token-op">=</span> <span class="token-num">42</span>
+<span class="token-kw">let</span> <span class="token-fn">floatVal</span> <span class="token-op">=</span> <span class="token-num">3.14159</span>
+<span class="token-kw">let</span> <span class="token-fn">text</span> <span class="token-op">=</span> <span class="token-str">"Pure Go VM\nWith UTF-8 unicode support"</span>
+<span class="token-kw">let</span> <span class="token-fn">flag</span> <span class="token-op">=</span> <span class="token-bool">true</span>
+<span class="token-kw">let</span> <span class="token-fn">empty</span> <span class="token-op">=</span> <span class="token-bool">null</span>
+
+<span class="token-fn">print</span>(<span class="token-str">"Type of int:"</span>, <span class="token-fn">type</span>(<span class="token-fn">intVal</span>))     <span class="token-comment">// INTEGER</span>
+<span class="token-fn">print</span>(<span class="token-str">"Type of float:"</span>, <span class="token-fn">type</span>(<span class="token-fn">floatVal</span>)) <span class="token-comment">// FLOAT</span>
+<span class="token-fn">print</span>(<span class="token-str">"Type of text:"</span>, <span class="token-fn">type</span>(<span class="token-fn">text</span>))       <span class="token-comment">// STRING</span></code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 7 ================= -->
+      <section id="ch7" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 7</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Operators & Expressions (Arithmetic, Logical, Comparisons, Exponentiation)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript parses expressions using a Pratt parser with mathematically rigorous precedence hierarchies.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Operator Precedence Table</h3>
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Operator</th>
+                <th>Associativity</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1 (Lowest)</td>
+                <td><code class="font-mono">||</code></td>
+                <td>Left-to-Right</td>
+                <td>Logical OR</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td><code class="font-mono">&amp;&amp;</code></td>
+                <td>Left-to-Right</td>
+                <td>Logical AND</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td><code class="font-mono">==</code>, <code class="font-mono">!=</code></td>
+                <td>Left-to-Right</td>
+                <td>Equality and Inequality</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td><code class="font-mono">&lt;</code>, <code class="font-mono">&gt;</code>, <code class="font-mono">&lt;=</code>, <code class="font-mono">&gt;=</code></td>
+                <td>Left-to-Right</td>
+                <td>Relational Comparisons</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td><code class="font-mono">+</code>, <code class="font-mono">-</code></td>
+                <td>Left-to-Right</td>
+                <td>Addition, Subtraction, String Concatenation</td>
+              </tr>
+              <tr>
+                <td>6</td>
+                <td><code class="font-mono">*</code>, <code class="font-mono">/</code>, <code class="font-mono">%</code></td>
+                <td>Left-to-Right</td>
+                <td>Multiplication, Division, Modulo</td>
+              </tr>
+              <tr>
+                <td>7</td>
+                <td><code class="font-mono">**</code></td>
+                <td><strong>Right-to-Left</strong></td>
+                <td>Exponentiation / Power</td>
+              </tr>
+              <tr>
+                <td>8</td>
+                <td><code class="font-mono">!</code>, <code class="font-mono">-</code> (prefix)</td>
+                <td>Right-to-Left</td>
+                <td>Unary Bang and Negation</td>
+              </tr>
+              <tr>
+                <td>9 (Highest)</td>
+                <td><code class="font-mono">()</code>, <code class="font-mono">[]</code>, <code class="font-mono">.</code></td>
+                <td>Left-to-Right</td>
+                <td>Function Call, Indexing, Dot Property Access</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — operator expressions</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Exponentiation is right-associative: 2 ** 3 ** 2 == 2 ** 9 == 512</span>
+<span class="token-kw">let</span> <span class="token-fn">powVal</span> <span class="token-op">=</span> <span class="token-num">2</span> <span class="token-op">**</span> <span class="token-num">3</span> <span class="token-op">**</span> <span class="token-num">2</span>
+<span class="token-fn">print</span>(<span class="token-str">"2 ** 3 ** 2 ="</span>, <span class="token-fn">powVal</span>) <span class="token-comment">// 512</span>
+
+<span class="token-comment">// Mixed-type automatic numeric promotion</span>
+<span class="token-kw">let</span> <span class="token-fn">mixed</span> <span class="token-op">=</span> <span class="token-num">10</span> <span class="token-op">+</span> <span class="token-num">3.5</span>
+<span class="token-fn">print</span>(<span class="token-str">"10 + 3.5 ="</span>, <span class="token-fn">mixed</span>)      <span class="token-comment">// 13.5 (FLOAT)</span>
+
+<span class="token-comment">// String concatenation</span>
+<span class="token-kw">let</span> <span class="token-fn">msg</span> <span class="token-op">=</span> <span class="token-str">"Bramand"</span> <span class="token-op">+</span> <span class="token-str">"Script"</span> <span class="token-op">+</span> <span class="token-str">" "</span> <span class="token-op">+</span> <span class="token-num">2026</span>
+<span class="token-fn">print</span>(<span class="token-fn">msg</span>)                     <span class="token-comment">// BramandScript 2026</span></code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 8 ================= -->
+      <section id="ch8" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Chapter 8</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Control Flow (<code class="font-mono">if</code> / <code class="font-mono">else if</code> / <code class="font-mono">else</code> with optional parens, <code class="font-mono">while</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Conditionals in BramandScript do not require enclosing parentheses around their condition expressions, keeping syntax clean and readable.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3"><code class="font-mono">if</code>, <code class="font-mono">else if</code>, <code class="font-mono">else</code></h3>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — conditionals</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">speed</span> <span class="token-op">=</span> <span class="token-num">75</span>
+
+<span class="token-comment">// Clean syntax without parentheses:</span>
+<span class="token-kw">if</span> <span class="token-fn">speed</span> <span class="token-op">&gt;</span> <span class="token-num">100</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"Extreme Velocity!"</span>)
+} <span class="token-kw">else if</span> <span class="token-fn">speed</span> <span class="token-op">&gt;=</span> <span class="token-num">60</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"Cruising Speed"</span>)
+} <span class="token-kw">else</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"Idle or Slow"</span>)
+}
+
+<span class="token-comment">// If expressions produce values:</span>
+<span class="token-kw">let</span> <span class="token-fn">category</span> <span class="token-op">=</span> <span class="token-kw">if</span> <span class="token-fn">speed</span> <span class="token-op">&gt;=</span> <span class="token-num">60</span> { <span class="token-str">"Fast"</span> } <span class="token-kw">else</span> { <span class="token-str">"Slow"</span> }
+<span class="token-fn">print</span>(<span class="token-str">"Category:"</span>, <span class="token-fn">category</span>)</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3"><code class="font-mono">while</code> Loops with <code class="font-mono">break</code> and <code class="font-mono">continue</code></h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">
+          Loops execute while their condition evaluates to a truthy value. Control jumps are backpatched directly in the bytecode instruction stream using <code class="font-mono">OpJumpNotTruthy</code> and <code class="font-mono">OpJump</code>.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — while loops</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">count</span> <span class="token-op">=</span> <span class="token-num">0</span>
+<span class="token-kw">let</span> <span class="token-fn">total</span> <span class="token-op">=</span> <span class="token-num">0</span>
+
+<span class="token-kw">while</span> <span class="token-fn">count</span> <span class="token-op">&lt;</span> <span class="token-num">10</span> {
+    <span class="token-fn">count</span> <span class="token-op">+=</span> <span class="token-num">1</span>
+
+    <span class="token-kw">if</span> <span class="token-fn">count</span> <span class="token-op">==</span> <span class="token-num">3</span> {
+        <span class="token-kw">continue</span> <span class="token-comment">// Skip adding 3</span>
+    }
+
+    <span class="token-kw">if</span> <span class="token-fn">count</span> <span class="token-op">==</span> <span class="token-num">8</span> {
+        <span class="token-kw">break</span>    <span class="token-comment">// Terminate loop early</span>
+    }
+
+    <span class="token-fn">total</span> <span class="token-op">+=</span> <span class="token-fn">count</span>
+}
+
+<span class="token-fn">print</span>(<span class="token-str">"Computed Total:"</span>, <span class="token-fn">total</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 9 ================= -->
+      <section id="ch9" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 9</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Functions & Mutable Lexical Closures (<code class="font-mono">fn</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Functions in BramandScript are first-class citizens. They can be defined as named functions or assigned as anonymous expressions. Crucially, closures capture free variables by reference, enabling mutable state encapsulation!
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — functions and closures</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Named function declaration</span>
+<span class="token-kw">fn</span> <span class="token-fn">multiply</span>(<span class="token-fn">a</span>, <span class="token-fn">b</span>) {
+    <span class="token-kw">return</span> <span class="token-fn">a</span> <span class="token-op">*</span> <span class="token-fn">b</span>
+}
+
+<span class="token-comment">// Higher-order function returning a stateful closure</span>
+<span class="token-kw">fn</span> <span class="token-fn">createCounter</span>(<span class="token-fn">start</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">count</span> <span class="token-op">=</span> <span class="token-fn">start</span>
+    <span class="token-kw">return</span> <span class="token-kw">fn</span>() {
+        <span class="token-fn">count</span> <span class="token-op">+=</span> <span class="token-num">1</span>     <span class="token-comment">// Mutates free variable in outer lexical scope!</span>
+        <span class="token-kw">return</span> <span class="token-fn">count</span>
+    }
+}
+
+<span class="token-kw">let</span> <span class="token-fn">counterA</span> <span class="token-op">=</span> <span class="token-fn">createCounter</span>(<span class="token-num">10</span>)
+<span class="token-fn">print</span>(<span class="token-fn">counterA</span>()) <span class="token-comment">// 11</span>
+<span class="token-fn">print</span>(<span class="token-fn">counterA</span>()) <span class="token-comment">// 12</span>
+
+<span class="token-kw">let</span> <span class="token-fn">counterB</span> <span class="token-op">=</span> <span class="token-fn">createCounter</span>(<span class="token-num">100</span>)
+<span class="token-fn">print</span>(<span class="token-fn">counterB</span>()) <span class="token-comment">// 101</span>
+<span class="token-fn">print</span>(<span class="token-fn">counterA</span>()) <span class="token-comment">// 13 (independent state!)</span></code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <strong class="font-semibold text-blue-700 dark:text-blue-300">Under the Hood: Opcodes for Closures</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            When a function references identifiers from an enclosing scope, the compiler emits <code class="font-mono">OpClosure &lt;constIndex&gt; &lt;numFree&gt;</code>. Free variables are pushed to the stack and captured into an array of object references inside the closure object. Access and mutation are performed via <code class="font-mono">OpGetFree</code> and <code class="font-mono">OpSetFree</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 10 ================= -->
+      <section id="ch10" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Chapter 10</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Arrays, Hashes & Index Expressions (<code class="font-mono">arr[i] = v</code>, <code class="font-mono">hash[k] = v</code>, <code class="font-mono">obj.prop</code>, <code class="font-mono">.length</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides dynamic Arrays and Hash Tables (dictionaries) with rich index access, index mutation, and dot-property notation.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Arrays and Array Mutation</h3>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — arrays</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">items</span> <span class="token-op">=</span> [<span class="token-num">10</span>, <span class="token-num">20</span>, <span class="token-num">30</span>, <span class="token-num">40</span>]
+
+<span class="token-comment">// Index reading (0-based)</span>
+<span class="token-fn">print</span>(<span class="token-str">"First:"</span>, <span class="token-fn">items</span>[<span class="token-num">0</span>])      <span class="token-comment">// 10</span>
+
+<span class="token-comment">// In-place index mutation</span>
+<span class="token-fn">items</span>[<span class="token-num">1</span>] <span class="token-op">=</span> <span class="token-num">999</span>
+<span class="token-fn">print</span>(<span class="token-str">"Modified:"</span>, <span class="token-fn">items</span>)       <span class="token-comment">// [10, 999, 30, 40]</span>
+
+<span class="token-comment">// Property length access</span>
+<span class="token-fn">print</span>(<span class="token-str">"Size:"</span>, <span class="token-fn">items</span>.<span class="token-fn">length</span>)    <span class="token-comment">// 4</span></code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Hashes & Dot-Property Notation</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">
+          Hashes support any hashable key (Integers, Strings, Booleans). String keys can be accessed and assigned using either bracket syntax <code class="font-mono">hash["key"]</code> or ergonomic dot syntax <code class="font-mono">hash.key</code>!
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — hashes</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">server</span> <span class="token-op">=</span> {
+    <span class="token-str">"host"</span>: <span class="token-str">"127.0.0.1"</span>,
+    <span class="token-str">"port"</span>: <span class="token-num">8080</span>,
+    <span class="token-str">"active"</span>: <span class="token-bool">true</span>
+}
+
+<span class="token-comment">// Dot property reading</span>
+<span class="token-fn">print</span>(<span class="token-str">"Host:"</span>, <span class="token-fn">server</span>.<span class="token-fn">host</span>)
+
+<span class="token-comment">// Dot property assignment (inserts or updates key!)</span>
+<span class="token-fn">server</span>.<span class="token-fn">port</span> <span class="token-op">=</span> <span class="token-num">9000</span>
+<span class="token-fn">server</span>.<span class="token-fn">environment</span> <span class="token-op">=</span> <span class="token-str">"production"</span>
+
+<span class="token-fn">print</span>(<span class="token-str">"Updated server:"</span>, <span class="token-fn">server</span>)
+<span class="token-fn">print</span>(<span class="token-str">"Key count:"</span>, <span class="token-fn">server</span>.<span class="token-fn">length</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 11 ================= -->
+      <section id="ch11" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 11</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Iterators & <code class="font-mono">for-in</code> Loops (Arrays, Strings, Hashes, with <code class="font-mono">break</code> & <code class="font-mono">continue</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides built-in <code class="font-mono">for-in</code> loops. The loop syntax optionally accepts an index variable before the item identifier.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — for-in loops</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">languages</span> <span class="token-op">=</span> [<span class="token-str">"Go"</span>, <span class="token-str">"BramandScript"</span>, <span class="token-str">"Rust"</span>, <span class="token-str">"Zig"</span>]
+
+<span class="token-comment">// 1. Item-only iteration</span>
+<span class="token-kw">for</span> <span class="token-fn">lang</span> <span class="token-kw">in</span> <span class="token-fn">languages</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"Lang:"</span>, <span class="token-fn">lang</span>)
+}
+
+<span class="token-comment">// 2. Index + Item iteration</span>
+<span class="token-kw">for</span> <span class="token-fn">idx</span>, <span class="token-fn">lang</span> <span class="token-kw">in</span> <span class="token-fn">languages</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"["</span> <span class="token-op">+</span> <span class="token-fn">str</span>(<span class="token-fn">idx</span>) <span class="token-op">+</span> <span class="token-str">"]"</span>, <span class="token-fn">lang</span>)
+}
+
+<span class="token-comment">// 3. Iterating over strings (character by character)</span>
+<span class="token-kw">for</span> <span class="token-fn">char</span> <span class="token-kw">in</span> <span class="token-str">"Bramand"</span> {
+    <span class="token-fn">print</span>(<span class="token-str">"char:"</span>, <span class="token-fn">char</span>)
+}
+
+<span class="token-comment">// 4. Early termination with break & continue</span>
+<span class="token-kw">for</span> <span class="token-fn">i</span>, <span class="token-fn">val</span> <span class="token-kw">in</span> [<span class="token-num">10</span>, <span class="token-num">20</span>, <span class="token-num">30</span>, <span class="token-num">40</span>, <span class="token-num">50</span>] {
+    <span class="token-kw">if</span> <span class="token-fn">val</span> <span class="token-op">==</span> <span class="token-num">20</span> { <span class="token-kw">continue</span> }
+    <span class="token-kw">if</span> <span class="token-fn">val</span> <span class="token-op">==</span> <span class="token-num">40</span> { <span class="token-kw">break</span> }
+    <span class="token-fn">print</span>(<span class="token-str">"Yielded:"</span>, <span class="token-fn">val</span>)
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 12 ================= -->
+      <section id="ch12" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Chapter 12</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Structs & OOP Methods (<code class="font-mono">struct Point { x, y, fn dist() { ... } }</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript introduces clean object-oriented structs. A <code class="font-mono">struct</code> compiles into an instantiator closure that constructs a typed hash instance possessing the declared fields and bound methods.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — structs and methods</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Define a 2D Point struct with methods</span>
+<span class="token-kw">struct</span> <span class="token-type">Point</span> {
+    <span class="token-fn">x</span>, <span class="token-fn">y</span>
+
+    <span class="token-kw">fn</span> <span class="token-fn">distanceSquared</span>(<span class="token-fn">otherX</span>, <span class="token-fn">otherY</span>) {
+        <span class="token-kw">let</span> <span class="token-fn">dx</span> <span class="token-op">=</span> <span class="token-fn">x</span> <span class="token-op">-</span> <span class="token-fn">otherX</span>
+        <span class="token-kw">let</span> <span class="token-fn">dy</span> <span class="token-op">=</span> <span class="token-fn">y</span> <span class="token-op">-</span> <span class="token-fn">otherY</span>
+        <span class="token-kw">return</span> (<span class="token-fn">dx</span> <span class="token-op">**</span> <span class="token-num">2</span>) <span class="token-op">+</span> (<span class="token-fn">dy</span> <span class="token-op">**</span> <span class="token-num">2</span>)
+    }
+
+    <span class="token-kw">fn</span> <span class="token-fn">translate</span>(<span class="token-fn">offsetX</span>, <span class="token-fn">offsetY</span>) {
+        <span class="token-fn">x</span> <span class="token-op">+=</span> <span class="token-fn">offsetX</span>
+        <span class="token-fn">y</span> <span class="token-op">+=</span> <span class="token-fn">offsetY</span>
+    }
+}
+
+<span class="token-comment">// Instantiation</span>
+<span class="token-kw">let</span> <span class="token-fn">pt</span> <span class="token-op">=</span> <span class="token-type">Point</span>(<span class="token-num">10</span>, <span class="token-num">20</span>)
+
+<span class="token-comment">// Field access</span>
+<span class="token-fn">print</span>(<span class="token-str">"Initial coordinates:"</span>, <span class="token-fn">pt</span>.<span class="token-fn">x</span>, <span class="token-fn">pt</span>.<span class="token-fn">y</span>)
+
+<span class="token-comment">// Method invocation</span>
+<span class="token-fn">print</span>(<span class="token-str">"Dist to (0,0):"</span>, <span class="token-fn">pt</span>.<span class="token-fn">distanceSquared</span>(<span class="token-num">0</span>, <span class="token-num">0</span>))
+
+<span class="token-comment">// Mutation via method or direct dot access</span>
+<span class="token-fn">pt</span>.<span class="token-fn">translate</span>(<span class="token-num">5</span>, <span class="token-op">-</span><span class="token-num">10</span>)
+<span class="token-fn">pt</span>.<span class="token-fn">x</span> <span class="token-op">=</span> <span class="token-num">100</span>
+<span class="token-fn">print</span>(<span class="token-str">"After translation:"</span>, <span class="token-fn">pt</span>.<span class="token-fn">x</span>, <span class="token-fn">pt</span>.<span class="token-fn">y</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 13 ================= -->
+      <section id="ch13" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 13</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pattern Matching (<code class="font-mono">match subject { case ... =&gt; { ... }, default =&gt; { ... } }</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript features first-class pattern matching. Matching expressions return values, support multiple values per case separated by commas, and provide a fallback <code class="font-mono">default</code> arm.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — pattern matching</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">statusCode</span> <span class="token-op">=</span> <span class="token-num">404</span>
+
+<span class="token-kw">let</span> <span class="token-fn">responseMessage</span> <span class="token-op">=</span> <span class="token-kw">match</span> <span class="token-fn">statusCode</span> {
+    <span class="token-kw">case</span> <span class="token-num">200</span>, <span class="token-num">201</span> <span class="token-op">=&gt;</span> {
+        <span class="token-str">"HTTP Request Succeeded"</span>
+    }
+    <span class="token-kw">case</span> <span class="token-num">400</span>, <span class="token-num">401</span>, <span class="token-num">403</span> <span class="token-op">=&gt;</span> {
+        <span class="token-str">"Client Permission or Format Error"</span>
+    }
+    <span class="token-kw">case</span> <span class="token-num">404</span> <span class="token-op">=&gt;</span> {
+        <span class="token-str">"Resource Not Found on Host"</span>
+    }
+    <span class="token-kw">default</span> <span class="token-op">=&gt;</span> {
+        <span class="token-str">"Unknown Status or Server Fault"</span>
+    }
+}
+
+<span class="token-fn">print</span>(<span class="token-str">"Result:"</span>, <span class="token-fn">responseMessage</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 14 ================= -->
+      <section id="ch14" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Chapter 14</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Modules & Centralized Package Architecture</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript implements a clean Deno-style module architecture. Modules are loaded via direct filesystem path or remote URL with deduplication and aliased namespace encapsulation.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Module Syntax Modes</h3>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — math_utils.bmd (module file)</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">const</span> <span class="token-fn">PI</span> <span class="token-op">=</span> <span class="token-num">3.1415926535</span>
+
+<span class="token-kw">fn</span> <span class="token-fn">hypot</span>(<span class="token-fn">a</span>, <span class="token-fn">b</span>) {
+    <span class="token-kw">return</span> ((<span class="token-fn">a</span> <span class="token-op">**</span> <span class="token-num">2</span>) <span class="token-op">+</span> (<span class="token-fn">b</span> <span class="token-op">**</span> <span class="token-num">2</span>)) <span class="token-op">**</span> <span class="token-num">0.5</span>
+}</code></pre>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — main.bmd</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// 1. Direct namespace import (exports grouped into 'math' hash object)</span>
+<span class="token-kw">import</span> <span class="token-str">"./math_utils.bmd"</span> <span class="token-kw">as</span> <span class="token-fn">math</span>
+<span class="token-fn">print</span>(<span class="token-str">"PI ="</span>, <span class="token-fn">math</span>.<span class="token-fn">PI</span>)
+<span class="token-fn">print</span>(<span class="token-str">"Hypot(3, 4) ="</span>, <span class="token-fn">math</span>.<span class="token-fn">hypot</span>(<span class="token-num">3</span>, <span class="token-num">4</span>))
+
+<span class="token-comment">// 2. Global scope import (exports injected directly into current scope)</span>
+<span class="token-kw">import</span> <span class="token-str">"./math_utils.bmd"</span>
+<span class="token-fn">print</span>(<span class="token-str">"Direct hypot:"</span>, <span class="token-fn">hypot</span>(<span class="token-num">5</span>, <span class="token-num">12</span>))</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Centralized Package Cache (<code class="font-mono">$HOME/.bramand_libs/</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300">
+          Remote and package modules are stored in a centralized cache directory at <code class="font-mono">$HOME/.bramand_libs/&lt;package&gt;@&lt;version&gt;/</code>. This eliminates bloat, preventing repeated downloads across distinct project roots.
+        </p>
+      </section>
+
+      <!-- ================= CHAPTER 15 ================= -->
+      <section id="ch15" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 15</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standard Builtin Functions Reference</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          All builtin functions are implemented natively in Go without external dependencies. They are indexed in <code class="font-mono">compiler/builtins.go</code> and dispatched with zero overhead via <code class="font-mono">OpGetBuiltin</code>.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Builtin</th>
+                <th>Signature</th>
+                <th>Description & Return Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="font-mono font-bold">print</code></td>
+                <td><code class="font-mono">print(arg1, arg2, ...)</code></td>
+                <td>Prints space-separated representations of arguments followed by a newline. Returns <code class="font-mono">null</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">println</code></td>
+                <td><code class="font-mono">println(arg1, arg2, ...)</code></td>
+                <td>Alias to <code class="font-mono">print</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">print_raw</code></td>
+                <td><code class="font-mono">print_raw(arg1, ...)</code></td>
+                <td>Prints arguments without a trailing newline character.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">input</code></td>
+                <td><code class="font-mono">input([prompt])</code></td>
+                <td>Displays optional prompt and reads a line of text from standard input (<code class="font-mono">os.Stdin</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">len</code></td>
+                <td><code class="font-mono">len(collection)</code></td>
+                <td>Returns item count of an Array, rune length of a String, or pair count of a Hash as an <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">type</code></td>
+                <td><code class="font-mono">type(object)</code></td>
+                <td>Returns runtime type name string (e.g. <code class="font-mono">"INTEGER"</code>, <code class="font-mono">"ARRAY"</code>, <code class="font-mono">"CLOSURE"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">push</code></td>
+                <td><code class="font-mono">push(array, element)</code></td>
+                <td>Returns a new array containing all previous elements with the new element appended.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">pop</code></td>
+                <td><code class="font-mono">pop(array)</code></td>
+                <td>Removes and returns the last element of an array in place. Returns <code class="font-mono">null</code> if empty.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">contains</code></td>
+                <td><code class="font-mono">contains(coll, target)</code></td>
+                <td>Returns <code class="font-mono">true</code> if array contains item, hash contains key, or string contains substring.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">delete</code></td>
+                <td><code class="font-mono">delete(hash, key)</code></td>
+                <td>Deletes specified key from hash table in place. Returns <code class="font-mono">null</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">keys</code></td>
+                <td><code class="font-mono">keys(hash)</code></td>
+                <td>Returns an <code class="font-mono">ARRAY</code> containing all keys present in the hash map.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">values</code></td>
+                <td><code class="font-mono">values(hash)</code></td>
+                <td>Returns an <code class="font-mono">ARRAY</code> containing all values present in the hash map.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">slice</code></td>
+                <td><code class="font-mono">slice(arr, start, [end])</code></td>
+                <td>Returns a sub-array from index <code class="font-mono">start</code> up to optional <code class="font-mono">end</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">int</code></td>
+                <td><code class="font-mono">int(value)</code></td>
+                <td>Converts string, float, or boolean into a 64-bit signed <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">float</code></td>
+                <td><code class="font-mono">float(value)</code></td>
+                <td>Converts integer or numeric string into a 64-bit IEEE <code class="font-mono">FLOAT</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">str</code></td>
+                <td><code class="font-mono">str(value)</code></td>
+                <td>Converts any BramandScript runtime object into its <code class="font-mono">STRING</code> representation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">bool</code></td>
+                <td><code class="font-mono">bool(value)</code></td>
+                <td>Returns truthiness of value (<code class="font-mono">false</code> and <code class="font-mono">null</code> are falsy).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">now</code></td>
+                <td><code class="font-mono">now()</code></td>
+                <td>Returns current system Unix timestamp in seconds as an <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exit</code></td>
+                <td><code class="font-mono">exit([code])</code></td>
+                <td>Terminates current process immediately with optional exit status code (defaults to 0).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 16 ================= -->
+      <section id="ch16" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Chapter 16</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Intelligent Diagnostic Engine (Rust/Clang-Style with Context Window)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript features a world-class diagnostics engine inspired by Rust and modern Clang. When an error occurs (syntax error, compile-time symbol resolution failure, or runtime error), the diagnostics engine renders:
+        </p>
+
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside mb-4">
+          <li><strong>10 Lines of Code Context:</strong> 5 context lines above and 5 context lines below the incident line.</li>
+          <li><strong>Dynamic Caret Pointer:</strong> Precise column caret (<code class="font-mono">^~~~</code>) highlighting the exact offensive token.</li>
+          <li><strong>Zero Box Borders:</strong> High-readability minimalist gutters without noisy borders.</li>
+          <li><strong>Intelligent Hints:</strong> Actionable suggestions analyzing the identifier name or error condition.</li>
+        </ul>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Sample Diagnostic Output</h3>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — diagnostic report</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="text-red-500 font-bold">error[CompileError]</span>: undefined variable 'userScore'
+  <span class="text-cyan-500 font-mono">--&gt;</span> test.bmd:8:11
+     |
+   3 | let baseBonus = 50
+   4 | fn calculateRank(points) {
+   5 |     let multiplier = 2
+   6 |     return points * multiplier
+   7 | }
+   8 | let final = <span class="text-white font-bold">userScore</span> + baseBonus
+     |            <span class="text-red-500 font-bold">^~~~~~~~~</span> <span class="text-yellow-400 font-bold">[Hint: Declare variable using 'let userScore = ...' or check spelling]</span>
+   9 | print("Final:", final)
+  10 | print("Done")
+     |</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 17 ================= -->
+      <section id="ch17" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 17</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Virtual Machine & Architecture (Lexer -&gt; Pratt Parser -&gt; Bytecode -&gt; Stack VM)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript does NOT use slow tree-walk evaluation. Every source file travels through a four-stage Bytecode VM pipeline:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>architecture pipeline</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>Source Code (.bmd)
+       │
+       ▼
+ 1. Lexer (tokenizes into typed Token structs with Line &amp; Col tracking)
+       │
+       ▼
+ 2. Pratt Parser (Top-down operator precedence Abstract Syntax Tree)
+       │
+       ▼
+ 3. Bytecode Compiler (Symbol Scoping, Constants Pool, Emits Opcodes)
+       │
+       ▼
+ 4. Virtual Machine (Stack loop, 2048 stack cells, Frame call-stack)</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Instruction Set & Opcode Reference</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Instructions are encoded as 1-byte opcodes followed by optional 1-byte or 2-byte BigEndian operands.</p>
+
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Opcode</th>
+                <th>Operands</th>
+                <th>Stack Effect</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="font-mono">OpConstant</code></td>
+                <td><code class="font-mono">[uint16]</code> index</td>
+                <td><code class="font-mono">--&gt; [val]</code></td>
+                <td>Loads constant from constant table and pushes to stack</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpPop</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[val] --&gt;</code></td>
+                <td>Pops top element off stack</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpAdd, OpSub, OpMul, OpDiv, OpMod, OpPow</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[a, b] --&gt; [result]</code></td>
+                <td>Binary arithmetic operations on integers or floats</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpEqual, OpNotEqual, OpGreaterThan, OpGreaterThanEqual</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[a, b] --&gt; [bool]</code></td>
+                <td>Comparison operations pushing canonical True or False</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpJump</code></td>
+                <td><code class="font-mono">[uint16]</code> offset</td>
+                <td>none</td>
+                <td>Unconditional jump setting instruction pointer</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpJumpNotTruthy</code></td>
+                <td><code class="font-mono">[uint16]</code> offset</td>
+                <td><code class="font-mono">[cond] --&gt;</code></td>
+                <td>Pops condition; jumps if falsy (false or null)</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpSetGlobal / OpGetGlobal</code></td>
+                <td><code class="font-mono">[uint16]</code> globalIndex</td>
+                <td><code class="font-mono">[v] --&gt;</code> / <code class="font-mono">--&gt; [v]</code></td>
+                <td>Sets or retrieves variable from 65,536 globals table</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpSetLocal / OpGetLocal</code></td>
+                <td><code class="font-mono">[uint8]</code> localIndex</td>
+                <td><code class="font-mono">[v] --&gt;</code> / <code class="font-mono">--&gt; [v]</code></td>
+                <td>Sets or retrieves variable offset from frame base pointer</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpClosure</code></td>
+                <td><code class="font-mono">[uint16]</code> const, <code class="font-mono">[uint8]</code> free</td>
+                <td><code class="font-mono">[free...] --&gt; [closure]</code></td>
+                <td>Creates closure wrapping compiled fn and free cells</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpCall</code></td>
+                <td><code class="font-mono">[uint8]</code> numArgs</td>
+                <td><code class="font-mono">[fn, args...] --&gt; [frame]</code></td>
+                <td>Allocates new Frame on call stack, transfers execution</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpReturnValue / OpReturn</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[frame] --&gt; [returnVal]</code></td>
+                <td>Restores caller frame and pushes return value</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 18 ================= -->
+      <section id="ch18" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Chapter 18</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Contributing & Community Guide</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript welcomes contributions from software architects, compiler enthusiasts, and open source developers worldwide.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Contribution Mandates</h3>
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside">
+          <li><strong>Standard Library Exclusivity:</strong> Never introduce third-party Go modules or run <code class="font-mono">go get</code>.</li>
+          <li><strong>Comprehensive Unit Tests:</strong> Every new feature must include automated test coverage in its corresponding package test file (<code class="font-mono">*_test.go</code>).</li>
+          <li><strong>No Emojis Rule:</strong> Uphold clean Unicode typography across documentation, code, CLI, and error handlers.</li>
+          <li><strong>Track Roadmap with <code class="font-mono">bmd-task</code>:</strong> Run <code class="font-mono">node tools/task.js list</code> to inspect active weekly tasks.</li>
+        </ul>
+
+        <div class="callout callout-tip mt-6">
+          <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Run Full Test Suite</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            Verify all subsystems locally before submitting pull requests:
+          </p>
+          <div class="code-block-wrapper my-2">
+            <pre><code>go test ./... -v</code></pre>
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-8">
+          Released under the MIT License · Copyright (c) 2026 BramandScript Authors and Contributors.
+        </p>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-8 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-blue-600 dark:text-blue-400 font-bold">✦</span>
+        <span>BramandScript · High-Performance Universal Programming Language</span>
+      </div>
+      <div>
+        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactive Client Script -->
+  <script src="app.js"></script>
+</body>
+</html>
