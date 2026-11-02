@@ -121,4 +121,36 @@ var Builtins = []BuiltinDef{
 	{Name: "random_bytes"},
 	{Name: "random_int"},
 	{Name: "uuid"},
+
+	// Day 6 TCP & UDP Sockets
+	{Name: "tcp_listen"},
+	{Name: "tcp_connect"},
+	{Name: "udp_listen"},
+	{Name: "udp_connect"},
+
+	// Day 6 HTTP/HTTPS Client
+	{Name: "http_get"},
+	{Name: "http_post"},
+	{Name: "http_put"},
+	{Name: "http_delete"},
+	{Name: "http_request"},
+
+	// Day 6 HTTP Web Server
+	{Name: "http_server"},
+
+	// Day 6 WebSockets
+	{Name: "ws_connect"},
+	{Name: "ws_server"},
+
+	// Day 6 AI Integrations (LLM streaming, prompt, structured outputs)
+	{Name: "ai_prompt"},
+	{Name: "ai_stream"},
+	{Name: "ai_structured"},
+
+	// Day 6 Vector Similarity & AI Embeddings
+	{Name: "cosine_similarity"},
+	{Name: "cosine_distance"},
+	{Name: "euclidean_distance"},
+	{Name: "manhattan_distance"},
+	{Name: "vector_search"},
 }

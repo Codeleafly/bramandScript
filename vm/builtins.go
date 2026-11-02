@@ -13,8 +13,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"sort"
@@ -1935,6 +1938,750 @@ func getBuiltinByName(name string) *object.Builtin {
 			},
 		}
 
+	// ============================================================================
+	// Day 6 TCP & UDP Sockets
+	// ============================================================================
+	case "tcp_listen":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				addr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					addr = sObj.Value
+				} else if iObj, ok := args[0].(*object.Integer); ok {
+					addr = fmt.Sprintf("127.0.0.1:%d", iObj.Value)
+				}
+				l, err := net.Listen("tcp", addr)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.TcpServer{Listener: l}
+			},
+		}
+
+	case "tcp_connect":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
+				}
+				addr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					addr = sObj.Value
+				}
+				timeout := 5 * time.Second
+				if len(args) == 2 {
+					if iObj, ok := args[1].(*object.Integer); ok && iObj.Value > 0 {
+						timeout = time.Duration(iObj.Value) * time.Millisecond
+					}
+				}
+				conn, err := net.DialTimeout("tcp", addr, timeout)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.TcpConn{
+					Conn:   conn,
+					Reader: bufio.NewReader(conn),
+				}
+			},
+		}
+
+	case "udp_listen":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				addr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					addr = sObj.Value
+				} else if iObj, ok := args[0].(*object.Integer); ok {
+					addr = fmt.Sprintf("127.0.0.1:%d", iObj.Value)
+				}
+				pc, err := net.ListenPacket("udp", addr)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.UdpSocket{PacketConn: pc}
+			},
+		}
+
+	case "udp_connect":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				addr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					addr = sObj.Value
+				}
+				conn, err := net.Dial("udp", addr)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.UdpSocket{Conn: conn}
+			},
+		}
+
+	// ============================================================================
+	// Day 6 HTTP/HTTPS Client
+	// ============================================================================
+	case "http_get":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
+				}
+				urlStr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					urlStr = sObj.Value
+				}
+				var headers object.Object
+				if len(args) == 2 {
+					headers = args[1]
+				}
+				return executeHttpRequest("GET", urlStr, "", headers, 0)
+			},
+		}
+
+	case "http_post":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 || len(args) > 3 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2 or 3", len(args))}
+				}
+				urlStr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					urlStr = sObj.Value
+				}
+				bodyStr := ""
+				if sObj, ok := args[1].(*object.String); ok {
+					bodyStr = sObj.Value
+				} else {
+					jsonData, _ := json.Marshal(bramandObjectToNative(args[1]))
+					bodyStr = string(jsonData)
+				}
+				var headers object.Object
+				if len(args) == 3 {
+					headers = args[2]
+				}
+				return executeHttpRequest("POST", urlStr, bodyStr, headers, 0)
+			},
+		}
+
+	case "http_put":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 || len(args) > 3 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2 or 3", len(args))}
+				}
+				urlStr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					urlStr = sObj.Value
+				}
+				bodyStr := ""
+				if sObj, ok := args[1].(*object.String); ok {
+					bodyStr = sObj.Value
+				} else {
+					jsonData, _ := json.Marshal(bramandObjectToNative(args[1]))
+					bodyStr = string(jsonData)
+				}
+				var headers object.Object
+				if len(args) == 3 {
+					headers = args[2]
+				}
+				return executeHttpRequest("PUT", urlStr, bodyStr, headers, 0)
+			},
+		}
+
+	case "http_delete":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
+				}
+				urlStr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					urlStr = sObj.Value
+				}
+				var headers object.Object
+				if len(args) == 2 {
+					headers = args[1]
+				}
+				return executeHttpRequest("DELETE", urlStr, "", headers, 0)
+			},
+		}
+
+	case "http_request":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				opts, ok := args[0].(*object.Hash)
+				if !ok {
+					return &object.Error{Message: "argument to http_request must be Hash"}
+				}
+				method := "GET"
+				urlStr := ""
+				bodyStr := ""
+				var headers object.Object
+				var timeoutMs int64
+
+				for _, p := range opts.Pairs {
+					k := p.Key.Inspect()
+					switch k {
+					case "method":
+						method = strings.ToUpper(p.Value.Inspect())
+						if s, ok := p.Value.(*object.String); ok {
+							method = strings.ToUpper(s.Value)
+						}
+					case "url":
+						urlStr = p.Value.Inspect()
+						if s, ok := p.Value.(*object.String); ok {
+							urlStr = s.Value
+						}
+					case "body":
+						if s, ok := p.Value.(*object.String); ok {
+							bodyStr = s.Value
+						} else {
+							b, _ := json.Marshal(bramandObjectToNative(p.Value))
+							bodyStr = string(b)
+						}
+					case "headers":
+						headers = p.Value
+					case "timeout":
+						if i, ok := p.Value.(*object.Integer); ok {
+							timeoutMs = i.Value
+						}
+					}
+				}
+				if urlStr == "" {
+					return &object.Error{Message: "http_request requires 'url' field"}
+				}
+				return executeHttpRequest(method, urlStr, bodyStr, headers, timeoutMs)
+			},
+		}
+
+	// ============================================================================
+	// Day 6 HTTP Web Server
+	// ============================================================================
+	case "http_server":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				return object.NewHttpServer()
+			},
+		}
+
+	// ============================================================================
+	// Day 6 WebSockets (RFC 6455)
+	// ============================================================================
+	case "ws_connect":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				u := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					u = sObj.Value
+				}
+				conn, err := object.WsConnect(u)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return conn
+			},
+		}
+
+	case "ws_server":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
+				}
+				addr := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					addr = sObj.Value
+				} else if iObj, ok := args[0].(*object.Integer); ok {
+					addr = fmt.Sprintf("127.0.0.1:%d", iObj.Value)
+				}
+				path := "/"
+				if len(args) == 2 {
+					if pObj, ok := args[1].(*object.String); ok {
+						path = pObj.Value
+					}
+				}
+				l, err := net.Listen("tcp", addr)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.WsServer{Listener: l, Path: path}
+			},
+		}
+
+	// ============================================================================
+	// Day 6 AI Integrations (HTTP streaming LLM calls, structured JSON outputs)
+	// ============================================================================
+	case "ai_prompt":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 {
+					return &object.Error{Message: "ai_prompt requires at least 2 arguments (model, prompt)"}
+				}
+				model := args[0].Inspect()
+				if sObj, ok := args[0].(*object.String); ok {
+					model = sObj.Value
+				}
+				prompt := args[1].Inspect()
+				if sObj, ok := args[1].(*object.String); ok {
+					prompt = sObj.Value
+				}
+
+				endpoint := "http://localhost:11434/api/generate"
+				apiKey := ""
+				var systemPrompt string
+				if len(args) >= 3 {
+					if opts, ok := args[2].(*object.Hash); ok {
+						for _, pair := range opts.Pairs {
+							k := pair.Key.Inspect()
+							if k == "endpoint" || k == "url" {
+								endpoint = pair.Value.Inspect()
+								if s, ok := pair.Value.(*object.String); ok {
+									endpoint = s.Value
+								}
+							} else if k == "api_key" {
+								apiKey = pair.Value.Inspect()
+								if s, ok := pair.Value.(*object.String); ok {
+									apiKey = s.Value
+								}
+							} else if k == "system" {
+								systemPrompt = pair.Value.Inspect()
+								if s, ok := pair.Value.(*object.String); ok {
+									systemPrompt = s.Value
+								}
+							}
+						}
+					}
+				}
+
+				isOpenAI := strings.Contains(endpoint, "/v1/") || strings.Contains(endpoint, "chat/completions")
+				var reqBody []byte
+				if isOpenAI {
+					messages := []map[string]string{}
+					if systemPrompt != "" {
+						messages = append(messages, map[string]string{"role": "system", "content": systemPrompt})
+					}
+					messages = append(messages, map[string]string{"role": "user", "content": prompt})
+					payload := map[string]interface{}{
+						"model":    model,
+						"messages": messages,
+						"stream":   false,
+					}
+					reqBody, _ = json.Marshal(payload)
+				} else {
+					payload := map[string]interface{}{
+						"model":  model,
+						"prompt": prompt,
+						"stream": false,
+					}
+					if systemPrompt != "" {
+						payload["system"] = systemPrompt
+					}
+					reqBody, _ = json.Marshal(payload)
+				}
+
+				req, err := http.NewRequest("POST", endpoint, bytes.NewReader(reqBody))
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("ai_prompt request creation failed: %s", err)}
+				}
+				req.Header.Set("Content-Type", "application/json")
+				if apiKey != "" {
+					req.Header.Set("Authorization", "Bearer "+apiKey)
+				}
+
+				client := &http.Client{Timeout: 60 * time.Second}
+				resp, err := client.Do(req)
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("ai_prompt request failed: %s", err)}
+				}
+				defer resp.Body.Close()
+
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("reading ai_prompt response failed: %s", err)}
+				}
+
+				var result map[string]interface{}
+				if err := json.Unmarshal(bodyBytes, &result); err != nil {
+					return &object.String{Value: string(bodyBytes)}
+				}
+
+				if respText, ok := result["response"].(string); ok {
+					return &object.String{Value: respText}
+				}
+				if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
+					if c0, ok := choices[0].(map[string]interface{}); ok {
+						if msg, ok := c0["message"].(map[string]interface{}); ok {
+							if content, ok := msg["content"].(string); ok {
+								return &object.String{Value: content}
+							}
+						}
+					}
+				}
+				return &object.String{Value: string(bodyBytes)}
+			},
+		}
+
+	case "ai_stream":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: "ai_stream requires 2 arguments (options, chunk_callback)"}
+				}
+				opts, ok := args[0].(*object.Hash)
+				if !ok {
+					return &object.Error{Message: "first argument to ai_stream must be options Hash"}
+				}
+				callback := args[1]
+
+				endpoint := "http://localhost:11434/api/generate"
+				var reqBody []byte
+				apiKey := ""
+				for _, pair := range opts.Pairs {
+					k := pair.Key.Inspect()
+					if k == "url" || k == "endpoint" {
+						endpoint = pair.Value.Inspect()
+						if s, ok := pair.Value.(*object.String); ok {
+							endpoint = s.Value
+						}
+					} else if k == "api_key" {
+						apiKey = pair.Value.Inspect()
+						if s, ok := pair.Value.(*object.String); ok {
+							apiKey = s.Value
+						}
+					} else if k == "body" {
+						if s, ok := pair.Value.(*object.String); ok {
+							reqBody = []byte(s.Value)
+						} else {
+							reqBody, _ = json.Marshal(bramandObjectToNative(pair.Value))
+						}
+					}
+				}
+
+				req, err := http.NewRequest("POST", endpoint, bytes.NewReader(reqBody))
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("ai_stream request creation failed: %s", err)}
+				}
+				req.Header.Set("Content-Type", "application/json")
+				if apiKey != "" {
+					req.Header.Set("Authorization", "Bearer "+apiKey)
+				}
+
+				client := &http.Client{Timeout: 120 * time.Second}
+				resp, err := client.Do(req)
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("ai_stream connection failed: %s", err)}
+				}
+				defer resp.Body.Close()
+
+				scanner := bufio.NewScanner(resp.Body)
+				var accumulated strings.Builder
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					if line == "" || line == "data: [DONE]" {
+						continue
+					}
+					cleanJSON := line
+					if strings.HasPrefix(line, "data: ") {
+						cleanJSON = strings.TrimPrefix(line, "data: ")
+					}
+
+					var chunkMap map[string]interface{}
+					if err := json.Unmarshal([]byte(cleanJSON), &chunkMap); err != nil {
+						_, _ = ExecuteCallable(callback, &object.String{Value: cleanJSON})
+						accumulated.WriteString(cleanJSON)
+						continue
+					}
+
+					var chunkText string
+					if r, ok := chunkMap["response"].(string); ok {
+						chunkText = r
+					} else if choices, ok := chunkMap["choices"].([]interface{}); ok && len(choices) > 0 {
+						if c0, ok := choices[0].(map[string]interface{}); ok {
+							if delta, ok := c0["delta"].(map[string]interface{}); ok {
+								if c, ok := delta["content"].(string); ok {
+									chunkText = c
+								}
+							}
+						}
+					}
+
+					if len(chunkText) > 0 {
+						accumulated.WriteString(chunkText)
+						_, _ = ExecuteCallable(callback, &object.String{Value: chunkText})
+					}
+				}
+
+				return &object.String{Value: accumulated.String()}
+			},
+		}
+
+	case "ai_structured":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 {
+					return &object.Error{Message: "ai_structured requires 2 arguments (options, schema_or_example)"}
+				}
+				schemaJSON, _ := json.Marshal(bramandObjectToNative(args[1]))
+				schemaInstruction := fmt.Sprintf("\nYou MUST respond ONLY with valid, raw JSON matching this format: %s\nDo not include any conversational preamble or markdown code fences.", string(schemaJSON))
+
+				var model, prompt, endpoint, apiKey string
+				endpoint = "http://localhost:11434/api/generate"
+				if opts, ok := args[0].(*object.Hash); ok {
+					for _, pair := range opts.Pairs {
+						k := pair.Key.Inspect()
+						if k == "model" {
+							model = pair.Value.Inspect()
+							if s, ok := pair.Value.(*object.String); ok {
+								model = s.Value
+							}
+						} else if k == "prompt" {
+							prompt = pair.Value.Inspect()
+							if s, ok := pair.Value.(*object.String); ok {
+								prompt = s.Value
+							}
+						} else if k == "endpoint" || k == "url" {
+							endpoint = pair.Value.Inspect()
+							if s, ok := pair.Value.(*object.String); ok {
+								endpoint = s.Value
+							}
+						} else if k == "api_key" {
+							apiKey = pair.Value.Inspect()
+							if s, ok := pair.Value.(*object.String); ok {
+								apiKey = s.Value
+							}
+						}
+					}
+				}
+
+				fullPrompt := prompt + schemaInstruction
+				promptBuiltin := getBuiltinByName("ai_prompt")
+				optsPairs := make(map[object.HashKey]object.HashPair)
+				setOpt := func(k, v string) {
+					kObj := &object.String{Value: k}
+					optsPairs[kObj.HashKey()] = object.HashPair{Key: kObj, Value: &object.String{Value: v}}
+				}
+				setOpt("endpoint", endpoint)
+				if apiKey != "" {
+					setOpt("api_key", apiKey)
+				}
+
+				rawResp := promptBuiltin.Fn(&object.String{Value: model}, &object.String{Value: fullPrompt}, &object.Hash{Pairs: optsPairs})
+				if errObj, ok := rawResp.(*object.Error); ok {
+					return errObj
+				}
+
+				respStr := rawResp.Inspect()
+				if sObj, ok := rawResp.(*object.String); ok {
+					respStr = sObj.Value
+				}
+
+				cleaned := strings.TrimSpace(respStr)
+				if strings.HasPrefix(cleaned, "```json") {
+					cleaned = strings.TrimPrefix(cleaned, "```json")
+					cleaned = strings.TrimSuffix(cleaned, "```")
+				} else if strings.HasPrefix(cleaned, "```") {
+					cleaned = strings.TrimPrefix(cleaned, "```")
+					cleaned = strings.TrimSuffix(cleaned, "```")
+				}
+				cleaned = strings.TrimSpace(cleaned)
+
+				var parsed interface{}
+				if err := json.Unmarshal([]byte(cleaned), &parsed); err != nil {
+					return &object.Error{Message: fmt.Sprintf("failed to parse structured JSON: %s. Response was: %q", err, cleaned)}
+				}
+				return nativeToBramandObject(parsed)
+			},
+		}
+
+	// ============================================================================
+	// Day 6 Vector Similarity & AI Embeddings
+	// ============================================================================
+	case "cosine_similarity":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				v1, err1 := extractVectorSlice(args[0])
+				v2, err2 := extractVectorSlice(args[1])
+				if err1 != nil || err2 != nil {
+					return &object.Error{Message: "arguments to cosine_similarity must be vectors or arrays of numbers"}
+				}
+				sim, err := calcCosineSimilarity(v1, v2)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Float{Value: sim}
+			},
+		}
+
+	case "cosine_distance":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				v1, err1 := extractVectorSlice(args[0])
+				v2, err2 := extractVectorSlice(args[1])
+				if err1 != nil || err2 != nil {
+					return &object.Error{Message: "arguments to cosine_distance must be vectors or arrays of numbers"}
+				}
+				sim, err := calcCosineSimilarity(v1, v2)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Float{Value: 1.0 - sim}
+			},
+		}
+
+	case "euclidean_distance":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				v1, err1 := extractVectorSlice(args[0])
+				v2, err2 := extractVectorSlice(args[1])
+				if err1 != nil || err2 != nil {
+					return &object.Error{Message: "arguments to euclidean_distance must be vectors or arrays of numbers"}
+				}
+				dist, err := calcEuclideanDistance(v1, v2)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Float{Value: dist}
+			},
+		}
+
+	case "manhattan_distance":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				v1, err1 := extractVectorSlice(args[0])
+				v2, err2 := extractVectorSlice(args[1])
+				if err1 != nil || err2 != nil {
+					return &object.Error{Message: "arguments to manhattan_distance must be vectors or arrays of numbers"}
+				}
+				dist, err := calcManhattanDistance(v1, v2)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Float{Value: dist}
+			},
+		}
+
+	case "vector_search":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 || len(args) > 4 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2 to 4", len(args))}
+				}
+				query, err := extractVectorSlice(args[0])
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid query vector: %s", err)}
+				}
+				candList, ok := args[1].(*object.Array)
+				if !ok {
+					return &object.Error{Message: "candidates must be an Array"}
+				}
+
+				topK := len(candList.Elements)
+				if len(args) >= 3 {
+					if intObj, ok := args[2].(*object.Integer); ok && intObj.Value > 0 {
+						topK = int(intObj.Value)
+					}
+				}
+
+				metric := "cosine"
+				if len(args) >= 4 {
+					if sObj, ok := args[3].(*object.String); ok {
+						metric = sObj.Value
+					}
+				}
+
+				type searchResult struct {
+					item  object.Object
+					score float64
+				}
+				var results []searchResult
+
+				for _, cand := range candList.Elements {
+					var candVec []float64
+					if h, ok := cand.(*object.Hash); ok {
+						for _, p := range h.Pairs {
+							k := p.Key.Inspect()
+							if k == "embedding" || k == "vector" {
+								candVec, _ = extractVectorSlice(p.Value)
+								break
+							}
+						}
+					}
+					if candVec == nil {
+						candVec, _ = extractVectorSlice(cand)
+					}
+					if candVec == nil || len(candVec) != len(query) {
+						continue
+					}
+
+					var score float64
+					switch metric {
+					case "euclidean":
+						d, _ := calcEuclideanDistance(query, candVec)
+						score = d
+					case "manhattan":
+						d, _ := calcManhattanDistance(query, candVec)
+						score = d
+					default: // cosine
+						s, _ := calcCosineSimilarity(query, candVec)
+						score = s
+					}
+					results = append(results, searchResult{item: cand, score: score})
+				}
+
+				if metric == "euclidean" || metric == "manhattan" {
+					sort.Slice(results, func(i, j int) bool {
+						return results[i].score < results[j].score
+					})
+				} else {
+					sort.Slice(results, func(i, j int) bool {
+						return results[i].score > results[j].score
+					})
+				}
+
+				if len(results) > topK {
+					results = results[:topK]
+				}
+
+				outArray := make([]object.Object, len(results))
+				for i, res := range results {
+					pairs := make(map[object.HashKey]object.HashPair)
+					itemKey := &object.String{Value: "item"}
+					scoreKey := &object.String{Value: "score"}
+					pairs[itemKey.HashKey()] = object.HashPair{Key: itemKey, Value: res.item}
+					pairs[scoreKey.HashKey()] = object.HashPair{Key: scoreKey, Value: &object.Float{Value: res.score}}
+					outArray[i] = &object.Hash{Pairs: pairs}
+				}
+				return &object.Array{Elements: outArray}
+			},
+		}
+
 	default:
 		return nil
 	}
@@ -2027,4 +2774,150 @@ func bramandObjectToNative(obj object.Object) interface{} {
 	default:
 		return o.Inspect()
 	}
+}
+
+// ---------------- Networking & Vector Similarity Helpers ----------------
+
+func executeHttpRequest(method, urlStr, bodyStr string, headersObj object.Object, timeoutMs int64) object.Object {
+	var bodyReader io.Reader
+	if len(bodyStr) > 0 {
+		bodyReader = strings.NewReader(bodyStr)
+	}
+
+	req, err := http.NewRequest(method, urlStr, bodyReader)
+	if err != nil {
+		return &object.Error{Message: fmt.Sprintf("http request error: %s", err)}
+	}
+
+	if hObj, ok := headersObj.(*object.Hash); ok {
+		for _, pair := range hObj.Pairs {
+			req.Header.Set(pair.Key.Inspect(), pair.Value.Inspect())
+		}
+	}
+
+	timeout := 15 * time.Second
+	if timeoutMs > 0 {
+		timeout = time.Duration(timeoutMs) * time.Millisecond
+	}
+	client := &http.Client{Timeout: timeout}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return &object.Error{Message: fmt.Sprintf("http request failed: %s", err)}
+	}
+	defer resp.Body.Close()
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &object.Error{Message: fmt.Sprintf("reading response body failed: %s", err)}
+	}
+	respBody := string(respBytes)
+
+	pairs := make(map[object.HashKey]object.HashPair)
+	setStr := func(k, v string) {
+		kObj := &object.String{Value: k}
+		pairs[kObj.HashKey()] = object.HashPair{Key: kObj, Value: &object.String{Value: v}}
+	}
+	statusKey := &object.String{Value: "status"}
+	pairs[statusKey.HashKey()] = object.HashPair{Key: statusKey, Value: &object.Integer{Value: int64(resp.StatusCode)}}
+	setStr("status_text", resp.Status)
+	setStr("body", respBody)
+
+	hdrPairs := make(map[object.HashKey]object.HashPair)
+	for hk, hvs := range resp.Header {
+		if len(hvs) > 0 {
+			kObj := &object.String{Value: hk}
+			hdrPairs[kObj.HashKey()] = object.HashPair{Key: kObj, Value: &object.String{Value: hvs[0]}}
+		}
+	}
+	hdrKey := &object.String{Value: "headers"}
+	pairs[hdrKey.HashKey()] = object.HashPair{Key: hdrKey, Value: &object.Hash{Pairs: hdrPairs}}
+
+	jsonKey := &object.String{Value: "json"}
+	pairs[jsonKey.HashKey()] = object.HashPair{
+		Key: jsonKey,
+		Value: &object.Builtin{
+			Fn: func(a ...object.Object) object.Object {
+				var v interface{}
+				if err := json.Unmarshal([]byte(respBody), &v); err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid JSON: %s", err)}
+				}
+				return nativeToBramandObject(v)
+			},
+		},
+	}
+
+	return &object.Hash{Pairs: pairs}
+}
+
+func extractVectorSlice(obj object.Object) ([]float64, error) {
+	switch o := obj.(type) {
+	case *object.Vector:
+		res := make([]float64, len(o.Elements))
+		copy(res, o.Elements)
+		return res, nil
+	case *object.Array:
+		res := make([]float64, len(o.Elements))
+		for i, el := range o.Elements {
+			v, ok := toFloat(el)
+			if !ok {
+				return nil, fmt.Errorf("element at index %d is not a number", i)
+			}
+			res[i] = v
+		}
+		return res, nil
+	default:
+		return nil, fmt.Errorf("expected Vector or Array of numbers, got %s", obj.Type())
+	}
+}
+
+func calcCosineSimilarity(a, b []float64) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("vector dimensions mismatch: %d != %d", len(a), len(b))
+	}
+	var dot, normA, normB float64
+	for i := range a {
+		dot += a[i] * b[i]
+		normA += a[i] * a[i]
+		normB += b[i] * b[i]
+	}
+	if normA == 0 || normB == 0 {
+		return 0, nil
+	}
+	sim := dot / (math.Sqrt(normA) * math.Sqrt(normB))
+	if math.Abs(sim-1.0) < 1e-12 {
+		return 1.0, nil
+	}
+	if math.Abs(sim-(-1.0)) < 1e-12 {
+		return -1.0, nil
+	}
+	if sim > 1.0 {
+		sim = 1.0
+	} else if sim < -1.0 {
+		sim = -1.0
+	}
+	return sim, nil
+}
+
+func calcEuclideanDistance(a, b []float64) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("vector dimensions mismatch: %d != %d", len(a), len(b))
+	}
+	var sum float64
+	for i := range a {
+		d := a[i] - b[i]
+		sum += d * d
+	}
+	return math.Sqrt(sum), nil
+}
+
+func calcManhattanDistance(a, b []float64) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("vector dimensions mismatch: %d != %d", len(a), len(b))
+	}
+	var sum float64
+	for i := range a {
+		sum += math.Abs(a[i] - b[i])
+	}
+	return sum, nil
 }

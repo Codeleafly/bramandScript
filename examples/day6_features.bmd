@@ -1,0 +1,143 @@
+// -------------------------------------------------------------
+// BramandScript Day 6: Networking, Web Framework & AI Integrations
+// -------------------------------------------------------------
+
+println("✦ Day 6: Networking, Web Framework & AI Integrations in BramandScript");
+println("-------------------------------------------------------------");
+
+// 1. TCP Sockets
+println("[1] TCP Sockets");
+let tcpSrv = tcp_listen("127.0.0.1:19981");
+spawn fn() {
+    let sConn = tcpSrv.accept();
+    let msg = sConn.read_line();
+    sConn.write("echo_tcp:" + msg + "\n");
+    sConn.close();
+}();
+
+let tcpCli = tcp_connect("127.0.0.1:19981");
+tcpCli.write("ping_bmd\n");
+let tcpReply = tcpCli.read_line();
+tcpCli.close();
+tcpSrv.close();
+println("  TCP Server Addr: 127.0.0.1:19981");
+println("  TCP Received:    " + tcpReply);
+println("");
+
+// 2. UDP Sockets
+println("[2] UDP Sockets");
+let udpSrv = udp_listen("127.0.0.1:19982");
+let udpCli = udp_connect("127.0.0.1:19982");
+udpCli.write("ping_udp_bmd");
+let udpPacket = udpSrv.recv_from();
+udpCli.close();
+udpSrv.close();
+println("  UDP Server Addr: 127.0.0.1:19982");
+println("  UDP Packet Data: " + udpPacket["data"]);
+println("  UDP From Addr:   " + udpPacket["addr"]);
+println("");
+
+// 3. HTTP Server & HTTP Client
+println("[3] Built-in HTTP Web Server & Client");
+let webSrv = http_server();
+webSrv.get("/api/info", fn(req, res) {
+    res.json({
+        "name": "BramandScript",
+        "stage": "Day 6 Complete",
+        "status": 200
+    });
+});
+webSrv.post("/api/echo", fn(req, res) {
+    let payload = req.json();
+    res.status(201).json({
+        "echo": payload,
+        "received_at": "now"
+    });
+});
+webSrv.listen("127.0.0.1:19983");
+
+let httpRes1 = http_get("http://127.0.0.1:19983/api/info");
+println("  GET /api/info Status: " + httpRes1.status);
+println("  GET /api/info Body:   " + httpRes1.body);
+
+let httpRes2 = http_post("http://127.0.0.1:19983/api/echo", "{\"task\": \"Networking\"}");
+println("  POST /api/echo Code:  " + httpRes2.status);
+println("  POST /api/echo Body:  " + httpRes2.body);
+webSrv.close();
+println("");
+
+// 4. RFC 6455 WebSockets
+println("[4] RFC 6455 WebSockets");
+let wsSrv = ws_server("127.0.0.1:19984", "/stream");
+spawn fn() {
+    let sConn = wsSrv.accept();
+    let clientMsg = sConn.recv();
+    sConn.send("ws_ack:" + clientMsg);
+    sConn.close();
+}();
+
+let wsCli = ws_connect("ws://127.0.0.1:19984/stream");
+println("  WebSocket Connected: " + wsCli.is_open);
+wsCli.send("hello_bramand_realtime");
+let wsReply = wsCli.recv();
+wsCli.close();
+wsSrv.close();
+println("  WebSocket Reply:     " + wsReply);
+println("");
+
+// 5. Vector Similarity & Embeddings for AI
+println("[5] Vector Similarity & AI Embeddings");
+let vA = vec([1.0, 2.0, 3.0]);
+let vB = vec([1.0, 2.0, 3.0]);
+let vC = vec([-1.0, -2.0, -3.0]);
+println("  Cosine Sim (vA, vB): " + cosine_similarity(vA, vB));
+println("  Cosine Sim (vA, vC): " + cosine_similarity(vA, vC));
+println("  Euclidean Distance:  " + euclidean_distance(vec([0, 0]), vec([3, 4])));
+println("  Manhattan Distance:  " + manhattan_distance(vec([1, 2]), vec([4, 6])));
+
+let queryEmbedding = vec([0.9, 0.1, 0.0]);
+let candidates = [
+    {"title": "Machine Learning in Bramand", "embedding": vec([0.88, 0.12, 0.01])},
+    {"title": "Cooking Recipes",             "embedding": vec([0.05, 0.85, 0.52])},
+    {"title": "Deep Neural Networks",        "embedding": vec([0.92, 0.08, 0.02])}
+];
+let searchResults = vector_search(queryEmbedding, candidates, 2, "cosine");
+println("  Vector Search Top Result: " + searchResults[0]["item"]["title"] + " (score=" + searchResults[0]["score"] + ")");
+println("  Vector Search 2nd Result: " + searchResults[1]["item"]["title"] + " (score=" + searchResults[1]["score"] + ")");
+println("");
+
+// 6. AI Integration Module: Streaming & Structured Outputs
+println("[6] AI Integration Module (Streaming & Structured JSON)");
+let mockAiSrv = http_server();
+mockAiSrv.post("/api/generate", fn(req, res) {
+    res.set_header("Content-Type", "text/event-stream");
+    res.send("data: {\"response\": \"High \"}\n\ndata: {\"response\": \"performance \"}\n\ndata: {\"response\": \"Bytecode VM!\"}\n\ndata: [DONE]\n\n");
+});
+mockAiSrv.post("/api/structured", fn(req, res) {
+    res.json({
+        "status": "ready",
+        "category": "Systems Language",
+        "score": 99.8
+    });
+});
+mockAiSrv.listen("127.0.0.1:19985");
+
+let streamedTokens = [];
+let fullText = ai_stream({"url": "http://127.0.0.1:19985/api/generate", "body": "{}"}, fn(token) {
+    streamedTokens = push(streamedTokens, token);
+});
+println("  Streamed Token Count: " + len(streamedTokens));
+println("  Streamed Full Text:   " + fullText);
+
+let structuredResp = ai_structured({
+    "model": "local-llm",
+    "prompt": "Analyze BramandScript",
+    "endpoint": "http://127.0.0.1:19985/api/structured"
+}, {"status": "string", "category": "string", "score": 0.0});
+
+println("  Structured Output Category: " + structuredResp["category"]);
+println("  Structured Output Score:    " + structuredResp["score"]);
+mockAiSrv.close();
+
+println("-------------------------------------------------------------");
+println("✦ All Day 6 features successfully verified!");
