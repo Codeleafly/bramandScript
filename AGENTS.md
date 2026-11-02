@@ -24,9 +24,11 @@ Agents must strictly follow the repository's date-based progress tracking system
    - AI agents MUST NOT manually edit markdown task files to avoid syntax corruption or formatting errors.
    - Always execute the built-in task tool to inspect and update task items:
      - View tasks: `bmd-task list` or `bmd-task list Day 2`
+     - View task details: `bmd-task view <task_number_or_keyword>`
      - Mark task complete: `bmd-task check <task_number_or_keyword>`
      - Mark task pending: `bmd-task uncheck <task_number_or_keyword>`
-     - Add new task: `bmd-task add "Task name" --day=N`
+     - Edit task text: `bmd-task edit <task_number_or_keyword> "New Task Spec"`
+     - Add new task: `bmd-task add "Task title" --desc="Detailed description" [--includes="..."] [--day=N]` (Note: `--desc` is strictly compulsory)
      - Initialize new month: `bmd-task init [MMYY]`
 4. **Live Status Tracking**: Checkboxes `- [ ]` must be updated to `- [x]` using `bmd-task check` as features are implemented and verified with passing unit tests. Never mark a feature complete without passing tests.
 

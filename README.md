@@ -1,23 +1,15 @@
-<p align="center">
-  <img src="assets/logo.jpg" alt="BramandScript Official Logo" width="160" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.35);">
-</p>
+# BramandScript (bmd) ✦
 
-<h1 align="center">BramandScript (bmd)</h1>
+> A modern, high-performance general-purpose programming language built from scratch with a Stack-Based Bytecode Virtual Machine in pure Go standard library. Zero external dependencies. Completely offline buildable.
 
-<p align="center">
-  <strong>A modern, high-performance general-purpose programming language built from scratch with a Stack-Based Bytecode Virtual Machine in pure Go standard library. Zero external dependencies. Completely offline buildable.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/Codeleafly/bramandScript/releases/latest"><img src="https://img.shields.io/github/v/release/Codeleafly/bramandScript?color=blue&label=Release" alt="Release"></a>
-  <a href="https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml"><img src="https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml/badge.svg" alt="CI Testing Matrix"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://codeleafly.github.io/bramandScript/"><img src="https://img.shields.io/badge/Docs-Live%20Portal-emerald.svg" alt="Documentation"></a>
-  <a href="https://golang.org"><img src="https://img.shields.io/badge/Dependencies-0%20(Pure%20Stdlib)-orange.svg" alt="Dependencies"></a>
-  <a href="https://github.com/Codeleafly/bramandScript/releases"><img src="https://img.shields.io/badge/Platforms-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Termux-purple.svg" alt="Platforms"></a>
-  <a href="https://github.com/Codeleafly/bramandScript"><img src="https://img.shields.io/github/stars/Codeleafly/bramandScript?style=social" alt="Stars"></a>
-  <a href="https://github.com/Codeleafly/bramandScript"><img src="https://img.shields.io/github/forks/Codeleafly/bramandScript?style=social" alt="Forks"></a>
-</p>
+[![Release](https://img.shields.io/github/v/release/Codeleafly/bramandScript?color=blue&label=Release)](https://github.com/Codeleafly/bramandScript/releases/latest)
+[![CI Testing Matrix](https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml/badge.svg)](https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/Docs-Live%20Portal-emerald.svg)](https://codeleafly.github.io/bramandScript/)
+[![Dependencies](https://img.shields.io/badge/Dependencies-0%20(Pure%20Stdlib)-orange.svg)](https://golang.org)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Termux-purple.svg)](https://github.com/Codeleafly/bramandScript/releases)
+[![Stars](https://img.shields.io/github/stars/Codeleafly/bramandScript?style=social)](https://github.com/Codeleafly/bramandScript)
+[![Forks](https://img.shields.io/github/forks/Codeleafly/bramandScript?style=social)](https://github.com/Codeleafly/bramandScript)
 
 ---
 
