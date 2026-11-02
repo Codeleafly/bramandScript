@@ -1,0 +1,57 @@
+// examples/01_quickstart.bmd
+// BramandScript Quickstart Guide & Core Syntax
+
+println("✦ BramandScript Quickstart Showcase");
+println("──────────────────────────────────────────────────");
+
+// 1. Variables and Types
+let language = "BramandScript";
+let year = 2026;
+let isFast = true;
+let score = 98.75;
+let emptyVal = null;
+
+println("[1] Basic Types:");
+println("  Language:", language, "| Year:", year, "| Fast:", isFast, "| Score:", score);
+
+// 2. Data Structures
+let numbers = [10, 20, 30, 40, 50];
+let metadata = {
+    "author": "Codeleafly",
+    "license": "MIT",
+    "architecture": "Stack Bytecode VM"
+};
+
+println("\n[2] Collections:");
+println("  Array length:", len(numbers), "| Element at 2:", numbers[2]);
+println("  Hash metadata:", metadata["architecture"]);
+
+// 3. Functions & Closures
+let createMultiplier = fn(factor) {
+    return fn(val) {
+        return val * factor;
+    };
+};
+
+let triple = createMultiplier(3);
+println("\n[3] First-class Closures:");
+println("  triple(14) =", triple(14));
+
+// 4. Loops and Pattern Matching
+println("\n[4] Control Flow:");
+let sum = 0;
+for n in numbers {
+    sum = sum + n;
+}
+println("  Sum of array:", sum);
+
+let status = 200;
+let msg = match status {
+    case 200 => { return "OK"; }
+    case 404 => { return "Not Found"; }
+    default => { return "Unknown"; }
+};
+println("  HTTP Status 200 message:", msg);
+
+println("──────────────────────────────────────────────────");
+println("[OK] Quickstart completed successfully!");

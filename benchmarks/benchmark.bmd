@@ -1,0 +1,64 @@
+// benchmarks/benchmark.bmd
+// BramandScript Official Performance Benchmark Suite
+
+println("✦ BramandScript VM Performance Benchmarks");
+println("──────────────────────────────────────────────────");
+
+// 1. Recursive Fibonacci Benchmark
+let fib = fn(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+};
+
+benchmark("fibonacci(15)", fn() {
+        let r = fib(15);
+    }, 200);
+
+// 2. Tight VM Loop Benchmark (1,000 iterations per op)
+benchmark("tight_loop_sum_1k", fn() {
+        let sum = 0;
+        let i = 0;
+        while (i < 1000) {
+            sum = sum + i;
+            i = i + 1;
+        }
+    }, 500);
+
+// 3. Matrix Multiplication Benchmark
+let m1 = matrix([[1.2, 2.3], [3.4, 4.5]]);
+let m2 = matrix([[5.6, 6.7], [7.8, 8.9]]);
+benchmark("matrix_2x2_mul", fn() {
+        let res = m1.mul(m2);
+    }, 5000);
+
+// 4. JSON Serialization & Deserialization Benchmark
+let testObj = {
+    "id": 1001,
+    "user": "antigravity",
+    "scores": [98.5, 99.2, 95.0],
+    "meta": {"active": true, "role": "admin"}
+};
+benchmark("json_roundtrip", fn() {
+        let s = json_stringify(testObj);
+        let o = json_parse(s);
+    }, 2000);
+
+// 5. Vector Cosine Similarity Search Benchmark
+let queryVec = [0.15, 0.82, 0.44, 0.31, 0.95];
+let docs = [];
+let idx = 0;
+while (idx < 50) {
+    push(docs, {
+            "id": idx,
+            "embedding": [0.10 + idx * 0.01, 0.80, 0.40, 0.30, 0.90]
+    });
+    idx = idx + 1;
+}
+benchmark("vector_search_50_docs", fn() {
+        let matches = vector_search(queryVec, docs, "embedding", 5);
+    }, 1000);
+
+println("──────────────────────────────────────────────────");
+println("[OK] All benchmarks completed successfully!");

@@ -1,0 +1,53 @@
+// tests/04_concurrency_io_test.bmd
+// BramandScript Regression Test Suite: Concurrency, Channels, Mutex & File I/O
+
+describe("Concurrency and Channels", fn() {
+        test("Spawn and Channel message passing", fn() {
+                let ch = chan(2);
+                spawn fn() {
+                    ch <- "message from task";
+                }();
+
+                let received = <- ch;
+                assert_eq(received, "message from task");
+        });
+
+        test("Mutex lock synchronization", fn() {
+                let m = mutex();
+                m.lock();
+                let locked = m.try_lock();
+                assert_eq(locked, false);
+                m.unlock();
+
+                let acquired = m.try_lock();
+                assert_eq(acquired, true);
+                m.unlock();
+        });
+});
+
+describe("System File I/O and Environment", fn() {
+        test("File write, read, append and delete", fn() {
+                let testPath = "test_io_temp.txt";
+                write_file(testPath, "BramandScript Engine");
+                assert(file_exists(testPath));
+
+                let content = read_file(testPath);
+                assert_eq(content, "BramandScript Engine");
+
+                append_file(testPath, " [Verified]");
+                let updated = read_file(testPath);
+                assert_eq(updated, "BramandScript Engine [Verified]");
+
+                delete_file(testPath);
+                assert(!file_exists(testPath));
+        });
+
+        test("Environment variables and process exec", fn() {
+                set_env("BMD_TEST_VAR", "antigravity_ok");
+                assert_eq(env("BMD_TEST_VAR"), "antigravity_ok");
+
+                let res = exec("echo", "Hello from exec");
+                assert_eq(res["code"], 0);
+                assert(len(res["stdout"]) > 0);
+        });
+});

@@ -126,11 +126,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.ExpressionStatement:
 		if fnLit, ok := node.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
+			symbol := c.symbolTable.Define(fnLit.Name, false)
 			err := c.Compile(node.Expression)
 			if err != nil {
 				return err
 			}
-			symbol := c.symbolTable.Define(fnLit.Name, false)
 			if symbol.Scope == GlobalScope {
 				c.emit(code.OpSetGlobal, symbol.Index)
 			} else {
@@ -560,6 +560,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
+		} else if !c.lastInstructionIs(code.OpReturnValue) && !c.lastInstructionIs(code.OpReturn) {
+			c.emit(code.OpNull)
 		}
 
 		jumpPos := c.emit(code.OpJump, 9999)
@@ -576,6 +578,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 			if c.lastInstructionIs(code.OpPop) {
 				c.removeLastPop()
+			} else if !c.lastInstructionIs(code.OpReturnValue) && !c.lastInstructionIs(code.OpReturn) {
+				c.emit(code.OpNull)
 			}
 		}
 

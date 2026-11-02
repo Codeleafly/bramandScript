@@ -82,9 +82,9 @@
 ---
 
 ## Day 7: Developer Tooling, Verification, Docs & Release Candidate
-- [ ] `bramand test` CLI test runner
-- [ ] `bramand fmt` code formatter
-- [ ] Full end-to-end regression & benchmark tests
-- [ ] Complete Language Specification & Standard Library Documentation
-- [ ] Example programs suite
-- [ ] Termux/Linux ARM64 standalone release binary build
+- [x] `bramand test` CLI test runner
+- [x] `bramand fmt` code formatter
+- [x] Full end-to-end regression & benchmark tests
+- [x] Complete Language Specification & Standard Library Documentation
+- [x] Example programs suite
+- [x] Termux/Linux ARM64 standalone release binary build

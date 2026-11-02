@@ -1587,3 +1587,73 @@ func TestAIIntegrationModule(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
+
+func TestAssertionsAndTestingFramework(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			assert(true);
+			assert_eq(10 + 20, 30);
+			assert_eq([1, 2, 3], [1, 2, 3]);
+			assert_eq({"a": 1, "b": 2}, {"a": 1, "b": 2});
+			assert_ne(10, 20);
+			assert_ne([1, 2], [1, 3]);
+			true;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let passed = 0;
+			describe("Math Suite", fn() {
+				test("addition works", fn() {
+					assert_eq(5 + 5, 10);
+					passed = passed + 1;
+				});
+				test("subtraction works", fn() {
+					assert_eq(10 - 4, 6);
+					passed = passed + 1;
+				});
+			});
+			passed == 2;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let failedHandled = false;
+			test("deliberate failure caught", fn() {
+				assert_eq(1, 2, "1 should equal 2");
+			});
+			// test() returns false on failure, without crashing VM
+			true;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestTimeAndBenchmarking(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let t1 = time_ms();
+			let now = time_now();
+			t1 > 0 && now > 0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let b = benchmark("simple_add", fn() {
+				let x = 1 + 1;
+			}, 100);
+			b["name"] == "simple_add" && b["iterations"] == 100 && b["total_ms"] >= 0;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+

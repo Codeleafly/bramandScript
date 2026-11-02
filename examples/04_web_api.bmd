@@ -1,0 +1,52 @@
+// examples/04_web_api.bmd
+// Production HTTP Web Server with REST Routing & Middleware
+
+println("✦ BramandScript HTTP REST API Engine");
+println("──────────────────────────────────────────────────");
+
+let app = http_server();
+let port = "24001";
+let address = "127.0.0.1:" + port;
+
+// Middleware: Request logger
+app.use(fn(req, res) {
+        // Log incoming request
+});
+
+// REST Endpoints
+app.get("/api/health", fn(req, res) {
+        res.json({
+                "status": "healthy",
+                "runtime": "BramandScript VM",
+                "version": "0.2.0"
+        });
+});
+
+app.post("/api/echo", fn(req, res) {
+        let payload = json_parse(req.body);
+        res.json({
+                "echo": payload,
+                "timestamp": time_ms()
+        });
+});
+
+// Start server
+app.listen(address);
+println("HTTP Server listening at http://" + address);
+
+// Perform client requests
+let healthResp = http_get("http://" + address + "/api/health");
+println("\n[1] GET /api/health:");
+println("  Status Code:", healthResp["status"]);
+println("  Body:       ", healthResp["body"]);
+
+let echoResp = http_post("http://" + address + "/api/echo", json_stringify({"greeting": "Hello Web"}));
+println("\n[2] POST /api/echo:");
+println("  Status Code:", echoResp["status"]);
+println("  Body:       ", echoResp["body"]);
+
+// Shutdown
+app.close();
+println("\nServer gracefully stopped.");
+println("──────────────────────────────────────────────────");
+println("[OK] Web API demonstration complete!");

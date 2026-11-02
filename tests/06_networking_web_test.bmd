@@ -1,0 +1,73 @@
+// tests/06_networking_web_test.bmd
+// BramandScript Regression Test Suite: Sockets, HTTP, WebSockets & Vector Search
+
+describe("TCP & UDP Socket Communications", fn() {
+        test("TCP echo server and client", fn() {
+                let srv = tcp_listen("127.0.0.1:23001");
+                assert(len(srv.addr) > 0);
+
+                spawn fn() {
+                    let conn = srv.accept();
+                    let line = conn.read_line();
+                    conn.write("ECHO: " + line + "\n");
+                    conn.close();
+                }();
+
+                let client = tcp_connect("127.0.0.1:23001");
+                client.write("Ping\n");
+                let resp = client.read_line();
+                client.close();
+                srv.close();
+
+                assert_eq(resp, "ECHO: Ping");
+        });
+});
+
+describe("HTTP Web Server and Client", fn() {
+        test("HTTP GET and POST endpoints", fn() {
+                let app = http_server();
+                app.get("/hello", fn(req, res) {
+                        res.json({"status": "ok", "message": "hello world"});
+                });
+                app.listen("127.0.0.1:23002");
+
+                let response = http_get("http://127.0.0.1:23002/hello");
+                app.close();
+
+                assert_eq(response["status_code"], 200);
+                let body = json_parse(response["body"]);
+                assert_eq(body["status"], "ok");
+                assert_eq(body["message"], "hello world");
+        });
+});
+
+describe("Vector Similarity and AI Embeddings", fn() {
+        test("Cosine similarity and distance", fn() {
+                let v1 = [1.0, 0.0, 0.0];
+                let v2 = [1.0, 0.0, 0.0];
+                let v3 = [0.0, 1.0, 0.0];
+
+                let simIdentical = cosine_similarity(v1, v2);
+                assert_eq(simIdentical, 1.0);
+
+                let distIdentical = cosine_distance(v1, v2);
+                assert_eq(distIdentical, 0.0);
+
+                let simOrthogonal = cosine_similarity(v1, v3);
+                assert_eq(simOrthogonal, 0.0);
+        });
+
+        test("Vector search nearest neighbors", fn() {
+                let query = [1.0, 0.0, 0.0];
+                let candidates = [
+                    {"id": "doc1", "vec": [0.99, 0.05, 0.0]},
+                    {"id": "doc2", "vec": [0.0, 1.0, 0.0]},
+                    {"id": "doc3", "vec": [0.85, 0.1, 0.0]}
+                ];
+
+                let results = vector_search(query, candidates, 2);
+                assert_eq(len(results), 2);
+                assert_eq(results[0]["item"]["id"], "doc1");
+                assert_eq(results[1]["item"]["id"], "doc3");
+        });
+});

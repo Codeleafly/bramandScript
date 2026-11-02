@@ -1,0 +1,63 @@
+// tests/01_language_foundation_test.bmd
+// BramandScript Regression Test Suite: Language Foundation
+
+describe("Literals and Primitive Types", fn() {
+        test("Integer literals and arithmetic", fn() {
+                let a = 42;
+                let b = 10;
+                assert_eq(a + b, 52);
+                assert_eq(a - b, 32);
+                assert_eq(a * b, 420);
+                assert_eq(a / b, 4);
+                assert_eq(a % b, 2);
+                assert_eq(2 ** 10, 1024);
+        });
+
+        test("Float literals and arithmetic", fn() {
+                let x = 3.14;
+                let y = 2.0;
+                assert(x > 3.0);
+                assert(x < 4.0);
+                assert_eq(y * 2.5, 5.0);
+        });
+
+        test("String operations and escapes", fn() {
+                let greeting = "Hello, " + "BramandScript!";
+                assert_eq(greeting, "Hello, BramandScript!");
+                assert_eq(len(greeting), 21);
+        });
+
+        test("Boolean and Null literals", fn() {
+                assert_eq(true, true);
+                assert_eq(false, false);
+                assert_ne(true, false);
+                assert_eq(null, null);
+                assert_ne(null, 0);
+        });
+});
+
+describe("Comparison and Logical Operators", fn() {
+        test("Relational comparisons", fn() {
+                assert(10 > 5);
+                assert(5 < 10);
+                assert(10 >= 10);
+                assert(10 <= 10);
+                assert(10 == 10);
+                assert(10 != 20);
+        });
+
+        test("Logical short-circuit evaluation", fn() {
+                assert(true && true);
+                assert(!(true && false));
+                assert(true || false);
+                assert(!(false || false));
+        });
+
+        test("Variable assignments and updates", fn() {
+                let counter = 0;
+                counter = counter + 5;
+                assert_eq(counter, 5);
+                counter = counter * 2;
+                assert_eq(counter, 10);
+        });
+});

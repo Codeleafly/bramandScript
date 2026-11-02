@@ -1,0 +1,78 @@
+// tests/02_functions_closures_test.bmd
+// BramandScript Regression Test Suite: Functions, Closures, Control Flow
+
+let fib = fn(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+};
+
+describe("Functions and Closures", fn() {
+        test("Basic functions and recursion", fn() {
+                assert_eq(fib(7), 13);
+        });
+
+        test("Lexical closures and captured state", fn() {
+                let makeCounter = fn(start) {
+                    let count = start;
+                    return fn() {
+                        count = count + 1;
+                        return count;
+                    };
+                };
+
+                let c1 = makeCounter(10);
+                let c2 = makeCounter(100);
+
+                assert_eq(c1(), 11);
+                assert_eq(c1(), 12);
+                assert_eq(c2(), 101);
+                assert_eq(c1(), 13);
+        });
+
+        test("Higher-order functions", fn() {
+                let apply = fn(f, x) {
+                    return f(x);
+                };
+                let double = fn(x) {
+                    return x * 2;
+                };
+                assert_eq(apply(double, 21), 42);
+        });
+});
+
+describe("Control Flow and Loops", fn() {
+        test("If, else if, else branching", fn() {
+                let classify = fn(score) {
+                    if (score >= 90) {
+                        return "A";
+                    } else if (score >= 80) {
+                        return "B";
+                    } else {
+                        return "C";
+                    }
+                };
+
+                assert_eq(classify(95), "A");
+                assert_eq(classify(85), "B");
+                assert_eq(classify(70), "C");
+        });
+
+        test("While loop with break and continue", fn() {
+                let sum = 0;
+                let i = 0;
+                while (i < 10) {
+                    i = i + 1;
+                    if (i % 2 == 0) {
+                        continue;
+                    }
+                    if (i > 7) {
+                        break;
+                    }
+                    sum = sum + i;
+                }
+                // Odd numbers added: 1 + 3 + 5 + 7 = 16
+                assert_eq(sum, 16);
+        });
+});

@@ -41,18 +41,18 @@ println("");
 println("[3] Built-in HTTP Web Server & Client");
 let webSrv = http_server();
 webSrv.get("/api/info", fn(req, res) {
-    res.json({
-        "name": "BramandScript",
-        "stage": "Day 6 Complete",
-        "status": 200
-    });
+        res.json({
+                "name": "BramandScript",
+                "stage": "Day 6 Complete",
+                "status": 200
+        });
 });
 webSrv.post("/api/echo", fn(req, res) {
-    let payload = req.json();
-    res.status(201).json({
-        "echo": payload,
-        "received_at": "now"
-    });
+        let payload = req.json();
+        res.status(201).json({
+                "echo": payload,
+                "received_at": "now"
+        });
 });
 webSrv.listen("127.0.0.1:19983");
 
@@ -98,8 +98,8 @@ println("  Manhattan Distance:  " + manhattan_distance(vec([1, 2]), vec([4, 6]))
 let queryEmbedding = vec([0.9, 0.1, 0.0]);
 let candidates = [
     {"title": "Machine Learning in Bramand", "embedding": vec([0.88, 0.12, 0.01])},
-    {"title": "Cooking Recipes",             "embedding": vec([0.05, 0.85, 0.52])},
-    {"title": "Deep Neural Networks",        "embedding": vec([0.92, 0.08, 0.02])}
+    {"title": "Cooking Recipes", "embedding": vec([0.05, 0.85, 0.52])},
+    {"title": "Deep Neural Networks", "embedding": vec([0.92, 0.08, 0.02])}
 ];
 let searchResults = vector_search(queryEmbedding, candidates, 2, "cosine");
 println("  Vector Search Top Result: " + searchResults[0]["item"]["title"] + " (score=" + searchResults[0]["score"] + ")");
@@ -110,30 +110,30 @@ println("");
 println("[6] AI Integration Module (Streaming & Structured JSON)");
 let mockAiSrv = http_server();
 mockAiSrv.post("/api/generate", fn(req, res) {
-    res.set_header("Content-Type", "text/event-stream");
-    res.send("data: {\"response\": \"High \"}\n\ndata: {\"response\": \"performance \"}\n\ndata: {\"response\": \"Bytecode VM!\"}\n\ndata: [DONE]\n\n");
+        res.set_header("Content-Type", "text/event-stream");
+        res.send("data: {\"response\": \"High \"}\n\ndata: {\"response\": \"performance \"}\n\ndata: {\"response\": \"Bytecode VM!\"}\n\ndata: [DONE]\n\n");
 });
 mockAiSrv.post("/api/structured", fn(req, res) {
-    res.json({
-        "status": "ready",
-        "category": "Systems Language",
-        "score": 99.8
-    });
+        res.json({
+                "status": "ready",
+                "category": "Systems Language",
+                "score": 99.8
+        });
 });
 mockAiSrv.listen("127.0.0.1:19985");
 
 let streamedTokens = [];
 let fullText = ai_stream({"url": "http://127.0.0.1:19985/api/generate", "body": "{}"}, fn(token) {
-    streamedTokens = push(streamedTokens, token);
+        streamedTokens = push(streamedTokens, token);
 });
 println("  Streamed Token Count: " + len(streamedTokens));
 println("  Streamed Full Text:   " + fullText);
 
 let structuredResp = ai_structured({
-    "model": "local-llm",
-    "prompt": "Analyze BramandScript",
-    "endpoint": "http://127.0.0.1:19985/api/structured"
-}, {"status": "string", "category": "string", "score": 0.0});
+        "model": "local-llm",
+        "prompt": "Analyze BramandScript",
+        "endpoint": "http://127.0.0.1:19985/api/structured"
+    }, {"status": "string", "category": "string", "score": 0.0});
 
 println("  Structured Output Category: " + structuredResp["category"]);
 println("  Structured Output Score:    " + structuredResp["score"]);

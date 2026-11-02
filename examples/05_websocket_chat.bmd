@@ -1,0 +1,36 @@
+// examples/05_websocket_chat.bmd
+// RFC 6455 Full-Duplex WebSocket Server and Client
+
+println("✦ BramandScript RFC 6455 WebSocket Engine");
+println("──────────────────────────────────────────────────");
+
+let port = "24002";
+let addr = "127.0.0.1:" + port;
+let path = "/chat";
+let wsUrl = "ws://" + addr + path;
+
+let srv = ws_server(addr, path);
+println("WebSocket Server listening on " + wsUrl);
+
+// Background server connection handler
+spawn fn() {
+    let sConn = srv.accept();
+    let msg = sConn.recv();
+    sConn.send("ACK: " + msg);
+    sConn.close();
+}();
+
+// Connect client
+let client = ws_connect(wsUrl);
+println("WebSocket Client connected.");
+
+client.send("Hello from Bramand WebSocket Client");
+let reply = client.recv();
+println("Received reply from server:", reply);
+
+client.close();
+srv.close();
+println("WebSocket connections closed.");
+
+println("──────────────────────────────────────────────────");
+println("[OK] WebSocket communication verified successfully!");

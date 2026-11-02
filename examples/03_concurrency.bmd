@@ -1,0 +1,59 @@
+// examples/03_concurrency.bmd
+// Multi-threaded Concurrency, Channels & Mutex Synchronization
+
+println("✦ BramandScript Concurrency & Channels");
+println("──────────────────────────────────────────────────");
+
+let numWorkers = 3;
+let jobs = chan(5);
+let results = chan(5);
+let m = mutex();
+let completed = 0;
+
+// Worker pool tasks
+let worker = fn(id) {
+    let active = true;
+    while (active) {
+        let job = <- jobs;
+        if (job == "STOP") {
+            active = false;
+        } else {
+            let processed = "Worker-" + str(id) + " processed " + job;
+            results <- processed;
+
+            m.lock();
+            completed = completed + 1;
+            m.unlock();
+        }
+    }
+};
+
+// Spawn workers
+let wId = 1;
+while (wId <= numWorkers) {
+    spawn fn(id) { worker(id); }(wId);
+    wId = wId + 1;
+}
+
+// Send tasks
+jobs <- "Job-A";
+jobs <- "Job-B";
+jobs <- "Job-C";
+jobs <- "STOP";
+jobs <- "STOP";
+jobs <- "STOP";
+
+// Collect results
+let rCount = 0;
+while (rCount < 3) {
+    let r = <- results;
+    println("  ❯", r);
+    rCount = rCount + 1;
+}
+
+m.lock();
+println("\nTotal jobs completed under mutex lock:", completed);
+m.unlock();
+
+println("──────────────────────────────────────────────────");
+println("[OK] Concurrency pipeline completed successfully!");

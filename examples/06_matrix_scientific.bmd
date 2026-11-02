@@ -1,0 +1,38 @@
+// examples/06_matrix_scientific.bmd
+// Scientific Computing: Linear Algebra, Big Numbers & Statistics
+
+println("✦ BramandScript Scientific Computing");
+println("──────────────────────────────────────────────────");
+
+// 1. Arbitrary-precision BigInt
+let bi1 = bigint("987654321098765432109876543210");
+let bi2 = bigint("123456789012345678901234567890");
+let biProduct = bi1.mul(bi2);
+println("[1] 256-bit BigInt Multiplication:");
+println("  A: ", bi1.to_string());
+println("  B: ", bi2.to_string());
+println("  A * B = ", biProduct.to_string());
+
+// 2. Matrix Transformations
+let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+let m2 = matrix([[2.0, 0.0], [1.0, 2.0]]);
+let mMul = m1.mul(m2);
+
+println("\n[2] Matrix Linear Algebra:");
+println("  M1 * M2 = [[" + str(mMul.get(0, 0)) + ", " + str(mMul.get(0, 1)) + "], [" + str(mMul.get(1, 0)) + ", " + str(mMul.get(1, 1)) + "]]");
+
+// 3. Vector operations
+let v1 = vector([3.0, 4.0, 0.0]);
+println("\n[3] 3D Vector:");
+println("  Magnitude of [3, 4, 0] =", v1.magnitude());
+
+// 4. Statistical analysis
+let sampleData = [12.5, 18.2, 14.1, 19.8, 22.4, 15.6, 17.3];
+println("\n[4] Statistical Standard Library:");
+println("  Mean:     ", mean(sampleData));
+println("  Median:   ", median(sampleData));
+println("  Variance: ", variance(sampleData));
+println("  Std Dev:  ", std_dev(sampleData));
+
+println("──────────────────────────────────────────────────");
+println("[OK] Scientific calculations completed successfully!");
