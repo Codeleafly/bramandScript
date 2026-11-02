@@ -1,0 +1,5 @@
+# robots.txt for BramandScript Documentation
+User-agent: *
+Allow: /
+
+Sitemap: https://codeleafly.github.io/bramandScript/sitemap.xml
