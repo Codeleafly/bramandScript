@@ -48,15 +48,15 @@
 ---
 
 ## Day 4: Concurrency, Async/Await & OS/Filesystem
-- [ ] Concurrency primitives: `spawn` (lightweight tasks)
-- [ ] Channels & message passing (`chan`)
-- [ ] Mutexes & lock synchronization
-- [ ] File I/O: read, write, append, delete, permissions
-- [ ] Process execution & environment variables
-- [ ] Standard I/O (stdin, stdout, stderr) & ANSI terminal formatting
-- [ ] Day 4 test suite verification
+- [x] Concurrency primitives: `spawn` (lightweight tasks)
+- [x] Channels & message passing (`chan`)
+- [x] Mutexes & lock synchronization
+- [x] File I/O: read, write, append, delete, permissions
+- [x] Process execution & environment variables
+- [x] Standard I/O (stdin, stdout, stderr) & ANSI terminal formatting
+- [x] Day 4 test suite verification
 
-- [ ] Package & Library Manager CLI (centralized install in $HOME/.bramand_libs/ with versioning)
+- [x] Package & Library Manager CLI (centralized install in $HOME/.bramand_libs/ with versioning)
 ---
 
 ## Day 5: Mathematics, Scientific Computing & Serialization

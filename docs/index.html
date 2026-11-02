@@ -215,6 +215,16 @@
         </div>
 
         <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Concurrency & System I/O</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch-concurrency" class="nav-link"><span>✦</span> Concurrency & Tasks</a></li>
+            <li><a href="#ch-channels" class="nav-link"><span>✦</span> Channels & Message Passing</a></li>
+            <li><a href="#ch-mutex" class="nav-link"><span>✦</span> Mutex & Synchronization</a></li>
+            <li><a href="#ch-fileio" class="nav-link"><span>✦</span> File I/O & Process Exec</a></li>
+          </ul>
+        </div>
+
+        <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem & Architecture</h3>
           <ul class="space-y-1">
             <li><a href="#ch14" class="nav-link"><span>14.</span> Modules & Package Store</a></li>
@@ -976,6 +986,148 @@ Fib(10) = 55</code></pre>
         </div>
       </section>
 
+      <!-- ================= CONCURRENCY & TASKS ================= -->
+      <section id="ch-concurrency" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Concurrency</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Lightweight Tasks with <code>spawn</code></h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides native concurrency via the <code class="font-mono text-blue-600 dark:text-blue-400 font-bold">spawn</code> keyword. Calling a function or closure with <code class="font-mono">spawn</code> dispatches execution into a lightweight Go goroutine with an isolated stack, safe argument passing, and independent call frames, all sharing a thread-safe globals store.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Concurrency with spawn</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">fn</span> <span class="token-fn">worker</span>(<span class="token-fn">id</span>) {
+    <span class="token-fn">println</span>(<span class="token-str">"Worker"</span>, <span class="token-fn">id</span>, <span class="token-str">"is running in background"</span>)
+}
+
+<span class="token-comment">// Spawn named function</span>
+<span class="token-kw">spawn</span> <span class="token-fn">worker</span>(<span class="token-num">1</span>)
+
+<span class="token-comment">// Spawn anonymous closure</span>
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-fn">println</span>(<span class="token-str">"Anonymous task completed"</span>)
+}()</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= CHANNELS & MESSAGE PASSING ================= -->
+      <section id="ch-channels" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Message Passing</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Channels & Synchronized Communication</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Channels allow concurrent tasks to communicate safely and synchronize execution without explicit locking. Created using the <code class="font-mono">chan([capacity])</code> builtin, channels support unbuffered and buffered message queues.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Channel send & receive</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// 1. Unbuffered rendezvous channel</span>
+<span class="token-kw">let</span> <span class="token-fn">ch</span> <span class="token-op">=</span> <span class="token-fn">chan</span>()
+
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-fn">ch</span> <span class="token-op">&lt;-</span> <span class="token-num">42</span> <span class="token-comment">// Send value into channel</span>
+}()
+
+<span class="token-kw">let</span> <span class="token-fn">result</span> <span class="token-op">=</span> <span class="token-op">&lt;-</span><span class="token-fn">ch</span> <span class="token-comment">// Blocks until received</span>
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">result</span>)
+
+<span class="token-comment">// 2. Buffered channel & close()</span>
+<span class="token-kw">let</span> <span class="token-fn">queue</span> <span class="token-op">=</span> <span class="token-fn">chan</span>(<span class="token-num">2</span>)
+<span class="token-fn">queue</span> <span class="token-op">&lt;-</span> <span class="token-str">"Alpha"</span>
+<span class="token-fn">queue</span> <span class="token-op">&lt;-</span> <span class="token-str">"Beta"</span>
+<span class="token-fn">close</span>(<span class="token-fn">queue</span>)
+
+<span class="token-fn">println</span>(<span class="token-op">&lt;-</span><span class="token-fn">queue</span>) <span class="token-comment">// "Alpha"</span>
+<span class="token-fn">println</span>(<span class="token-op">&lt;-</span><span class="token-fn">queue</span>) <span class="token-comment">// "Beta"</span></code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MUTEX & SYNCHRONIZATION ================= -->
+      <section id="ch-mutex" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-amber">Synchronization</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Mutexes & WaitGroups</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For shared mutable state, BramandScript includes native <code class="font-mono">mutex()</code> locks and <code class="font-mono">wait_group()</code> coordination barriers.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Thread safety with mutex & wait_group</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">let</span> <span class="token-fn">m</span> <span class="token-op">=</span> <span class="token-fn">mutex</span>()
+<span class="token-kw">let</span> <span class="token-fn">wg</span> <span class="token-op">=</span> <span class="token-fn">wait_group</span>()
+
+<span class="token-kw">let</span> <span class="token-fn">counter</span> <span class="token-op">=</span> <span class="token-num">0</span>
+<span class="token-fn">wg</span>.<span class="token-fn">add</span>(<span class="token-num">2</span>)
+
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-fn">m</span>.<span class="token-fn">lock</span>()
+    <span class="token-fn">counter</span> <span class="token-op">+=</span> <span class="token-num">1</span>
+    <span class="token-fn">m</span>.<span class="token-fn">unlock</span>()
+    <span class="token-fn">wg</span>.<span class="token-fn">done</span>()
+}()
+
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-fn">m</span>.<span class="token-fn">lock</span>()
+    <span class="token-fn">counter</span> <span class="token-op">+=</span> <span class="token-num">1</span>
+    <span class="token-fn">m</span>.<span class="token-fn">unlock</span>()
+    <span class="token-fn">wg</span>.<span class="token-fn">done</span>()
+}()
+
+<span class="token-fn">wg</span>.<span class="token-fn">wait</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Safe counter:"</span>, <span class="token-fn">counter</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= FILE I/O & PROCESS EXEC ================= -->
+      <section id="ch-fileio" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">System I/O</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">File I/O & Process Execution</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides complete system file I/O and process execution capabilities directly in standard library.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — File I/O & subprocess execution</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// File Operations</span>
+<span class="token-fn">write_file</span>(<span class="token-str">"data.txt"</span>, <span class="token-str">"First line\n"</span>)
+<span class="token-fn">append_file</span>(<span class="token-str">"data.txt"</span>, <span class="token-str">"Second line\n"</span>)
+<span class="token-kw">let</span> <span class="token-fn">content</span> <span class="token-op">=</span> <span class="token-fn">read_file</span>(<span class="token-str">"data.txt"</span>)
+<span class="token-fn">println</span>(<span class="token-fn">content</span>)
+<span class="token-fn">delete_file</span>(<span class="token-str">"data.txt"</span>)
+
+<span class="token-comment">// Process execution via exec()</span>
+<span class="token-kw">let</span> <span class="token-fn">res</span> <span class="token-op">=</span> <span class="token-fn">exec</span>(<span class="token-str">"git"</span>, [<span class="token-str">"status"</span>, <span class="token-str">"-s"</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Git code:"</span>, <span class="token-fn">res</span>.<span class="token-fn">code</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Git output:"</span>, <span class="token-fn">res</span>.<span class="token-fn">stdout</span>)
+
+<span class="token-comment">// Environment Variables</span>
+<span class="token-fn">set_env</span>(<span class="token-str">"APP_ENV"</span>, <span class="token-str">"production"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Environment:"</span>, <span class="token-fn">env</span>(<span class="token-str">"APP_ENV"</span>))</code></pre>
+        </div>
+      </section>
+
       <!-- ================= CHAPTER 14 ================= -->
       <section id="ch14" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
@@ -1020,6 +1172,29 @@ Fib(10) = 55</code></pre>
         <p class="text-slate-600 dark:text-slate-300">
           Remote and package modules are stored in a centralized cache directory at <code class="font-mono">$HOME/.bramand_libs/&lt;package&gt;@&lt;version&gt;/</code>. This eliminates bloat, preventing repeated downloads across distinct project roots.
         </p>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Package Manager CLI (<code class="font-mono">bramand pkg</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-4">
+          Manage, install, and list packages globally in your environment using the unified CLI tool:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — Package Manager Commands</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment"># List all installed global packages</span>
+bramand pkg list
+
+<span class="token-comment"># Install a package from local directory or file</span>
+bramand pkg install ./my_pkg math@1.0.0
+
+<span class="token-comment"># Remove package</span>
+bramand pkg remove math@1.0.0
+
+<span class="token-comment"># Scaffold new library package with index.bmd</span>
+bramand pkg init logger@0.1.0</code></pre>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 15 ================= -->
@@ -1137,6 +1312,111 @@ Fib(10) = 55</code></pre>
                 <td><code class="font-mono font-bold">exit</code></td>
                 <td><code class="font-mono">exit([code])</code></td>
                 <td>Terminates current process immediately with optional exit status code (defaults to 0).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">chan</code></td>
+                <td><code class="font-mono">chan([capacity])</code></td>
+                <td>Creates an unbuffered or buffered channel of runtime objects for thread-safe message passing.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">close</code></td>
+                <td><code class="font-mono">close(channel)</code></td>
+                <td>Closes a channel. Senders can no longer send; receivers receive remaining messages then null.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">mutex</code></td>
+                <td><code class="font-mono">mutex()</code></td>
+                <td>Instantiates a mutual exclusion lock with <code class="font-mono">.lock()</code>, <code class="font-mono">.unlock()</code>, and <code class="font-mono">.try_lock()</code> methods.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">wait_group</code></td>
+                <td><code class="font-mono">wait_group()</code></td>
+                <td>Instantiates a synchronization barrier with <code class="font-mono">.add(n)</code>, <code class="font-mono">.done()</code>, and <code class="font-mono">.wait()</code> methods.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sleep</code></td>
+                <td><code class="font-mono">sleep(milliseconds)</code></td>
+                <td>Pauses current execution thread for the given number of milliseconds.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_file</code></td>
+                <td><code class="font-mono">read_file(path)</code></td>
+                <td>Reads entire file contents as a <code class="font-mono">STRING</code> (or returns error).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">write_file</code></td>
+                <td><code class="font-mono">write_file(path, content)</code></td>
+                <td>Writes content to file at path. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">append_file</code></td>
+                <td><code class="font-mono">append_file(path, content)</code></td>
+                <td>Appends content to file at path. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">delete_file</code></td>
+                <td><code class="font-mono">delete_file(path)</code></td>
+                <td>Removes file from filesystem. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">file_exists</code></td>
+                <td><code class="font-mono">file_exists(path)</code></td>
+                <td>Returns <code class="font-mono">true</code> if file or directory exists at path, otherwise <code class="font-mono">false</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">list_dir</code></td>
+                <td><code class="font-mono">list_dir([path])</code></td>
+                <td>Lists directory contents as an <code class="font-mono">ARRAY</code> of entry names. Defaults to <code class="font-mono">"."</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">chmod</code></td>
+                <td><code class="font-mono">chmod(path, mode)</code></td>
+                <td>Changes file permissions mode (e.g. <code class="font-mono">0755</code>). Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">is_dir</code></td>
+                <td><code class="font-mono">is_dir(path)</code></td>
+                <td>Returns <code class="font-mono">true</code> if the specified path is a directory.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">env</code></td>
+                <td><code class="font-mono">env([key])</code></td>
+                <td>Returns environment variable value as <code class="font-mono">STRING</code>, or full environment as <code class="font-mono">HASH</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">set_env</code></td>
+                <td><code class="font-mono">set_env(key, value)</code></td>
+                <td>Sets process environment variable. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exec</code></td>
+                <td><code class="font-mono">exec(command, [args])</code></td>
+                <td>Runs external process and returns <code class="font-mono">{ stdout, stderr, code }</code> hash object.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">eprint</code></td>
+                <td><code class="font-mono">eprint(arg1, ...)</code></td>
+                <td>Prints space-separated arguments to standard error stream (<code class="font-mono">os.Stderr</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">eprintln</code></td>
+                <td><code class="font-mono">eprintln(arg1, ...)</code></td>
+                <td>Prints space-separated arguments to standard error stream followed by a newline.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_line</code></td>
+                <td><code class="font-mono">read_line([prompt])</code></td>
+                <td>Reads a line of text from standard input stream (<code class="font-mono">os.Stdin</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">color</code></td>
+                <td><code class="font-mono">color(name, text)</code></td>
+                <td>Wraps text in standard ANSI color escape sequences (<code class="font-mono">"red"</code>, <code class="font-mono">"green"</code>, <code class="font-mono">"blue"</code>, etc.).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">styled</code></td>
+                <td><code class="font-mono">styled(text, style)</code></td>
+                <td>Wraps text in ANSI style escape sequences (<code class="font-mono">"bold"</code>, <code class="font-mono">"dim"</code>, <code class="font-mono">"italic"</code>, <code class="font-mono">"underline"</code>).</td>
               </tr>
             </tbody>
           </table>

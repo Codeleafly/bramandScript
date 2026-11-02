@@ -654,3 +654,181 @@ func TestModuleImport(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
+
+func TestSpawnAndChannels(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let ch = chan(1);
+			ch <- 100;
+			<-ch;
+			`,
+			expected: 100,
+		},
+		{
+			input: `
+			let ch = chan();
+			spawn fn() {
+				ch <- 42;
+			}();
+			<-ch;
+			`,
+			expected: 42,
+		},
+		{
+			input: `
+			let ch = chan(2);
+			ch <- 10;
+			ch <- 20;
+			let a = <-ch;
+			let b = <-ch;
+			a + b;
+			`,
+			expected: 30,
+		},
+		{
+			input: `
+			let ch = chan(5);
+			ch.capacity;
+			`,
+			expected: 5,
+		},
+		{
+			input: `
+			let ch = chan(1);
+			ch <- "ping";
+			close(ch);
+			<-ch;
+			`,
+			expected: "ping",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestMutexAndSynchronization(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let m = mutex();
+			m.lock();
+			m.unlock();
+			let ok = m.try_lock();
+			m.unlock();
+			ok;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let wg = wait_group();
+			let ch = chan(1);
+			wg.add(1);
+			spawn fn() {
+				ch <- 77;
+				wg.done();
+			}();
+			wg.wait();
+			<-ch;
+			`,
+			expected: 77,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestFileIO(t *testing.T) {
+	testFile := "test_day4_io.txt"
+	defer os.Remove(testFile)
+
+	tests := []vmTestCase{
+		{
+			input: `
+			write_file("test_day4_io.txt", "BramandScript Day 4");
+			file_exists("test_day4_io.txt");
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			read_file("test_day4_io.txt");
+			`,
+			expected: "BramandScript Day 4",
+		},
+		{
+			input: `
+			append_file("test_day4_io.txt", " Concurrency");
+			read_file("test_day4_io.txt");
+			`,
+			expected: "BramandScript Day 4 Concurrency",
+		},
+		{
+			input: `
+			delete_file("test_day4_io.txt");
+			file_exists("test_day4_io.txt");
+			`,
+			expected: false,
+		},
+		{
+			input: `
+			is_dir(".");
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let files = list_dir(".");
+			len(files) > 0;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestProcessExecutionAndEnv(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			set_env("BMD_DAY4_TEST", "verified");
+			env("BMD_DAY4_TEST");
+			`,
+			expected: "verified",
+		},
+		{
+			input: `
+			let res = exec("echo", "bramand");
+			res.code;
+			`,
+			expected: 0,
+		},
+		{
+			input: `
+			let res = exec("echo", "test_output");
+			res.stdout;
+			`,
+			expected: "test_output\n",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestStandardIOAndFormatting(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let colored = color("green", "OK");
+			colored == "\033[32mOK\033[0m";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let styledText = styled("HELLO", "bold");
+			styledText == "\033[1mHELLO\033[0m";
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}

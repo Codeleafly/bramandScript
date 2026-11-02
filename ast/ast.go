@@ -519,3 +519,17 @@ func (me *MatchExpression) String() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+type SpawnExpression struct {
+	Token token.Token // token.SPAWN
+	Call  Expression
+}
+
+func (se *SpawnExpression) expressionNode()      {}
+func (se *SpawnExpression) TokenLiteral() string { return se.Token.Literal }
+func (se *SpawnExpression) String() string {
+	if se.Call != nil {
+		return "spawn " + se.Call.String()
+	}
+	return "spawn"
+}

@@ -116,6 +116,18 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			"a * [1, 2, 3, 4][b * c] * d",
 			"((a * ([1, 2, 3, 4][(b * c)])) * d)",
 		},
+		{
+			"ch <- 42",
+			"(ch <- 42)",
+		},
+		{
+			"<-ch",
+			"(<-ch)",
+		},
+		{
+			"ch <- 1 + 2",
+			"(ch <- (1 + 2))",
+		},
 	}
 
 	for _, tt := range tests {
@@ -142,4 +154,38 @@ func checkParserErrors(t *testing.T, p *Parser) {
 		t.Errorf("parser error: %q", msg)
 	}
 	t.FailNow()
+}
+
+func TestSpawnParsing(t *testing.T) {
+	input := "spawn worker(10);"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	spawnExp, ok := stmt.Expression.(*ast.SpawnExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.SpawnExpression. got=%T", stmt.Expression)
+	}
+
+	callExp, ok := spawnExp.Call.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("spawnExp.Call is not *ast.CallExpression. got=%T", spawnExp.Call)
+	}
+
+	if callExp.Function.String() != "worker" {
+		t.Errorf("callExp.Function is not 'worker'. got=%s", callExp.Function.String())
+	}
+	if len(callExp.Arguments) != 1 {
+		t.Fatalf("callExp.Arguments does not contain 1 argument. got=%d", len(callExp.Arguments))
+	}
 }

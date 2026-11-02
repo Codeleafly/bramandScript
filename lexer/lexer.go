@@ -114,6 +114,10 @@ func (l *Lexer) NextToken() token.Token {
 			ch := l.ch
 			l.readChar()
 			tok = token.Token{Type: token.LTE, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+		} else if l.peekChar() == '-' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SEND_RECV, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else {
 			tok = newToken(token.LT, l.ch, curLine, curCol)
 		}
@@ -289,6 +293,20 @@ func (l *Lexer) readString() (string, bool) {
 				sb.WriteByte('\t')
 			case 'r':
 				sb.WriteByte('\r')
+			case 'e':
+				sb.WriteByte(0x1b)
+			case '0':
+				if l.peekChar() == '3' {
+					l.readChar()
+					if l.peekChar() == '3' {
+						l.readChar()
+						sb.WriteByte(0x1b)
+					} else {
+						sb.WriteByte(0)
+					}
+				} else {
+					sb.WriteByte(0)
+				}
 			case '\\':
 				sb.WriteByte('\\')
 			case '"':

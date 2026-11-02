@@ -8,6 +8,7 @@ import (
 	"bramandscript/parser"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -398,9 +399,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.ImportStatement:
 		c.currentLine = node.Token.Line
-		filePath := node.Path
-		if !strings.HasSuffix(filePath, ".bmd") {
-			filePath += ".bmd"
+		filePath, err := resolveModulePath(node.Path)
+		if err != nil {
+			return &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot import module '%s': %s", node.Path, err)}
 		}
 
 		if !c.importedModules[filePath] {
@@ -521,6 +522,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpAnd)
 		case "||":
 			c.emit(code.OpOr)
+		case "<-":
+			c.emit(code.OpSend)
 		default:
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
@@ -536,6 +539,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpBang)
 		case "-":
 			c.emit(code.OpMinus)
+		case "<-":
+			c.emit(code.OpReceive)
 		default:
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
@@ -821,6 +826,28 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 		c.emit(code.OpCall, len(node.Arguments))
+
+	case *ast.SpawnExpression:
+		c.currentLine = node.Token.Line
+		if call, ok := node.Call.(*ast.CallExpression); ok {
+			err := c.Compile(call.Function)
+			if err != nil {
+				return err
+			}
+			for _, a := range call.Arguments {
+				err := c.Compile(a)
+				if err != nil {
+					return err
+				}
+			}
+			c.emit(code.OpSpawn, len(call.Arguments))
+		} else {
+			err := c.Compile(node.Call)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpSpawn, 0)
+		}
 	}
 
 	return nil
@@ -913,4 +940,38 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Constants:    c.constants,
 		SourceMap:    c.scopes[c.scopeIndex].sourceLines,
 	}
+}
+
+func resolveModulePath(importPath string) (string, error) {
+	// 1. Check local path directly
+	candidates := []string{}
+	if strings.HasSuffix(importPath, ".bmd") {
+		candidates = append(candidates, importPath)
+	} else {
+		candidates = append(candidates, importPath+".bmd", filepath.Join(importPath, "index.bmd"))
+	}
+
+	for _, cand := range candidates {
+		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			return cand, nil
+		}
+	}
+
+	// 2. Centralized package cache check ($HOME/.bramand_libs)
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		libsDir := filepath.Join(homeDir, ".bramand_libs")
+		libCandidates := []string{
+			filepath.Join(libsDir, importPath, "index.bmd"),
+			filepath.Join(libsDir, importPath+".bmd"),
+			filepath.Join(libsDir, importPath),
+		}
+		for _, cand := range libCandidates {
+			if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+				return cand, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("module '%s' not found locally or in ~/.bramand_libs", importPath)
 }
