@@ -8,7 +8,7 @@ Verify BramandScript's string manipulation engine: concatenation, indexing, subs
 - String length measurement via both `len(str)` and `.length` property
 - Rune-aware character indexing (`str[i]`) returning single-character strings or `null` on out-of-bounds
 - Substring slicing via `slice(str, start, end)` and `substring(str, start, end)`
-- Multi-byte UTF-8 Unicode rune handling (`✦ नमस्ते Bramand 🚀`)
+- Multi-byte UTF-8 Unicode rune handling (`✦ नमस्ते Bramand ॐ`)
 - Delimited splitting via `split(str, sep)` returning array of tokens
 - Array joining via `join(arr, sep)` returning combined string
 - Whitespace trimming via `trim(str)`

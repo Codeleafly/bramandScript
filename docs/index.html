@@ -536,6 +536,11 @@ Fib(10) = 55</code></pre>
 <span class="token-comment">// Immutable constant</span>
 <span class="token-kw">const</span> <span class="token-fn">MAX_CONNECTIONS</span> <span class="token-op">=</span> <span class="token-num">1024</span>
 
+<span class="token-comment">// International Unicode Identifiers (Devanagari, CJK, Greek, Accented):</span>
+<span class="token-kw">let</span> <span class="token-fn">संदेश</span> <span class="token-op">=</span> <span class="token-str">"नमस्ते ब्रह्माण्ड"</span>
+<span class="token-kw">const</span> <span class="token-fn">संख्या</span> <span class="token-op">=</span> <span class="token-num">108</span>
+<span class="token-kw">let</span> <span class="token-fn">変数</span> <span class="token-op">=</span> <span class="token-num">42</span>
+
 <span class="token-comment">// Trying to reassign a const raises a CompileError:</span>
 <span class="token-comment">// MAX_CONNECTIONS = 2048 // error[CompileError]: cannot reassign to constant variable 'MAX_CONNECTIONS'</span></code></pre>
         </div>
@@ -2196,6 +2201,76 @@ bramand pkg init logger@0.1.0</code></pre>
                 <td><code class="font-mono font-bold">benchmark</code></td>
                 <td><code class="font-mono">benchmark(name, fn, [iterations])</code></td>
                 <td>Executes benchmark loop and returns metrics hash with ops/sec and latency stats.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">args</code></td>
+                <td><code class="font-mono">args()</code></td>
+                <td>Returns command-line arguments passed to the script as an <code class="font-mono">ARRAY</code> of strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">argv</code></td>
+                <td><code class="font-mono">argv()</code></td>
+                <td>Alias to <code class="font-mono">args()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">substring</code></td>
+                <td><code class="font-mono">substring(str, start, [end])</code></td>
+                <td>Extracts a rune-accurate substring from index <code class="font-mono">start</code> to <code class="font-mono">end</code>. Alias to <code class="font-mono">slice</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sort</code></td>
+                <td><code class="font-mono">sort(array)</code></td>
+                <td>Returns a new sorted <code class="font-mono">ARRAY</code> of integers, floats, or strings in ascending order.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">reverse</code></td>
+                <td><code class="font-mono">reverse(array_or_str)</code></td>
+                <td>Returns a new reversed <code class="font-mono">ARRAY</code> or reversed <code class="font-mono">STRING</code> (rune-accurate).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">split</code></td>
+                <td><code class="font-mono">split(str, delimiter)</code></td>
+                <td>Splits string by delimiter into an <code class="font-mono">ARRAY</code> of substrings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">join</code></td>
+                <td><code class="font-mono">join(array, separator)</code></td>
+                <td>Concatenates array elements into a single <code class="font-mono">STRING</code> separated by delimiter.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">trim</code></td>
+                <td><code class="font-mono">trim(str, [cutset])</code></td>
+                <td>Removes leading and trailing whitespace or characters matching cutset from string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">to_lower</code></td>
+                <td><code class="font-mono">to_lower(str)</code></td>
+                <td>Returns string converted to lowercase.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">to_upper</code></td>
+                <td><code class="font-mono">to_upper(str)</code></td>
+                <td>Returns string converted to uppercase.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">replace</code></td>
+                <td><code class="font-mono">replace(str, old, new)</code></td>
+                <td>Replaces all occurrences of target substring with replacement string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_iso</code></td>
+                <td><code class="font-mono">time_iso([timestamp])</code></td>
+                <td>Returns ISO 8601 UTC timestamp string (<code class="font-mono">"YYYY-MM-DDTHH:MM:SSZ"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">date_format</code></td>
+                <td><code class="font-mono">date_format([timestamp], [layout])</code></td>
+                <td>Formats UNIX timestamp according to layout pattern (default: <code class="font-mono">"2006-01-02 15:04:05"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">trunc</code></td>
+                <td><code class="font-mono">trunc(number)</code></td>
+                <td>Truncates decimal digits of float or integer, returning integer value of float.</td>
               </tr>
             </tbody>
           </table>

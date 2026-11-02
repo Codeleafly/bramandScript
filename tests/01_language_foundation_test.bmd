@@ -60,4 +60,17 @@ describe("Comparison and Logical Operators", fn() {
                 counter = counter * 2;
                 assert_eq(counter, 10);
         });
+
+        test("Unicode identifiers and UTF-8 strings", fn() {
+                let संदेश = "नमस्ते ब्रह्माण्ड";
+                let संख्या_१ = 50;
+                let संख्या_२ = 50;
+                let कुल = संख्या_१ + संख्या_२;
+                assert_eq(कुल, 100);
+                assert_eq(संदेश, "नमस्ते ब्रह्माण्ड");
+
+                let 変数 = 42;
+                let α_β = 10;
+                assert_eq(変数 + α_β, 52);
+        });
 });

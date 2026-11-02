@@ -1,0 +1,54 @@
+# BramandScript (.gitignore)
+# ------------------------------------------------------------------------------
+# Compiled Binaries & Release Artifacts
+bramand
+bramand.exe
+bmd
+bmd.exe
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+build/
+releases/
+
+# Go Test Artifacts & Profiling Outputs
+*.test
+*.out
+*.prof
+coverage.txt
+coverage.html
+cpu.pprof
+mem.pprof
+
+# Temporary and Swap Files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.fuse_*
+
+# OS Metadata & Artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Directories
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Node / Development Tooling Artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

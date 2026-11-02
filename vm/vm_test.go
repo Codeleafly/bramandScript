@@ -1656,4 +1656,3 @@ func TestTimeAndBenchmarking(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
-
