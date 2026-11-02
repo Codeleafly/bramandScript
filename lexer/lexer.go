@@ -2,16 +2,20 @@ package lexer
 
 import (
 	"bramandscript/token"
+	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 type Lexer struct {
 	input        string
-	position     int  // current byte offset
+	position     int  // current byte offset of ch
 	readPosition int  // next byte offset
-	ch           byte // current byte
+	ch           rune // current rune (0 for EOF)
+	chWidth      int  // byte width of current rune
 	line         int  // line number (1-based)
-	col          int  // col number (1-based)
+	col          int  // col number (1-based, rune-based)
 }
 
 func New(input string) *Lexer {
@@ -27,19 +31,24 @@ func New(input string) *Lexer {
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0
+		l.chWidth = 0
+		l.position = l.readPosition
 	} else {
-		l.ch = l.input[l.readPosition]
+		r, width := utf8.DecodeRuneInString(l.input[l.readPosition:])
+		l.ch = r
+		l.chWidth = width
+		l.position = l.readPosition
+		l.readPosition += width
+		l.col++
 	}
-	l.position = l.readPosition
-	l.readPosition++
-	l.col++
 }
 
-func (l *Lexer) peekChar() byte {
+func (l *Lexer) peekChar() rune {
 	if l.readPosition >= len(l.input) {
 		return 0
 	}
-	return l.input[l.readPosition]
+	r, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
+	return r
 }
 
 func (l *Lexer) NextToken() token.Token {
@@ -177,7 +186,7 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Line = curLine
 		tok.Col = curCol
 	default:
-		if isLetter(l.ch) {
+		if isIdentStart(l.ch) {
 			lit := l.readIdentifier()
 			tokType := token.LookupIdent(lit)
 			return token.Token{Type: tokType, Literal: lit, Line: curLine, Col: curCol}
@@ -197,7 +206,7 @@ func (l *Lexer) NextToken() token.Token {
 	return tok
 }
 
-func newToken(tokenType token.TokenType, ch byte, line, col int) token.Token {
+func newToken(tokenType token.TokenType, ch rune, line, col int) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch), Line: line, Col: col}
 }
 
@@ -247,7 +256,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 func (l *Lexer) readIdentifier() string {
 	startPos := l.position
-	for isLetter(l.ch) || isDigit(l.ch) {
+	for isIdentPart(l.ch) {
 		l.readChar()
 	}
 	return l.input[startPos:l.position]
@@ -284,51 +293,84 @@ func (l *Lexer) readString() (string, bool) {
 			l.readChar()
 			break
 		}
+		if l.ch == '\n' {
+			l.line++
+			l.col = 0
+		}
 		if l.ch == '\\' {
 			l.readChar()
 			switch l.ch {
 			case 'n':
-				sb.WriteByte('\n')
+				sb.WriteRune('\n')
 			case 't':
-				sb.WriteByte('\t')
+				sb.WriteRune('\t')
 			case 'r':
-				sb.WriteByte('\r')
+				sb.WriteRune('\r')
 			case 'e':
-				sb.WriteByte(0x1b)
+				sb.WriteRune(0x1b)
 			case '0':
 				if l.peekChar() == '3' {
 					l.readChar()
 					if l.peekChar() == '3' {
 						l.readChar()
-						sb.WriteByte(0x1b)
+						sb.WriteRune(0x1b)
 					} else {
-						sb.WriteByte(0)
+						sb.WriteRune(0)
 					}
 				} else {
-					sb.WriteByte(0)
+					sb.WriteRune(0)
+				}
+			case 'u':
+				hexStr := ""
+				for i := 0; i < 4; i++ {
+					p := l.peekChar()
+					if (p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F') {
+						l.readChar()
+						hexStr += string(l.ch)
+					} else {
+						break
+					}
+				}
+				if len(hexStr) == 4 {
+					val, err := strconv.ParseInt(hexStr, 16, 32)
+					if err == nil {
+						sb.WriteRune(rune(val))
+					} else {
+						sb.WriteString("\\u" + hexStr)
+					}
+				} else {
+					sb.WriteString("\\u" + hexStr)
 				}
 			case '\\':
-				sb.WriteByte('\\')
+				sb.WriteRune('\\')
 			case '"':
-				sb.WriteByte('"')
+				sb.WriteRune('"')
 			default:
-				sb.WriteByte('\\')
-				sb.WriteByte(l.ch)
+				sb.WriteRune('\\')
+				sb.WriteRune(l.ch)
 			}
 			l.readChar()
 			continue
 		}
-		sb.WriteByte(l.ch)
+		sb.WriteRune(l.ch)
 		l.readChar()
 	}
 
 	return sb.String(), true
 }
 
-func isLetter(ch byte) bool {
-	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') || ch == '_'
+func isIdentStart(r rune) bool {
+	return unicode.IsLetter(r) || r == '_'
 }
 
-func isDigit(ch byte) bool {
-	return '0' <= ch && ch <= '9'
+func isIdentPart(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsMark(r) || unicode.IsDigit(r) || r == '_'
+}
+
+func isLetter(r rune) bool {
+	return isIdentStart(r)
+}
+
+func isDigit(r rune) bool {
+	return '0' <= r && r <= '9'
 }

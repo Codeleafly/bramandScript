@@ -1,13 +1,13 @@
 package repl
 
 import (
-	"bufio"
 	"bramandscript/compiler"
 	"bramandscript/diagnostics"
 	"bramandscript/lexer"
 	"bramandscript/object"
 	"bramandscript/parser"
 	"bramandscript/vm"
+	"bufio"
 	"fmt"
 	"io"
 	"os"

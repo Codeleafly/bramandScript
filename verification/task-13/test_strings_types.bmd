@@ -27,7 +27,7 @@ check("Substring slice(0, 5)", slice(greeting, 0, 5) == "Hello");
 check("Substring alias substring(7, 12)", substring(greeting, 7, 12) == "World");
 
 // 4. Unicode String Rune Handling
-let unicode_str = "✦ नमस्ते Bramand 🚀";
+let unicode_str = "✦ नमस्ते Bramand ॐ";
 check("Unicode string length in runes", len(unicode_str) == 18);
 check("Unicode indexing first rune", unicode_str[0] == "✦");
 

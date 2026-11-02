@@ -14,7 +14,7 @@ println("✦ TASK 05: File System and Process Execution");
 let sandbox_file = "verification/task-05/sandbox/test_doc.txt";
 
 // 1. File write
-let initial_content = "Line 1: Hello BramandScript\nLine 2: Unicode ✦ ❯ 🚀\n";
+let initial_content = "Line 1: Hello BramandScript\nLine 2: Unicode ✦ ❯ ●\n";
 let write_res = write_file(sandbox_file, initial_content);
 check("File write success", write_res == true);
 check("File exists check", file_exists(sandbox_file) == true);

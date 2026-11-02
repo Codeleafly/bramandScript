@@ -3,9 +3,9 @@ package vm
 import (
 	"bufio"
 	"bytes"
-	crand "crypto/rand"
 	"crypto/hmac"
 	"crypto/md5"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -522,6 +523,9 @@ func getBuiltinByName(name string) *object.Builtin {
 				if strObj, ok := args[1].(*object.String); ok {
 					content = strObj.Value
 				}
+				if dir := filepath.Dir(pathObj.Value); dir != "" && dir != "." {
+					_ = os.MkdirAll(dir, 0755)
+				}
 				err := os.WriteFile(pathObj.Value, []byte(content), 0644)
 				if err != nil {
 					return &object.Error{Message: fmt.Sprintf("write_file failed: %s", err)}
@@ -542,6 +546,9 @@ func getBuiltinByName(name string) *object.Builtin {
 				content := args[1].Inspect()
 				if strObj, ok := args[1].(*object.String); ok {
 					content = strObj.Value
+				}
+				if dir := filepath.Dir(pathObj.Value); dir != "" && dir != "." {
+					_ = os.MkdirAll(dir, 0755)
 				}
 				f, err := os.OpenFile(pathObj.Value, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {

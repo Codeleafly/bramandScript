@@ -1,0 +1,32 @@
+# BramandScript (.gitattributes)
+# ------------------------------------------------------------------------------
+# Auto-detect text files and normalize line endings to LF by default
+* text=auto eol=lf
+
+# Explicit Linux/macOS/Termux line-ending files (Strict LF)
+*.go text eol=lf
+*.bmd text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.svg text eol=lf
+
+# Windows PowerShell and Batch scripts (Strict CRLF)
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary file declarations
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar binary
+*.gz binary

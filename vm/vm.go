@@ -2273,7 +2273,6 @@ func (vm *VM) executeArrayIndex(array, index object.Object) error {
 	return vm.push(arrayObject.Elements[i])
 }
 
-
 func (vm *VM) executeCall(numArgs int) error {
 	callee := vm.stack[vm.sp-1-numArgs]
 	if callee == nil {

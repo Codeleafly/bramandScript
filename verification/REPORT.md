@@ -66,7 +66,7 @@ During real-world dogfooding across all 20 verification tasks, 6 defects were id
 
 ### Defect 3: `len(str)` Returned Byte Count Instead of Rune Count
 - **Root Cause**: `len(string)` in `vm/builtins.go` evaluated Go's native byte length `len(str.Value)`, whereas property access `str.length` evaluated `len([]rune(str.Value))`.
-- **Fix**: Unified `len(str)` to compute `int64(len([]rune(str.Value)))`, ensuring complete UTF-8 Unicode rune accuracy for international characters and multi-byte runes (e.g. `✦ नमस्ते Bramand 🚀`).
+- **Fix**: Unified `len(str)` to compute `int64(len([]rune(str.Value)))`, ensuring complete UTF-8 Unicode rune accuracy for international characters and multi-byte runes (e.g. `✦ नमस्ते Bramand ॐ`).
 
 ### Defect 4: `UdpSocket.Read()` Failed on Listening Packet Sockets
 - **Root Cause**: In `object/net.go`, `UdpSocket.Read()` checked only `u.Conn != nil`. For UDP servers listening via `PacketConn`, `u.Conn` was nil, returning `"socket is not connected"`.

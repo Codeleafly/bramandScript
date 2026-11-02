@@ -26,6 +26,7 @@
 ## ✦ Key Features
 
 - **Beginner-Friendly Ergonomics**: Optional semicolons, optional `if` condition parentheses, natural mathematical operators (`**` for power, `%` for modulo).
+- **Full UTF-8 Unicode Lexer**: Complete support for international identifiers across scripts (Devanagari, CJK, Greek, accented characters) and rune-accurate string operations and diagnostic pointers.
 - **Stack-Based Bytecode VM**: Complete custom Pratt Parser, AST compiler, constant pools, instruction set (`code/`), and frame execution engine (`vm/`).
 - **Modern Collections & Dot Access**:
   - Lists: `let list = [10, 20, 30]; list[1] = 99`
