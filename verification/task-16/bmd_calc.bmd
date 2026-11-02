@@ -1,0 +1,66 @@
+// Task 16: Command-Line Arguments & Calculator CLI Application
+
+let cli_args = args();
+
+fn print_usage() {
+    println("✦ BramandScript Calculator CLI (bmd-calc)");
+    println("Usage: bmd-calc <command> [num1] [num2] [options]");
+    println("");
+    println("Commands:");
+    println("  add <n1> <n2>       Add two numbers");
+    println("  subtract <n1> <n2>  Subtract n2 from n1");
+    println("  multiply <n1> <n2>  Multiply two numbers");
+    println("  divide <n1> <n2>    Divide n1 by n2");
+    println("");
+    println("Options:");
+    println("  --help              Display this help message");
+    println("  --version           Display CLI version");
+}
+
+if len(cli_args) == 0 {
+    print_usage();
+    exit(1);
+}
+
+let cmd = cli_args[0];
+
+if cmd == "--help" || cmd == "-h" {
+    print_usage();
+    exit(0);
+}
+
+if cmd == "--version" || cmd == "-v" {
+    println("bmd-calc v0.1.0 (BramandScript CLI)");
+    exit(0);
+}
+
+if len(cli_args) < 3 {
+    println("Error: Command '" + cmd + "' requires 2 numeric arguments.");
+    println("Example: bmd-calc " + cmd + " 10 20");
+    exit(1);
+}
+
+let n1 = float(cli_args[1]);
+let n2 = float(cli_args[2]);
+
+if cmd == "add" {
+    println(str(n1 + n2));
+    exit(0);
+} else if cmd == "subtract" {
+    println(str(n1 - n2));
+    exit(0);
+} else if cmd == "multiply" {
+    println(str(n1 * n2));
+    exit(0);
+} else if cmd == "divide" {
+    if n2 == 0.0 {
+        println("Error: Cannot divide by zero.");
+        exit(2);
+    }
+    println(str(n1 / n2));
+    exit(0);
+} else {
+    println("Error: Unknown command '" + cmd + "'");
+    print_usage();
+    exit(1);
+}

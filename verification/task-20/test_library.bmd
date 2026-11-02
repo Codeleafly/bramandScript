@@ -1,0 +1,26 @@
+// test_library.bmd — Unit Test Suite for str_utils
+
+import "pkg_src/str_utils@1.0.0/index.bmd"
+
+describe("String Utilities Library Test Suite", fn() {
+        test("Slugify function transforms spaces to hyphens and lowercases", fn() {
+                let result = slugify("Bramand Programming Language 2026");
+                assert_eq(result, "bramand-programming-language-2026");
+        });
+
+        test("Truncate shortens long strings and appends ellipsis", fn() {
+                let text = "This is a very long descriptive article title";
+                let truncated = truncate(text, 10);
+                assert_eq(truncated, "This is a ...");
+        });
+
+        test("Truncate preserves short strings under limit", fn() {
+                let text = "Short";
+                assert_eq(truncate(text, 10), "Short");
+        });
+
+        test("Word count accurately counts words", fn() {
+                let text = "High performance bytecode virtual machine";
+                assert_eq(word_count(text), 5);
+        });
+});

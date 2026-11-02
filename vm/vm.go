@@ -1036,6 +1036,29 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		ch := left.(*object.Channel)
 		prop := index.(*object.String).Value
 		switch prop {
+		case "send":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 1 {
+						return &object.Error{Message: fmt.Sprintf("send requires 1 argument, got %d", len(args))}
+					}
+					err := ch.Send(args[0])
+					if err != nil {
+						return &object.Error{Message: err.Error()}
+					}
+					return Null
+				},
+			})
+		case "recv", "receive":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					val, ok := ch.Recv()
+					if !ok || val == nil {
+						return Null
+					}
+					return val
+				},
+			})
 		case "close":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
@@ -1614,7 +1637,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 			return vm.push(&object.String{Value: c.LocalAddr()})
 		case "remote_addr":
 			return vm.push(&object.String{Value: c.RemoteAddr()})
-		case "write":
+		case "write", "send":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					if len(args) != 1 {
@@ -1633,7 +1656,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return &object.Integer{Value: int64(n)}
 				},
 			})
-		case "read":
+		case "read", "recv":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					maxBytes := 4096
@@ -1740,7 +1763,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return &object.Hash{Pairs: pairs}
 				},
 			})
-		case "write":
+		case "write", "send":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					if len(args) != 1 {
@@ -1759,7 +1782,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return &object.Integer{Value: int64(n)}
 				},
 			})
-		case "read":
+		case "read", "recv":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					maxBytes := 4096
@@ -2124,7 +2147,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return left
 				},
 			})
-		case "set_header":
+		case "set_header", "setHeader":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					if len(args) != 2 {

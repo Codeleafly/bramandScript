@@ -1,0 +1,102 @@
+// Task 03: Arrays, Maps, Structs, and Pattern Matching
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 03: Arrays, Maps, Structs, and Pattern Matching");
+
+// 1. Array creation, indexing, mutation, iteration
+let arr = [10, 20, 30, 40];
+check("Array length", len(arr) == 4);
+check("Array indexing", arr[1] == 20);
+
+// Mutate array index
+arr[2] = 99;
+check("Array index mutation", arr[2] == 99);
+
+// Missing / out of bounds index returns null
+check("Out of bounds index returns null", arr[100] == null);
+
+// Array push (returns new array with appended element)
+arr = push(arr, 50);
+check("Array push length", len(arr) == 5);
+check("Array push element", arr[4] == 50);
+
+// 2. Maps (Hash tables)
+let student_map = {
+    "name": "Diya",
+    "grade": "A",
+    "year": 2026
+};
+check("Map key lookup", student_map["name"] == "Diya");
+check("Map integer lookup", student_map["year"] == 2026);
+
+// Mutate map key
+student_map["grade"] = "A+";
+check("Map key mutation", student_map["grade"] == "A+");
+
+// Missing key returns null
+check("Missing map key returns null", student_map["missing_field"] == null);
+
+// 3. Nested collections & Mixed types
+let complex_record = {
+    "id": 101,
+    "scores": [85, 92, 78],
+    "meta": {
+        "active": true,
+        "flags": ["honors", "stem"]
+    }
+};
+check("Nested collection access", complex_record["scores"][1] == 92);
+check("Nested map lookup", complex_record["meta"]["flags"][0] == "honors");
+
+// 4. For-in loop iteration
+let sum_scores = 0;
+for s in complex_record["scores"] {
+    sum_scores = sum_scores + s;
+}
+check("For-in loop array summation", sum_scores == (85 + 92 + 78));
+
+// 5. Struct definitions and object methods
+struct Course {
+    title,
+    credits,
+
+    fn format_title() {
+        return "Course: " + title + " (" + str(credits) + " credits)";
+    }
+}
+
+let c = Course("Computer Science 101", 4);
+check("Struct property access", c.title == "Computer Science 101");
+check("Struct method call", c.format_title() == "Course: Computer Science 101 (4 credits)");
+
+// 6. Pattern matching using match
+fn evaluate_grade(score) {
+    match score {
+        case 100 => {
+            return "PERFECT";
+        }
+        case 90 => {
+            return "EXCELLENT";
+        }
+        case 80 => {
+            return "GOOD";
+        }
+        default => {
+            return "STANDARD";
+        }
+    }
+}
+
+check("Match case 100", evaluate_grade(100) == "PERFECT");
+check("Match case 90", evaluate_grade(90) == "EXCELLENT");
+check("Match default", evaluate_grade(75) == "STANDARD");
+
+println("[OK] All Task 03 data structures and OOP checks passed.");

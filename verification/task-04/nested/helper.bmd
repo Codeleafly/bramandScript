@@ -1,0 +1,5 @@
+// nested/helper.bmd
+
+fn helper_message(name) {
+    return "Hello from nested helper, " + name + "!";
+}

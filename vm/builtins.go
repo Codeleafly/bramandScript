@@ -23,10 +23,48 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"bramandscript/object"
 )
+
+var (
+	programArgs     = []string{}
+	stdinReader     = bufio.NewReader(os.Stdin)
+	stdinReaderLock sync.Mutex
+)
+
+func SetProgramArgs(args []string) {
+	programArgs = make([]string, len(args))
+	copy(programArgs, args)
+}
+
+func GetProgramArgs() []string {
+	res := make([]string, len(programArgs))
+	copy(res, programArgs)
+	return res
+}
+
+func readLineFromStdin(args []object.Object) string {
+	if len(args) > 0 {
+		if s, ok := args[0].(*object.String); ok {
+			fmt.Print(s.Value)
+		} else {
+			fmt.Print(args[0].Inspect())
+		}
+	}
+	stdinReaderLock.Lock()
+	defer stdinReaderLock.Unlock()
+	text, _ := stdinReader.ReadString('\n')
+	return strings.TrimRight(text, "\r\n")
+}
+
+func ResetStdin() {
+	stdinReaderLock.Lock()
+	defer stdinReaderLock.Unlock()
+	stdinReader = bufio.NewReader(os.Stdin)
+}
 
 func getBuiltinByName(name string) *object.Builtin {
 	switch name {
@@ -40,7 +78,7 @@ func getBuiltinByName(name string) *object.Builtin {
 				case *object.Array:
 					return &object.Integer{Value: int64(len(arg.Elements))}
 				case *object.String:
-					return &object.Integer{Value: int64(len(arg.Value))}
+					return &object.Integer{Value: int64(len([]rune(arg.Value)))}
 				case *object.Hash:
 					return &object.Integer{Value: int64(len(arg.Pairs))}
 				default:
@@ -55,9 +93,12 @@ func getBuiltinByName(name string) *object.Builtin {
 					if i > 0 {
 						fmt.Print(" ")
 					}
-					fmt.Print(arg.Inspect())
+					if s, ok := arg.(*object.String); ok {
+						fmt.Print(s.Value)
+					} else {
+						fmt.Print(arg.Inspect())
+					}
 				}
-				fmt.Println()
 				return Null
 			},
 		}
@@ -121,12 +162,7 @@ func getBuiltinByName(name string) *object.Builtin {
 	case "input":
 		return &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
-				if len(args) > 0 {
-					fmt.Print(args[0].Inspect())
-				}
-				reader := bufio.NewReader(os.Stdin)
-				text, _ := reader.ReadString('\n')
-				return &object.String{Value: strings.TrimRight(text, "\r\n")}
+				return &object.String{Value: readLineFromStdin(args)}
 			},
 		}
 	case "int":
@@ -230,48 +266,78 @@ func getBuiltinByName(name string) *object.Builtin {
 				return &object.Array{Elements: elements}
 			},
 		}
-	case "slice":
+	case "slice", "substring":
 		return &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) < 2 || len(args) > 3 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2 or 3", len(args))}
-				}
-				arr, ok := args[0].(*object.Array)
-				if !ok {
-					return &object.Error{Message: fmt.Sprintf("first argument to `slice` must be ARRAY, got %s", args[0].Type())}
 				}
 				start, ok := args[1].(*object.Integer)
 				if !ok {
 					return &object.Error{Message: "second argument to `slice` must be INTEGER"}
 				}
 
-				length := int64(len(arr.Elements))
-				s := start.Value
-				if s < 0 {
-					s = 0
-				}
-				if s > length {
-					s = length
-				}
+				switch target := args[0].(type) {
+				case *object.Array:
+					length := int64(len(target.Elements))
+					s := start.Value
+					if s < 0 {
+						s = 0
+					}
+					if s > length {
+						s = length
+					}
 
-				e := length
-				if len(args) == 3 {
-					end, ok := args[2].(*object.Integer)
-					if !ok {
-						return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+					e := length
+					if len(args) == 3 {
+						end, ok := args[2].(*object.Integer)
+						if !ok {
+							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+						}
+						e = end.Value
+						if e > length {
+							e = length
+						}
+						if e < s {
+							e = s
+						}
 					}
-					e = end.Value
-					if e > length {
-						e = length
-					}
-					if e < s {
-						e = s
-					}
-				}
 
-				newElements := make([]object.Object, e-s)
-				copy(newElements, arr.Elements[s:e])
-				return &object.Array{Elements: newElements}
+					newElements := make([]object.Object, e-s)
+					copy(newElements, target.Elements[s:e])
+					return &object.Array{Elements: newElements}
+
+				case *object.String:
+					runes := []rune(target.Value)
+					length := int64(len(runes))
+					s := start.Value
+					if s < 0 {
+						s = 0
+					}
+					if s > length {
+						s = length
+					}
+
+					e := length
+					if len(args) == 3 {
+						end, ok := args[2].(*object.Integer)
+						if !ok {
+							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+						}
+						e = end.Value
+						if e > length {
+							e = length
+						}
+						if e < s {
+							e = s
+						}
+					}
+
+					return &object.String{Value: string(runes[s:e])}
+
+				default:
+					return &object.Error{Message: fmt.Sprintf("first argument to `slice` must be ARRAY or STRING, got %s", args[0].Type())}
+				}
 			},
 		}
 	case "pop":
@@ -723,12 +789,7 @@ func getBuiltinByName(name string) *object.Builtin {
 	case "read_line":
 		return &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
-				if len(args) > 0 {
-					fmt.Print(args[0].Inspect())
-				}
-				reader := bufio.NewReader(os.Stdin)
-				text, _ := reader.ReadString('\n')
-				return &object.String{Value: strings.TrimRight(text, "\r\n")}
+				return &object.String{Value: readLineFromStdin(args)}
 			},
 		}
 	case "color":
@@ -2912,6 +2973,229 @@ func getBuiltinByName(name string) *object.Builtin {
 					Key: &object.String{Value: "ops_per_sec"}, Value: &object.Float{Value: opsPerSec},
 				}
 				return &object.Hash{Pairs: pairs}
+			},
+		}
+
+	case "args", "argv":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				elements := make([]object.Object, len(programArgs))
+				for i, a := range programArgs {
+					elements[i] = &object.String{Value: a}
+				}
+				return &object.Array{Elements: elements}
+			},
+		}
+
+	case "sort":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1", len(args))}
+				}
+				arr, ok := args[0].(*object.Array)
+				if !ok {
+					return &object.Error{Message: fmt.Sprintf("argument to `sort` must be ARRAY, got %s", args[0].Type())}
+				}
+				newElems := make([]object.Object, len(arr.Elements))
+				copy(newElems, arr.Elements)
+				sort.Slice(newElems, func(i, j int) bool {
+					if i1, ok1 := newElems[i].(*object.Integer); ok1 {
+						if i2, ok2 := newElems[j].(*object.Integer); ok2 {
+							return i1.Value < i2.Value
+						}
+						if f2, ok2 := newElems[j].(*object.Float); ok2 {
+							return float64(i1.Value) < f2.Value
+						}
+					}
+					if f1, ok1 := newElems[i].(*object.Float); ok1 {
+						if f2, ok2 := newElems[j].(*object.Float); ok2 {
+							return f1.Value < f2.Value
+						}
+						if i2, ok2 := newElems[j].(*object.Integer); ok2 {
+							return f1.Value < float64(i2.Value)
+						}
+					}
+					if s1, ok1 := newElems[i].(*object.String); ok1 {
+						if s2, ok2 := newElems[j].(*object.String); ok2 {
+							return s1.Value < s2.Value
+						}
+					}
+					return newElems[i].Inspect() < newElems[j].Inspect()
+				})
+				return &object.Array{Elements: newElems}
+			},
+		}
+
+	case "reverse":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1", len(args))}
+				}
+				switch col := args[0].(type) {
+				case *object.Array:
+					n := len(col.Elements)
+					newElems := make([]object.Object, n)
+					for i := 0; i < n; i++ {
+						newElems[i] = col.Elements[n-1-i]
+					}
+					return &object.Array{Elements: newElems}
+				case *object.String:
+					runes := []rune(col.Value)
+					n := len(runes)
+					for i := 0; i < n/2; i++ {
+						runes[i], runes[n-1-i] = runes[n-1-i], runes[i]
+					}
+					return &object.String{Value: string(runes)}
+				default:
+					return &object.Error{Message: fmt.Sprintf("argument to `reverse` must be ARRAY or STRING, got %s", args[0].Type())}
+				}
+			},
+		}
+
+	case "split":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2", len(args))}
+				}
+				strObj, ok1 := args[0].(*object.String)
+				sepObj, ok2 := args[1].(*object.String)
+				if !ok1 || !ok2 {
+					return &object.Error{Message: "arguments to `split` must be (STRING, STRING)"}
+				}
+				parts := strings.Split(strObj.Value, sepObj.Value)
+				elems := make([]object.Object, len(parts))
+				for i, p := range parts {
+					elems[i] = &object.String{Value: p}
+				}
+				return &object.Array{Elements: elems}
+			},
+		}
+
+	case "join":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2", len(args))}
+				}
+				arr, ok1 := args[0].(*object.Array)
+				sepObj, ok2 := args[1].(*object.String)
+				if !ok1 || !ok2 {
+					return &object.Error{Message: "arguments to `join` must be (ARRAY, STRING)"}
+				}
+				parts := make([]string, len(arr.Elements))
+				for i, el := range arr.Elements {
+					if s, ok := el.(*object.String); ok {
+						parts[i] = s.Value
+					} else {
+						parts[i] = el.Inspect()
+					}
+				}
+				return &object.String{Value: strings.Join(parts, sepObj.Value)}
+			},
+		}
+
+	case "trim":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
+				}
+				strObj, ok := args[0].(*object.String)
+				if !ok {
+					return &object.Error{Message: "first argument to `trim` must be STRING"}
+				}
+				if len(args) == 2 {
+					cutset, ok := args[1].(*object.String)
+					if !ok {
+						return &object.Error{Message: "second argument to `trim` must be STRING"}
+					}
+					return &object.String{Value: strings.Trim(strObj.Value, cutset.Value)}
+				}
+				return &object.String{Value: strings.TrimSpace(strObj.Value)}
+			},
+		}
+
+	case "to_lower":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "to_lower requires 1 argument"}
+				}
+				s := args[0].Inspect()
+				if strObj, ok := args[0].(*object.String); ok {
+					s = strObj.Value
+				}
+				return &object.String{Value: strings.ToLower(s)}
+			},
+		}
+
+	case "to_upper":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "to_upper requires 1 argument"}
+				}
+				s := args[0].Inspect()
+				if strObj, ok := args[0].(*object.String); ok {
+					s = strObj.Value
+				}
+				return &object.String{Value: strings.ToUpper(s)}
+			},
+		}
+
+	case "replace":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 3 {
+					return &object.Error{Message: "replace requires 3 arguments: (str, old, new)"}
+				}
+				strObj, ok1 := args[0].(*object.String)
+				oldObj, ok2 := args[1].(*object.String)
+				newObj, ok3 := args[2].(*object.String)
+				if !ok1 || !ok2 || !ok3 {
+					return &object.Error{Message: "all arguments to `replace` must be strings"}
+				}
+				return &object.String{Value: strings.ReplaceAll(strObj.Value, oldObj.Value, newObj.Value)}
+			},
+		}
+
+	case "time_iso":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				t := time.Now().UTC()
+				if len(args) > 0 {
+					switch v := args[0].(type) {
+					case *object.Integer:
+						t = time.Unix(v.Value, 0).UTC()
+					case *object.Float:
+						sec := int64(v.Value)
+						nsec := int64((v.Value - float64(sec)) * 1e9)
+						t = time.Unix(sec, nsec).UTC()
+					}
+				}
+				return &object.String{Value: t.Format(time.RFC3339)}
+			},
+		}
+
+	case "date_format":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				t := time.Now()
+				layout := "2006-01-02 15:04:05"
+				if len(args) >= 1 {
+					if i, ok := args[0].(*object.Integer); ok {
+						t = time.Unix(i.Value, 0)
+					}
+				}
+				if len(args) >= 2 {
+					if s, ok := args[1].(*object.String); ok {
+						layout = s.Value
+					}
+				}
+				return &object.String{Value: t.Format(layout)}
 			},
 		}
 

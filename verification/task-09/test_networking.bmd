@@ -1,0 +1,99 @@
+// Task 09: Networking and Web Server
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 09: Networking, Web Server, Sockets, and WebSockets");
+
+// ============================================================================
+// 1. TCP Server and Client (Loopback)
+// ============================================================================
+let tcp_srv = tcp_listen("127.0.0.1:25001");
+let tcp_done = chan(1);
+
+spawn fn() {
+    let conn = tcp_srv.accept();
+    let msg = conn.recv();
+    conn.send("PONG:" + msg);
+    conn.close();
+    tcp_done.send(true);
+}();
+
+let client_conn = tcp_connect("127.0.0.1:25001");
+client_conn.send("PING_BRAMAND");
+let tcp_reply = client_conn.recv();
+client_conn.close();
+tcp_srv.close();
+let _ = tcp_done.recv();
+
+check("TCP client/server roundtrip", tcp_reply == "PONG:PING_BRAMAND");
+
+// ============================================================================
+// 2. UDP Server and Client
+// ============================================================================
+let udp_srv = udp_listen("127.0.0.1:25002");
+let udp_cli = udp_connect("127.0.0.1:25002");
+udp_cli.send("UDP_PAYLOAD");
+let udp_received = udp_srv.recv();
+udp_cli.close();
+udp_srv.close();
+
+check("UDP client/server datagram", udp_received == "UDP_PAYLOAD");
+
+// ============================================================================
+// 3. HTTP Server and Client
+// ============================================================================
+let app = http_server();
+
+app.get("/api/health", fn(req, res) {
+    res.json({"status": "ok", "service": "bramand"});
+});
+
+app.post("/api/echo", fn(req, res) {
+    res.status(201).json({"echoed": req.body});
+});
+
+app.listen("127.0.0.1:25003");
+
+// Test GET
+let get_resp = http_get("http://127.0.0.1:25003/api/health");
+check("HTTP GET status 200", get_resp["status_code"] == 200);
+check("HTTP GET body content", contains(get_resp["body"], "status") && contains(get_resp["body"], "ok"));
+
+// Test POST
+let post_resp = http_post("http://127.0.0.1:25003/api/echo", "{\"task\": \"networking\"}");
+check("HTTP POST status 201", post_resp["status_code"] == 201);
+check("HTTP POST body content", contains(post_resp["body"], "networking"));
+
+app.close();
+
+// ============================================================================
+// 4. WebSocket Server and Client (RFC 6455)
+// ============================================================================
+let ws_srv = ws_server("127.0.0.1:25004", "/ws");
+let ws_done = chan(1);
+
+spawn fn() {
+    let srv_conn = ws_srv.accept();
+    let client_msg = srv_conn.recv();
+    srv_conn.send("WS_REPLY:" + client_msg);
+    srv_conn.close();
+    ws_done.send(true);
+}();
+
+let ws_cli = ws_connect("ws://127.0.0.1:25004/ws");
+ws_cli.send("WS_TEST_FRAME");
+let ws_received = ws_cli.recv();
+ws_cli.close();
+ws_srv.close();
+let _ = ws_done.recv();
+
+check("WebSocket client/server frame roundtrip", ws_received == "WS_REPLY:WS_TEST_FRAME");
+
+println("[OK] All Task 09 networking and web server checks passed.");

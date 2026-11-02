@@ -1,0 +1,28 @@
+// main.bmd - Modular Gradebook Application Entrypoint
+
+import "models.bmd"
+import "stats.bmd"
+import "formatter.bmd"
+
+fn main() {
+    print_header();
+
+    let students = [
+        Student("Aarav Sharma", [92.0, 88.5, 95.0, 91.0]),
+        Student("Diya Patel", [85.0, 78.0, 82.5, 89.0]),
+        Student("Rohan Gupta", [74.0, 68.5, 71.0, 76.0]),
+        Student("Meera Joshi", [96.0, 94.0, 98.5, 92.0]),
+        Student("Karan Verma", [55.0, 58.0, 52.0, 48.0])
+    ];
+
+    for s in students {
+        print_row(s);
+    }
+
+    let class_avg = calculate_class_average(students);
+    let top_s = find_top_student(students);
+
+    print_footer(class_avg, top_s.name, top_s.average());
+}
+
+main();

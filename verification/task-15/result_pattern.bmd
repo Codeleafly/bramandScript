@@ -1,0 +1,30 @@
+// Idiomatic Result-Object Error Handling Pattern in BramandScript
+
+fn safe_divide(numerator, denominator) {
+    if denominator == 0 {
+        return {
+            "ok": false,
+            "error": "division by zero is undefined"
+        };
+    }
+    return {
+        "ok": true,
+        "value": numerator / denominator
+    };
+}
+
+let success_result = safe_divide(100, 4);
+if success_result["ok"] {
+    println("  ✓ [PASS] Division success value:", success_result["value"]);
+} else {
+    println("  ✗ [FAIL] Unexpected division failure");
+    exit(1);
+}
+
+let error_result = safe_divide(100, 0);
+if !error_result["ok"] {
+    println("  ✓ [PASS] Division failure handled safely:", error_result["error"]);
+} else {
+    println("  ✗ [FAIL] Expected division by zero error");
+    exit(1);
+}

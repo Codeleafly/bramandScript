@@ -1,0 +1,3 @@
+// Intentional Syntax Error
+let x = ;
+println(x);

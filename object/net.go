@@ -200,18 +200,25 @@ func (u *UdpSocket) Write(data []byte) (int, error) {
 }
 
 func (u *UdpSocket) Read(maxBytes int) ([]byte, error) {
-	if u.Conn == nil {
-		return nil, fmt.Errorf("socket is not connected")
-	}
 	if maxBytes <= 0 {
 		maxBytes = 4096
 	}
 	buf := make([]byte, maxBytes)
-	n, err := u.Conn.Read(buf)
-	if err != nil {
-		return nil, err
+	if u.Conn != nil {
+		n, err := u.Conn.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		return buf[:n], nil
 	}
-	return buf[:n], nil
+	if u.PacketConn != nil {
+		n, _, err := u.PacketConn.ReadFrom(buf)
+		if err != nil {
+			return nil, err
+		}
+		return buf[:n], nil
+	}
+	return nil, fmt.Errorf("socket is not connected")
 }
 
 func (u *UdpSocket) Close() error {

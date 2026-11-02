@@ -1,0 +1,58 @@
+// Task 19: Environment, Paths, and Safe Configuration Inspection Utility
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 19: Environment, Paths, and Portable Applications");
+
+// 1. Environment variable inspection
+let user_home = env("HOME");
+check("HOME environment variable is non-null", user_home != null && len(user_home) > 0);
+
+// Missing environment variable returns null
+let missing_env = env("NON_EXISTENT_BMD_VAR_99999");
+check("Missing environment variable returns null", missing_env == null);
+
+// Dynamic environment mutation
+set_env("BMD_APP_ENV", "staging");
+check("Set and retrieve environment variable", env("BMD_APP_ENV") == "staging");
+
+// 2. Configuration file loading
+let config_path = "verification/task-19/sample_config.json";
+let config_content = "{\"app_name\":\"BramandCloud\",\"port\":9000,\"secret_key\":\"SUPER_SECRET_12345\"}";
+write_file(config_path, config_content);
+
+check("Config file created", file_exists(config_path) == true);
+
+let loaded_raw = read_file(config_path);
+let config = json_parse(loaded_raw);
+check("Config parsed successfully", config["app_name"] == "BramandCloud");
+
+// 3. Safe configuration sanitizer (masks secrets)
+fn sanitize_config(cfg) {
+    let safe = {};
+    for k in keys(cfg) {
+        if contains(to_lower(k), "secret") || contains(to_lower(k), "password") || contains(to_lower(k), "token") {
+            safe[k] = "********";
+        } else {
+            safe[k] = cfg[k];
+        }
+    }
+    return safe;
+}
+
+let sanitized = sanitize_config(config);
+check("Public config key preserved", sanitized["app_name"] == "BramandCloud");
+check("Secret config key masked", sanitized["secret_key"] == "********");
+
+// Cleanup
+delete_file(config_path);
+check("Config file cleaned up", file_exists(config_path) == false);
+
+println("[OK] All Task 19 environment, path, and config inspection checks passed.");

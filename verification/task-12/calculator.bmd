@@ -1,0 +1,30 @@
+// Task 12: Terminal Input and Interactive Programs
+
+println("✦ Interactive BramandScript Calculator");
+
+let s1 = input("Enter first number: ");
+let op = input("Enter operator (+, -, *, /): ");
+let s2 = input("Enter second number: ");
+
+let n1 = float(s1);
+let n2 = float(s2);
+
+let result = 0.0;
+if op == "+" {
+    result = n1 + n2;
+} else if op == "-" {
+    result = n1 - n2;
+} else if op == "*" {
+    result = n1 * n2;
+} else if op == "/" {
+    if n2 == 0.0 {
+        println("Error: Division by zero");
+        exit(1);
+    }
+    result = n1 / n2;
+} else {
+    println("Error: Unknown operator " + op);
+    exit(1);
+}
+
+println("Result: " + str(result));

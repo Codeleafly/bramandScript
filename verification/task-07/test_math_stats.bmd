@@ -1,0 +1,76 @@
+// Task 07: BigInt, BigFloat, Matrices, and Statistics
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 07: BigInt, BigFloat, Matrices, and Statistics");
+
+// 1. BigInt 256-bit arithmetic
+let b1 = bigint("1000000000000000000000000000000");
+let b2 = bigint("2000000000000000000000000000000");
+let b_sum = b1 + b2;
+check("BigInt addition", b_sum.to_string() == "3000000000000000000000000000000");
+
+let b_prod = b1 * bigint("3");
+check("BigInt multiplication", b_prod.to_string() == "3000000000000000000000000000000");
+
+// 2. BigFloat precision
+let bf1 = bigfloat("1.2345678901234567890123456789");
+let bf2 = bigfloat("2.0000000000000000000000000000");
+let bf_prod = bf1 * bf2;
+check("BigFloat multiplication", contains(bf_prod.to_string(), "2.4691357802469135780246913578"));
+
+// 3. Vectors & Linear Algebra
+let v1 = vec([1.0, 2.0, 3.0]);
+let v2 = vec([4.0, 5.0, 6.0]);
+// Dot product = 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
+check("Vector dot product", v1.dot(v2) == 32.0);
+
+// Cosine similarity
+let cos_sim = cosine_similarity(v1, v2);
+check("Vector cosine similarity > 0.95", cos_sim > 0.95 && cos_sim <= 1.0);
+
+// 4. Matrix operations
+let m1 = matrix([
+    [1.0, 2.0],
+    [3.0, 4.0]
+]);
+let m_trans = m1.transpose();
+// Expected transpose: [[1, 3], [2, 4]]
+check("Matrix transpose element [0,1]", m_trans.get(0, 1) == 3.0);
+check("Matrix transpose element [1,0]", m_trans.get(1, 0) == 2.0);
+
+let m2 = matrix([
+    [2.0, 0.0],
+    [1.0, 2.0]
+]);
+// Matrix multiplication:
+// [1*2 + 2*1, 1*0 + 2*2] = [4, 4]
+// [3*2 + 4*1, 3*0 + 4*2] = [10, 8]
+let m_prod = m1.mul(m2);
+check("Matrix multiplication [0,0] == 4", m_prod.get(0, 0) == 4.0);
+check("Matrix multiplication [0,1] == 4", m_prod.get(0, 1) == 4.0);
+check("Matrix multiplication [1,0] == 10", m_prod.get(1, 0) == 10.0);
+check("Matrix multiplication [1,1] == 8", m_prod.get(1, 1) == 8.0);
+
+// 5. Trigonometric, logarithmic, and math functions
+check("sin(pi / 2) == 1.0", abs(sin(pi() / 2.0) - 1.0) < 0.0001);
+check("cos(0) == 1.0", abs(cos(0.0) - 1.0) < 0.0001);
+check("sqrt(144) == 12.0", sqrt(144.0) == 12.0);
+check("log10(1000) == 3.0", abs(log10(1000.0) - 3.0) < 0.0001);
+check("exp(0) == 1.0", exp(0.0) == 1.0);
+
+// 6. Statistics: mean, median, variance, std_dev
+let sample_data = [10.0, 20.0, 30.0, 40.0, 50.0];
+check("Mean calculation", mean(sample_data) == 30.0);
+check("Median calculation", median(sample_data) == 30.0);
+check("Variance calculation", variance(sample_data) == 200.0);
+check("Std dev calculation", abs(std_dev(sample_data) - sqrt(200.0)) < 0.0001);
+
+println("[OK] All Task 07 scientific, linear algebra, and stats checks passed.");

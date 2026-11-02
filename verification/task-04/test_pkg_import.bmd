@@ -1,0 +1,10 @@
+// Task 04: Centralized Package Cache Import
+import "logger@1.0.0"
+
+let res = log_info("Package loaded from ~/.bramand_libs");
+if res == "[INFO] Package loaded from ~/.bramand_libs" {
+    println("  ✓ [PASS] Centralized package import");
+} else {
+    println("  ✗ [FAIL] Centralized package import");
+    exit(1);
+}

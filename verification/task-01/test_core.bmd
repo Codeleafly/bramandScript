@@ -1,0 +1,63 @@
+// Task 01: Core Language and Expression Evaluation
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 01: Core Language & Expression Evaluation");
+
+// 1. Literals
+let i = 42;
+let f = 3.14159;
+let s = "Hello, BramandScript!\n\t\"escaped\"";
+let b1 = true;
+let b2 = false;
+let n = null;
+
+check("Integer literal", i == 42);
+check("Float literal", f > 3.14 && f < 3.15);
+check("String literal", len(s) > 20);
+check("Boolean literals", b1 && !b2);
+check("Null literal", n == null);
+
+// 2. Arithmetic operators
+check("Addition", (10 + 25) == 35);
+check("Subtraction", (50 - 18) == 32);
+check("Multiplication", (7 * 8) == 56);
+check("Integer division", (100 / 4) == 25);
+check("Modulo operator", (29 % 5) == 4);
+check("Exponentiation", (2 ** 10) == 1024);
+check("Float arithmetic", (1.5 * 2.0) == 3.0);
+
+// 3. Precedence & Parentheses
+check("Operator precedence * over +", (2 + 3 * 4) == 14);
+check("Parentheses override precedence", ((2 + 3) * 4) == 20);
+check("Complex precedence", (100 - 4 * 5 + (8 / 2) ** 2) == 96);
+
+// 4. Comparison operators
+check("Equal ==", 42 == 42);
+check("Not equal !=", 42 != 43);
+check("Less than <", 10 < 20);
+check("Greater than >", 20 > 10);
+check("Less than equal <=", 15 <= 15 && 14 <= 15);
+check("Greater than equal >=", 25 >= 25 && 26 >= 25);
+
+// 5. Logical operators & Short-circuiting
+check("Logical AND", true && true);
+check("Logical OR", false || true);
+check("Short-circuit OR", true || false);
+
+// 6. Variables: let, const, and reassignment
+let mutable_var = 10;
+mutable_var = mutable_var + 5;
+check("Let reassignment", mutable_var == 15);
+
+const CONSTANT_VAL = 999;
+check("Const declaration", CONSTANT_VAL == 999);
+
+println("[OK] All Task 01 core expression checks passed successfully.");

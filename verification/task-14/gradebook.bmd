@@ -1,0 +1,108 @@
+// Task 14: Collection Utilities and Common Data Operations
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 14: Collection Utilities and Gradebook Application");
+
+// 1. Array Operations
+let scores = [88, 72, 95, 60, 84];
+check("Initial scores length", len(scores) == 5);
+
+// push
+scores = push(scores, 91);
+check("Scores length after push", len(scores) == 6);
+
+// pop (removes and returns last element)
+let last_score = pop(scores);
+check("Popped score is 91", last_score == 91);
+check("Scores length after pop", len(scores) == 5);
+
+// Membership checks
+check("Contains score 95", contains(scores, 95) == true);
+check("Contains missing score 100", contains(scores, 100) == false);
+
+// Sorting
+let sorted_scores = sort(scores);
+check("Sorted first element (min)", sorted_scores[0] == 60);
+check("Sorted last element (max)", sorted_scores[4] == 95);
+
+// Reversing
+let reversed_scores = reverse(sorted_scores);
+check("Reversed first element (max)", reversed_scores[0] == 95);
+check("Reversed last element (min)", reversed_scores[4] == 60);
+
+// Slicing top 3 scores
+let top_three = slice(reversed_scores, 0, 3);
+check("Top three length", len(top_three) == 3);
+check("Top three elements", top_three[0] == 95 && top_three[1] == 88 && top_three[2] == 84);
+
+// 2. Map Operations
+let grade_table = {
+    "Aarav": 95,
+    "Diya": 88,
+    "Rohan": 72,
+    "Meera": 91
+};
+
+// Keys and values enumeration
+let student_names = keys(grade_table);
+check("Keys enumeration count", len(student_names) == 4);
+
+let student_marks = values(grade_table);
+check("Values enumeration count", len(student_marks) == 4);
+
+// Map deletion
+delete(grade_table, "Rohan");
+check("Deleted key no longer in map", grade_table["Rohan"] == null);
+check("Keys count after deletion", len(keys(grade_table)) == 3);
+
+// 3. Gradebook Application: Totals and Averages
+fn calculate_gradebook_summary(grades) {
+    let total = 0.0;
+    let count = 0;
+    let high = 0;
+    let low = 100;
+
+    for name in keys(grades) {
+        let val = grades[name];
+        total = total + float(val);
+        count = count + 1;
+        if val > high {
+            high = val;
+        }
+        if val < low {
+            low = val;
+        }
+    }
+
+    let avg = 0.0;
+    if count > 0 {
+        avg = total / float(count);
+    }
+
+    return {
+        "count": count,
+        "total": total,
+        "average": avg,
+        "high": high,
+        "low": low
+    };
+}
+
+let summary = calculate_gradebook_summary(grade_table);
+// Active students: Aarav (95), Diya (88), Meera (91)
+// Total = 95 + 88 + 91 = 274.0, Avg = 274 / 3 = 91.3333...
+check("Gradebook count is 3", summary["count"] == 3);
+check("Gradebook total is 274.0", summary["total"] == 274.0);
+check("Gradebook highest is 95", summary["high"] == 95);
+check("Gradebook lowest is 88", summary["low"] == 88);
+check("Gradebook average > 91.0", summary["average"] > 91.0 && summary["average"] < 92.0);
+
+println("[OK] All Task 14 collection utilities and gradebook checks passed.");

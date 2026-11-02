@@ -1,0 +1,36 @@
+// models.bmd - Modular Gradebook Student Model
+
+struct Student {
+    name,
+    scores,
+    
+    fn average() {
+        if len(scores) == 0 {
+            return 0.0;
+        }
+        let total = 0.0;
+        for s in scores {
+            total = total + s;
+        }
+        return total / float(len(scores));
+    },
+
+    fn letter_grade() {
+        let avg = average();
+        if avg >= 90.0 {
+            return "A";
+        } else if avg >= 80.0 {
+            return "B";
+        } else if avg >= 70.0 {
+            return "C";
+        } else if avg >= 60.0 {
+            return "D";
+        } else {
+            return "F";
+        }
+    },
+
+    fn summary() {
+        return name + " | Average: " + str(average()) + " | Grade: " + letter_grade();
+    }
+}

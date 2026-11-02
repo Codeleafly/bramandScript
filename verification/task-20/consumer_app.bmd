@@ -1,0 +1,26 @@
+// consumer_app.bmd — Application consuming installed package str_utils
+
+import "str_utils@1.0.0"
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 20: Consuming str_utils from ~/.bramand_libs");
+
+let headline = "BramandScript Release 0.1.0 Ready";
+let slug = slugify(headline);
+check("Slugify execution via installed package", slug == "bramandscript-release-0.1.0-ready");
+
+let excerpt = truncate(headline, 14);
+check("Truncate execution via installed package", excerpt == "BramandScript ...");
+
+let count = word_count(headline);
+check("Word count execution via installed package", count == 4);
+
+println("[OK] All Task 20 library consumer checks passed.");

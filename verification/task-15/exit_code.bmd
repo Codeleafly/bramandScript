@@ -1,0 +1,3 @@
+// Intentional Process Exit Code 42
+println("Exiting with status code 42");
+exit(42);

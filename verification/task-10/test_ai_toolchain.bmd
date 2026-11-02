@@ -1,0 +1,34 @@
+// Task 10: AI Integration and Vector Operations
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 10: AI Integration & Developer Toolchain");
+
+// 1. Vector Search for nearest semantic neighbors
+let query_vec = [0.90, 0.10, 0.00];
+let documents = [
+    {"id": "doc1", "title": "Bramand VM Architecture", "vec": [0.88, 0.12, 0.02]},
+    {"id": "doc2", "title": "Cooking Recipes", "vec": [0.05, 0.95, 0.10]},
+    {"id": "doc3", "title": "Compiler Optimizations", "vec": [0.85, 0.15, 0.05]}
+];
+
+let top_matches = vector_search(query_vec, documents, 2, "cosine");
+check("Vector search returned 2 nearest neighbors", len(top_matches) == 2);
+check("Top match is Bramand VM Architecture", top_matches[0]["item"]["id"] == "doc1");
+check("Top match score > 0.99", top_matches[0]["score"] > 0.99);
+
+// 2. Cosine Distance & Euclidean Distance
+let dist_cos = cosine_distance(query_vec, [0.88, 0.12, 0.02]);
+check("Cosine distance is near 0 for similar vectors", dist_cos < 0.05);
+
+let dist_euc = euclidean_distance([0.0, 0.0], [3.0, 4.0]);
+check("Euclidean distance 3-4-5 triangle", abs(dist_euc - 5.0) < 0.0001);
+
+println("[OK] All Task 10 AI embeddings and vector operations passed.");

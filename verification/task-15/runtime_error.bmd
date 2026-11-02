@@ -1,0 +1,8 @@
+// Intentional Runtime Error
+fn calculate_tax(rate) {
+    let base = 1000;
+    let factor = null;
+    return base * factor;
+}
+
+calculate_tax(0.18);

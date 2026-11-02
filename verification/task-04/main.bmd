@@ -1,0 +1,26 @@
+// Task 04: Modules & Package Management
+
+import "math_lib.bmd"
+import "nested/helper.bmd"
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 04: Modules & Package Management");
+
+// 1. Direct imported functions & variables
+check("Imported function calc_sum", calc_sum(20, 22) == 42);
+check("Imported function calc_product", calc_product(6, 7) == 42);
+check("Imported global variable", PI_APPROX > 3.14);
+
+// 2. Nested module import
+let msg = helper_message("Bramand");
+check("Nested helper import", msg == "Hello from nested helper, Bramand!");
+
+println("[OK] All Task 04 module checks passed.");
