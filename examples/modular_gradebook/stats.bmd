@@ -1,0 +1,25 @@
+// stats.bmd - Gradebook Analytics and Statistics
+
+fn calculate_class_average(students) {
+    if len(students) == 0 {
+        return 0.0;
+    }
+    let sum = 0.0;
+    for s in students {
+        sum = sum + s.average();
+    }
+    return sum / float(len(students));
+}
+
+fn find_top_student(students) {
+    if len(students) == 0 {
+        return null;
+    }
+    let top = students[0];
+    for s in students {
+        if s.average() > top.average() {
+            top = s;
+        }
+    }
+    return top;
+}

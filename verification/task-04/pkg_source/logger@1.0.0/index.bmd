@@ -1,0 +1,5 @@
+// logger package index.bmd
+
+fn log_info(msg) {
+    return "[INFO] " + msg;
+}

@@ -1,0 +1,101 @@
+// Task 02: Functions, Closures, and Control Flow
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 02: Functions, Closures, and Control Flow");
+
+// 1. Basic Functions & Arguments & Return
+fn add(a, b) {
+    return a + b;
+}
+check("Basic function call", add(15, 27) == 42);
+
+// 2. Nested Functions
+fn outer_math(x) {
+    fn inner_sq(y) {
+        return y * y;
+    }
+    return inner_sq(x) + 1;
+}
+check("Nested function call", outer_math(5) == 26);
+
+// 3. Closures with captured lexical state
+fn make_accumulator(initial) {
+    let acc = initial;
+    return fn(step) {
+        acc = acc + step;
+        return acc;
+    };
+}
+let counter = make_accumulator(100);
+check("Closure first call", counter(10) == 110);
+check("Closure state retention", counter(25) == 135);
+
+// 4. Recursive functions
+fn fib(n) {
+    if n <= 0 {
+        return 0;
+    } else if n == 1 {
+        return 1;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+check("Recursive Fibonacci", fib(10) == 55);
+
+fn factorial(n) {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+check("Recursive Factorial", factorial(6) == 720);
+
+// 5. Conditionals: if, else if, else
+fn classify_number(num) {
+    if num > 0 {
+        return "positive";
+    } else if num < 0 {
+        return "negative";
+    } else {
+        return "zero";
+    }
+}
+check("If branch", classify_number(12) == "positive");
+check("Else-if branch", classify_number(-8) == "negative");
+check("Else branch", classify_number(0) == "zero");
+
+// 6. While loops with break and continue
+let sum = 0;
+let i = 0;
+while i < 10 {
+    i = i + 1;
+    if i % 2 == 1 {
+        continue;
+    }
+    sum = sum + i;
+}
+// Sum of even numbers 2 + 4 + 6 + 8 + 10 = 30
+check("While loop with continue", sum == 30);
+
+let search_target = 7;
+let found_idx = -1;
+let k = 0;
+let items = [2, 4, 6, 7, 9, 11];
+while k < len(items) {
+    if items[k] == search_target {
+        found_idx = k;
+        break;
+    }
+    k = k + 1;
+}
+check("While loop with break", found_idx == 3);
+
+println("[OK] All Task 02 functions and control flow checks passed.");

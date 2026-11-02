@@ -55,6 +55,11 @@ type Compiler struct {
 	iterCount       int
 	currentLine     int
 	importedModules map[string]bool
+	BaseDir         string
+}
+
+func (c *Compiler) SetBaseDir(dir string) {
+	c.BaseDir = dir
 }
 
 func New() *Compiler {
@@ -399,7 +404,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.ImportStatement:
 		c.currentLine = node.Token.Line
-		filePath, err := resolveModulePath(node.Path)
+		filePath, err := c.resolveModulePath(node.Path)
 		if err != nil {
 			return &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot import module '%s': %s", node.Path, err)}
 		}
@@ -419,13 +424,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("syntax error in module '%s': %s", node.Path, p.Errors()[0])}
 			}
 
+			prevBaseDir := c.BaseDir
+			c.BaseDir = filepath.Dir(filePath)
+
 			if node.Alias == "" {
 				for _, stmt := range moduleProgram.Statements {
 					err := c.Compile(stmt)
 					if err != nil {
+						c.BaseDir = prevBaseDir
 						return err
 					}
 				}
+				c.BaseDir = prevBaseDir
 			} else {
 				exportedNames := []string{}
 				for _, stmt := range moduleProgram.Statements {
@@ -441,9 +451,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 					}
 					err := c.Compile(stmt)
 					if err != nil {
+						c.BaseDir = prevBaseDir
 						return err
 					}
 				}
+				c.BaseDir = prevBaseDir
 
 				for _, name := range exportedNames {
 					c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
@@ -946,9 +958,21 @@ func (c *Compiler) Bytecode() *Bytecode {
 	}
 }
 
-func resolveModulePath(importPath string) (string, error) {
-	// 1. Check local path directly
+func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 	candidates := []string{}
+
+	// 1. Check relative to c.BaseDir if specified
+	if c.BaseDir != "" {
+		if strings.HasSuffix(importPath, ".bmd") {
+			candidates = append(candidates, filepath.Join(c.BaseDir, importPath))
+		} else {
+			candidates = append(candidates,
+				filepath.Join(c.BaseDir, importPath+".bmd"),
+				filepath.Join(c.BaseDir, importPath, "index.bmd"))
+		}
+	}
+
+	// 2. Check local path directly (relative to current working directory)
 	if strings.HasSuffix(importPath, ".bmd") {
 		candidates = append(candidates, importPath)
 	} else {
@@ -957,6 +981,10 @@ func resolveModulePath(importPath string) (string, error) {
 
 	for _, cand := range candidates {
 		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			abs, err := filepath.Abs(cand)
+			if err == nil {
+				return abs, nil
+			}
 			return cand, nil
 		}
 	}

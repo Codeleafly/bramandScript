@@ -1,0 +1,15 @@
+// Task 02: Stack Trace Verification
+fn level_three() {
+    let bad_fn = null;
+    bad_fn();
+}
+
+fn level_two() {
+    level_three();
+}
+
+fn level_one() {
+    level_two();
+}
+
+level_one();

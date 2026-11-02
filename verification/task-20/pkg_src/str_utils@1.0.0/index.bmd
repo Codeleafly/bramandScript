@@ -1,0 +1,22 @@
+// str_utils package index.bmd
+
+fn slugify(text) {
+    let lower = to_lower(trim(text));
+    return replace(lower, " ", "-");
+}
+
+fn truncate(text, max_len) {
+    if len(text) <= max_len {
+        return text;
+    }
+    return slice(text, 0, max_len) + "...";
+}
+
+fn word_count(text) {
+    let trimmed = trim(text);
+    if len(trimmed) == 0 {
+        return 0;
+    }
+    let parts = split(trimmed, " ");
+    return len(parts);
+}

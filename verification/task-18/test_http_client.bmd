@@ -1,0 +1,72 @@
+// Task 18: HTTP Client, Headers, and Network Error Handling
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 18: HTTP Client, Headers, and Network Error Handling");
+
+// 1. Setup Local Test Server on port 25005
+let app = http_server();
+
+app.get("/api/items", fn(req, res) {
+    res.setHeader("X-Server-Engine", "BramandScript-Net");
+    res.json({
+        "status": "success",
+        "items": ["cpu", "memory", "storage"]
+    });
+});
+
+app.post("/api/create", fn(req, res) {
+    res.status(201).json({
+        "created": true,
+        "payload": req.body
+    });
+});
+
+app.get("/api/missing", fn(req, res) {
+    res.status(404).json({
+        "error": "Requested resource not found"
+    });
+});
+
+app.listen("127.0.0.1:25005");
+
+// 2. Test GET Request
+let get_resp = http_get("http://127.0.0.1:25005/api/items");
+check("GET status code is 200", get_resp["status_code"] == 200);
+check("GET body contains success", contains(get_resp["body"], "success"));
+
+// 3. Test POST Request with JSON Body
+let post_resp = http_post("http://127.0.0.1:25005/api/create", "{\"name\":\"Node1\"}");
+check("POST status code is 201", post_resp["status_code"] == 201);
+check("POST body reflects payload", contains(post_resp["body"], "Node1"));
+
+// 4. Test 404 Status Code
+let not_found_resp = http_get("http://127.0.0.1:25005/api/missing");
+check("404 Not Found status code", not_found_resp["status_code"] == 404);
+
+// 5. Test Advanced http_request with Custom Headers & Timeout
+let custom_req = http_request({
+    "method": "GET",
+    "url": "http://127.0.0.1:25005/api/items",
+    "headers": {
+        "Authorization": "Bearer secret_token_xyz",
+        "User-Agent": "BramandScript-Client/0.1.0"
+    },
+    "timeout": 5000
+});
+check("Advanced request with headers status 200", custom_req["status_code"] == 200);
+
+// 6. Test Network Failure (Connection Refused to non-existent port)
+let failure_resp = http_get("http://127.0.0.1:59999/unreachable");
+check("Connection failure produces error without crashing", type(failure_resp) == "ERROR");
+
+app.close();
+
+println("[OK] All Task 18 HTTP client and network error handling checks passed.");

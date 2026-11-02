@@ -1,0 +1,2 @@
+// standalone_source.bmd
+println("Hello from Standalone Compiled Executable!");

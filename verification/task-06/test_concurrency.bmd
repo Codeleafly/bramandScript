@@ -1,0 +1,73 @@
+// Task 06: Concurrency, Channels, and Mutexes
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 06: Concurrency, Channels, and Mutexes (1,000 Deterministic Jobs)");
+
+let total_jobs = 1000;
+let num_workers = 4;
+
+let job_channel = chan(total_jobs + num_workers);
+let done_channel = chan(num_workers);
+
+let m = mutex();
+let processed_count = 0;
+let accumulated_sum = 0;
+
+fn worker(id) {
+    while true {
+        let job = job_channel.recv();
+        if job == -1 {
+            break;
+        }
+        m.lock();
+        processed_count = processed_count + 1;
+        accumulated_sum = accumulated_sum + job;
+        m.unlock();
+    }
+    done_channel.send(true);
+}
+
+// 1. Spawn workers
+let w = 0;
+while w < num_workers {
+    spawn worker(w);
+    w = w + 1;
+}
+
+// 2. Feed 1,000 deterministic jobs: 1, 2, ..., 1000
+let j = 1;
+while j <= total_jobs {
+    job_channel.send(j);
+    j = j + 1;
+}
+
+// 3. Send poison pills to shut down workers
+let p = 0;
+while p < num_workers {
+    job_channel.send(-1);
+    p = p + 1;
+}
+
+// 4. Wait for all workers to signal completion
+let finished_workers = 0;
+while finished_workers < num_workers {
+    let sig = done_channel.recv();
+    finished_workers = finished_workers + 1;
+}
+
+// 5. Verification
+let expected_sum = (total_jobs * (total_jobs + 1)) / 2; // 500,500
+
+check("All 4 workers finished", finished_workers == 4);
+check("Exactly 1,000 jobs processed", processed_count == 1000);
+check("Deterministic sum verified (500500)", accumulated_sum == expected_sum);
+
+println("[OK] All Task 06 concurrency checks passed with 1,000 jobs.");

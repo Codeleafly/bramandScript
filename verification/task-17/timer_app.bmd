@@ -1,0 +1,42 @@
+// Task 17: Timers, Date/Time, and Scheduling
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 17: Timers, Date/Time, and Scheduling");
+
+// 1. Current system time
+let epoch_sec = now();
+check("Epoch seconds > 1700000000", epoch_sec > 1700000000);
+
+let epoch_ms = time_ms();
+check("Epoch milliseconds > 1700000000000", epoch_ms > 1700000000000);
+
+let epoch_float = time_now();
+check("High-precision float timestamp", epoch_float > 1700000000.0);
+
+// 2. ISO 8601 / RFC 3339 Timestamp Serialization
+let iso_str = time_iso();
+check("ISO 8601 formatting contains 'T' and 'Z'", contains(iso_str, "T") && contains(iso_str, "Z"));
+
+// Custom date formatting
+let formatted_date = date_format(epoch_sec, "2006-01-02");
+check("Formatted date length is 10 (YYYY-MM-DD)", len(formatted_date) == 10);
+
+// 3. Sleep & Elapsed Duration Measurement
+println("Starting 100ms precision sleep test...");
+let start_ms = time_ms();
+sleep(100);
+let elapsed_ms = time_ms() - start_ms;
+
+println("Elapsed time: " + str(elapsed_ms) + " ms");
+check("Elapsed duration is at least 95ms", elapsed_ms >= 95);
+check("Elapsed duration is reasonable (< 250ms)", elapsed_ms < 250);
+
+println("[OK] All Task 17 time, date, and sleep checks passed.");

@@ -170,4 +170,21 @@ var Builtins = []BuiltinDef{
 	{Name: "time_now"},
 	{Name: "time_ms"},
 	{Name: "benchmark"},
+
+	// Command-Line Arguments & Program State
+	{Name: "args"},
+	{Name: "argv"},
+
+	// String & Collection Utilities
+	{Name: "substring"},
+	{Name: "sort"},
+	{Name: "reverse"},
+	{Name: "split"},
+	{Name: "join"},
+	{Name: "trim"},
+	{Name: "to_lower"},
+	{Name: "to_upper"},
+	{Name: "replace"},
+	{Name: "time_iso"},
+	{Name: "date_format"},
 }

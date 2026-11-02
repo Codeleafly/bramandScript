@@ -1,0 +1,58 @@
+// Task 05: File System and Process Execution
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 05: File System and Process Execution");
+
+let sandbox_file = "verification/task-05/sandbox/test_doc.txt";
+
+// 1. File write
+let initial_content = "Line 1: Hello BramandScript\nLine 2: Unicode ✦ ❯ 🚀\n";
+let write_res = write_file(sandbox_file, initial_content);
+check("File write success", write_res == true);
+check("File exists check", file_exists(sandbox_file) == true);
+
+// 2. File read
+let read_back = read_file(sandbox_file);
+check("File content verification", read_back == initial_content);
+
+// 3. File append
+let appended_line = "Line 3: Appended content\n";
+let append_res = append_file(sandbox_file, appended_line);
+check("File append success", append_res == true);
+
+let read_after_append = read_file(sandbox_file);
+check("Appended content verification", contains(read_after_append, "Line 3: Appended content"));
+
+// 4. Directory operations: is_dir, list_dir
+check("is_dir verification on sandbox directory", is_dir("verification/task-05/sandbox") == true);
+let files = list_dir("verification/task-05/sandbox");
+check("list_dir contains written file", contains(files, "test_doc.txt"));
+
+// 5. File deletion
+let del_res = delete_file(sandbox_file);
+check("File delete success", del_res == true);
+check("File exists after delete is false", file_exists(sandbox_file) == false);
+
+// 6. Safe behavior on missing file
+let missing_check = file_exists("verification/task-05/sandbox/non_existent_file.xyz");
+check("Non-existent file exists is false", missing_check == false);
+
+// 7. Environment variable access & mutation
+set_env("BMD_TEST_ENV_VAR", "Bramand_VM_Active_2026");
+let env_val = env("BMD_TEST_ENV_VAR");
+check("Environment variable set and read", env_val == "Bramand_VM_Active_2026");
+
+// 8. Child-process execution (harmless echo command)
+let proc = exec("echo", ["Hello from child process"]);
+check("Process exit code is 0", proc["code"] == 0);
+check("Process stdout captured", contains(proc["stdout"], "Hello from child process"));
+
+println("[OK] All Task 05 file system and process execution checks passed.");

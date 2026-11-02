@@ -1,0 +1,83 @@
+// Task 13: Strings, Type Conversion, and Error Handling
+
+fn check(name, cond) {
+    if cond {
+        println("  ✓ [PASS] " + name);
+    } else {
+        println("  ✗ [FAIL] " + name);
+        exit(1);
+    }
+}
+
+println("✦ TASK 13: Strings, Type Conversion, and Validation");
+
+// 1. String Concatenation & Length
+let greeting = "Hello, " + "World!";
+check("String concatenation", greeting == "Hello, World!");
+check("String length via len()", len(greeting) == 13);
+check("String length via .length property", greeting.length == 13);
+
+// 2. Character Indexing
+check("Character indexing [0]", greeting[0] == "H");
+check("Character indexing [7]", greeting[7] == "W");
+check("Character index out of bounds returns null", greeting[99] == null);
+
+// 3. Substring & Slicing
+check("Substring slice(0, 5)", slice(greeting, 0, 5) == "Hello");
+check("Substring alias substring(7, 12)", substring(greeting, 7, 12) == "World");
+
+// 4. Unicode String Rune Handling
+let unicode_str = "✦ नमस्ते Bramand 🚀";
+check("Unicode string length in runes", len(unicode_str) == 18);
+check("Unicode indexing first rune", unicode_str[0] == "✦");
+
+// 5. String Manipulation Utilities: split, join, trim, case conversion, replace
+let words = split("apple,banana,orange,grape", ",");
+check("split array count", len(words) == 4);
+check("split element", words[1] == "banana");
+
+let joined = join(words, " - ");
+check("join result", joined == "apple - banana - orange - grape");
+
+let padded = "   bramand language   ";
+check("trim whitespace", trim(padded) == "bramand language");
+
+check("to_upper", to_upper("hello") == "HELLO");
+check("to_lower", to_lower("WORLD") == "world");
+check("replace", replace("foo bar foo", "foo", "baz") == "baz bar baz");
+
+// 6. Type Conversions
+check("int to str", str(500) == "500");
+check("str to int", int("500") == 500);
+check("float to str", str(3.14) == "3.14");
+check("str to float", float("3.14") == 3.14);
+check("bool to str", str(true) == "true");
+
+// 7. Type inspection
+check("type inspection int", type(42) == "INTEGER");
+check("type inspection float", type(3.14) == "FLOAT");
+check("type inspection str", type("text") == "STRING");
+check("type inspection bool", type(false) == "BOOLEAN");
+check("type inspection null", type(null) == "NULL");
+check("type inspection array", type([1, 2]) == "ARRAY");
+check("type inspection hash", type({"a": 1}) == "HASH");
+
+// 8. Practical Input-Validation Utility
+fn validate_email(email) {
+    if len(email) < 5 {
+        return false;
+    }
+    if !contains(email, "@") {
+        return false;
+    }
+    if !contains(email, ".") {
+        return false;
+    }
+    return true;
+}
+
+check("Validate valid email", validate_email("developer@bramandscript.org") == true);
+check("Validate invalid email (no @)", validate_email("invalid.email.com") == false);
+check("Validate invalid email (no dot)", validate_email("user@domain") == false);
+
+println("[OK] All Task 13 string, type conversion, and validation checks passed.");

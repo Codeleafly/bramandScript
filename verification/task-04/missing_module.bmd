@@ -1,0 +1,4 @@
+// Task 04: Missing Module Error Test
+import "does_not_exist_xyz.bmd"
+
+println("Should not reach here");

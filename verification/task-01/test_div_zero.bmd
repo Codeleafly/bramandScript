@@ -1,0 +1,5 @@
+// Task 01: Division by Zero Edge Case
+let x = 10;
+let y = 0;
+let z = x / y;
+println("Result:", z);

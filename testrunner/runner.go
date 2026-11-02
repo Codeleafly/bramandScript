@@ -113,6 +113,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 	}
 
 	comp := compiler.New()
+	comp.SetBaseDir(filepath.Dir(filePath))
 	if err := comp.Compile(program); err != nil {
 		fmt.Printf("  %s✗ CompileError: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
 		return FileTestResult{Path: filePath, Passed: false, Duration: time.Since(start), Error: err.Error()}

@@ -40,17 +40,19 @@ func main() {
 
 	case "run":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: bramand run <filename.bmd>")
+			fmt.Println("Usage: bramand run <filename.bmd> [args...]")
 			os.Exit(1)
 		}
 		filename := os.Args[2]
+		vm.SetProgramArgs(os.Args[3:])
 		executeFile(filename)
 
 	case "-e":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: bramand -e <code>")
+			fmt.Println("Usage: bramand -e <code> [args...]")
 			os.Exit(1)
 		}
+		vm.SetProgramArgs(os.Args[3:])
 		executeSource(os.Args[2], "<eval>")
 
 	case "test":
@@ -108,6 +110,7 @@ func main() {
 	default:
 		// If argument ends with .bmd or is a file, run it directly
 		if _, err := os.Stat(command); err == nil {
+			vm.SetProgramArgs(os.Args[2:])
 			executeFile(command)
 		} else {
 			fmt.Printf("Unknown command or file: %s\n", command)
@@ -155,6 +158,7 @@ func checkEmbeddedStandalone() bool {
 		return false
 	}
 
+	vm.SetProgramArgs(os.Args[1:])
 	executeSource(string(payload), exePath)
 	return true
 }
@@ -206,6 +210,7 @@ func handleBuildCommand(args []string) {
 		os.Exit(1)
 	}
 	comp := compiler.New()
+	comp.SetBaseDir(filepath.Dir(inputFile))
 	if err := comp.Compile(prog); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Compile error in '%s': %s\n", inputFile, err)
 		os.Exit(1)
@@ -319,6 +324,7 @@ func executeSource(source, filename string) {
 	}
 
 	comp := compiler.New()
+	comp.SetBaseDir(filepath.Dir(filename))
 	err := comp.Compile(program)
 	if err != nil {
 		diag := diagnostics.Diagnostic{

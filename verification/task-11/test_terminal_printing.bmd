@@ -1,0 +1,37 @@
+// Task 11: Terminal Printing, ANSI Colors, and Formatting
+
+// 1. Printing without trailing newline
+print("Step 1: ");
+print("Loading ");
+print("Complete.\n");
+
+// 2. Printing with trailing newline and multiple arguments
+println("Step 2: Multiple arguments:", 42, 3.1415, true, null);
+
+// 3. Stderr printing
+eprintln("[STDERR_LOG] Diagnostic message printed to standard error");
+
+// 4. ANSI Foreground Colors
+let green_msg = color("green", "SUCCESS: Task completed");
+let red_msg = color("red", "ERROR: Connection failed");
+let blue_msg = color("blue", "INFO: Listening on port 8080");
+let yellow_msg = color("yellow", "WARN: High memory usage");
+
+println(green_msg);
+println(red_msg);
+println(blue_msg);
+println(yellow_msg);
+
+// 5. ANSI Styles
+let bold_text = styled("Bold Header Text", "bold");
+let underline_text = styled("Underlined Reference", "underline");
+let dim_text = styled("Dimmed Annotation", "dim");
+
+println(bold_text);
+println(underline_text);
+println(dim_text);
+
+// 6. Direct ANSI escape sequences
+println("\033[1;35m✦ Direct ANSI Magenta Bold ✦\033[0m");
+
+println("[OK] Task 11 terminal printing and ANSI formatting demonstrated.");

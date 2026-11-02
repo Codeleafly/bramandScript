@@ -1,0 +1,28 @@
+// formatter.bmd - Terminal Table and ANSI Output Formatter
+
+fn print_header() {
+    println("==================================================");
+    println(styled("✦ BramandScript Modular Gradebook Application", "bold"));
+    println("==================================================");
+    println("Student Name          Average     Grade   Status");
+    println("--------------------------------------------------");
+}
+
+fn print_row(s) {
+    let avg = s.average();
+    let grade = s.letter_grade();
+    let status = "PASS";
+    if grade == "F" {
+        status = color("red", "FAIL");
+    } else {
+        status = color("green", "PASS");
+    }
+    println(s.name + "       " + str(avg) + "        " + grade + "       " + status);
+}
+
+fn print_footer(class_avg, top_name, top_avg) {
+    println("--------------------------------------------------");
+    println("Class Average: " + str(class_avg));
+    println("Top Performer: " + top_name + " (" + str(top_avg) + ")");
+    println("==================================================");
+}
