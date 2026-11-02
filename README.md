@@ -1,10 +1,15 @@
 # BramandScript (bmd)
 
-> A high-performance, general-purpose programming language built from scratch with a Stack-Based Bytecode Virtual Machine in pure Go standard library. Zero external dependencies. Completely offline buildable.
+> A modern, high-performance general-purpose programming language built from scratch with a Stack-Based Bytecode Virtual Machine in pure Go standard library. Zero external dependencies. Completely offline buildable.
 
+[![Release](https://img.shields.io/github/v/release/Codeleafly/bramandScript?color=blue&label=Release)](https://github.com/Codeleafly/bramandScript/releases/latest)
+[![CI Testing Matrix](https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml/badge.svg)](https://github.com/Codeleafly/bramandScript/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Go Report Card](https://goreportcard.com/badge/github.com/Codeleafly/bramandScript)](https://goreportcard.com/report/github.com/Codeleafly/bramandScript)
-[![Documentation](https://img.shields.io/badge/Docs-Live%20Website-green.svg)](https://codeleafly.github.io/bramandScript/)
+[![Documentation](https://img.shields.io/badge/Docs-Live%20Portal-emerald.svg)](https://codeleafly.github.io/bramandScript/)
+[![Dependencies](https://img.shields.io/badge/Dependencies-0%20(Pure%20Stdlib)-orange.svg)](https://golang.org)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Termux-purple.svg)](https://github.com/Codeleafly/bramandScript/releases)
+[![Stars](https://img.shields.io/github/stars/Codeleafly/bramandScript?style=social)](https://github.com/Codeleafly/bramandScript)
+[![Forks](https://img.shields.io/github/forks/Codeleafly/bramandScript?style=social)](https://github.com/Codeleafly/bramandScript)
 
 ---
 
@@ -166,6 +171,20 @@ Source Code (.bmd)
        ▼
  4. Bramand VM Engine (Stack Machine, Call Frames, Closures)
 ```
+
+---
+
+## ✦ Community & Stargazers
+
+If you find BramandScript exciting or useful, please consider giving the repository a **Star** on GitHub. It directly supports development and helps other developers discover the language.
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Codeleafly/bramandScript&type=Date)](https://star-history.com/#Codeleafly/bramandScript&Date)
+
+---
+
+## ✦ Discoverability & Tags
+
+`#bramandscript` `#bmd` `#programming-language` `#compiler` `#virtual-machine` `#bytecode` `#stack-machine` `#golang` `#termux` `#zero-dependencies` `#pratt-parser` `#lexer` `#ast` `#developer-tools` `#cli` `#repl` `#opensource`
 
 ---
 
