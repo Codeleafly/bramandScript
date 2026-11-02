@@ -51,6 +51,8 @@ const (
 	COMMA     = ","
 	SEMICOLON = ";"
 	COLON     = ":"
+	DOT       = "."
+	ARROW     = "=>"
 
 	LPAREN   = "("
 	RPAREN   = ")"
@@ -74,6 +76,12 @@ const (
 	NULL     = "NULL"
 	BREAK    = "BREAK"
 	CONTINUE = "CONTINUE"
+	MATCH    = "MATCH"
+	CASE     = "CASE"
+	DEFAULT  = "DEFAULT"
+	IMPORT   = "IMPORT"
+	STRUCT   = "STRUCT"
+	AS       = "AS"
 )
 
 var keywords = map[string]TokenType{
@@ -91,6 +99,12 @@ var keywords = map[string]TokenType{
 	"null":     NULL,
 	"break":    BREAK,
 	"continue": CONTINUE,
+	"match":    MATCH,
+	"case":     CASE,
+	"default":  DEFAULT,
+	"import":   IMPORT,
+	"struct":   STRUCT,
+	"as":       AS,
 }
 
 func LookupIdent(ident string) TokenType {

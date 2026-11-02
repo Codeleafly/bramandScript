@@ -256,6 +256,74 @@ func getBuiltinByName(name string) *object.Builtin {
 				return &object.Array{Elements: newElements}
 			},
 		}
+	case "pop":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				arr, ok := args[0].(*object.Array)
+				if !ok {
+					return &object.Error{Message: fmt.Sprintf("argument to `pop` must be ARRAY, got %s", args[0].Type())}
+				}
+				if len(arr.Elements) == 0 {
+					return Null
+				}
+				lastIdx := len(arr.Elements) - 1
+				lastElem := arr.Elements[lastIdx]
+				arr.Elements = arr.Elements[:lastIdx]
+				return lastElem
+			},
+		}
+	case "contains":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				switch coll := args[0].(type) {
+				case *object.Array:
+					for _, elem := range coll.Elements {
+						if elem.Inspect() == args[1].Inspect() {
+							return True
+						}
+					}
+					return False
+				case *object.Hash:
+					if key, ok := args[1].(object.Hashable); ok {
+						_, exists := coll.Pairs[key.HashKey()]
+						return nativeBoolToBooleanObject(exists)
+					}
+					return False
+				case *object.String:
+					searchStr := args[1].Inspect()
+					if strObj, ok := args[1].(*object.String); ok {
+						searchStr = strObj.Value
+					}
+					return nativeBoolToBooleanObject(strings.Contains(coll.Value, searchStr))
+				default:
+					return &object.Error{Message: fmt.Sprintf("contains not supported on %s", args[0].Type())}
+				}
+			},
+		}
+	case "delete":
+		return &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				hash, ok := args[0].(*object.Hash)
+				if !ok {
+					return &object.Error{Message: fmt.Sprintf("first argument to `delete` must be HASH, got %s", args[0].Type())}
+				}
+				key, ok := args[1].(object.Hashable)
+				if !ok {
+					return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
+				}
+				delete(hash.Pairs, key.HashKey())
+				return Null
+			},
+		}
 	case "exit":
 		return &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {

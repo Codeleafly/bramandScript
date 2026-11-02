@@ -118,6 +118,83 @@ func (rs *ReturnStatement) String() string {
 	return out.String()
 }
 
+type IndexAssignStatement struct {
+	Token token.Token // token.ASSIGN
+	Left  Expression
+	Index Expression
+	Value Expression
+}
+
+func (ias *IndexAssignStatement) statementNode()       {}
+func (ias *IndexAssignStatement) TokenLiteral() string { return ias.Token.Literal }
+func (ias *IndexAssignStatement) String() string {
+	return ias.Left.String() + "[" + ias.Index.String() + "] = " + ias.Value.String() + ";"
+}
+
+type ForInStatement struct {
+	Token    token.Token // token.FOR
+	Item     *Identifier
+	Index    *Identifier // optional
+	Iterable Expression
+	Body     *BlockStatement
+}
+
+func (fis *ForInStatement) statementNode()       {}
+func (fis *ForInStatement) TokenLiteral() string { return fis.Token.Literal }
+func (fis *ForInStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("for ")
+	if fis.Index != nil {
+		out.WriteString(fis.Index.String() + ", ")
+	}
+	out.WriteString(fis.Item.String() + " in " + fis.Iterable.String() + " ")
+	out.WriteString(fis.Body.String())
+	return out.String()
+}
+
+type ImportStatement struct {
+	Token token.Token // token.IMPORT
+	Path  string
+	Alias string
+}
+
+func (is *ImportStatement) statementNode()       {}
+func (is *ImportStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *ImportStatement) String() string {
+	if is.Alias != "" {
+		return "import \"" + is.Path + "\" as " + is.Alias + ";"
+	}
+	return "import \"" + is.Path + "\";"
+}
+
+type StructStatement struct {
+	Token   token.Token // token.STRUCT
+	Name    *Identifier
+	Fields  []*Identifier
+	Methods []*FunctionLiteral
+}
+
+func (ss *StructStatement) statementNode()       {}
+func (ss *StructStatement) TokenLiteral() string { return ss.Token.Literal }
+func (ss *StructStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("struct ")
+	out.WriteString(ss.Name.String())
+	out.WriteString(" { ")
+	for i, f := range ss.Fields {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(f.String())
+	}
+	for _, m := range ss.Methods {
+		out.WriteString(" ")
+		out.WriteString(m.String())
+	}
+	out.WriteString(" }")
+	return out.String()
+}
+
 type ExpressionStatement struct {
 	Token      token.Token // first token of expression
 	Expression Expression
@@ -397,5 +474,48 @@ func (ie *IndexExpression) String() string {
 	out.WriteString("[")
 	out.WriteString(ie.Index.String())
 	out.WriteString("])")
+	return out.String()
+}
+
+type DotExpression struct {
+	Token token.Token // token.DOT
+	Left  Expression
+	Field *Identifier
+}
+
+func (de *DotExpression) expressionNode()      {}
+func (de *DotExpression) TokenLiteral() string { return de.Token.Literal }
+func (de *DotExpression) String() string {
+	return de.Left.String() + "." + de.Field.String()
+}
+
+type MatchClause struct {
+	Values []Expression // nil indicates default
+	Body   *BlockStatement
+}
+
+type MatchExpression struct {
+	Token   token.Token // token.MATCH
+	Subject Expression
+	Clauses []*MatchClause
+}
+
+func (me *MatchExpression) expressionNode()      {}
+func (me *MatchExpression) TokenLiteral() string { return me.Token.Literal }
+func (me *MatchExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("match ")
+	if me.Subject != nil {
+		out.WriteString(me.Subject.String())
+	}
+	out.WriteString(" { ")
+	for _, c := range me.Clauses {
+		if len(c.Values) == 0 {
+			out.WriteString("default => " + c.Body.String() + " ")
+		} else {
+			out.WriteString("case ... => " + c.Body.String() + " ")
+		}
+	}
+	out.WriteString("}")
 	return out.String()
 }

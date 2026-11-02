@@ -20,5 +20,8 @@ var Builtins = []BuiltinDef{
 	{Name: "keys"},
 	{Name: "values"},
 	{Name: "slice"},
+	{Name: "pop"},
+	{Name: "contains"},
+	{Name: "delete"},
 	{Name: "exit"},
 }

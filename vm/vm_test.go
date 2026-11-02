@@ -7,6 +7,7 @@ import (
 	"bramandscript/object"
 	"bramandscript/parser"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -433,6 +434,222 @@ func TestClosures(t *testing.T) {
 			adder(8);
 			`,
 			expected: 11,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestIndexAssignment(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let arr = [10, 20, 30]
+			arr[0] = 99
+			arr[0]
+			`,
+			expected: 99,
+		},
+		{
+			input: `
+			let arr = [1, 2, 3]
+			arr[1] = 50
+			arr[0] + arr[1] + arr[2]
+			`,
+			expected: 54,
+		},
+		{
+			input: `
+			let user = {"name": "Aryan", "score": 100}
+			user["score"] = 250
+			user["score"]
+			`,
+			expected: 250,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestDotAccessAndAssign(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let user = {"name": "Aryan", "role": "dev"}
+			user.role
+			`,
+			expected: "dev",
+		},
+		{
+			input: `
+			let user = {"name": "Aryan", "role": "dev"}
+			user.role = "lead"
+			user.role
+			`,
+			expected: "lead",
+		},
+		{
+			input: `
+			let arr = [1, 2, 3, 4, 5]
+			arr.length
+			`,
+			expected: 5,
+		},
+		{
+			input: `
+			let s = "hello"
+			s.length
+			`,
+			expected: 5,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestForInLoops(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let sum = 0
+			for x in [1, 2, 3, 4] {
+				sum += x
+			}
+			sum
+			`,
+			expected: 10,
+		},
+		{
+			input: `
+			let sumIdx = 0
+			for i, val in [10, 20, 30] {
+				sumIdx += i
+			}
+			sumIdx
+			`,
+			expected: 3, // 0 + 1 + 2
+		},
+		{
+			input: `
+			let sum = 0
+			for x in [1, 2, 3, 4, 5] {
+				if x == 4 { break }
+				sum += x
+			}
+			sum
+			`,
+			expected: 6, // 1 + 2 + 3
+		},
+		{
+			input: `
+			let sum = 0
+			for x in [1, 2, 3, 4, 5] {
+				if x == 3 { continue }
+				sum += x
+			}
+			sum
+			`,
+			expected: 12, // 1 + 2 + 4 + 5
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestPatternMatching(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let status = 200
+			let res = match status {
+				case 200 => { "OK" }
+				case 404 => { "Not Found" }
+				default => { "Error" }
+			}
+			res
+			`,
+			expected: "OK",
+		},
+		{
+			input: `
+			let code = 404
+			let res = match code {
+				case 200 => { "OK" }
+				case 400, 404 => { "Client Error" }
+				default => { "Server Error" }
+			}
+			res
+			`,
+			expected: "Client Error",
+		},
+		{
+			input: `
+			let code = 500
+			let res = match code {
+				case 200 => { "OK" }
+				case 404 => { "Not Found" }
+				default => { "Other" }
+			}
+			res
+			`,
+			expected: "Other",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestStructsAndMethods(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			struct Point {
+				x, y
+			}
+			let pt = Point(15, 25)
+			pt.x + pt.y
+			`,
+			expected: 40,
+		},
+		{
+			input: `
+			struct Counter {
+				count
+				fn inc() {
+					count += 1
+					return count
+				}
+			}
+			let c = Counter(10)
+			c.inc()
+			c.inc()
+			`,
+			expected: 12,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestModuleImport(t *testing.T) {
+	// Create temporary module file
+	modCode := `
+	fn add(a, b) {
+		return a + b
+	}
+	let multiplier = 5
+	`
+	os.WriteFile("test_calc.bmd", []byte(modCode), 0644)
+	defer os.Remove("test_calc.bmd")
+
+	tests := []vmTestCase{
+		{
+			input: `
+			import "test_calc.bmd"
+			add(20, 22)
+			`,
+			expected: 42,
+		},
+		{
+			input: `
+			import "test_calc.bmd" as calc
+			calc.add(10, calc.multiplier)
+			`,
+			expected: 15,
 		},
 	}
 	runVmTests(t, tests)

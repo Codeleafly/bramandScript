@@ -3,6 +3,7 @@ package repl
 import (
 	"bufio"
 	"bramandscript/compiler"
+	"bramandscript/diagnostics"
 	"bramandscript/lexer"
 	"bramandscript/object"
 	"bramandscript/parser"
@@ -14,11 +15,16 @@ import (
 	"strings"
 )
 
+const DIVIDER = "__________________________________________________________________"
+
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
-	fmt.Fprintf(out, "BramandScript 0.1.0 (%s/%s)\n", runtime.GOOS, runtime.GOARCH)
-	fmt.Fprintf(out, "Type \":help\" for help, \":editor\" for multi-line editor, \":exit\" to quit.\n\n")
+	fmt.Fprintf(out, "%sBramandScript 0.1.0 (%s-%s)%s\n", diagnostics.ColorBold, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
+	fmt.Fprintf(out, "Welcome to BramandScript. Type %s:help%s for documentation, %s:exit%s to quit.\n",
+		diagnostics.ColorCyan, diagnostics.ColorReset, diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 
 	constants := []object.Object{}
 	globals := make([]object.Object, vm.GlobalsSize)
@@ -33,10 +39,10 @@ func Start(in io.Reader, out io.Writer) {
 
 	for {
 		if depth == 0 {
-			fmt.Fprint(out, "bmd > ")
+			fmt.Fprintf(out, "%sbmd > %s", diagnostics.ColorGreen, diagnostics.ColorReset)
 		} else {
 			indent := strings.Repeat("  ", depth)
-			fmt.Fprintf(out, "... %s", indent)
+			fmt.Fprintf(out, "%s....%s %s", diagnostics.ColorDim, diagnostics.ColorReset, indent)
 		}
 
 		scanned := scanner.Scan()
@@ -47,7 +53,7 @@ func Start(in io.Reader, out io.Writer) {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
-		// REPL Commands
+		// Top-level REPL commands
 		if depth == 0 {
 			if trimmed == ":exit" || trimmed == ":quit" || trimmed == "exit" || trimmed == "quit" {
 				return
@@ -63,7 +69,7 @@ func Start(in io.Reader, out io.Writer) {
 				for i, v := range compiler.Builtins {
 					symbolTable.DefineBuiltin(i, v.Name)
 				}
-				fmt.Fprintln(out, "[OK] Session state reset.")
+				fmt.Fprintf(out, "%s[OK] Runtime session reset.%s\n", diagnostics.ColorGreen, diagnostics.ColorReset)
 				continue
 			}
 			if trimmed == ":help" {
@@ -80,7 +86,7 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		// Calculate block depth
+		// Calculate block depth: tracking { and (
 		for _, ch := range line {
 			if ch == '{' || ch == '(' {
 				depth++
@@ -101,13 +107,18 @@ func Start(in io.Reader, out io.Writer) {
 		source := buffer.String()
 		buffer.Reset()
 
-		executeCode(source, out, symbolTable, &constants, globals)
+		executeCode(source, "<repl>", out, symbolTable, &constants, globals)
 	}
 }
 
 func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object, cmd string) {
-	fmt.Fprintln(out, "// Entering editor mode. Type ':done' to execute, ':cancel' to abort.")
-	fmt.Fprintln(out, "// To save to file, type ':done <filename.bmd>' or ':save <filename.bmd>'.")
+	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%sMulti-Line Editor Mode%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+	fmt.Fprintf(out, "Type code line-by-line. Type %s:done%s to execute, %s:cancel%s to abort.\n",
+		diagnostics.ColorCyan, diagnostics.ColorReset, diagnostics.ColorYellow, diagnostics.ColorReset)
+	fmt.Fprintf(out, "To save to file on disk: %s:done <filename.bmd>%s\n",
+		diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 
 	var defaultSavePath string
 	cmdParts := strings.Fields(cmd)
@@ -123,7 +134,7 @@ func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.
 	lineNum := 1
 
 	for {
-		fmt.Fprintf(out, "%02d | ", lineNum)
+		fmt.Fprintf(out, "%s%02d |%s ", diagnostics.ColorDim, lineNum, diagnostics.ColorReset)
 		if !scanner.Scan() {
 			break
 		}
@@ -132,7 +143,7 @@ func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == ":cancel" || trimmed == ":abort" {
-			fmt.Fprintln(out, "[ABORTED] Editor buffer discarded.")
+			fmt.Fprintf(out, "%s[Aborted] Editor code discarded.%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
 			return
 		}
 
@@ -147,14 +158,14 @@ func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.
 			if savePath != "" {
 				err := os.WriteFile(savePath, []byte(source), 0644)
 				if err != nil {
-					fmt.Fprintf(out, "[ERROR] Could not save file %s: %s\n", savePath, err)
+					fmt.Fprintf(out, "%s[Error] Could not save file: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
 				} else {
-					fmt.Fprintf(out, "[OK] Saved %d bytes to %s\n", len(source), savePath)
+					fmt.Fprintf(out, "%s[OK] Saved %d bytes to %s%s\n", diagnostics.ColorGreen, len(source), savePath, diagnostics.ColorReset)
 				}
 			}
 
-			fmt.Fprintln(out, "// Executing editor buffer...")
-			executeCode(source, out, symbolTable, constants, globals)
+			fmt.Fprintf(out, "%sExecuting buffer...%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
+			executeCode(source, "<editor>", out, symbolTable, constants, globals)
 			return
 		}
 
@@ -164,23 +175,48 @@ func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.
 	}
 }
 
-func executeCode(source string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
+func executeCode(source, filename string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
 	l := lexer.New(source)
 	p := parser.New(l)
 	program := p.ParseProgram()
 
-	if len(p.Errors()) > 0 {
-		fmt.Fprintln(out, "SyntaxError:")
-		for _, msg := range p.Errors() {
-			fmt.Fprintf(out, "  %s\n", msg)
+	if len(p.SyntaxErrors) > 0 {
+		firstErr := p.SyntaxErrors[0]
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Line:     firstErr.Line,
+			Col:      firstErr.Col,
+			Kind:     "SyntaxError",
+			Message:  firstErr.Message,
+			Hint:     diagnostics.GenerateHint(firstErr.Message),
 		}
+		fmt.Fprint(out, diag.Format())
 		return
 	}
 
 	comp := compiler.NewWithState(symbolTable, *constants)
 	err := comp.Compile(program)
 	if err != nil {
-		fmt.Fprintf(out, "CompileError: %s\n", err)
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Kind:     "CompileError",
+			Message:  err.Error(),
+			Hint:     diagnostics.GenerateHint(err.Error()),
+		}
+
+		if ce, ok := err.(*compiler.CompilerError); ok {
+			diag.Line = ce.Line
+			diag.Col = ce.Col
+			diag.Message = ce.Message
+			diag.Hint = diagnostics.GenerateHint(ce.Message)
+		} else {
+			diag.Line = 1
+			diag.Col = 1
+		}
+
+		fmt.Fprint(out, diag.Format())
 		return
 	}
 
@@ -190,31 +226,72 @@ func executeCode(source string, out io.Writer, symbolTable *compiler.SymbolTable
 	machine := vm.NewWithGlobalsStore(code, globals)
 	err = machine.Run()
 	if err != nil {
-		fmt.Fprintf(out, "RuntimeError: %s\n", err)
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Line:     1,
+			Col:      1,
+			Kind:     "RuntimeError",
+			Message:  err.Error(),
+			Hint:     diagnostics.GenerateHint(err.Error()),
+		}
+		fmt.Fprint(out, diag.Format())
 		return
 	}
 
 	lastPopped := machine.LastPoppedStackElem()
 	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
-		fmt.Fprintln(out, lastPopped.Inspect())
+		fmt.Fprintf(out, "%s\n", lastPopped.Inspect())
 	}
 }
 
 func printHelp(out io.Writer) {
-	fmt.Fprintln(out, `
-BramandScript REPL Help:
-  Variables:     let x = 10, const PI = 3.14159
-  Conditionals:  if x > 5 { ... } else if x == 5 { ... } else { ... }
-  Loops:         while count < 10 { count = count + 1 } (break, continue)
-  Functions:     fn greet(name) { return "Hello " + name }
-  Builtins:      print(...), input(prompt), len(arr), type(v), keys(m), values(m)
-  Types:         int(v), float(v), str(v), bool(v), slice(arr, 0, 2)
+	fmt.Fprintf(out, "\n%sBramandScript Language Guide & Reference%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 
-REPL Commands:
-  :editor                 Enter multi-line editor mode
-  :editor save <file.bmd> Save buffer to file and execute
-  :clear                  Clear terminal screen
-  :reset                  Reset runtime variables
-  :help                   Show this help message
-  :exit                   Exit REPL`)
+	fmt.Fprintf(out, "%s1. Variables & Constants%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   let x = 100                     %s// Mutable variable (semicolons optional)%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   const PI = 3.14159              %s// Immutable constant%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   x += 5                          %s// Compound assignment (+=, -=, *=, /=)%s\n\n", diagnostics.ColorDim, diagnostics.ColorReset)
+
+	fmt.Fprintf(out, "%s2. Control Flow%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   if x > 50 { print(\"High\") }      %s// Parentheses optional!%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   else if x == 50 { print(\"Mid\") }\n")
+	fmt.Fprintf(out, "   else { print(\"Low\") }\n\n")
+
+	fmt.Fprintf(out, "   let count = 0\n")
+	fmt.Fprintf(out, "   while count < 5 { count += 1 }  %s// Loop with 'break' and 'continue'%s\n\n", diagnostics.ColorDim, diagnostics.ColorReset)
+
+	fmt.Fprintf(out, "%s3. Functions & Closures%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   fn add(a, b) {\n")
+	fmt.Fprintf(out, "       return a + b\n")
+	fmt.Fprintf(out, "   }\n")
+	fmt.Fprintf(out, "   print(\"Sum:\", add(10, 20))\n\n")
+
+	fmt.Fprintf(out, "%s4. Collections & Dot Access%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   let list = [10, 20, 30]\n")
+	fmt.Fprintf(out, "   list[0] = 99                    %s// Index assignment supported%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   let user = {\"name\": \"Aryan\", \"role\": \"developer\"}\n")
+	fmt.Fprintf(out, "   print(user.name)                %s// Dot property access%s\n\n", diagnostics.ColorDim, diagnostics.ColorReset)
+
+	fmt.Fprintf(out, "%s5. Standard Built-in Functions%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   print(a, b, ...)   Print values separated by space with newline\n")
+	fmt.Fprintf(out, "   input(prompt)      Read interactive input from terminal\n")
+	fmt.Fprintf(out, "   len(collection)    Length of string, array, or map\n")
+	fmt.Fprintf(out, "   type(value)        Return type name as string (e.g., 'INTEGER')\n")
+	fmt.Fprintf(out, "   slice(arr, 1, 3)   Sub-array slice\n")
+	fmt.Fprintf(out, "   keys(map)          Array of map keys\n")
+	fmt.Fprintf(out, "   values(map)        Array of map values\n")
+	fmt.Fprintf(out, "   int(v), float(v)   Convert to numeric types\n")
+	fmt.Fprintf(out, "   str(v), bool(v)    Convert to string or boolean\n")
+	fmt.Fprintf(out, "   now()              Current Unix timestamp in seconds\n\n")
+
+	fmt.Fprintf(out, "%s6. REPL Commands%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
+	fmt.Fprintf(out, "   :editor            Multi-line code editor mode\n")
+	fmt.Fprintf(out, "   :editor <file.bmd> Multi-line editor and save to file\n")
+	fmt.Fprintf(out, "   :clear             Clear terminal screen\n")
+	fmt.Fprintf(out, "   :reset             Reset runtime state and variables\n")
+	fmt.Fprintf(out, "   :help              Show this guide\n")
+	fmt.Fprintf(out, "   :exit              Quit REPL\n")
+	fmt.Fprintf(out, "%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 }

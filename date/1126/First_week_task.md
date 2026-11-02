@@ -36,14 +36,14 @@
 ---
 
 ## Day 3: Data Structures, Pattern Matching & Structs
-- [ ] Arrays and array operations
-- [ ] Maps / Dictionaries (Hash tables)
-- [ ] Index expressions (`arr[0]`, `map["key"]`)
-- [ ] For-in iterators (`for item in list`)
-- [ ] Structs & Object-oriented methods
-- [ ] Pattern matching (`match` / `switch`)
-- [ ] Module system (`import "path"`)
-- [ ] Day 3 test suite verification
+- [x] Arrays and array operations
+- [x] Maps / Dictionaries (Hash tables)
+- [x] Index expressions (`arr[0]`, `map["key"]`)
+- [x] For-in iterators (`for item in list`)
+- [x] Structs & Object-oriented methods
+- [x] Pattern matching (`match` / `switch`)
+- [x] Module system (`import "path"`)
+- [x] Day 3 test suite verification
 
 ---
 

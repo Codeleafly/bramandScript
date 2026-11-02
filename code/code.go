@@ -53,6 +53,7 @@ const (
 	OpArray
 	OpHash
 	OpIndex
+	OpSetIndex
 
 	// Functions & Builtins
 	OpCall
@@ -61,6 +62,7 @@ const (
 	OpGetBuiltin
 	OpClosure
 	OpGetFree
+	OpSetFree
 )
 
 type Definition struct {
@@ -97,12 +99,14 @@ var definitions = map[Opcode]*Definition{
 	OpArray:            {"OpArray", []int{2}},
 	OpHash:             {"OpHash", []int{2}},
 	OpIndex:            {"OpIndex", []int{}},
+	OpSetIndex:         {"OpSetIndex", []int{}},
 	OpCall:             {"OpCall", []int{1}},
 	OpReturnValue:      {"OpReturnValue", []int{}},
 	OpReturn:           {"OpReturn", []int{}},
 	OpGetBuiltin:       {"OpGetBuiltin", []int{1}},
 	OpClosure:          {"OpClosure", []int{2, 1}},
 	OpGetFree:          {"OpGetFree", []int{1}},
+	OpSetFree:          {"OpSetFree", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {
