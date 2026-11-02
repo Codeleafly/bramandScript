@@ -93,3 +93,49 @@ func TestNextToken(t *testing.T) {
 		}
 	}
 }
+
+func TestNextTokenDay4(t *testing.T) {
+	input := `
+	spawn worker(10);
+	ch <- 42;
+	let val = <-ch;
+	`
+
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.SPAWN, "spawn"},
+		{token.IDENT, "worker"},
+		{token.LPAREN, "("},
+		{token.INT, "10"},
+		{token.RPAREN, ")"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "ch"},
+		{token.SEND_RECV, "<-"},
+		{token.INT, "42"},
+		{token.SEMICOLON, ";"},
+
+		{token.LET, "let"},
+		{token.IDENT, "val"},
+		{token.ASSIGN, "="},
+		{token.SEND_RECV, "<-"},
+		{token.IDENT, "ch"},
+		{token.SEMICOLON, ";"},
+
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType {
+			t.Fatalf("test[%d] - wrong type. expected=%q, got=%q", i, tt.expectedType, tok.Type)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("test[%d] - wrong literal. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}

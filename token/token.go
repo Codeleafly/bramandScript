@@ -53,6 +53,7 @@ const (
 	COLON     = ":"
 	DOT       = "."
 	ARROW     = "=>"
+	SEND_RECV = "<-"
 
 	LPAREN   = "("
 	RPAREN   = ")"
@@ -82,6 +83,7 @@ const (
 	IMPORT   = "IMPORT"
 	STRUCT   = "STRUCT"
 	AS       = "AS"
+	SPAWN    = "SPAWN"
 )
 
 var keywords = map[string]TokenType{
@@ -105,6 +107,7 @@ var keywords = map[string]TokenType{
 	"import":   IMPORT,
 	"struct":   STRUCT,
 	"as":       AS,
+	"spawn":    SPAWN,
 }
 
 func LookupIdent(ident string) TokenType {

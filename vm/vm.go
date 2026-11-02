@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"sync"
 )
 
 const StackSize = 2048
@@ -44,13 +45,18 @@ func (vm *VM) wrapError(err error) error {
 	return &RuntimeError{Line: line, Col: 1, Message: err.Error()}
 }
 
+type GlobalsStore struct {
+	mu   sync.RWMutex
+	data []object.Object
+}
+
 type VM struct {
 	constants []object.Object
 
 	stack []object.Object
 	sp    int // Always points to the next value. Top of stack is stack[sp-1]
 
-	globals []object.Object
+	globalsStore *GlobalsStore
 
 	frames      []*Frame
 	framesIndex int
@@ -73,7 +79,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		stack: make([]object.Object, StackSize),
 		sp:    0,
 
-		globals: make([]object.Object, GlobalsSize),
+		globalsStore: &GlobalsStore{data: make([]object.Object, GlobalsSize)},
 
 		frames:      frames,
 		framesIndex: 1,
@@ -82,8 +88,45 @@ func New(bytecode *compiler.Bytecode) *VM {
 
 func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
 	vm := New(bytecode)
-	vm.globals = s
+	vm.globalsStore = &GlobalsStore{data: s}
 	return vm
+}
+
+func (vm *VM) getGlobal(index uint16) object.Object {
+	vm.globalsStore.mu.RLock()
+	defer vm.globalsStore.mu.RUnlock()
+	return vm.globalsStore.data[index]
+}
+
+func (vm *VM) setGlobal(index uint16, val object.Object) {
+	vm.globalsStore.mu.Lock()
+	defer vm.globalsStore.mu.Unlock()
+	vm.globalsStore.data[index] = val
+}
+
+func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
+	childFrames := make([]*Frame, MaxFrames)
+	frame := NewFrame(cl, 0)
+	childFrames[0] = frame
+
+	childStack := make([]object.Object, StackSize)
+	for i, arg := range args {
+		childStack[i] = arg
+	}
+
+	sp := cl.Fn.NumLocals
+	if sp < len(args) {
+		sp = len(args)
+	}
+
+	return &VM{
+		constants:    vm.constants,
+		stack:        childStack,
+		sp:           sp,
+		globalsStore: vm.globalsStore,
+		frames:       childFrames,
+		framesIndex:  1,
+	}
 }
 
 func (vm *VM) currentFrame() *Frame {
@@ -141,7 +184,7 @@ func (vm *VM) runLoop() error {
 	var ins code.Instructions
 	var op code.Opcode
 
-	for vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
+	for vm.framesIndex > 0 && vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
 		vm.currentFrame().ip++
 
 		ip = vm.currentFrame().ip
@@ -229,13 +272,13 @@ func (vm *VM) runLoop() error {
 		case code.OpSetGlobal:
 			globalIndex := binary.BigEndian.Uint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
-			vm.globals[globalIndex] = vm.pop()
+			vm.setGlobal(globalIndex, vm.pop())
 
 		case code.OpGetGlobal:
 			globalIndex := binary.BigEndian.Uint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
 
-			val := vm.globals[globalIndex]
+			val := vm.getGlobal(globalIndex)
 			if val == nil {
 				val = Null
 			}
@@ -320,6 +363,9 @@ func (vm *VM) runLoop() error {
 			returnValue := vm.pop()
 
 			frame := vm.popFrame()
+			if vm.framesIndex == 0 {
+				return nil
+			}
 			vm.sp = frame.basePointer - 1
 
 			err := vm.push(returnValue)
@@ -329,9 +375,77 @@ func (vm *VM) runLoop() error {
 
 		case code.OpReturn:
 			frame := vm.popFrame()
+			if vm.framesIndex == 0 {
+				return nil
+			}
 			vm.sp = frame.basePointer - 1
 
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+
+		case code.OpSpawn:
+			numArgs := int(ins[ip+1])
+			vm.currentFrame().ip += 1
+
+			callee := vm.stack[vm.sp-1-numArgs]
+			args := make([]object.Object, numArgs)
+			copy(args, vm.stack[vm.sp-numArgs:vm.sp])
+
+			vm.sp = vm.sp - 1 - numArgs
+
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+
+			switch fn := callee.(type) {
+			case *object.Closure:
+				if numArgs != fn.Fn.NumParameters {
+					return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
+						fn.Fn.NumParameters, numArgs)
+				}
+				go func(cl *object.Closure, taskArgs []object.Object) {
+					childVM := vm.newChildVM(cl, taskArgs)
+					_ = childVM.Run()
+				}(fn, args)
+
+			case *object.Builtin:
+				go func(b *object.Builtin, taskArgs []object.Object) {
+					b.Fn(taskArgs...)
+				}(fn, args)
+
+			default:
+				return fmt.Errorf("calling non-function and non-builtin: %s", callee.Type())
+			}
+
+		case code.OpSend:
+			val := vm.pop()
+			chObj := vm.pop()
+
+			channel, ok := chObj.(*object.Channel)
+			if !ok {
+				return fmt.Errorf("send operator <- requires CHANNEL, got %s", chObj.Type())
+			}
+			err := channel.Send(val)
+			if err != nil {
+				return err
+			}
+			err = vm.push(Null)
+			if err != nil {
+				return err
+			}
+
+		case code.OpReceive:
+			chObj := vm.pop()
+
+			channel, ok := chObj.(*object.Channel)
+			if !ok {
+				return fmt.Errorf("receive operator <- requires CHANNEL, got %s", chObj.Type())
+			}
+			val, _ := channel.Recv()
+			err := vm.push(val)
 			if err != nil {
 				return err
 			}
@@ -624,6 +738,86 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 			}
 		}
 		return vm.push(Null)
+	case left.Type() == object.MUTEX_OBJ && index.Type() == object.STRING_OBJ:
+		mtx := left.(*object.Mutex)
+		prop := index.(*object.String).Value
+		switch prop {
+		case "lock":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					mtx.Lock()
+					return Null
+				},
+			})
+		case "unlock":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					mtx.Unlock()
+					return Null
+				},
+			})
+		case "try_lock":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return nativeBoolToBooleanObject(mtx.TryLock())
+				},
+			})
+		default:
+			return fmt.Errorf("unknown method '%s' on mutex", prop)
+		}
+	case left.Type() == object.WAIT_GROUP_OBJ && index.Type() == object.STRING_OBJ:
+		wg := left.(*object.WaitGroup)
+		prop := index.(*object.String).Value
+		switch prop {
+		case "add":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					delta := 1
+					if len(args) > 0 {
+						if intObj, ok := args[0].(*object.Integer); ok {
+							delta = int(intObj.Value)
+						}
+					}
+					wg.Add(delta)
+					return Null
+				},
+			})
+		case "done":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					wg.Done()
+					return Null
+				},
+			})
+		case "wait":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					wg.Wait()
+					return Null
+				},
+			})
+		default:
+			return fmt.Errorf("unknown method '%s' on wait_group", prop)
+		}
+	case left.Type() == object.CHANNEL_OBJ && index.Type() == object.STRING_OBJ:
+		ch := left.(*object.Channel)
+		prop := index.(*object.String).Value
+		switch prop {
+		case "close":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					err := ch.Close()
+					if err != nil {
+						return &object.Error{Message: err.Error()}
+					}
+					return Null
+				},
+			})
+		case "capacity", "cap":
+			return vm.push(&object.Integer{Value: int64(ch.Capacity)})
+		default:
+			return fmt.Errorf("unknown method '%s' on channel", prop)
+		}
 	default:
 		return fmt.Errorf("index operator not supported: %s[%s]", left.Type(), index.Type())
 	}

@@ -63,6 +63,11 @@ const (
 	OpClosure
 	OpGetFree
 	OpSetFree
+
+	// Concurrency & Channels
+	OpSpawn
+	OpSend
+	OpReceive
 )
 
 type Definition struct {
@@ -107,6 +112,9 @@ var definitions = map[Opcode]*Definition{
 	OpClosure:          {"OpClosure", []int{2, 1}},
 	OpGetFree:          {"OpGetFree", []int{1}},
 	OpSetFree:          {"OpSetFree", []int{1}},
+	OpSpawn:            {"OpSpawn", []int{1}},
+	OpSend:             {"OpSend", []int{}},
+	OpReceive:          {"OpReceive", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

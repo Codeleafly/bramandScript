@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"sync"
 )
 
 type ObjectType string
@@ -22,6 +23,9 @@ const (
 	BUILTIN_OBJ           = "BUILTIN"
 	ARRAY_OBJ             = "ARRAY"
 	HASH_OBJ              = "HASH"
+	CHANNEL_OBJ           = "CHANNEL"
+	MUTEX_OBJ             = "MUTEX"
+	WAIT_GROUP_OBJ        = "WAIT_GROUP"
 )
 
 type Object interface {
@@ -182,4 +186,89 @@ func (h *Hash) Inspect() string {
 	out.WriteString(strings.Join(pairs, ", "))
 	out.WriteString("}")
 	return out.String()
+}
+
+// ---------------- Channel ----------------
+type Channel struct {
+	Ch       chan Object
+	Capacity int
+	closed   bool
+	mu       sync.Mutex
+}
+
+func (c *Channel) Type() ObjectType { return CHANNEL_OBJ }
+func (c *Channel) Inspect() string {
+	return fmt.Sprintf("chan(%d)", c.Capacity)
+}
+
+func (c *Channel) Send(val Object) error {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return fmt.Errorf("send on closed channel")
+	}
+	ch := c.Ch
+	c.mu.Unlock()
+
+	ch <- val
+	return nil
+}
+
+func (c *Channel) Recv() (Object, bool) {
+	val, ok := <-c.Ch
+	if !ok {
+		return &Null{}, false
+	}
+	return val, true
+}
+
+func (c *Channel) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return fmt.Errorf("close of closed channel")
+	}
+	c.closed = true
+	close(c.Ch)
+	return nil
+}
+
+// ---------------- Mutex ----------------
+type Mutex struct {
+	mu sync.Mutex
+}
+
+func (m *Mutex) Type() ObjectType { return MUTEX_OBJ }
+func (m *Mutex) Inspect() string  { return "mutex" }
+
+func (m *Mutex) Lock() {
+	m.mu.Lock()
+}
+
+func (m *Mutex) Unlock() {
+	m.mu.Unlock()
+}
+
+func (m *Mutex) TryLock() bool {
+	return m.mu.TryLock()
+}
+
+// ---------------- WaitGroup ----------------
+type WaitGroup struct {
+	wg sync.WaitGroup
+}
+
+func (w *WaitGroup) Type() ObjectType { return WAIT_GROUP_OBJ }
+func (w *WaitGroup) Inspect() string  { return "wait_group" }
+
+func (w *WaitGroup) Add(delta int) {
+	w.wg.Add(delta)
+}
+
+func (w *WaitGroup) Done() {
+	w.wg.Done()
+}
+
+func (w *WaitGroup) Wait() {
+	w.wg.Wait()
 }

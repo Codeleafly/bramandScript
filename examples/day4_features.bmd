@@ -1,0 +1,80 @@
+// BramandScript Day 4 Features Showcase
+// Concurrency, Channels, Mutex, File I/O, Process Execution, Formatting
+
+println(color("cyan", "✦ BramandScript Day 4 Feature Verification"));
+
+// 1. Concurrency Primitives: spawn & chan
+println("[1] Testing spawn & channels...");
+let messages = chan(3);
+
+spawn fn() {
+    sleep(10);
+    messages <- "Hello from background task 1";
+}();
+
+spawn fn() {
+    sleep(20);
+    messages <- "Hello from background task 2";
+}();
+
+println("  Received:", <-messages);
+println("  Received:", <-messages);
+
+// 2. Mutex Synchronization
+println("[2] Testing mutex...");
+let m = mutex();
+m.lock();
+let busy = m.try_lock(); // should be false
+println("  try_lock while locked (expected false):", busy);
+m.unlock();
+let free = m.try_lock(); // should be true
+println("  try_lock after unlock (expected true):", free);
+m.unlock();
+
+// 3. WaitGroup Synchronization
+println("[3] Testing wait_group...");
+let wg = wait_group();
+let doneCh = chan(2);
+
+wg.add(2);
+spawn fn() {
+    sleep(15);
+    doneCh <- "Worker A complete";
+    wg.done();
+}();
+spawn fn() {
+    sleep(25);
+    doneCh <- "Worker B complete";
+    wg.done();
+}();
+
+wg.wait();
+println("  ", <-doneCh);
+println("  ", <-doneCh);
+
+// 4. File I/O
+println("[4] Testing File I/O standard library...");
+let testPath = "test_day4_runtime.txt";
+write_file(testPath, "BramandScript System IO");
+println("  file_exists:", file_exists(testPath));
+println("  content:", read_file(testPath));
+append_file(testPath, " [Appended]");
+println("  after append:", read_file(testPath));
+delete_file(testPath);
+println("  file_exists after delete:", file_exists(testPath));
+
+// 5. Process Execution & Environment Variables
+println("[5] Testing process execution & env...");
+set_env("BMD_LANG", "BramandScript");
+println("  env BMD_LANG:", env("BMD_LANG"));
+
+let res = exec("echo", "Hello from exec");
+println("  exec exit code:", res.code);
+println("  exec stdout:", str(res.stdout));
+
+// 6. Formatting & ANSI terminal output
+println("[6] Testing ANSI styling...");
+println("  ", styled("Green Success Indicator", "green"));
+println("  ", styled("Bold Notice", "bold"));
+
+println(color("green", "✦ All Day 4 features executed flawlessly!"));
