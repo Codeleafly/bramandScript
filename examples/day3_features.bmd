@@ -9,20 +9,20 @@ struct Person {
 }
 
 let p = Person("Aryan", 14)
-print(p.greet())
+println(p.greet())
 
 // 2. Mutable Dot Access & Index Assignment
 p.age = 15
-print("Updated Age:", p.age)
+println("Updated Age:", p.age)
 
 let list = [10, 20, 30]
 list[1] = 99
-print("Mutated Array:", list)
+println("Mutated Array:", list)
 
 // 3. For-In Loops with Break & Continue
-print("Iterating over array:")
+println("Iterating over array:")
 for idx, val in list {
-    print("  Index:", idx, "Value:", val)
+    println("  Index:", idx, "Value:", val)
 }
 
 // 4. Pattern Matching
@@ -32,12 +32,12 @@ let statusMessage = match httpCode {
     case 404 => { "Resource Not Found" }
     default => { "Server Response" }
 }
-print("HTTP Match:", statusMessage)
+println("HTTP Match:", statusMessage)
 
 // 5. Array Utilities
 let nums = [1, 2, 3]
-push(nums, 4)
-print("Contains 3?", contains(nums, 3))
-print("Contains 99?", contains(nums, 99))
-print("Popped:", pop(nums))
-print("Array after pop:", nums)
+nums = push(nums, 4)
+println("Contains 3?", contains(nums, 3))
+println("Contains 99?", contains(nums, 99))
+println("Popped:", pop(nums))
+println("Array after pop:", nums)

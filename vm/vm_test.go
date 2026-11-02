@@ -340,6 +340,8 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`type("universe")`, "STRING"},
 		{`type(42)`, "INTEGER"},
 		{`len(push([1, 2], 3))`, 3},
+		{`let a = [1, 2]; push(a, 3); len(a)`, 3},
+		{`let a = [1, 2]; push(a, 3); a[2]`, 3},
 		{`int("42")`, 42},
 		{`float("3.14")`, 3.14},
 		{`str(100)`, "100"},

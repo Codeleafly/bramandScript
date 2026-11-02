@@ -147,11 +147,8 @@ func getBuiltinByName(name string) *object.Builtin {
 					return &object.Error{Message: fmt.Sprintf("first argument to `push` must be ARRAY, got %s", args[0].Type())}
 				}
 				arr := args[0].(*object.Array)
-				length := len(arr.Elements)
-				newElements := make([]object.Object, length+1)
-				copy(newElements, arr.Elements)
-				newElements[length] = args[1]
-				return &object.Array{Elements: newElements}
+				arr.Elements = append(arr.Elements, args[1])
+				return arr
 			},
 		}
 	case "now":
