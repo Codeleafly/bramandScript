@@ -119,6 +119,7 @@ func (rv *ReturnValue) Inspect() string  { return rv.Value.Inspect() }
 // ---------------- Error ----------------
 type Error struct {
 	Message string
+	Fatal   bool
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }

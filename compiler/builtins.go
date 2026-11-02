@@ -56,10 +56,13 @@ var Builtins = []BuiltinDef{
 
 	// Day 5 BigInt & BigFloat
 	{Name: "big_int"},
+	{Name: "bigint"},
 	{Name: "big_float"},
+	{Name: "bigfloat"},
 
 	// Day 5 Vectors & Matrices
 	{Name: "vec"},
+	{Name: "vector"},
 	{Name: "matrix"},
 
 	// Day 5 Trigonometric, Logarithmic & Math
@@ -96,6 +99,7 @@ var Builtins = []BuiltinDef{
 	// Day 5 Statistical standard library
 	{Name: "sum"},
 	{Name: "mean"},
+	{Name: "math_mean"},
 	{Name: "median"},
 	{Name: "mode"},
 	{Name: "variance"},
@@ -115,9 +119,11 @@ var Builtins = []BuiltinDef{
 
 	// Day 5 Cryptography & CSPRNG
 	{Name: "sha256"},
+	{Name: "crypto_sha256"},
 	{Name: "sha512"},
 	{Name: "md5"},
 	{Name: "hmac_sha256"},
+	{Name: "crypto_hmac"},
 	{Name: "random_bytes"},
 	{Name: "random_int"},
 	{Name: "uuid"},
@@ -153,4 +159,15 @@ var Builtins = []BuiltinDef{
 	{Name: "euclidean_distance"},
 	{Name: "manhattan_distance"},
 	{Name: "vector_search"},
+
+	// Day 7 Testing & Developer Tooling
+	{Name: "assert"},
+	{Name: "assert_eq"},
+	{Name: "assert_ne"},
+	{Name: "panic"},
+	{Name: "test"},
+	{Name: "describe"},
+	{Name: "time_now"},
+	{Name: "time_ms"},
+	{Name: "benchmark"},
 }

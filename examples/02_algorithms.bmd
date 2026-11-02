@@ -1,0 +1,69 @@
+// examples/02_algorithms.bmd
+// Classical Algorithms implemented in BramandScript
+
+println("✦ BramandScript Classical Algorithms");
+println("──────────────────────────────────────────────────");
+
+// 1. Binary Search
+let binarySearch = fn(arr, target) {
+    let low = 0;
+    let high = len(arr) - 1;
+
+    while (low <= high) {
+        let mid = (low + high) / 2;
+        let val = arr[mid];
+        if (val == target) {
+            return mid;
+        } else if (val < target) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    return -1;
+};
+
+let sortedList = [2, 5, 8, 12, 16, 23, 38, 45, 56, 72, 91];
+let idx = binarySearch(sortedList, 23);
+println("[1] Binary Search:");
+println("  Array:  ", sortedList);
+println("  Target: 23, Found at Index:", idx);
+
+// 2. Quicksort
+fn quicksort(arr) {
+    if (len(arr) <= 1) {
+        return arr;
+    }
+    let pivot = arr[0];
+    let less = [];
+    let equal = [];
+    let greater = [];
+
+    for x in arr {
+        if (x < pivot) {
+            less = push(less, x);
+        } else if (x == pivot) {
+            equal = push(equal, x);
+        } else {
+            greater = push(greater, x);
+        }
+    }
+
+    let leftSorted = quicksort(less);
+    let rightSorted = quicksort(greater);
+
+    let result = [];
+    for x in leftSorted { result = push(result, x); }
+    for x in equal { result = push(result, x); }
+    for x in rightSorted { result = push(result, x); }
+    return result;
+}
+
+let unsorted = [64, 34, 25, 12, 22, 11, 90];
+let sorted = quicksort(unsorted);
+println("\n[2] Quicksort:");
+println("  Unsorted:", unsorted);
+println("  Sorted:  ", sorted);
+
+println("──────────────────────────────────────────────────");
+println("[OK] Algorithms executed with zero defects!");

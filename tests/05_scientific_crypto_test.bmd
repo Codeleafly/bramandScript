@@ -1,0 +1,69 @@
+// tests/05_scientific_crypto_test.bmd
+// BramandScript Regression Test Suite: Big Numbers, Linear Algebra, Math, Crypto & JSON
+
+describe("BigInt and BigFloat", fn() {
+        test("BigInt 256-bit arithmetic", fn() {
+                let b1 = bigint("1000000000000000000000000");
+                let b2 = bigint("2000000000000000000000000");
+                let bSum = b1.add(b2);
+                assert_eq(bSum.to_string(), "3000000000000000000000000");
+        });
+
+        test("BigFloat high precision", fn() {
+                let f1 = bigfloat("1.234567890123456789");
+                let f2 = bigfloat("2.0");
+                let fMul = f1.mul(f2);
+                assert(len(fMul.to_string()) > 10);
+        });
+});
+
+describe("Linear Algebra and Statistics", fn() {
+        test("Vector dot and magnitude", fn() {
+                let v1 = vector([1.0, 2.0, 3.0]);
+                let v2 = vector([4.0, 5.0, 6.0]);
+                let dotVal = v1.dot(v2);
+                assert_eq(dotVal, 32.0);
+        });
+
+        test("Matrix multiplication", fn() {
+                let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+                let m2 = matrix([[2.0, 0.0], [1.0, 2.0]]);
+                let mRes = m1.mul(m2);
+                assert_eq(mRes.get(0, 0), 4.0);
+                assert_eq(mRes.get(0, 1), 4.0);
+                assert_eq(mRes.get(1, 0), 10.0);
+                assert_eq(mRes.get(1, 1), 8.0);
+        });
+
+        test("Statistics stdlib", fn() {
+                let vals = [10.0, 20.0, 30.0, 40.0, 50.0];
+                let m = math_mean(vals);
+                assert_eq(m, 30.0);
+        });
+});
+
+describe("JSON, Base64 & Cryptography", fn() {
+        test("JSON parse and stringify", fn() {
+                let data = {"title": "BramandScript", "ready": true, "version": 2};
+                let encoded = json_stringify(data);
+                assert(len(encoded) > 0);
+
+                let decoded = json_parse(encoded);
+                assert_eq(decoded["title"], "BramandScript");
+                assert_eq(decoded["ready"], true);
+        });
+
+        test("Base64 encode and decode", fn() {
+                let original = "High-performance language runtime";
+                let b64 = base64_encode(original);
+                assert_eq(base64_decode(b64), original);
+        });
+
+        test("SHA-256 and HMAC hashing", fn() {
+                let hash = crypto_sha256("bramand");
+                assert_eq(len(hash), 64);
+
+                let mac = crypto_hmac("secret_key", "message");
+                assert_eq(len(mac), 64);
+        });
+});

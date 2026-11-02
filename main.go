@@ -3,10 +3,13 @@ package main
 import (
 	"bramandscript/compiler"
 	"bramandscript/diagnostics"
+	"bramandscript/formatter"
 	"bramandscript/lexer"
 	"bramandscript/parser"
 	"bramandscript/repl"
+	"bramandscript/testrunner"
 	"bramandscript/vm"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,8 +19,14 @@ import (
 
 const VERSION = "0.1.0"
 const DIVIDER = "__________________________________________________________________"
+const StandaloneSignature = "BMD_STANDALONE_1"
+const StandaloneFooterLen = 24
 
 func main() {
+	if checkEmbeddedStandalone() {
+		return
+	}
+
 	if len(os.Args) < 2 {
 		repl.Start(os.Stdin, os.Stdout)
 		return
@@ -36,6 +45,53 @@ func main() {
 		}
 		filename := os.Args[2]
 		executeFile(filename)
+
+	case "-e":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand -e <code>")
+			os.Exit(1)
+		}
+		executeSource(os.Args[2], "<eval>")
+
+	case "test":
+		var testPaths []string
+		verbose := false
+		for _, arg := range os.Args[2:] {
+			if arg == "-v" || arg == "--verbose" {
+				verbose = true
+			} else {
+				testPaths = append(testPaths, arg)
+			}
+		}
+		exitCode := testrunner.Run(testrunner.RunnerOptions{
+			Paths:   testPaths,
+			Verbose: verbose,
+		})
+		os.Exit(exitCode)
+
+	case "fmt":
+		var fmtPaths []string
+		check := false
+		diff := false
+		for _, arg := range os.Args[2:] {
+			if arg == "-c" || arg == "--check" {
+				check = true
+			} else if arg == "--diff" {
+				diff = true
+			} else {
+				fmtPaths = append(fmtPaths, arg)
+			}
+		}
+		exitCode := formatter.RunCLI(formatter.FormatOptions{
+			Paths: fmtPaths,
+			Check: check,
+			Write: !check,
+			Diff:  diff,
+		})
+		os.Exit(exitCode)
+
+	case "build":
+		handleBuildCommand(os.Args[2:])
 
 	case "pkg", "lib", "package":
 		handlePkgCommand(os.Args[2:])
@@ -61,6 +117,159 @@ func main() {
 	}
 }
 
+func checkEmbeddedStandalone() bool {
+	exePath, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	f, err := os.Open(exePath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil || fi.Size() < StandaloneFooterLen {
+		return false
+	}
+
+	footer := make([]byte, StandaloneFooterLen)
+	_, err = f.ReadAt(footer, fi.Size()-StandaloneFooterLen)
+	if err != nil {
+		return false
+	}
+
+	sig := string(footer[8:24])
+	if sig != StandaloneSignature {
+		return false
+	}
+
+	payloadLen := binary.BigEndian.Uint64(footer[0:8])
+	if payloadLen == 0 || int64(payloadLen) > fi.Size()-StandaloneFooterLen {
+		return false
+	}
+
+	payload := make([]byte, payloadLen)
+	_, err = f.ReadAt(payload, fi.Size()-StandaloneFooterLen-int64(payloadLen))
+	if err != nil {
+		return false
+	}
+
+	executeSource(string(payload), exePath)
+	return true
+}
+
+func handleBuildCommand(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: bramand build <source.bmd> [-o output_binary]")
+		os.Exit(1)
+	}
+
+	inputFile := ""
+	outputFile := ""
+
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-o" && i+1 < len(args) {
+			outputFile = args[i+1]
+			i++
+		} else if inputFile == "" {
+			inputFile = args[i]
+		}
+	}
+
+	if inputFile == "" {
+		fmt.Println("Usage: bramand build <source.bmd> [-o output_binary]")
+		os.Exit(1)
+	}
+
+	if outputFile == "" {
+		base := filepath.Base(inputFile)
+		ext := filepath.Ext(base)
+		outputFile = strings.TrimSuffix(base, ext)
+		if runtime.GOOS == "windows" {
+			outputFile += ".exe"
+		}
+	}
+
+	data, err := os.ReadFile(inputFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read source file '%s': %s\n", inputFile, err)
+		os.Exit(1)
+	}
+	source := string(data)
+
+	l := lexer.New(source)
+	p := parser.New(l)
+	prog := p.ParseProgram()
+	if len(p.SyntaxErrors) > 0 {
+		fmt.Fprintf(os.Stderr, "[ERROR] Syntax error in '%s': %s (line %d, col %d)\n", inputFile, p.SyntaxErrors[0].Message, p.SyntaxErrors[0].Line, p.SyntaxErrors[0].Col)
+		os.Exit(1)
+	}
+	comp := compiler.New()
+	if err := comp.Compile(prog); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Compile error in '%s': %s\n", inputFile, err)
+		os.Exit(1)
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not locate current executable: %s\n", err)
+		os.Exit(1)
+	}
+	exeBytes, err := os.ReadFile(exePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read current executable: %s\n", err)
+		os.Exit(1)
+	}
+
+	if len(exeBytes) >= StandaloneFooterLen {
+		tail := exeBytes[len(exeBytes)-StandaloneFooterLen:]
+		if string(tail[8:24]) == StandaloneSignature {
+			oldPayloadLen := binary.BigEndian.Uint64(tail[0:8])
+			baseLen := len(exeBytes) - StandaloneFooterLen - int(oldPayloadLen)
+			if baseLen > 0 {
+				exeBytes = exeBytes[:baseLen]
+			}
+		}
+	}
+
+	outF, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not create output file '%s': %s\n", outputFile, err)
+		os.Exit(1)
+	}
+	defer outF.Close()
+
+	if _, err := outF.Write(exeBytes); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing binary header: %s\n", err)
+		os.Exit(1)
+	}
+
+	if _, err := outF.Write(data); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing source payload: %s\n", err)
+		os.Exit(1)
+	}
+
+	footer := make([]byte, StandaloneFooterLen)
+	binary.BigEndian.PutUint64(footer[0:8], uint64(len(data)))
+	copy(footer[8:24], []byte(StandaloneSignature))
+
+	if _, err := outF.Write(footer); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing binary footer: %s\n", err)
+		os.Exit(1)
+	}
+
+	totalSize := int64(len(exeBytes) + len(data) + StandaloneFooterLen)
+	fmt.Printf("\n%s✦ BramandScript Standalone Executable Builder%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+	fmt.Println("──────────────────────────────────────────────────")
+	fmt.Printf("Source File:  %s\n", inputFile)
+	fmt.Printf("Target Exe:   %s\n", outputFile)
+	fmt.Printf("Payload Size: %d bytes\n", len(data))
+	fmt.Printf("Total Binary: %.2f MB\n", float64(totalSize)/(1024*1024))
+	fmt.Println("──────────────────────────────────────────────────")
+	fmt.Printf("%s[OK] Standalone executable created successfully: %s%s\n\n", diagnostics.ColorGreen, outputFile, diagnostics.ColorReset)
+}
+
 func executeFile(filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -73,8 +282,10 @@ func executeFile(filename string) {
 		fmt.Fprint(os.Stderr, diag.Format())
 		os.Exit(1)
 	}
+	executeSource(string(data), filename)
+}
 
-	source := string(data)
+func executeSource(source, filename string) {
 	l := lexer.New(source)
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -108,7 +319,7 @@ func executeFile(filename string) {
 	}
 
 	comp := compiler.New()
-	err = comp.Compile(program)
+	err := comp.Compile(program)
 	if err != nil {
 		diag := diagnostics.Diagnostic{
 			Filename: filename,
@@ -155,13 +366,17 @@ func executeFile(filename string) {
 }
 
 func printHelp() {
-	fmt.Printf("%sBramandScript Language CLI%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+	fmt.Printf("%s✦ BramandScript Language CLI (v%s)%s\n", diagnostics.ColorBold, VERSION, diagnostics.ColorReset)
 	fmt.Printf("%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 	fmt.Println("Usage:")
 	fmt.Println("  bramand                   Start interactive REPL")
 	fmt.Println("  bramand repl              Start interactive REPL")
 	fmt.Println("  bramand run <file.bmd>    Run source file")
 	fmt.Println("  bramand <file.bmd>        Direct execution shortcut")
+	fmt.Println("  bramand test [paths...]   Execute test suites (*_test.bmd)")
+	fmt.Println("  bramand fmt [paths...]    Format source code canonically")
+	fmt.Println("  bramand fmt -c [paths...] Check if files are formatted")
+	fmt.Println("  bramand build <src.bmd>   Compile into standalone native binary")
 	fmt.Println("  bramand pkg list          List installed packages in ~/.bramand_libs")
 	fmt.Println("  bramand pkg install <src> Install package to centralized registry")
 	fmt.Println("  bramand pkg remove <name> Remove package from centralized registry")

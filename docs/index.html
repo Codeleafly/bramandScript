@@ -247,6 +247,15 @@
         </div>
 
         <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Developer Tooling & Testing</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch-testrunner" class="nav-link"><span>✦</span> Test Runner & Assertions</a></li>
+            <li><a href="#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
+            <li><a href="#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
+          </ul>
+        </div>
+
+        <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem & Architecture</h3>
           <ul class="space-y-1">
             <li><a href="#ch14" class="nav-link"><span>14.</span> Modules & Package Store</a></li>
@@ -1503,6 +1512,104 @@ Fib(10) = 55</code></pre>
         </div>
       </section>
 
+      <!-- ================= DEVELOPER TOOLING: TEST RUNNER ================= -->
+      <section id="ch-testrunner" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Tooling & Verification</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">CLI Test Runner & Native Testing Suite</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript ships with a built-in zero-dependency testing framework and test runner. Run automated tests with microsecond reporting, sub-suite nesting, rich colored diagnostics, and micro-benchmarking:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — Test Runner CLI</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment"># Recursively discover and execute all *_test.bmd and test_*.bmd files</span>
+bramand test
+
+<span class="token-comment"># Run specific test file or directory</span>
+bramand test tests/
+bramand test tests/01_language_foundation_test.bmd</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Writing Test Suites (<code class="font-mono">test</code>, <code class="font-mono">describe</code>, <code class="font-mono">assert_eq</code>)</h3>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — math_test.bmd</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-fn">describe</span>(<span class="token-str">"Arithmetic & Vector Mathematics"</span>, <span class="token-kw">fn</span>() {
+    <span class="token-fn">test</span>(<span class="token-str">"Addition and scalar operations"</span>, <span class="token-kw">fn</span>() {
+        <span class="token-kw">let</span> <span class="token-fn">x</span> <span class="token-op">=</span> <span class="token-num">15</span> <span class="token-op">+</span> <span class="token-num">25</span>
+        <span class="token-fn">assert_eq</span>(<span class="token-fn">x</span>, <span class="token-num">40</span>)
+        <span class="token-fn">assert_ne</span>(<span class="token-fn">x</span>, <span class="token-num">0</span>)
+    })
+
+    <span class="token-fn">test</span>(<span class="token-str">"Deep collection equality"</span>, <span class="token-kw">fn</span>() {
+        <span class="token-fn">assert_eq</span>([<span class="token-num">1</span>, <span class="token-num">2</span>, <span class="token-num">3</span>], [<span class="token-num">1</span>, <span class="token-num">2</span>, <span class="token-num">3</span>])
+        <span class="token-fn">assert_eq</span>({<span class="token-str">"status"</span>: <span class="token-str">"ok"</span>}, {<span class="token-str">"status"</span>: <span class="token-str">"ok"</span>})
+    })
+})</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: FORMATTER ================= -->
+      <section id="ch-formatter" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Code Formatter</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Canonical Code Formatter (<code class="font-mono">bramand fmt</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript includes a deterministic opinionated formatter built directly into the CLI toolchain (analogous to <code class="font-mono">gofmt</code> / <code class="font-mono">cargo fmt</code>). It normalizes indentation to 4 spaces, aligns operator spacing, cleans trailing whitespace, and verifies AST integrity:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — Formatter CLI</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment"># Format all .bmd files in current project in-place</span>
+bramand fmt
+
+<span class="token-comment"># Check if files adhere to canonical style (CI validation, exits 1 if unformatted)</span>
+bramand fmt -c
+bramand fmt --check src/
+
+<span class="token-comment"># Format a specific file</span>
+bramand fmt examples/01_quickstart.bmd</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: STANDALONE BUILD ================= -->
+      <section id="ch-compiler" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Standalone Compilation</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standalone Executable Compilation (<code class="font-mono">bramand build</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Compile any BramandScript program into a completely self-contained native executable. The generated binary contains the zero-dependency Bramand bytecode engine and embedded program payload, capable of running instantly on target systems without requiring Go or Bramand to be installed:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bash — Standalone Binary Builder</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment"># Build a standalone native binary for your platform</span>
+bramand build app.bmd -o my_app
+
+<span class="token-comment"># Run standalone executable directly (no interpreter or runtime needed!)</span>
+./my_app</code></pre>
+        </div>
+      </section>
+
       <!-- ================= CHAPTER 14 ================= -->
       <section id="ch14" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
@@ -2044,6 +2151,51 @@ bramand pkg init logger@0.1.0</code></pre>
                 <td><code class="font-mono font-bold">vector_search</code></td>
                 <td><code class="font-mono">vector_search(query, candidates, [top_k], [metric])</code></td>
                 <td>Performs nearest-neighbor vector search over candidate documents or embeddings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert</code></td>
+                <td><code class="font-mono">assert(condition, [message])</code></td>
+                <td>Asserts that condition is truthy; raises fatal AssertionError if falsy.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert_eq</code></td>
+                <td><code class="font-mono">assert_eq(actual, expected, [message])</code></td>
+                <td>Asserts deep structural equality between two objects.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert_ne</code></td>
+                <td><code class="font-mono">assert_ne(actual, expected, [message])</code></td>
+                <td>Asserts that two objects are not structurally equal.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">panic</code></td>
+                <td><code class="font-mono">panic(message)</code></td>
+                <td>Halts execution immediately with an explicit panic error.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">test</code></td>
+                <td><code class="font-mono">test(name, fn)</code></td>
+                <td>Registers and executes a test block, measuring duration and catching assertion errors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">describe</code></td>
+                <td><code class="font-mono">describe(suite_name, fn)</code></td>
+                <td>Groups related tests under a common suite heading.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_now</code></td>
+                <td><code class="font-mono">time_now()</code></td>
+                <td>Returns high-resolution UNIX timestamp in seconds with fractional precision.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_ms</code></td>
+                <td><code class="font-mono">time_ms()</code></td>
+                <td>Returns current UNIX epoch timestamp in milliseconds.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">benchmark</code></td>
+                <td><code class="font-mono">benchmark(name, fn, [iterations])</code></td>
+                <td>Executes benchmark loop and returns metrics hash with ops/sec and latency stats.</td>
               </tr>
             </tbody>
           </table>

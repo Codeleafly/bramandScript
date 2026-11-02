@@ -17,17 +17,17 @@ spawn fn() {
     messages <- "Hello from background task 2";
 }();
 
-println("  Received:", <-messages);
-println("  Received:", <-messages);
+println("  Received:", <- messages);
+println("  Received:", <- messages);
 
 // 2. Mutex Synchronization
 println("[2] Testing mutex...");
 let m = mutex();
 m.lock();
-let busy = m.try_lock(); // should be false
+let busy = m.try_lock();  // should be false
 println("  try_lock while locked (expected false):", busy);
 m.unlock();
-let free = m.try_lock(); // should be true
+let free = m.try_lock();  // should be true
 println("  try_lock after unlock (expected true):", free);
 m.unlock();
 
@@ -49,8 +49,8 @@ spawn fn() {
 }();
 
 wg.wait();
-println("  ", <-doneCh);
-println("  ", <-doneCh);
+println("  ", <- doneCh);
+println("  ", <- doneCh);
 
 // 4. File I/O
 println("[4] Testing File I/O standard library...");

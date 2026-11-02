@@ -1,0 +1,68 @@
+// tests/03_data_structures_oop_test.bmd
+// BramandScript Regression Test Suite: Arrays, Maps, OOP & Pattern Matching
+
+describe("Arrays and Hash Maps", fn() {
+        test("Array operations", fn() {
+                let arr = [10, 20, 30];
+                assert_eq(len(arr), 3);
+                assert_eq(arr[0], 10);
+                assert_eq(arr[2], 30);
+
+                arr = push(arr, 40);
+                assert_eq(len(arr), 4);
+                assert_eq(arr[3], 40);
+
+                let popped = pop(arr);
+                assert_eq(popped, 40);
+                assert_eq(len(arr), 3);
+        });
+
+        test("Hash map operations", fn() {
+                let user = {"name": "Antigravity", "level": 99};
+                assert_eq(user["name"], "Antigravity");
+                assert_eq(user["level"], 99);
+
+                user["role"] = "AI";
+                assert_eq(user["role"], "AI");
+                assert_eq(len(user), 3);
+        });
+
+        test("For-in loop iteration", fn() {
+                let numbers = [1, 2, 3, 4, 5];
+                let total = 0;
+                for num in numbers {
+                    total = total + num;
+                }
+                assert_eq(total, 15);
+        });
+});
+
+describe("Structs and Pattern Matching", fn() {
+        test("Struct definition and method invocation", fn() {
+                struct BankAccount {
+                    balance
+                    fn deposit(amount) {
+                        balance = balance + amount;
+                        return balance;
+                    }
+                }
+
+                let acc = BankAccount(0);
+                assert_eq(acc.deposit(500), 500);
+                assert_eq(acc.deposit(250), 750);
+        });
+
+        test("Pattern matching with match/case", fn() {
+                let evaluate = fn(val) {
+                    match val {
+                        case 1 => { return "one"; }
+                        case 2 => { return "two"; }
+                        default => { return "other"; }
+                    }
+                };
+
+                assert_eq(evaluate(1), "one");
+                assert_eq(evaluate(2), "two");
+                assert_eq(evaluate(99), "other");
+        });
+});

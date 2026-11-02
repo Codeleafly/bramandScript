@@ -1,0 +1,48 @@
+// examples/07_ai_embeddings_search.bmd
+// AI Vector Similarity Search & Semantic Retrieval
+
+println("✦ BramandScript AI & Vector Search Engine");
+println("──────────────────────────────────────────────────");
+
+// Query vector (representing query embedding: e.g. "high performance runtime")
+let query = [0.92, 0.15, 0.35, 0.08];
+
+// Document corpus with pre-computed vector embeddings
+let corpus = [
+    {
+        "id": "doc-01",
+        "title": "BramandScript Bytecode VM Architecture",
+        "vector": [0.95, 0.12, 0.30, 0.05]
+    },
+    {
+        "id": "doc-02",
+        "title": "Cooking Recipes for Italian Pasta",
+        "vector": [0.05, 0.88, 0.12, 0.45]
+    },
+    {
+        "id": "doc-03",
+        "title": "Stack Machine Opcode Execution in Go",
+        "vector": [0.89, 0.18, 0.38, 0.10]
+    },
+    {
+        "id": "doc-04",
+        "title": "Astronomy and Planetary Astrophysics",
+        "vector": [0.12, 0.25, 0.85, 0.45]
+    }
+];
+
+println("Query Vector:", query);
+println("Searching top 2 nearest semantic neighbors...\n");
+
+let matches = vector_search(query, corpus, 2, "cosine");
+
+let i = 0;
+for matchItem in matches {
+    i = i + 1;
+    let doc = matchItem["item"];
+    let score = matchItem["score"];
+    println("  #" + str(i) + " [" + str(score) + "] " + doc["id"] + " — " + doc["title"]);
+}
+
+println("\n──────────────────────────────────────────────────");
+println("[OK] Vector similarity search complete!");

@@ -187,6 +187,10 @@ func ExecuteCallable(callable object.Object, args ...object.Object) (object.Obje
 			frames:       childFrames,
 			framesIndex:  1,
 		}
+		oldVM := vm
+		SetActiveVM(childVM)
+		defer SetActiveVM(oldVM)
+
 		err := childVM.Run()
 		if err != nil {
 			return nil, err
@@ -1452,7 +1456,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return bi.Neg()
 				},
 			})
-		case "str", "to_str":
+		case "str", "to_str", "to_string":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					return &object.String{Value: bi.Value.String()}
@@ -1557,7 +1561,7 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 					return bf.Neg()
 				},
 			})
-		case "str", "to_str":
+		case "str", "to_str", "to_string":
 			return vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					prec := -1
@@ -2249,6 +2253,9 @@ func (vm *VM) executeArrayIndex(array, index object.Object) error {
 
 func (vm *VM) executeCall(numArgs int) error {
 	callee := vm.stack[vm.sp-1-numArgs]
+	if callee == nil {
+		return fmt.Errorf("calling null or undefined value")
+	}
 	switch callee := callee.(type) {
 	case *object.Closure:
 		return vm.callClosure(callee, numArgs)
@@ -2294,12 +2301,82 @@ func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
 	result := builtin.Fn(args...)
 	vm.sp = vm.sp - numArgs - 1
 
+	if errObj, ok := result.(*object.Error); ok && errObj.Fatal {
+		return fmt.Errorf("%s", errObj.Message)
+	}
+
 	if result != nil {
 		vm.push(result)
 	} else {
 		vm.push(Null)
 	}
 	return nil
+}
+
+func ObjectsEqual(left, right object.Object) bool {
+	if left == right {
+		return true
+	}
+	if left == nil || right == nil {
+		return left == right
+	}
+	if left.Type() != right.Type() {
+		if l, ok := left.(*object.Integer); ok {
+			if r, ok := right.(*object.Float); ok {
+				return float64(l.Value) == r.Value
+			}
+		}
+		if l, ok := left.(*object.Float); ok {
+			if r, ok := right.(*object.Integer); ok {
+				return l.Value == float64(r.Value)
+			}
+		}
+		return false
+	}
+	switch l := left.(type) {
+	case *object.Integer:
+		return l.Value == right.(*object.Integer).Value
+	case *object.Float:
+		return l.Value == right.(*object.Float).Value
+	case *object.Boolean:
+		return l.Value == right.(*object.Boolean).Value
+	case *object.String:
+		return l.Value == right.(*object.String).Value
+	case *object.Null:
+		return true
+	case *object.BigInt:
+		return l.Value.Cmp(right.(*object.BigInt).Value) == 0
+	case *object.BigFloat:
+		return l.Value.Cmp(right.(*object.BigFloat).Value) == 0
+	case *object.Array:
+		r := right.(*object.Array)
+		if len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if !ObjectsEqual(l.Elements[i], r.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case *object.Hash:
+		r := right.(*object.Hash)
+		if len(l.Pairs) != len(r.Pairs) {
+			return false
+		}
+		for k, pair := range l.Pairs {
+			rPair, ok := r.Pairs[k]
+			if !ok {
+				return false
+			}
+			if !ObjectsEqual(pair.Value, rPair.Value) {
+				return false
+			}
+		}
+		return true
+	default:
+		return left.Inspect() == right.Inspect()
+	}
 }
 
 func isTruthy(obj object.Object) bool {

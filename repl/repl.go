@@ -20,7 +20,7 @@ const DIVIDER = "_______________________________________________________________
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
-	fmt.Fprintf(out, "%sBramandScript 0.1.0 (%s-%s)%s\n", diagnostics.ColorBold, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s✦ BramandScript 0.1.0 (%s-%s)%s\n", diagnostics.ColorBold, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
 	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 	fmt.Fprintf(out, "Welcome to BramandScript. Type %s:help%s for documentation, %s:exit%s to quit.\n",
 		diagnostics.ColorCyan, diagnostics.ColorReset, diagnostics.ColorCyan, diagnostics.ColorReset)
