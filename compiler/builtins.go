@@ -53,4 +53,72 @@ var Builtins = []BuiltinDef{
 	{Name: "color"},
 	{Name: "styled"},
 	{Name: "read_line"},
+
+	// Day 5 BigInt & BigFloat
+	{Name: "big_int"},
+	{Name: "big_float"},
+
+	// Day 5 Vectors & Matrices
+	{Name: "vec"},
+	{Name: "matrix"},
+
+	// Day 5 Trigonometric, Logarithmic & Math
+	{Name: "pi"},
+	{Name: "e"},
+	{Name: "sin"},
+	{Name: "cos"},
+	{Name: "tan"},
+	{Name: "asin"},
+	{Name: "acos"},
+	{Name: "atan"},
+	{Name: "atan2"},
+	{Name: "sinh"},
+	{Name: "cosh"},
+	{Name: "tanh"},
+	{Name: "sqrt"},
+	{Name: "cbrt"},
+	{Name: "hypot"},
+	{Name: "log"},
+	{Name: "log10"},
+	{Name: "log2"},
+	{Name: "exp"},
+	{Name: "pow"},
+	{Name: "abs"},
+	{Name: "floor"},
+	{Name: "ceil"},
+	{Name: "round"},
+	{Name: "trunc"},
+	{Name: "deg_to_rad"},
+	{Name: "rad_to_deg"},
+	{Name: "min"},
+	{Name: "max"},
+
+	// Day 5 Statistical standard library
+	{Name: "sum"},
+	{Name: "mean"},
+	{Name: "median"},
+	{Name: "mode"},
+	{Name: "variance"},
+	{Name: "std_dev"},
+
+	// Day 5 JSON Parser & Serializer
+	{Name: "json_parse"},
+	{Name: "json_stringify"},
+
+	// Day 5 CSV & Base64
+	{Name: "csv_parse"},
+	{Name: "csv_stringify"},
+	{Name: "base64_encode"},
+	{Name: "base64_decode"},
+	{Name: "base64_url_encode"},
+	{Name: "base64_url_decode"},
+
+	// Day 5 Cryptography & CSPRNG
+	{Name: "sha256"},
+	{Name: "sha512"},
+	{Name: "md5"},
+	{Name: "hmac_sha256"},
+	{Name: "random_bytes"},
+	{Name: "random_int"},
+	{Name: "uuid"},
 }

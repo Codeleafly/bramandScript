@@ -225,6 +225,17 @@
         </div>
 
         <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Scientific & Data Standard Lib</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch-bigmath" class="nav-link"><span>✦</span> BigInt & BigFloat</a></li>
+            <li><a href="#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors & Matrices</a></li>
+            <li><a href="#ch-scimath" class="nav-link"><span>✦</span> Scientific Math & Stats</a></li>
+            <li><a href="#ch-serialization" class="nav-link"><span>✦</span> JSON, CSV & Base64</a></li>
+            <li><a href="#ch-crypto" class="nav-link"><span>✦</span> Cryptography & CSPRNG</a></li>
+          </ul>
+        </div>
+
+        <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem & Architecture</h3>
           <ul class="space-y-1">
             <li><a href="#ch14" class="nav-link"><span>14.</span> Modules & Package Store</a></li>
@@ -1128,6 +1139,166 @@ Fib(10) = 55</code></pre>
         </div>
       </section>
 
+      <!-- ================= DAY 5: BIGINT & BIGFLOAT ================= -->
+      <section id="ch-bigmath" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Scientific Math</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Arbitrary-Precision BigInt & BigFloat</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides native arbitrary-precision arithmetic powered by Go's standard <code class="font-mono">math/big</code> package. Overloaded operators (<code class="font-mono">+</code>, <code class="font-mono">-</code>, <code class="font-mono">*</code>, <code class="font-mono">/</code>, <code class="font-mono">%</code>, <code class="font-mono">**</code>, unary <code class="font-mono">-</code>) and comparison operators work seamlessly with BigInt and BigFloat types.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Arbitrary-Precision Big Numbers</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Construct BigInt from string or number</span>
+<span class="token-kw">let</span> <span class="token-fn">a</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"123456789012345678901234567890"</span>)
+<span class="token-kw">let</span> <span class="token-fn">b</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"987654321098765432109876543210"</span>)
+<span class="token-kw">let</span> <span class="token-fn">c</span> <span class="token-op">=</span> <span class="token-fn">a</span> <span class="token-op">+</span> <span class="token-fn">b</span>
+<span class="token-kw">let</span> <span class="token-fn">pow2</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"2"</span>) <span class="token-op">**</span> <span class="token-fn">big_int</span>(<span class="token-str">"100"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Sum:"</span>, <span class="token-fn">c</span>.<span class="token-fn">str</span>())
+<span class="token-fn">println</span>(<span class="token-str">"2^100:"</span>, <span class="token-fn">pow2</span>.<span class="token-fn">str</span>())
+
+<span class="token-comment">// BigFloat with 128-bit default precision or custom precision</span>
+<span class="token-kw">let</span> <span class="token-fn">bf</span> <span class="token-op">=</span> <span class="token-fn">big_float</span>(<span class="token-str">"3.141592653589793238462643383279"</span>, <span class="token-num">256</span>)
+<span class="token-kw">let</span> <span class="token-fn">root</span> <span class="token-op">=</span> <span class="token-fn">bf</span>.<span class="token-fn">sqrt</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Sqrt(PI):"</span>, <span class="token-fn">root</span>.<span class="token-fn">str</span>(<span class="token-num">20</span>))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: LINEAR ALGEBRA ================= -->
+      <section id="ch-linearalgebra" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Linear Algebra</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Vectors & Matrices (Linear Algebra)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          High-performance vector and matrix primitives with built-in dot product, cross product, Euclidean norm, matrix multiplication, Gaussian elimination determinant (<code class="font-mono">O(n³)</code>), and Gauss-Jordan matrix inversion.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Vector and Matrix operations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Vector Operations</span>
+<span class="token-kw">let</span> <span class="token-fn">v1</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">1.0</span>, <span class="token-num">2.0</span>, <span class="token-num">3.0</span>])
+<span class="token-kw">let</span> <span class="token-fn">v2</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">4.0</span>, <span class="token-num">5.0</span>, <span class="token-num">6.0</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Dot product:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">dot</span>(<span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Cross product:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">cross</span>(<span class="token-fn">v2</span>).<span class="token-fn">elements</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Norm:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">norm</span>())
+<span class="token-fn">println</span>(<span class="token-str">"Unit vector:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">normalize</span>().<span class="token-fn">elements</span>)
+
+<span class="token-comment">// Matrix Operations</span>
+<span class="token-kw">let</span> <span class="token-fn">m1</span> <span class="token-op">=</span> <span class="token-fn">matrix</span>([[<span class="token-num">1.0</span>, <span class="token-num">2.0</span>], [<span class="token-num">3.0</span>, <span class="token-num">4.0</span>]])
+<span class="token-kw">let</span> <span class="token-fn">m2</span> <span class="token-op">=</span> <span class="token-fn">matrix</span>([[<span class="token-num">2.0</span>, <span class="token-num">0.0</span>], [<span class="token-num">1.0</span>, <span class="token-num">2.0</span>]])
+<span class="token-fn">println</span>(<span class="token-str">"Matrix multiplication:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">mul</span>(<span class="token-fn">m2</span>).<span class="token-fn">data</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Determinant:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">det</span>())
+<span class="token-fn">println</span>(<span class="token-str">"Inverse:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">inv</span>().<span class="token-fn">data</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: SCIENTIFIC MATH & STATS ================= -->
+      <section id="ch-scimath" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Scientific Computing</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Trigonometric, Logarithmic & Statistical Library</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A rich suite of mathematical and descriptive statistical functions available out of the box with zero imports required.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Math and Statistics</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Trigonometry & Exponentials</span>
+<span class="token-fn">println</span>(<span class="token-str">"PI ="</span>, <span class="token-fn">pi</span>(), <span class="token-str">"E ="</span>, <span class="token-fn">e</span>())
+<span class="token-fn">println</span>(<span class="token-str">"sin(PI/2) ="</span>, <span class="token-fn">sin</span>(<span class="token-fn">pi</span>() <span class="token-op">/</span> <span class="token-num">2.0</span>))
+<span class="token-fn">println</span>(<span class="token-str">"log10(1000) ="</span>, <span class="token-fn">log10</span>(<span class="token-num">1000.0</span>))
+<span class="token-fn">println</span>(<span class="token-str">"hypot(3, 4) ="</span>, <span class="token-fn">hypot</span>(<span class="token-num">3.0</span>, <span class="token-num">4.0</span>))
+
+<span class="token-comment">// Descriptive Statistics</span>
+<span class="token-kw">let</span> <span class="token-fn">scores</span> <span class="token-op">=</span> [<span class="token-num">12.0</span>, <span class="token-num">15.0</span>, <span class="token-num">12.0</span>, <span class="token-num">18.0</span>, <span class="token-num">22.0</span>, <span class="token-num">25.0</span>, <span class="token-num">30.0</span>]
+<span class="token-fn">println</span>(<span class="token-str">"Mean:"</span>, <span class="token-fn">mean</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Median:"</span>, <span class="token-fn">median</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Mode:"</span>, <span class="token-fn">mode</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Variance:"</span>, <span class="token-fn">variance</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Std Dev:"</span>, <span class="token-fn">std_dev</span>(<span class="token-fn">scores</span>))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: SERIALIZATION ================= -->
+      <section id="ch-serialization" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Serialization</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">JSON, CSV & Base64 Serialization</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Robust, native data interchange formats with bidirectional parsing and formatting for JSON, CSV, and Base64.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Data Formats</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// JSON Parsing & Pretty-Printing</span>
+<span class="token-kw">let</span> <span class="token-fn">rawJson</span> <span class="token-op">=</span> <span class="token-str">"{\"project\": \"BramandScript\", \"version\": 1}"</span>
+<span class="token-kw">let</span> <span class="token-fn">obj</span> <span class="token-op">=</span> <span class="token-fn">json_parse</span>(<span class="token-fn">rawJson</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Project:"</span>, <span class="token-fn">obj</span>[<span class="token-str">"project"</span>])
+<span class="token-kw">let</span> <span class="token-fn">pretty</span> <span class="token-op">=</span> <span class="token-fn">json_stringify</span>(<span class="token-fn">obj</span>, <span class="token-num">2</span>)
+
+<span class="token-comment">// CSV Parsing & Generation</span>
+<span class="token-kw">let</span> <span class="token-fn">csvRaw</span> <span class="token-op">=</span> <span class="token-str">"id,name\n1,Alpha\n2,Beta"</span>
+<span class="token-kw">let</span> <span class="token-fn">rows</span> <span class="token-op">=</span> <span class="token-fn">csv_parse</span>(<span class="token-fn">csvRaw</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Row 1 Name:"</span>, <span class="token-fn">rows</span>[<span class="token-num">1</span>][<span class="token-num">1</span>])
+
+<span class="token-comment">// Base64 & URL-Safe Encoding</span>
+<span class="token-kw">let</span> <span class="token-fn">encoded</span> <span class="token-op">=</span> <span class="token-fn">base64_encode</span>(<span class="token-str">"Hello Bramand"</span>)
+<span class="token-kw">let</span> <span class="token-fn">decoded</span> <span class="token-op">=</span> <span class="token-fn">base64_decode</span>(<span class="token-fn">encoded</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: CRYPTOGRAPHY ================= -->
+      <section id="ch-crypto" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Security</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Cryptography & CSPRNG (Secure Random & UUIDv4)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Cryptographic hashing, HMAC authentication, cryptographically secure pseudo-random number generation (<code class="font-mono">crypto/rand</code>), and RFC 4122 v4 UUID creation.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Cryptography & Security</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Cryptographic Hashing</span>
+<span class="token-fn">println</span>(<span class="token-str">"SHA-256:"</span>, <span class="token-fn">sha256</span>(<span class="token-str">"password"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"SHA-512:"</span>, <span class="token-fn">sha512</span>(<span class="token-str">"password"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"MD5:    "</span>, <span class="token-fn">md5</span>(<span class="token-str">"data"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"HMAC:   "</span>, <span class="token-fn">hmac_sha256</span>(<span class="token-str">"secret-key"</span>, <span class="token-str">"message"</span>))
+
+<span class="token-comment">// Cryptographically Secure Random & UUIDv4</span>
+<span class="token-kw">let</span> <span class="token-fn">token</span> <span class="token-op">=</span> <span class="token-fn">random_bytes</span>(<span class="token-num">16</span>)   <span class="token-comment">// 32 hex chars</span>
+<span class="token-kw">let</span> <span class="token-fn">dice</span> <span class="token-op">=</span> <span class="token-fn">random_int</span>(<span class="token-num">1</span>, <span class="token-num">6</span>)      <span class="token-comment">// [1, 6] range</span>
+<span class="token-kw">let</span> <span class="token-fn">id</span> <span class="token-op">=</span> <span class="token-fn">uuid</span>()                  <span class="token-comment">// RFC 4122 v4</span>
+<span class="token-fn">println</span>(<span class="token-str">"Secure Token:"</span>, <span class="token-fn">token</span>)
+<span class="token-fn">println</span>(<span class="token-str">"UUID:"</span>, <span class="token-fn">id</span>)</code></pre>
+        </div>
+      </section>
+
       <!-- ================= CHAPTER 14 ================= -->
       <section id="ch14" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
@@ -1417,6 +1588,157 @@ bramand pkg init logger@0.1.0</code></pre>
                 <td><code class="font-mono font-bold">styled</code></td>
                 <td><code class="font-mono">styled(text, style)</code></td>
                 <td>Wraps text in ANSI style escape sequences (<code class="font-mono">"bold"</code>, <code class="font-mono">"dim"</code>, <code class="font-mono">"italic"</code>, <code class="font-mono">"underline"</code>).</td>
+              </tr>
+              <!-- Day 5 Scientific, Serialization & Security Builtins -->
+              <tr>
+                <td><code class="font-mono font-bold">big_int</code></td>
+                <td><code class="font-mono">big_int(value)</code></td>
+                <td>Constructs arbitrary-precision BigInt from integer, float, string, or existing BigInt.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">big_float</code></td>
+                <td><code class="font-mono">big_float(value, [precision])</code></td>
+                <td>Constructs arbitrary-precision BigFloat with optional bit precision (default 128).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">vec</code></td>
+                <td><code class="font-mono">vec(elements)</code></td>
+                <td>Constructs linear algebra Vector with <code class="font-mono">.dot()</code>, <code class="font-mono">.cross()</code>, <code class="font-mono">.norm()</code>, <code class="font-mono">.normalize()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">matrix</code></td>
+                <td><code class="font-mono">matrix(2d_array | rows, cols, [fill])</code></td>
+                <td>Constructs Matrix with <code class="font-mono">.mul()</code>, <code class="font-mono">.det()</code>, <code class="font-mono">.inv()</code>, <code class="font-mono">.transpose()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">pi</code></td>
+                <td><code class="font-mono">pi()</code></td>
+                <td>Returns mathematical constant PI (<code class="font-mono">3.141592653589793</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">e</code></td>
+                <td><code class="font-mono">e()</code></td>
+                <td>Returns mathematical constant E (<code class="font-mono">2.718281828459045</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sin / cos / tan</code></td>
+                <td><code class="font-mono">sin(x) / cos(x) / tan(x)</code></td>
+                <td>Standard trigonometric functions (angles in radians).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">asin / acos / atan</code></td>
+                <td><code class="font-mono">asin(x) / acos(x) / atan(x)</code></td>
+                <td>Inverse trigonometric arc functions.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">atan2</code></td>
+                <td><code class="font-mono">atan2(y, x)</code></td>
+                <td>Four-quadrant inverse tangent.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sinh / cosh / tanh</code></td>
+                <td><code class="font-mono">sinh(x) / cosh(x) / tanh(x)</code></td>
+                <td>Hyperbolic sine, cosine, and tangent.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sqrt / cbrt / hypot</code></td>
+                <td><code class="font-mono">sqrt(x) / cbrt(x) / hypot(a, b)</code></td>
+                <td>Square root, cube root, and Euclidean hypotenuse.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">log / log10 / log2</code></td>
+                <td><code class="font-mono">log(x) / log10(x) / log2(x)</code></td>
+                <td>Natural (base e), base-10, and base-2 logarithms.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exp / pow</code></td>
+                <td><code class="font-mono">exp(x) / pow(base, exp)</code></td>
+                <td>Exponential e^x and power function base^exp.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">abs / floor / ceil / round</code></td>
+                <td><code class="font-mono">abs(x) / floor(x) / ceil(x) / round(x)</code></td>
+                <td>Absolute value and floating-point rounding functions.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">deg_to_rad / rad_to_deg</code></td>
+                <td><code class="font-mono">deg_to_rad(deg) / rad_to_deg(rad)</code></td>
+                <td>Angle conversion utilities between degrees and radians.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">min / max</code></td>
+                <td><code class="font-mono">min(arr | args...) / max(...)</code></td>
+                <td>Returns the minimum or maximum number among inputs.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sum</code></td>
+                <td><code class="font-mono">sum(array | args...)</code></td>
+                <td>Computes arithmetic sum of numbers.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">mean / median / mode</code></td>
+                <td><code class="font-mono">mean(arr) / median(arr) / mode(arr)</code></td>
+                <td>Descriptive statistical measures of central tendency.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">variance / std_dev</code></td>
+                <td><code class="font-mono">variance(arr) / std_dev(arr)</code></td>
+                <td>Computes population variance and standard deviation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">json_parse</code></td>
+                <td><code class="font-mono">json_parse(jsonString)</code></td>
+                <td>Parses JSON text into BramandScript data structures.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">json_stringify</code></td>
+                <td><code class="font-mono">json_stringify(object, [indent])</code></td>
+                <td>Serializes BramandScript objects into JSON with optional indentation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">csv_parse</code></td>
+                <td><code class="font-mono">csv_parse(csvText, [delimiter])</code></td>
+                <td>Parses CSV formatted string into a 2D array of strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">csv_stringify</code></td>
+                <td><code class="font-mono">csv_stringify(2dArray, [delimiter])</code></td>
+                <td>Serializes a 2D array of values into a CSV formatted string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">base64_encode / base64_decode</code></td>
+                <td><code class="font-mono">base64_encode(text) / base64_decode(enc)</code></td>
+                <td>Standard Base64 encoding and decoding.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">base64_url_encode / base64_url_decode</code></td>
+                <td><code class="font-mono">base64_url_encode(text) / base64_url_decode(enc)</code></td>
+                <td>URL-safe Base64 encoding and decoding without padding.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sha256 / sha512 / md5</code></td>
+                <td><code class="font-mono">sha256(data) / sha512(data) / md5(data)</code></td>
+                <td>Computes cryptographic hash digests as hexadecimal strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">hmac_sha256</code></td>
+                <td><code class="font-mono">hmac_sha256(key, message)</code></td>
+                <td>Computes keyed HMAC-SHA256 authentication code as hex string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">random_bytes</code></td>
+                <td><code class="font-mono">random_bytes([byteCount])</code></td>
+                <td>Generates CSPRNG secure random bytes (returns hex string).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">random_int</code></td>
+                <td><code class="font-mono">random_int(min, max)</code></td>
+                <td>Generates cryptographically secure random integer in range [min, max].</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">uuid</code></td>
+                <td><code class="font-mono">uuid()</code></td>
+                <td>Generates an RFC 4122 Version 4 cryptographically secure UUID string.</td>
               </tr>
             </tbody>
           </table>

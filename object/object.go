@@ -26,6 +26,10 @@ const (
 	CHANNEL_OBJ           = "CHANNEL"
 	MUTEX_OBJ             = "MUTEX"
 	WAIT_GROUP_OBJ        = "WAIT_GROUP"
+	BIG_INT_OBJ           = "BIG_INT"
+	BIG_FLOAT_OBJ         = "BIG_FLOAT"
+	VECTOR_OBJ            = "VECTOR"
+	MATRIX_OBJ            = "MATRIX"
 )
 
 type Object interface {

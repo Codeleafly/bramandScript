@@ -832,3 +832,555 @@ func TestStandardIOAndFormatting(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
+
+func TestBigIntAndBigFloat(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let a = big_int("1000000000000000000000000000000");
+			let b = big_int("2000000000000000000000000000000");
+			let c = a + b;
+			c.str();
+			`,
+			expected: "3000000000000000000000000000000",
+		},
+		{
+			input: `
+			let a = big_int("1000000000000000000000000000000");
+			let b = big_int("3000000000000000000000000000000");
+			let c = b - a;
+			c.str();
+			`,
+			expected: "2000000000000000000000000000000",
+		},
+		{
+			input: `
+			let a = big_int("1000000000000000");
+			let b = big_int("2000000000000000");
+			let c = a * b;
+			c.str();
+			`,
+			expected: "2000000000000000000000000000000",
+		},
+		{
+			input: `
+			let a = big_int("100000000000000000000");
+			let b = big_int("10000000000");
+			let c = a / b;
+			c.str();
+			`,
+			expected: "10000000000",
+		},
+		{
+			input: `
+			let a = big_int("105");
+			let b = big_int("10");
+			let c = a % b;
+			c.str();
+			`,
+			expected: "5",
+		},
+		{
+			input: `
+			let a = big_int("2");
+			let b = big_int("100");
+			let c = a ** b;
+			c.str();
+			`,
+			expected: "1267650600228229401496703205376",
+		},
+		{
+			input: `
+			let a = big_int("100");
+			let b = big_int("200");
+			a < b && b > a && a != b && (a == big_int("100"));
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let a = big_int("50");
+			let b = -a;
+			b.str();
+			`,
+			expected: "-50",
+		},
+		{
+			input: `
+			let a = big_int("-99");
+			a.abs().str();
+			`,
+			expected: "99",
+		},
+		{
+			input: `
+			let a = big_float("1.25");
+			let b = big_float("2.5");
+			let c = a + b;
+			c.str(3);
+			`,
+			expected: "3.75",
+		},
+		{
+			input: `
+			let a = big_float("10.5");
+			let b = big_float("2.5");
+			let c = a - b;
+			c.str(3);
+			`,
+			expected: "8",
+		},
+		{
+			input: `
+			let a = big_float("2.5");
+			let b = big_float("4.0");
+			let c = a * b;
+			c.str(3);
+			`,
+			expected: "10",
+		},
+		{
+			input: `
+			let a = big_float("15.0");
+			let b = big_float("2.0");
+			let c = a / b;
+			c.str(3);
+			`,
+			expected: "7.5",
+		},
+		{
+			input: `
+			let a = big_float("16.0");
+			let b = a.sqrt();
+			b.str(3);
+			`,
+			expected: "4",
+		},
+		{
+			input: `
+			let a = big_float("1.5");
+			let b = big_float("2.5");
+			a < b && b > a && a != b && (a == big_float("1.5"));
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestVectorsAndMatrices(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let v = vec([1.0, 2.0, 3.0]);
+			v.dim;
+			`,
+			expected: 3,
+		},
+		{
+			input: `
+			let v = vec([10.0, 20.0, 30.0]);
+			v[1];
+			`,
+			expected: 20.0,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 2.0, 3.0]);
+			let v2 = vec([4.0, 5.0, 6.0]);
+			v1.dot(v2);
+			`,
+			expected: 32.0,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 0.0, 0.0]);
+			let v2 = vec([0.0, 1.0, 0.0]);
+			let v3 = v1.cross(v2);
+			v3[0] == 0.0 && v3[1] == 0.0 && v3[2] == 1.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let v = vec([3.0, 4.0]);
+			v.norm();
+			`,
+			expected: 5.0,
+		},
+		{
+			input: `
+			let v = vec([0.0, 5.0]);
+			let u = v.normalize();
+			u[0] == 0.0 && u[1] == 1.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 2.0]);
+			let v2 = vec([3.0, 4.0]);
+			let v3 = v1.add(v2);
+			v3[0] == 4.0 && v3[1] == 6.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let v = vec([2.0, 3.0]);
+			let scaled = v.scale(3.0);
+			scaled[0] == 6.0 && scaled[1] == 9.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			m.rows == 2 && m.cols == 2;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			m.get(1, 0);
+			`,
+			expected: 3.0,
+		},
+		{
+			input: `
+			let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let m2 = matrix([[5.0, 6.0], [7.0, 8.0]]);
+			let m3 = m1.add(m2);
+			m3.get(0, 0) == 6.0 && m3.get(1, 1) == 12.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let m2 = matrix([[2.0, 0.0], [1.0, 2.0]]);
+			let m3 = m1.mul(m2);
+			// [1*2 + 2*1, 1*0 + 2*2] = [4, 4]
+			// [3*2 + 4*1, 3*0 + 4*2] = [10, 8]
+			m3.get(0, 0) == 4.0 && m3.get(0, 1) == 4.0 && m3.get(1, 0) == 10.0 && m3.get(1, 1) == 8.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let v = vec([2.0, 1.0]);
+			let res = m.mul_vec(v);
+			res[0] == 4.0 && res[1] == 10.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let t = m.transpose();
+			t.get(0, 1) == 3.0 && t.get(1, 0) == 2.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			m.det();
+			`,
+			expected: -2.0,
+		},
+		{
+			input: `
+			let m = matrix([[4.0, 7.0], [2.0, 6.0]]);
+			let inv = m.inv();
+			let ident = m.mul(inv);
+			// Check diagonal is ~1.0
+			floor(ident.get(0, 0) + 0.5) == 1.0 && floor(ident.get(1, 1) + 0.5) == 1.0;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestScientificMathAndStats(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			floor(pi() * 100);
+			`,
+			expected: 314,
+		},
+		{
+			input: `
+			floor(e() * 100);
+			`,
+			expected: 271,
+		},
+		{
+			input: `
+			sin(0.0) == 0.0 && cos(0.0) == 1.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			sqrt(144.0);
+			`,
+			expected: 12.0,
+		},
+		{
+			input: `
+			cbrt(27.0);
+			`,
+			expected: 3.0,
+		},
+		{
+			input: `
+			hypot(3.0, 4.0);
+			`,
+			expected: 5.0,
+		},
+		{
+			input: `
+			log10(1000.0);
+			`,
+			expected: 3.0,
+		},
+		{
+			input: `
+			log2(32.0);
+			`,
+			expected: 5.0,
+		},
+		{
+			input: `
+			pow(2.0, 8.0);
+			`,
+			expected: 256.0,
+		},
+		{
+			input: `
+			abs(-42.5);
+			`,
+			expected: 42.5,
+		},
+		{
+			input: `
+			floor(3.9) == 3.0 && ceil(3.1) == 4.0 && round(3.5) == 4.0 && trunc(3.7) == 3.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			deg_to_rad(180.0) == pi();
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			rad_to_deg(pi());
+			`,
+			expected: 180.0,
+		},
+		{
+			input: `
+			min([5, 2, 9, 1, 7]);
+			`,
+			expected: 1,
+		},
+		{
+			input: `
+			max([5, 2, 9, 1, 7]);
+			`,
+			expected: 9,
+		},
+		{
+			input: `
+			sum([10, 20, 30, 40]);
+			`,
+			expected: 100,
+		},
+		{
+			input: `
+			mean([10.0, 20.0, 30.0]);
+			`,
+			expected: 20.0,
+		},
+		{
+			input: `
+			median([1.0, 3.0, 2.0, 5.0, 4.0]);
+			`,
+			expected: 3.0,
+		},
+		{
+			input: `
+			median([1.0, 2.0, 3.0, 4.0]);
+			`,
+			expected: 2.5,
+		},
+		{
+			input: `
+			mode([1, 2, 2, 3, 3, 3, 4]);
+			`,
+			expected: 3,
+		},
+		{
+			input: `
+			variance([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]);
+			`,
+			expected: 4.0,
+		},
+		{
+			input: `
+			std_dev([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]);
+			`,
+			expected: 2.0,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestJSONSerialization(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let raw = "{\"name\": \"bramand\", \"version\": 1, \"active\": true}";
+			let obj = json_parse(raw);
+			obj["name"] == "bramand" && obj["version"] == 1 && obj["active"] == true;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let raw = "[10, 20, 30]";
+			let arr = json_parse(raw);
+			arr[0] == 10 && arr[1] == 20 && arr[2] == 30;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let data = {"title": "Language", "id": 42};
+			let str = json_stringify(data);
+			let back = json_parse(str);
+			back["title"] == "Language" && back["id"] == 42;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let data = [1, 2, 3];
+			let str = json_stringify(data, 2);
+			let back = json_parse(str);
+			back[0] == 1 && back[1] == 2 && back[2] == 3;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestCSVAndBase64(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let csvStr = "name,age,city\nAlice,30,Tokyo\nBob,25,Paris";
+			let rows = csv_parse(csvStr);
+			rows[0][0] == "name" && rows[1][1] == "30" && rows[2][2] == "Paris";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let csvStr = "a;b;c\n1;2;3";
+			let rows = csv_parse(csvStr, ";");
+			rows[0][1] == "b" && rows[1][2] == "3";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let rows = [["id", "name"], ["1", "alpha"], ["2", "beta"]];
+			let str = csv_stringify(rows);
+			let parsed = csv_parse(str);
+			parsed[1][1] == "alpha" && parsed[2][1] == "beta";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let enc = base64_encode("BramandScript ✦ High Performance");
+			let dec = base64_decode(enc);
+			dec == "BramandScript ✦ High Performance";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let enc = base64_url_encode("hello+world/test?foo=bar");
+			let dec = base64_url_decode(enc);
+			dec == "hello+world/test?foo=bar";
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestCryptoAndRandom(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			// SHA-256 of "hello"
+			sha256("hello");
+			`,
+			expected: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		},
+		{
+			input: `
+			// MD5 of "hello"
+			md5("hello");
+			`,
+			expected: "5d41402abc4b2a76b9719d911017c592",
+		},
+		{
+			input: `
+			// SHA-512 of "hello" starts with 9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043
+			sha512("hello");
+			`,
+			expected: "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043",
+		},
+		{
+			input: `
+			// HMAC-SHA256 of "message" with key "secret"
+			hmac_sha256("secret", "message");
+			`,
+			expected: "8b5f48702995c1598c573db1e21866a9b825d4a794d169d7060a03605796360b",
+		},
+		{
+			input: `
+			let rnd = random_bytes(16);
+			len(rnd);
+			`,
+			expected: 32,
+		},
+		{
+			input: `
+			let n = random_int(10, 20);
+			n >= 10 && n <= 20;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let u = uuid();
+			len(u) == 36;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
