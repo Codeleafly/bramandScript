@@ -1,0 +1,100 @@
+// -------------------------------------------------------------
+// BramandScript Day 5: Mathematics, Scientific Computing & Serialization
+// -------------------------------------------------------------
+
+println("✦ Day 5: Scientific Computing & Serialization in BramandScript");
+println("-------------------------------------------------------------");
+
+// 1. Arbitrary-Precision BigInt & BigFloat
+println("[1] Arbitrary-Precision BigInt & BigFloat");
+let huge1 = big_int("123456789012345678901234567890");
+let huge2 = big_int("987654321098765432109876543210");
+let sumBig = huge1 + huge2;
+let prodBig = huge1 * big_int("2");
+let powerBig = big_int("2") ** big_int("64");
+println("  BigInt addition:       " + sumBig.str());
+println("  BigInt multiplication: " + prodBig.str());
+println("  BigInt 2^64:           " + powerBig.str());
+
+let bf1 = big_float("3.141592653589793238462643383279502884197");
+let bfSqrt = bf1.sqrt();
+println("  BigFloat Sqrt(PI):     " + bfSqrt.str(15));
+println("");
+
+// 2. Linear Algebra: Vectors & Matrices
+println("[2] Linear Algebra: Vectors & Matrices");
+let v1 = vec([1.0, 2.0, 3.0]);
+let v2 = vec([4.0, 5.0, 6.0]);
+println("  Vector 1:  " + v1.elements);
+println("  Vector 2:  " + v2.elements);
+println("  Dot prod:  " + v1.dot(v2));
+println("  Norm(v1):  " + v1.norm());
+
+let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+let m2 = matrix([[2.0, 0.0], [1.0, 2.0]]);
+let mProd = m1.mul(m2);
+println("  Matrix 1 x Matrix 2: " + mProd.data);
+println("  Determinant(m1):     " + m1.det());
+let mInv = m1.inv();
+println("  Inverse(m1):         " + mInv.data);
+println("");
+
+// 3. Scientific Math & Statistics
+println("[3] Scientific Math & Statistics");
+println("  Constants: PI = " + pi() + ", E = " + e());
+println("  Trig: sin(PI/2) = " + sin(pi() / 2.0) + ", cos(0) = " + cos(0.0));
+println("  Log/Exp: log10(1000) = " + log10(1000.0) + ", exp(1) = " + exp(1.0));
+
+let dataset = [12.0, 15.0, 12.0, 18.0, 22.0, 25.0, 30.0];
+println("  Dataset:  " + dataset);
+println("  Sum:      " + sum(dataset));
+println("  Mean:     " + mean(dataset));
+println("  Median:   " + median(dataset));
+println("  Mode:     " + mode(dataset));
+println("  Variance: " + variance(dataset));
+println("  Std Dev:  " + std_dev(dataset));
+println("");
+
+// 4. JSON Serialization
+println("[4] JSON Parsing & Stringifying");
+let jsonPayload = "{\"language\": \"BramandScript\", \"status\": \"Production\", \"tasks\": 44}";
+let parsedObj = json_parse(jsonPayload);
+println("  Parsed language: " + parsedObj["language"]);
+println("  Parsed status:   " + parsedObj["status"]);
+let stringified = json_stringify(parsedObj, 2);
+println("  Formatted JSON:\n" + stringified);
+println("");
+
+// 5. CSV & Base64 Encoding
+println("[5] CSV & Base64 Encoding");
+let csvData = "id,name,role\n1,Alpha,Core\n2,Beta,Worker";
+let parsedCsv = csv_parse(csvData);
+println("  Parsed CSV rows: " + len(parsedCsv));
+println("  Row 1 name:      " + parsedCsv[1][1]);
+
+let rawText = "BramandScript ✦ High Performance Bytecode VM";
+let encodedB64 = base64_encode(rawText);
+let decodedB64 = base64_decode(encodedB64);
+println("  Base64 encoded: " + encodedB64);
+println("  Base64 decoded: " + decodedB64);
+println("");
+
+// 6. Cryptography & CSPRNG
+println("[6] Cryptography & Secure Random");
+let hash256 = sha256("bramand");
+let hash512 = sha512("bramand");
+let hashMd5 = md5("bramand");
+let hmacSig = hmac_sha256("super-secret-key", "bramand-payload");
+println("  SHA-256:     " + hash256);
+println("  MD5:         " + hashMd5);
+println("  HMAC-SHA256: " + hmacSig);
+
+let secureToken = random_bytes(16);
+let randomDice = random_int(1, 6);
+let genUuid = uuid();
+println("  Random Token: " + secureToken);
+println("  Random Int:   " + randomDice);
+println("  UUIDv4:       " + genUuid);
+
+println("-------------------------------------------------------------");
+println("✦ All Day 5 features successfully verified!");

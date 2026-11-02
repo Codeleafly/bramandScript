@@ -60,13 +60,13 @@
 ---
 
 ## Day 5: Mathematics, Scientific Computing & Serialization
-- [ ] Arbitrary-precision BigInt & BigFloat
-- [ ] Vectors & Matrices (Linear algebra operations)
-- [ ] Trigonometric, Logarithmic & Statistical standard library
-- [ ] JSON parser & serializer
-- [ ] CSV & Base64 encoding/decoding
-- [ ] Cryptography: SHA-256, HMAC, secure random
-- [ ] Day 5 test suite verification
+- [x] Arbitrary-precision BigInt & BigFloat
+- [x] Vectors & Matrices (Linear algebra operations)
+- [x] Trigonometric, Logarithmic & Statistical standard library
+- [x] JSON parser & serializer
+- [x] CSV & Base64 encoding/decoding
+- [x] Cryptography: SHA-256, HMAC, secure random
+- [x] Day 5 test suite verification
 
 ---
 
