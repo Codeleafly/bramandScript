@@ -42,7 +42,7 @@
 - [x] For-in iterators (`for item in list`)
 - [x] Structs & Object-oriented methods
 - [x] Pattern matching (`match` / `switch`)
-- [x] Module system (`import "path"`)
+- [x] Deno-style module system (URL/path imports, export) & centralized cache in $HOME/.bramand_libs/
 - [x] Day 3 test suite verification
 
 ---
@@ -56,6 +56,7 @@
 - [ ] Standard I/O (stdin, stdout, stderr) & ANSI terminal formatting
 - [ ] Day 4 test suite verification
 
+- [ ] Package & Library Manager CLI (centralized install in $HOME/.bramand_libs/ with versioning)
 ---
 
 ## Day 5: Mathematics, Scientific Computing & Serialization

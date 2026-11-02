@@ -149,6 +149,33 @@ function cmdCheck(target, markDone = true) {
   console.log(`${BOLD}[OK]${RESET} Task #${targetTask.index} ("${targetTask.text}") ${action}`);
 }
 
+function cmdEdit(target, newText) {
+  const { filePath } = getActiveTaskFile();
+  const content = fs.readFileSync(filePath, 'utf8');
+  const { lines, tasks } = parseTasks(content);
+
+  let targetTask = null;
+  const targetNum = parseInt(target, 10);
+
+  if (!isNaN(targetNum)) {
+    targetTask = tasks.find(t => t.index === targetNum);
+  } else {
+    const q = target.toLowerCase();
+    targetTask = tasks.find(t => t.text.toLowerCase().includes(q));
+  }
+
+  if (!targetTask) {
+    console.error(`${RED}[ERROR] No task found matching query: "${target}"${RESET}`);
+    process.exit(1);
+  }
+
+  const mark = targetTask.done ? 'x' : ' ';
+  lines[targetTask.lineIndex] = `- [${mark}] ${newText}`;
+
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  console.log(`${BOLD}${GREEN}[OK]${RESET} Task #${targetTask.index} updated: "${newText}"`);
+}
+
 function cmdAdd(text, dayArg) {
   const { filePath } = getActiveTaskFile();
   const content = fs.readFileSync(filePath, 'utf8');
@@ -228,6 +255,15 @@ switch (command) {
       process.exit(1);
     }
     cmdCheck(args.slice(1).join(' '), false);
+    break;
+
+  case 'edit':
+  case 'update':
+    if (!args[1] || !args[2]) {
+      console.error(`${RED}Usage: bmd-task edit <task-number | "search text"> "New Task Text"${RESET}`);
+      process.exit(1);
+    }
+    cmdEdit(args[1], args.slice(2).join(' '));
     break;
 
   case 'add':
