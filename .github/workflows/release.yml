@@ -1,0 +1,166 @@
+name: Cross-Platform Release Matrix
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag Name (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Release (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Linux
+          - goos: linux
+            goarch: amd64
+            artifact_name: bramand-linux-amd64
+            archive_format: tar.gz
+          - goos: linux
+            goarch: arm64
+            artifact_name: bramand-linux-arm64
+            archive_format: tar.gz
+
+          # Android Termux
+          - goos: android
+            goarch: arm64
+            artifact_name: bramand-android-arm64
+            archive_format: tar.gz
+
+          # macOS (Darwin)
+          - goos: darwin
+            goarch: amd64
+            artifact_name: bramand-darwin-amd64
+            archive_format: tar.gz
+          - goos: darwin
+            goarch: arm64
+            artifact_name: bramand-darwin-arm64
+            archive_format: tar.gz
+
+          # Windows
+          - goos: windows
+            goarch: amd64
+            artifact_name: bramand-windows-amd64
+            archive_format: zip
+          - goos: windows
+            goarch: arm64
+            artifact_name: bramand-windows-arm64
+            archive_format: zip
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Compile Native Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          BINARY_NAME="bramand"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME="bramand.exe"
+          fi
+          
+          mkdir -p build_output
+          go build -ldflags="-s -w" -o "build_output/${BINARY_NAME}" main.go
+
+      - name: Package Release Archive
+        id: package
+        run: |
+          mkdir -p dist
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
+            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+          fi
+
+          cd build_output
+          if [ "${{ matrix.archive_format }}" = "tar.gz" ]; then
+            ARCHIVE_NAME="${{ matrix.artifact_name }}-${TAG}.tar.gz"
+            tar -czvf "../dist/${ARCHIVE_NAME}" *
+          else
+            ARCHIVE_NAME="${{ matrix.artifact_name }}-${TAG}.zip"
+            zip "../dist/${ARCHIVE_NAME}" *
+          fi
+          cd ..
+
+          echo "archive_path=dist/${ARCHIVE_NAME}" >> $GITHUB_OUTPUT
+          echo "archive_name=${ARCHIVE_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ steps.package.outputs.archive_path }}
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_assets
+
+      - name: Prepare Assets & Checksums
+        run: |
+          mkdir -p final_assets
+          find release_assets/ -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} final_assets/ \;
+          cd final_assets
+          sha256sum * > checksums.txt
+          cat checksums.txt
+          cd ..
+
+      - name: Publish Release to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
+            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+          fi
+
+          # Create release notes
+          NOTES="BramandScript ${TAG} Standalone Release
+
+          High-performance, general-purpose programming language built with a Stack-Based Bytecode VM in pure Go standard library. Zero external dependencies.
+
+          ### Platforms Available:
+          - Linux (x86_64, arm64)
+          - Android Termux (arm64)
+          - macOS (Intel & Apple Silicon)
+          - Windows (x86_64, arm64)
+
+          ### Smart One-Liner Install:
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.sh | bash
+          \`\`\`
+
+          Verify checksums via \`checksums.txt\`."
+
+          gh release create "$TAG" final_assets/* \
+            --title "BramandScript ${TAG}" \
+            --notes "$NOTES" \
+            --draft=false \
+            --prerelease=false || \
+          gh release upload "$TAG" final_assets/* --clobber

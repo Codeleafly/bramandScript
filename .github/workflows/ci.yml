@@ -1,0 +1,34 @@
+name: CI Test Suite
+
+on:
+  push:
+    branches: [ master, main, 'feature/**', 'feat/**' ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }} - Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.22', '1.23']
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Run Unit Tests
+        run: go test ./... -v
+
+      - name: Build Standalone Binary
+        run: go build -o bramand-test main.go

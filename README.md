@@ -59,18 +59,27 @@
 
 ## ✦ Quickstart & Installation
 
-### Option 1: One-Step Automated Installation (Termux / Linux / macOS)
+### Option 1: Smart Universal One-Liner (Linux, macOS, Android Termux)
+Auto-detects your platform (Linux, macOS Darwin, Android Termux) and CPU architecture (`amd64`, `arm64`, `armv7`), pulls the latest release, installs the standalone binary, and links `bramand` and `bmd`:
+```bash
+curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.sh | bash
+```
+
+### Option 2: Windows PowerShell One-Liner
+Open PowerShell and run:
+```powershell
+irm https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.ps1 | iex
+```
+
+### Option 3: Compile from Source (Offline / Local Toolchain)
 ```bash
 git clone https://github.com/Codeleafly/bramandScript.git
 cd bramandScript
-bash install.sh
-```
-This builds the binary using local Go toolchain and creates global symlinks for `bramand`, `bmd`, and the task CLI `bmd-task`.
+go build -ldflags="-s -w" -o bramand main.go
 
-### Option 2: Manual Go Build
-```bash
-go build -o bramand main.go
-./bramand --help
+# Install to system PATH
+cp bramand "${PREFIX:-/usr/local}/bin/bramand"
+ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"
 ```
 
 ---

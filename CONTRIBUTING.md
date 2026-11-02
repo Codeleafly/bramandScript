@@ -37,7 +37,7 @@ Please read this document carefully before proposing architectural changes, fili
 
 ### Clone the Repository
 ```bash
-git clone https://github.com/bramandscript/bramandScript.git
+git clone https://github.com/Codeleafly/bramandScript.git
 cd bramandScript
 ```
 
