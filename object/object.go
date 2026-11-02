@@ -30,6 +30,13 @@ const (
 	BIG_FLOAT_OBJ         = "BIG_FLOAT"
 	VECTOR_OBJ            = "VECTOR"
 	MATRIX_OBJ            = "MATRIX"
+	TCP_SERVER_OBJ        = "TCP_SERVER"
+	TCP_CONN_OBJ          = "TCP_CONN"
+	UDP_SOCKET_OBJ        = "UDP_SOCKET"
+	HTTP_SERVER_OBJ       = "HTTP_SERVER"
+	HTTP_RESPONSE_WRITER_OBJ = "HTTP_RESPONSE_WRITER"
+	WS_CONN_OBJ           = "WS_CONN"
+	WS_SERVER_OBJ         = "WS_SERVER"
 )
 
 type Object interface {

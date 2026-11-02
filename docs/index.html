@@ -236,6 +236,17 @@
         </div>
 
         <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Networking, Web & AI</h3>
+          <ul class="space-y-1">
+            <li><a href="#ch-sockets" class="nav-link"><span>✦</span> TCP & UDP Sockets</a></li>
+            <li><a href="#ch-http" class="nav-link"><span>✦</span> HTTP Client & Server</a></li>
+            <li><a href="#ch-websockets" class="nav-link"><span>✦</span> RFC 6455 WebSockets</a></li>
+            <li><a href="#ch-ai-integrations" class="nav-link"><span>✦</span> AI Streaming & LLMs</a></li>
+            <li><a href="#ch-vector-search" class="nav-link"><span>✦</span> Vector Similarity & Search</a></li>
+          </ul>
+        </div>
+
+        <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem & Architecture</h3>
           <ul class="space-y-1">
             <li><a href="#ch14" class="nav-link"><span>14.</span> Modules & Package Store</a></li>
@@ -1299,6 +1310,199 @@ Fib(10) = 55</code></pre>
         </div>
       </section>
 
+      <!-- ================= DAY 6: TCP & UDP SOCKETS ================= -->
+      <section id="ch-sockets" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Sockets</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">TCP & UDP Client & Server Sockets</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Low-level networking primitives built on pure Go stdlib (<code class="font-mono">net</code>). Supports both streaming TCP connections with line-by-line buffers and high-throughput UDP packet sockets.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — TCP and UDP Socket Communication</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Start TCP Listener</span>
+<span class="token-kw">let</span> <span class="token-fn">srv</span> <span class="token-op">=</span> <span class="token-fn">tcp_listen</span>(<span class="token-str">"127.0.0.1:8080"</span>)
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">srv</span>.<span class="token-fn">accept</span>()
+    <span class="token-kw">let</span> <span class="token-fn">line</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">read_line</span>()
+    <span class="token-fn">conn</span>.<span class="token-fn">write</span>(<span class="token-str">"echo:"</span> <span class="token-op">+</span> <span class="token-fn">line</span> <span class="token-op">+</span> <span class="token-str">"\n"</span>)
+    <span class="token-fn">conn</span>.<span class="token-fn">close</span>()
+}()
+
+<span class="token-comment">// Connect TCP Client</span>
+<span class="token-kw">let</span> <span class="token-fn">client</span> <span class="token-op">=</span> <span class="token-fn">tcp_connect</span>(<span class="token-str">"127.0.0.1:8080"</span>)
+<span class="token-fn">client</span>.<span class="token-fn">write</span>(<span class="token-str">"Hello Network\n"</span>)
+<span class="token-kw">let</span> <span class="token-fn">response</span> <span class="token-op">=</span> <span class="token-fn">client</span>.<span class="token-fn">read_line</span>()
+<span class="token-fn">client</span>.<span class="token-fn">close</span>()
+<span class="token-fn">srv</span>.<span class="token-fn">close</span>()
+
+<span class="token-comment">// UDP Datagrams</span>
+<span class="token-kw">let</span> <span class="token-fn">udpSrv</span> <span class="token-op">=</span> <span class="token-fn">udp_listen</span>(<span class="token-str">"127.0.0.1:9090"</span>)
+<span class="token-kw">let</span> <span class="token-fn">udpCli</span> <span class="token-op">=</span> <span class="token-fn">udp_connect</span>(<span class="token-str">"127.0.0.1:9090"</span>)
+<span class="token-fn">udpCli</span>.<span class="token-fn">write</span>(<span class="token-str">"fast_packet"</span>)
+<span class="token-kw">let</span> <span class="token-fn">pkt</span> <span class="token-op">=</span> <span class="token-fn">udpSrv</span>.<span class="token-fn">recv_from</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"data"</span>], <span class="token-str">"from"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"addr"</span>])</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: HTTP CLIENT & SERVER ================= -->
+      <section id="ch-http" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Web Framework</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">HTTP/HTTPS Client & Built-in Web Server</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A modern web framework with intuitive Express/Flask-style routing, JSON serialization, query parameter extraction, middleware pipelines, static file hosting, and a high-performance HTTP client.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — HTTP Server & Client API</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Instantiate Web Server</span>
+<span class="token-kw">let</span> <span class="token-fn">app</span> <span class="token-op">=</span> <span class="token-fn">http_server</span>()
+
+<span class="token-comment">// Register Routes</span>
+<span class="token-fn">app</span>.<span class="token-fn">get</span>(<span class="token-str">"/api/users"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-fn">res</span>.<span class="token-fn">json</span>([{<span class="token-str">"id"</span>: <span class="token-num">1</span>, <span class="token-str">"name"</span>: <span class="token-str">"Alice"</span>}, {<span class="token-str">"id"</span>: <span class="token-num">2</span>, <span class="token-str">"name"</span>: <span class="token-str">"Bob"</span>}])
+})
+
+<span class="token-fn">app</span>.<span class="token-fn">post</span>(<span class="token-str">"/api/login"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">body</span> <span class="token-op">=</span> <span class="token-fn">req</span>.<span class="token-fn">json</span>()
+    <span class="token-fn">res</span>.<span class="token-fn">status</span>(<span class="token-num">201</span>).<span class="token-fn">json</span>({<span class="token-str">"token"</span>: <span class="token-fn">uuid</span>(), <span class="token-str">"user"</span>: <span class="token-fn">body</span>[<span class="token-str">"user"</span>]})
+})
+
+<span class="token-comment">// Host static directory and listen</span>
+<span class="token-fn">app</span>.<span class="token-fn">static</span>(<span class="token-str">"/public"</span>, <span class="token-str">"./dist"</span>)
+<span class="token-fn">app</span>.<span class="token-fn">listen</span>(<span class="token-num">3000</span>, <span class="token-kw">fn</span>() {
+    <span class="token-fn">println</span>(<span class="token-str">"Server listening on http://127.0.0.1:3000"</span>)
+})
+
+<span class="token-comment">// HTTP Client calls</span>
+<span class="token-kw">let</span> <span class="token-fn">resp</span> <span class="token-op">=</span> <span class="token-fn">http_get</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: RFC 6455 WEBSOCKETS ================= -->
+      <section id="ch-websockets" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Realtime</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">RFC 6455 WebSockets (Zero-Dependency)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A complete, compliant implementation of the RFC 6455 WebSocket protocol built entirely with the Go Standard Library. Includes automatic client-side frame masking, server-side unmasking, ping/pong heartbeats, and binary/text frame streams.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Realtime WebSocket Communication</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Start WebSocket Server</span>
+<span class="token-kw">let</span> <span class="token-fn">wsSrv</span> <span class="token-op">=</span> <span class="token-fn">ws_server</span>(<span class="token-str">"127.0.0.1:8081"</span>, <span class="token-str">"/ws"</span>)
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">wsSrv</span>.<span class="token-fn">accept</span>()
+    <span class="token-kw">while</span> <span class="token-fn">conn</span>.<span class="token-fn">is_open</span> {
+        <span class="token-kw">let</span> <span class="token-fn">msg</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">recv</span>()
+        <span class="token-kw">if</span> <span class="token-fn">msg</span> <span class="token-op">==</span> <span class="token-kw">null</span> { <span class="token-kw">break</span> }
+        <span class="token-fn">conn</span>.<span class="token-fn">send</span>(<span class="token-str">"Server Ack: "</span> <span class="token-op">+</span> <span class="token-fn">msg</span>)
+    }
+}()
+
+<span class="token-comment">// Connect WebSocket Client</span>
+<span class="token-kw">let</span> <span class="token-fn">ws</span> <span class="token-op">=</span> <span class="token-fn">ws_connect</span>(<span class="token-str">"ws://127.0.0.1:8081/ws"</span>)
+<span class="token-fn">ws</span>.<span class="token-fn">send</span>(<span class="token-str">"Hello Bramand WebSocket!"</span>)
+<span class="token-kw">let</span> <span class="token-fn">reply</span> <span class="token-op">=</span> <span class="token-fn">ws</span>.<span class="token-fn">recv</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">reply</span>)
+<span class="token-fn">ws</span>.<span class="token-fn">close</span>()
+<span class="token-fn">wsSrv</span>.<span class="token-fn">close</span>()</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: AI STREAMING & LLMS ================= -->
+      <section id="ch-ai-integrations" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">AI Integration</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">AI Integrations: LLM Streaming & Structured Outputs</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          First-class primitives for connecting to modern AI Large Language Models (Ollama, OpenAI, Gemini, Anthropic, and local vLLM/llama.cpp inference nodes). Features realtime token streaming using Server-Sent Events (SSE) and schema-validated structured JSON output generation.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — LLM Streaming and Structured JSON</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// 1. Direct LLM Prompt (defaults to local Ollama http://localhost:11434)</span>
+<span class="token-kw">let</span> <span class="token-fn">reply</span> <span class="token-op">=</span> <span class="token-fn">ai_prompt</span>(<span class="token-str">"llama3"</span>, <span class="token-str">"Explain quantum computing in one sentence"</span>)
+<span class="token-fn">println</span>(<span class="token-fn">reply</span>)
+
+<span class="token-comment">// 2. Realtime Token Streaming via Server-Sent Events</span>
+<span class="token-fn">ai_stream</span>({
+    <span class="token-str">"url"</span>: <span class="token-str">"http://localhost:11434/api/generate"</span>,
+    <span class="token-str">"body"</span>: {<span class="token-str">"model"</span>: <span class="token-str">"llama3"</span>, <span class="token-str">"prompt"</span>: <span class="token-str">"Write a haiku"</span>, <span class="token-str">"stream"</span>: <span class="token-kw">true</span>}
+}, <span class="token-kw">fn</span>(<span class="token-fn">token</span>) {
+    <span class="token-fn">print_raw</span>(<span class="token-fn">token</span>)  <span class="token-comment">// Streams live tokens directly to console</span>
+})
+
+<span class="token-comment">// 3. Structured JSON Output Enforcement</span>
+<span class="token-kw">let</span> <span class="token-fn">schema</span> <span class="token-op">=</span> {<span class="token-str">"sentiment"</span>: <span class="token-str">"positive|negative|neutral"</span>, <span class="token-str">"score"</span>: <span class="token-num">0.0</span>}
+<span class="token-kw">let</span> <span class="token-fn">parsed</span> <span class="token-op">=</span> <span class="token-fn">ai_structured</span>({
+    <span class="token-str">"model"</span>: <span class="token-str">"llama3"</span>,
+    <span class="token-str">"prompt"</span>: <span class="token-str">"Analyze: 'I love BramandScript!'"</span>
+}, <span class="token-fn">schema</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Sentiment:"</span>, <span class="token-fn">parsed</span>[<span class="token-str">"sentiment"</span>], <span class="token-str">"Score:"</span>, <span class="token-fn">parsed</span>[<span class="token-str">"score"</span>])</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: VECTOR SIMILARITY & EMBEDDINGS ================= -->
+      <section id="ch-vector-search" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">AI Embeddings</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Vector Similarity & AI Embeddings Search</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          High-dimensional vector distance metrics and nearest-neighbor search for AI retrieval-augmented generation (RAG) and embedding comparisons.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Vector Search and Distance Metrics</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Distance & Similarity Metrics</span>
+<span class="token-kw">let</span> <span class="token-fn">v1</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">1.0</span>, <span class="token-num">0.0</span>, <span class="token-num">0.5</span>])
+<span class="token-kw">let</span> <span class="token-fn">v2</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">0.8</span>, <span class="token-num">0.2</span>, <span class="token-num">0.4</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Cosine Similarity:"</span>, <span class="token-fn">cosine_similarity</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Cosine Distance:  "</span>, <span class="token-fn">cosine_distance</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Euclidean Distance:"</span>, <span class="token-fn">euclidean_distance</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+
+<span class="token-comment">// Vector Database Search (RAG)</span>
+<span class="token-kw">let</span> <span class="token-fn">query</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">0.9</span>, <span class="token-num">0.1</span>, <span class="token-num">0.0</span>])
+<span class="token-kw">let</span> <span class="token-fn">corpus</span> <span class="token-op">=</span> [
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_1"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Compiler Architecture"</span>, <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.88</span>, <span class="token-num">0.12</span>, <span class="token-num">0.01</span>])},
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_2"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Gardening Handbook"</span>,    <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.05</span>, <span class="token-num">0.85</span>, <span class="token-num">0.52</span>])},
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_3"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Bytecode Virtual Machine"</span>, <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.92</span>, <span class="token-num">0.08</span>, <span class="token-num">0.02</span>])}
+]
+
+<span class="token-kw">let</span> <span class="token-fn">matches</span> <span class="token-op">=</span> <span class="token-fn">vector_search</span>(<span class="token-fn">query</span>, <span class="token-fn">corpus</span>, <span class="token-num">2</span>, <span class="token-str">"cosine"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Top Match:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"item"</span>][<span class="token-str">"title"</span>], <span class="token-str">"Score:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"score"</span>])</code></pre>
+        </div>
+      </section>
+
       <!-- ================= CHAPTER 14 ================= -->
       <section id="ch14" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
@@ -1739,6 +1943,107 @@ bramand pkg init logger@0.1.0</code></pre>
                 <td><code class="font-mono font-bold">uuid</code></td>
                 <td><code class="font-mono">uuid()</code></td>
                 <td>Generates an RFC 4122 Version 4 cryptographically secure UUID string.</td>
+              </tr>
+              <!-- Day 6 Networking, Web & AI Builtins -->
+              <tr>
+                <td><code class="font-mono font-bold">tcp_listen</code></td>
+                <td><code class="font-mono">tcp_listen(address)</code></td>
+                <td>Starts a TCP server listener on the specified IP:port address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">tcp_connect</code></td>
+                <td><code class="font-mono">tcp_connect(address, [timeout_ms])</code></td>
+                <td>Establishes a TCP client connection with optional connection timeout.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">udp_listen</code></td>
+                <td><code class="font-mono">udp_listen(address)</code></td>
+                <td>Creates an unbuffered UDP packet socket listening on address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">udp_connect</code></td>
+                <td><code class="font-mono">udp_connect(address)</code></td>
+                <td>Creates a connected UDP socket to a remote address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_get</code></td>
+                <td><code class="font-mono">http_get(url, [headers])</code></td>
+                <td>Performs HTTP/HTTPS GET request. Returns <code class="font-mono">{ status, status_text, body, headers, json }</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_post</code></td>
+                <td><code class="font-mono">http_post(url, body, [headers])</code></td>
+                <td>Performs HTTP/HTTPS POST request with optional JSON or string payload.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_put</code></td>
+                <td><code class="font-mono">http_put(url, body, [headers])</code></td>
+                <td>Performs HTTP/HTTPS PUT request with payload.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_delete</code></td>
+                <td><code class="font-mono">http_delete(url, [headers])</code></td>
+                <td>Performs HTTP/HTTPS DELETE request.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_request</code></td>
+                <td><code class="font-mono">http_request(optionsHash)</code></td>
+                <td>Unified HTTP client request API accepting method, url, body, headers, timeout.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_server</code></td>
+                <td><code class="font-mono">http_server()</code></td>
+                <td>Creates built-in HTTP server with <code class="font-mono">.get()</code>, <code class="font-mono">.post()</code>, <code class="font-mono">.use()</code>, <code class="font-mono">.static()</code>, and <code class="font-mono">.listen()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ws_connect</code></td>
+                <td><code class="font-mono">ws_connect(url)</code></td>
+                <td>Connects to RFC 6455 WebSocket endpoint (<code class="font-mono">ws://</code> or <code class="font-mono">wss://</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ws_server</code></td>
+                <td><code class="font-mono">ws_server(address, [path])</code></td>
+                <td>Starts RFC 6455 WebSocket server listener with <code class="font-mono">.accept()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_prompt</code></td>
+                <td><code class="font-mono">ai_prompt(model, prompt, [options])</code></td>
+                <td>Queries an AI Large Language Model (Ollama / OpenAI / Gemini compatible).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_stream</code></td>
+                <td><code class="font-mono">ai_stream(options, chunk_callback)</code></td>
+                <td>Performs Server-Sent Events (SSE) streaming call, invoking callback on each token.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_structured</code></td>
+                <td><code class="font-mono">ai_structured(options, schema)</code></td>
+                <td>Enforces and parses structured JSON output from LLM directly into BramandScript Hash.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">cosine_similarity</code></td>
+                <td><code class="font-mono">cosine_similarity(vec1, vec2)</code></td>
+                <td>Computes cosine similarity between two numeric vectors in range [-1.0, 1.0].</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">cosine_distance</code></td>
+                <td><code class="font-mono">cosine_distance(vec1, vec2)</code></td>
+                <td>Computes cosine distance (1.0 - cosine_similarity).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">euclidean_distance</code></td>
+                <td><code class="font-mono">euclidean_distance(vec1, vec2)</code></td>
+                <td>Computes standard Euclidean distance between two vectors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">manhattan_distance</code></td>
+                <td><code class="font-mono">manhattan_distance(vec1, vec2)</code></td>
+                <td>Computes Manhattan (L1 norm) distance between two vectors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">vector_search</code></td>
+                <td><code class="font-mono">vector_search(query, candidates, [top_k], [metric])</code></td>
+                <td>Performs nearest-neighbor vector search over candidate documents or embeddings.</td>
               </tr>
             </tbody>
           </table>

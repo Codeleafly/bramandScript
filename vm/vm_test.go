@@ -1384,3 +1384,206 @@ func TestCryptoAndRandom(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
+
+func TestTcpAndUdpSockets(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let srv = tcp_listen("127.0.0.1:19081");
+			spawn fn() {
+				let sConn = srv.accept();
+				let line = sConn.read_line();
+				sConn.write(line + "_reply\n");
+				sConn.close();
+			}();
+
+			let client = tcp_connect("127.0.0.1:19081");
+			client.write("hello_tcp\n");
+			let resp = client.read_line();
+			client.close();
+			srv.close();
+			resp;
+			`,
+			expected: "hello_tcp_reply",
+		},
+		{
+			input: `
+			let srv = udp_listen("127.0.0.1:19082");
+			let client = udp_connect("127.0.0.1:19082");
+			client.write("ping_udp");
+
+			let packet = srv.recv_from();
+			srv.close();
+			client.close();
+			packet["data"];
+			`,
+			expected: "ping_udp",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestHttpClientAndServer(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let srv = http_server();
+			srv.get("/api/greet", fn(req, res) {
+				res.send("hello from server");
+			});
+			srv.post("/api/echo", fn(req, res) {
+				res.json(req.json());
+			});
+			srv.get("/api/custom_status", fn(req, res) {
+				res.status(201).send("created");
+			});
+			srv.listen("127.0.0.1:19083");
+
+			// Test GET
+			let res1 = http_get("http://127.0.0.1:19083/api/greet");
+			let b1 = res1.body;
+
+			// Test POST
+			let res2 = http_post("http://127.0.0.1:19083/api/echo", "{\"title\": \"Bramand\"}");
+			let parsed = res2.json();
+			let title = parsed["title"];
+
+			// Test Status
+			let res3 = http_get("http://127.0.0.1:19083/api/custom_status");
+			let code = res3.status;
+
+			srv.close();
+			b1 == "hello from server" && title == "Bramand" && code == 201;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestWebSocketClientAndServer(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let srv = ws_server("127.0.0.1:19084", "/chat");
+			spawn fn() {
+				let sConn = srv.accept();
+				let msg = sConn.recv();
+				sConn.send("ack:" + msg);
+				sConn.close();
+			}();
+
+			let client = ws_connect("ws://127.0.0.1:19084/chat");
+			client.send("hello_bramand_ws");
+			let reply = client.recv();
+			client.close();
+			srv.close();
+			reply;
+			`,
+			expected: "ack:hello_bramand_ws",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestVectorSimilarityAndEmbeddings(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let v1 = vec([1.0, 0.0]);
+			let v2 = vec([0.0, 1.0]);
+			cosine_similarity(v1, v2);
+			`,
+			expected: 0.0,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 2.0, 3.0]);
+			let v2 = vec([1.0, 2.0, 3.0]);
+			floor(cosine_similarity(v1, v2) * 100);
+			`,
+			expected: 100,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 1.0]);
+			let v2 = vec([1.0, 1.0]);
+			cosine_distance(v1, v2);
+			`,
+			expected: 0.0,
+		},
+		{
+			input: `
+			let v1 = vec([0.0, 0.0]);
+			let v2 = vec([3.0, 4.0]);
+			euclidean_distance(v1, v2);
+			`,
+			expected: 5.0,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 2.0]);
+			let v2 = vec([4.0, 6.0]);
+			manhattan_distance(v1, v2);
+			`,
+			expected: 7.0,
+		},
+		{
+			input: `
+			let query = vec([1.0, 0.0]);
+			let doc1 = {"id": "doc1", "embedding": vec([0.0, 1.0])};
+			let doc2 = {"id": "doc2", "embedding": vec([0.9, 0.1])};
+			let doc3 = {"id": "doc3", "embedding": vec([-1.0, 0.0])};
+
+			let results = vector_search(query, [doc1, doc2, doc3], 1, "cosine");
+			let topMatch = results[0]["item"];
+			topMatch["id"];
+			`,
+			expected: "doc2",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestAIIntegrationModule(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			// Set up a mock AI streaming HTTP server
+			let srv = http_server();
+			srv.post("/api/mock_stream", fn(req, res) {
+				res.set_header("Content-Type", "text/event-stream");
+				res.send("data: {\"response\": \"Hello \"}\n\ndata: {\"response\": \"from \"}\n\ndata: {\"response\": \"AI!\"}\n\ndata: [DONE]\n\n");
+			});
+			srv.listen("127.0.0.1:19085");
+
+			let collected = [];
+			let full = ai_stream({"url": "http://127.0.0.1:19085/api/mock_stream", "body": "{}"}, fn(token) {
+				collected = push(collected, token);
+			});
+
+			srv.close();
+			full == "Hello from AI!" && len(collected) == 3 && collected[0] == "Hello ";
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			// Set up a mock AI structured response HTTP server
+			let srv = http_server();
+			srv.post("/api/mock_structured", fn(req, res) {
+				res.json({"summary": "High Performance Language", "stars": 5});
+			});
+			srv.listen("127.0.0.1:19086");
+
+			let schema = {"summary": "string", "stars": 0};
+			let structured = ai_structured({"model": "test-model", "prompt": "analyze", "endpoint": "http://127.0.0.1:19086/api/mock_structured"}, schema);
+
+			srv.close();
+			structured["summary"] == "High Performance Language" && structured["stars"] == 5;
+			`,
+			expected: true,
+		},
+	}
+	runVmTests(t, tests)
+}
