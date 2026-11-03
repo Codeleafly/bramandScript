@@ -93,26 +93,36 @@ fi
 
 mkdir -p "$INSTALL_DIR"
 
-# 4. Check If Building from Local Source or Downloading Release
+BINARY_NAME="bramand"
+if [ "$OS" = "windows" ]; then
+  BINARY_NAME="bramand.exe"
+fi
+
+# 4. Determine Installation Mode (Pre-built Release Binary vs Source Build)
 BUILD_FROM_SOURCE=false
-if [ -f "./main.go" ] && [ -f "./go.mod" ] && command -v go >/dev/null 2>&1; then
-  info "Local source tree and Go compiler found. Compiling native binary..."
+if [ "$1" = "--build" ] || [ "$1" = "-b" ]; then
+  info "Source build requested via CLI argument..."
   BUILD_FROM_SOURCE=true
 fi
 
 if [ "$BUILD_FROM_SOURCE" = true ]; then
-  go build -ldflags="-s -w" -o "bramand" main.go
-  rm -f "${INSTALL_DIR}/bramand" "${INSTALL_DIR}/bmd"
-  cp bramand "${INSTALL_DIR}/bramand"
-  chmod +x "${INSTALL_DIR}/bramand"
-  ln -sf "${INSTALL_DIR}/bramand" "${INSTALL_DIR}/bmd"
+  if command -v go >/dev/null 2>&1; then
+    info "Go compiler found. Compiling native binary..."
+    go build -ldflags="-s -w" -o "bramand" main.go
+    cat bramand > "${INSTALL_DIR}/${BINARY_NAME}.new"
+    chmod +x "${INSTALL_DIR}/${BINARY_NAME}.new"
+    mv -f "${INSTALL_DIR}/${BINARY_NAME}.new" "${INSTALL_DIR}/${BINARY_NAME}"
+    ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/bmd"
 
-  if [ -f "tools/task.js" ]; then
-    chmod +x tools/task.js
-    ln -sf "$(pwd)/tools/task.js" "${INSTALL_DIR}/bmd-task"
+    if [ -f "tools/task.js" ]; then
+      chmod +x tools/task.js
+      ln -sf "$(pwd)/tools/task.js" "${INSTALL_DIR}/bmd-task"
+    fi
+  else
+    error "Go compiler not found to build from source."
   fi
 else
-  # 5. Fetch Latest Release Asset from GitHub
+  # 5. Fetch Latest Pre-built Release Binary from GitHub
   info "Fetching latest release information from GitHub (${REPO})..."
 
   LATEST_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null || true)"
@@ -120,7 +130,7 @@ else
 
   if [ -z "$TAG" ]; then
     TAG="v0.1.0"
-    warn "Could not determine latest release tag via API (rate limit or no releases yet). Falling back to tag ${TAG}."
+    warn "Could not determine latest release tag via GitHub API. Falling back to tag ${TAG}."
   fi
 
   ARCHIVE_NAME="bramand-${OS}-${ARCH}-${TAG}.tar.gz"
@@ -129,37 +139,39 @@ else
   fi
 
   DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARCHIVE_NAME}"
-  info "Downloading binary archive: ${DOWNLOAD_URL}..."
+  info "Downloading pre-compiled server binary: ${DOWNLOAD_URL}..."
 
   TMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t 'bmd_install')"
   trap 'rm -rf "$TMP_DIR"' EXIT
 
-  HTTP_STATUS="$(curl -SL --write-out "%{http_code}" -o "${TMP_DIR}/${ARCHIVE_NAME}" "$DOWNLOAD_URL" 2>/dev/null || true)"
+  HTTP_STATUS="$(curl -sSL --write-out "%{http_code}" -o "${TMP_DIR}/${ARCHIVE_NAME}" "$DOWNLOAD_URL" 2>/dev/null || true)"
 
   if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "302" ]; then
-    warn "Release asset not found on GitHub releases (HTTP $HTTP_STATUS)."
-    if command -v go >/dev/null 2>&1; then
-      info "Go toolchain detected! Cloning and compiling from master..."
-      git clone "https://github.com/${REPO}.git" "${TMP_DIR}/src"
-      (cd "${TMP_DIR}/src" && go build -ldflags="-s -w" -o bramand main.go)
-      cp "${TMP_DIR}/src/bramand" "${INSTALL_DIR}/bramand"
+    warn "Release asset ${ARCHIVE_NAME} returned HTTP $HTTP_STATUS from GitHub."
+    if command -v go >/dev/null 2>&1 && [ -f "./main.go" ]; then
+      info "Falling back to local compilation with Go..."
+      go build -ldflags="-s -w" -o "bramand" main.go
+      cat bramand > "${INSTALL_DIR}/${BINARY_NAME}.new"
+      chmod +x "${INSTALL_DIR}/${BINARY_NAME}.new"
+      mv -f "${INSTALL_DIR}/${BINARY_NAME}.new" "${INSTALL_DIR}/${BINARY_NAME}"
+      ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/bmd"
     else
-      error "Could not download pre-built binary and 'go' is not installed. Please install Go or check release assets at https://github.com/${REPO}/releases"
+      error "Could not download pre-built release binary for ${OS}-${ARCH} and local Go compiler is unavailable. Please check https://github.com/${REPO}/releases"
     fi
   else
-    cd "$TMP_DIR"
+    mkdir -p "${TMP_DIR}/extracted"
     if [ "$OS" = "windows" ]; then
-      unzip -q "$ARCHIVE_NAME"
+      unzip -q "${TMP_DIR}/${ARCHIVE_NAME}" -d "${TMP_DIR}/extracted"
     else
-      tar -xzf "$ARCHIVE_NAME"
+      tar -xzf "${TMP_DIR}/${ARCHIVE_NAME}" -C "${TMP_DIR}/extracted"
     fi
 
-    rm -f "${INSTALL_DIR}/bramand" "${INSTALL_DIR}/bmd"
-    cp bramand* "${INSTALL_DIR}/bramand"
+    # Install binary atomically
+    cat "${TMP_DIR}/extracted/${BINARY_NAME}" > "${INSTALL_DIR}/${BINARY_NAME}.new"
+    chmod +x "${INSTALL_DIR}/${BINARY_NAME}.new"
+    mv -f "${INSTALL_DIR}/${BINARY_NAME}.new" "${INSTALL_DIR}/${BINARY_NAME}"
+    ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/bmd"
   fi
-
-  chmod +x "${INSTALL_DIR}/bramand"
-  ln -sf "${INSTALL_DIR}/bramand" "${INSTALL_DIR}/bmd"
 fi
 
 # 6. Verify Installation
