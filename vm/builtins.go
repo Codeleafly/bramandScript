@@ -170,6 +170,19 @@ func init() {
 				return arr
 			},
 		},
+		"append": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				if args[0].Type() != object.ARRAY_OBJ {
+					return &object.Error{Message: fmt.Sprintf("first argument to `append` must be ARRAY, got %s", args[0].Type())}
+				}
+				arr := args[0].(*object.Array)
+				arr.Elements = append(arr.Elements, args[1])
+				return arr
+			},
+		},
 		"pop": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) != 1 {

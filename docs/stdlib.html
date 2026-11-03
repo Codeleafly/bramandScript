@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standard Library Reference ✦ BramandScript Documentation</title>
+  <meta name="description" content="Official documentation for BramandScript (bmd), a high-performance general-purpose programming language built in pure Go standard library with zero external dependencies.">
+  <link rel="canonical" href="https://codeleafly.github.io/bramandScript/stdlib.html">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Global Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Version -->
+      <div class="flex items-center gap-3">
+        <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none" aria-label="Toggle Menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
+          <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+        </a>
+      </div>
+
+      <!-- Top Nav Pills -->
+      <nav class="hidden xl:flex items-center gap-1 text-xs font-medium">
+        <a href="index.html" class="nav-pill ">Start</a>
+        <a href="fundamentals.html" class="nav-pill ">Fundamentals</a>
+        <a href="data-structures.html" class="nav-pill ">Data &amp; OOP</a>
+        <a href="concurrency.html" class="nav-pill ">Concurrency</a>
+        <a href="stdlib.html" class="nav-pill active">Stdlib</a>
+        <a href="networking.html" class="nav-pill ">Net &amp; AI</a>
+        <a href="tooling.html" class="nav-pill ">Tooling</a>
+        <a href="architecture.html" class="nav-pill ">Architecture</a>
+      </nav>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-xs relative hidden sm:block">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <input type="text" id="search-input" placeholder="Search docs... (Press '/')" 
+            class="w-full pl-9 pr-10 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+          <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+            <kbd class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 shadow-sm">/</kbd>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Utilities -->
+      <div class="flex items-center gap-2">
+        <a href="https://github.com/Codeleafly/bramandScript" target="_blank" rel="noopener" class="text-xs font-medium px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <span class="font-mono">❯_</span>
+          <span>GitHub</span>
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none flex items-center gap-1 text-xs font-medium" title="Toggle Theme">
+          <svg id="theme-icon-light" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-dark" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Drawer Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 z-40 hidden backdrop-blur-sm lg:hidden"></div>
+
+  <!-- Layout Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex gap-8 py-6">
+
+    <!-- Responsive Sidebar Navigation -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-5 transform -translate-x-full transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 lg:p-0 lg:bg-transparent lg:border-none flex flex-col">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 lg:hidden mb-4">
+        <span class="font-bold text-sm tracking-wide uppercase text-slate-500">Navigation</span>
+        <button id="mobile-close-btn" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" onclick="document.getElementById('sidebar-overlay').click()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="sidebar-nav" class="flex-1 overflow-y-auto pr-2 space-y-6 text-sm">
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Getting Started</h3>
+          <ul class="space-y-1">
+            <li><a href="index.html#ch1" class="nav-link "><span>1.</span> Introduction &amp; Vision</a></li>
+            <li><a href="index.html#ch2" class="nav-link"><span>2.</span> Quickstart &amp; CLI</a></li>
+            <li><a href="index.html#ch3" class="nav-link"><span>3.</span> REPL &amp; :editor Mode</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Language Fundamentals</h3>
+          <ul class="space-y-1">
+            <li><a href="fundamentals.html#ch4" class="nav-link "><span>4.</span> Syntax &amp; Semicolons</a></li>
+            <li><a href="fundamentals.html#ch5" class="nav-link"><span>5.</span> Variables &amp; Scoping</a></li>
+            <li><a href="fundamentals.html#ch6" class="nav-link"><span>6.</span> Data Types &amp; Literals</a></li>
+            <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
+            <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
+            <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Data Structures &amp; OOP</h3>
+          <ul class="space-y-1">
+            <li><a href="data-structures.html#ch10" class="nav-link "><span>10.</span> Arrays &amp; Hash Maps</a></li>
+            <li><a href="data-structures.html#ch11" class="nav-link"><span>11.</span> For-In Iterators</a></li>
+            <li><a href="data-structures.html#ch12" class="nav-link"><span>12.</span> Structs &amp; Methods</a></li>
+            <li><a href="data-structures.html#ch13" class="nav-link"><span>13.</span> Pattern Matching</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Concurrency &amp; System I/O</h3>
+          <ul class="space-y-1">
+            <li><a href="concurrency.html#ch-concurrency" class="nav-link "><span>✦</span> Concurrency &amp; Tasks</a></li>
+            <li><a href="concurrency.html#ch-channels" class="nav-link"><span>✦</span> Channels &amp; Message Passing</a></li>
+            <li><a href="concurrency.html#ch-mutex" class="nav-link"><span>✦</span> Mutex &amp; Synchronization</a></li>
+            <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
+          <ul class="space-y-1">
+            <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link active"><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
+            <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
+            <li><a href="stdlib.html#ch-scimath" class="nav-link"><span>✦</span> Scientific Math &amp; Stats</a></li>
+            <li><a href="stdlib.html#ch-serialization" class="nav-link"><span>✦</span> JSON, CSV &amp; Base64</a></li>
+            <li><a href="stdlib.html#ch-crypto" class="nav-link"><span>✦</span> Cryptography &amp; CSPRNG</a></li>
+            <li><a href="stdlib.html#ch15" class="nav-link"><span>15.</span> Standard Builtins Reference</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Networking, Web &amp; AI</h3>
+          <ul class="space-y-1">
+            <li><a href="networking.html#ch-sockets" class="nav-link "><span>✦</span> TCP &amp; UDP Sockets</a></li>
+            <li><a href="networking.html#ch-http" class="nav-link"><span>✦</span> HTTP Client &amp; Server</a></li>
+            <li><a href="networking.html#ch-websockets" class="nav-link"><span>✦</span> RFC 6455 WebSockets</a></li>
+            <li><a href="networking.html#ch-ai-integrations" class="nav-link"><span>✦</span> AI Streaming &amp; LLMs</a></li>
+            <li><a href="networking.html#ch-vector-search" class="nav-link"><span>✦</span> Vector Similarity &amp; Search</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Developer Tooling</h3>
+          <ul class="space-y-1">
+            <li><a href="tooling.html#ch-testrunner" class="nav-link "><span>✦</span> Test Runner &amp; Assertions</a></li>
+            <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
+            <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem &amp; Architecture</h3>
+          <ul class="space-y-1">
+            <li><a href="architecture.html#ch14" class="nav-link "><span>14.</span> Modules &amp; Package Store</a></li>
+            <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
+            <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
+            <li><a href="architecture.html#ch18" class="nav-link"><span>18.</span> Contributing Guide</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 max-w-4xl space-y-16 pb-24">
+      
+      <div class="border-b border-slate-200 dark:border-slate-800 pb-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mb-3">
+          <span>Standard Library & Math</span>
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-3">
+          Standard Library Reference
+        </h1>
+        <p class="text-base text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+          Modular std/ packages, 256-bit BigInt, high-precision BigFloat, linear algebra, statistical analysis, cryptography, and full built-in functions index.
+        </p>
+      </div>
+  
+      
+      <!-- ================= MODULAR STDLIB SECTION ================= -->
+      <section id="ch-modular-stdlib" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Standard Library</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Modular Standard Library (<code class="font-mono">std/...</code>)</h2>
+        
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript v0.1.1 adopts a modern standard library design where the core Virtual Machine remains minimal and lean, while high-level capabilities are organized into modular <code class="font-mono">.bmd</code> packages under <code class="font-mono">stdlib/</code>. You can import modules cleanly using <code class="font-mono">import "std/&lt;module&gt;" as &lt;alias&gt;</code>.
+        </p>
+
+        <div class="callout callout-info">
+          <strong class="font-semibold text-blue-700 dark:text-blue-300">Clean Import Syntax</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            Importing standard modules works anywhere out-of-the-box without configuring environment paths:
+            <code class="font-mono">import "std/math" as math</code> or <code class="font-mono">import "std/strings" as str</code>.
+          </p>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">1. <code class="font-mono">std/math</code> — Mathematical Constants &amp; Functions</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Provides high-precision constants and numerical algorithms:</p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/math</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math" as math
+
+print("Pi:", math.PI)
+print("Clamp 15 between 0 and 10:", math.clamp(15, 0, 10)) // 10
+print("GCD of 48 and 18:", math.gcd(48, 18))                // 6
+print("LCM of 4 and 6:", math.lcm(4, 6))                    // 12
+print("Is 4 even?:", math.is_even(4))                      // true</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">2. <code class="font-mono">std/strings</code> — String Utilities &amp; Formatting</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Text processing, padding, casing, and slug generation:</p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/strings</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/strings" as str
+
+print(str.capitalize("bramand"))          // "Bramand"
+print(str.pad_left("42", 5, "0"))          // "00042"
+print(str.slugify("Hello Bramand World"))  // "hello-bramand-world"
+print(str.reverse("stressed"))             // "desserts"
+print(str.starts_with("bmd", "bm"))        // true</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">3. <code class="font-mono">std/collections</code> — Functional Transformations</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Functional primitives like <code class="font-mono">map</code>, <code class="font-mono">filter</code>, <code class="font-mono">reduce</code>, <code class="font-mono">unique</code>, and <code class="font-mono">chunk</code>:</p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/collections</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/collections" as coll
+
+let numbers = [1, 2, 3, 4, 5, 6]
+let evens = coll.filter(numbers, fn(x) { return x % 2 == 0 })
+let doubled = coll.map(numbers, fn(x) { return x * 2 })
+let sum = coll.reduce(numbers, fn(acc, x) { return acc + x }, 0)
+
+print("Evens:", evens)     // [2, 4, 6]
+print("Doubled:", doubled) // [2, 4, 6, 8, 10, 12]
+print("Sum:", sum)         // 21</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">4. <code class="font-mono">std/json</code> — Safe JSON Parsing &amp; Stringifying</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">JSON serialization and deserialization:</p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/json</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/json" as json
+
+let raw = "{\"language\": \"Bramand\", \"version\": \"0.1.1\"}"
+let doc = json.parse(raw)
+print("Language:", doc["language"])
+print("Version:", doc["version"])
+
+let output = json.stringify({"status": 200, "ok": true})
+print("Serialized:", output)</code></pre>
+        </div>
+      </section>
+
+
+      <section id="ch-bigmath" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Scientific Math</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Arbitrary-Precision BigInt & BigFloat</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides native arbitrary-precision arithmetic powered by Go's standard <code class="font-mono">math/big</code> package. Overloaded operators (<code class="font-mono">+</code>, <code class="font-mono">-</code>, <code class="font-mono">*</code>, <code class="font-mono">/</code>, <code class="font-mono">%</code>, <code class="font-mono">**</code>, unary <code class="font-mono">-</code>) and comparison operators work seamlessly with BigInt and BigFloat types.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Arbitrary-Precision Big Numbers</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Construct BigInt from string or number</span>
+<span class="token-kw">let</span> <span class="token-fn">a</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"123456789012345678901234567890"</span>)
+<span class="token-kw">let</span> <span class="token-fn">b</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"987654321098765432109876543210"</span>)
+<span class="token-kw">let</span> <span class="token-fn">c</span> <span class="token-op">=</span> <span class="token-fn">a</span> <span class="token-op">+</span> <span class="token-fn">b</span>
+<span class="token-kw">let</span> <span class="token-fn">pow2</span> <span class="token-op">=</span> <span class="token-fn">big_int</span>(<span class="token-str">"2"</span>) <span class="token-op">**</span> <span class="token-fn">big_int</span>(<span class="token-str">"100"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Sum:"</span>, <span class="token-fn">c</span>.<span class="token-fn">str</span>())
+<span class="token-fn">println</span>(<span class="token-str">"2^100:"</span>, <span class="token-fn">pow2</span>.<span class="token-fn">str</span>())
+
+<span class="token-comment">// BigFloat with 128-bit default precision or custom precision</span>
+<span class="token-kw">let</span> <span class="token-fn">bf</span> <span class="token-op">=</span> <span class="token-fn">big_float</span>(<span class="token-str">"3.141592653589793238462643383279"</span>, <span class="token-num">256</span>)
+<span class="token-kw">let</span> <span class="token-fn">root</span> <span class="token-op">=</span> <span class="token-fn">bf</span>.<span class="token-fn">sqrt</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Sqrt(PI):"</span>, <span class="token-fn">root</span>.<span class="token-fn">str</span>(<span class="token-num">20</span>))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: LINEAR ALGEBRA ================= -->
+
+      <section id="ch-linearalgebra" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Linear Algebra</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Vectors & Matrices (Linear Algebra)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          High-performance vector and matrix primitives with built-in dot product, cross product, Euclidean norm, matrix multiplication, Gaussian elimination determinant (<code class="font-mono">O(n³)</code>), and Gauss-Jordan matrix inversion.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Vector and Matrix operations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Vector Operations</span>
+<span class="token-kw">let</span> <span class="token-fn">v1</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">1.0</span>, <span class="token-num">2.0</span>, <span class="token-num">3.0</span>])
+<span class="token-kw">let</span> <span class="token-fn">v2</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">4.0</span>, <span class="token-num">5.0</span>, <span class="token-num">6.0</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Dot product:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">dot</span>(<span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Cross product:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">cross</span>(<span class="token-fn">v2</span>).<span class="token-fn">elements</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Norm:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">norm</span>())
+<span class="token-fn">println</span>(<span class="token-str">"Unit vector:"</span>, <span class="token-fn">v1</span>.<span class="token-fn">normalize</span>().<span class="token-fn">elements</span>)
+
+<span class="token-comment">// Matrix Operations</span>
+<span class="token-kw">let</span> <span class="token-fn">m1</span> <span class="token-op">=</span> <span class="token-fn">matrix</span>([[<span class="token-num">1.0</span>, <span class="token-num">2.0</span>], [<span class="token-num">3.0</span>, <span class="token-num">4.0</span>]])
+<span class="token-kw">let</span> <span class="token-fn">m2</span> <span class="token-op">=</span> <span class="token-fn">matrix</span>([[<span class="token-num">2.0</span>, <span class="token-num">0.0</span>], [<span class="token-num">1.0</span>, <span class="token-num">2.0</span>]])
+<span class="token-fn">println</span>(<span class="token-str">"Matrix multiplication:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">mul</span>(<span class="token-fn">m2</span>).<span class="token-fn">data</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Determinant:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">det</span>())
+<span class="token-fn">println</span>(<span class="token-str">"Inverse:"</span>, <span class="token-fn">m1</span>.<span class="token-fn">inv</span>().<span class="token-fn">data</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: SCIENTIFIC MATH & STATS ================= -->
+
+      <section id="ch-scimath" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Scientific Computing</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Trigonometric, Logarithmic & Statistical Library</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A rich suite of mathematical and descriptive statistical functions available out of the box with zero imports required.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Math and Statistics</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Trigonometry & Exponentials</span>
+<span class="token-fn">println</span>(<span class="token-str">"PI ="</span>, <span class="token-fn">pi</span>(), <span class="token-str">"E ="</span>, <span class="token-fn">e</span>())
+<span class="token-fn">println</span>(<span class="token-str">"sin(PI/2) ="</span>, <span class="token-fn">sin</span>(<span class="token-fn">pi</span>() <span class="token-op">/</span> <span class="token-num">2.0</span>))
+<span class="token-fn">println</span>(<span class="token-str">"log10(1000) ="</span>, <span class="token-fn">log10</span>(<span class="token-num">1000.0</span>))
+<span class="token-fn">println</span>(<span class="token-str">"hypot(3, 4) ="</span>, <span class="token-fn">hypot</span>(<span class="token-num">3.0</span>, <span class="token-num">4.0</span>))
+
+<span class="token-comment">// Descriptive Statistics</span>
+<span class="token-kw">let</span> <span class="token-fn">scores</span> <span class="token-op">=</span> [<span class="token-num">12.0</span>, <span class="token-num">15.0</span>, <span class="token-num">12.0</span>, <span class="token-num">18.0</span>, <span class="token-num">22.0</span>, <span class="token-num">25.0</span>, <span class="token-num">30.0</span>]
+<span class="token-fn">println</span>(<span class="token-str">"Mean:"</span>, <span class="token-fn">mean</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Median:"</span>, <span class="token-fn">median</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Mode:"</span>, <span class="token-fn">mode</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Variance:"</span>, <span class="token-fn">variance</span>(<span class="token-fn">scores</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Std Dev:"</span>, <span class="token-fn">std_dev</span>(<span class="token-fn">scores</span>))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: SERIALIZATION ================= -->
+
+      <section id="ch-serialization" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">Serialization</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">JSON, CSV & Base64 Serialization</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Robust, native data interchange formats with bidirectional parsing and formatting for JSON, CSV, and Base64.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Data Formats</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// JSON Parsing & Pretty-Printing</span>
+<span class="token-kw">let</span> <span class="token-fn">rawJson</span> <span class="token-op">=</span> <span class="token-str">"{\"project\": \"BramandScript\", \"version\": 1}"</span>
+<span class="token-kw">let</span> <span class="token-fn">obj</span> <span class="token-op">=</span> <span class="token-fn">json_parse</span>(<span class="token-fn">rawJson</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Project:"</span>, <span class="token-fn">obj</span>[<span class="token-str">"project"</span>])
+<span class="token-kw">let</span> <span class="token-fn">pretty</span> <span class="token-op">=</span> <span class="token-fn">json_stringify</span>(<span class="token-fn">obj</span>, <span class="token-num">2</span>)
+
+<span class="token-comment">// CSV Parsing & Generation</span>
+<span class="token-kw">let</span> <span class="token-fn">csvRaw</span> <span class="token-op">=</span> <span class="token-str">"id,name\n1,Alpha\n2,Beta"</span>
+<span class="token-kw">let</span> <span class="token-fn">rows</span> <span class="token-op">=</span> <span class="token-fn">csv_parse</span>(<span class="token-fn">csvRaw</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Row 1 Name:"</span>, <span class="token-fn">rows</span>[<span class="token-num">1</span>][<span class="token-num">1</span>])
+
+<span class="token-comment">// Base64 & URL-Safe Encoding</span>
+<span class="token-kw">let</span> <span class="token-fn">encoded</span> <span class="token-op">=</span> <span class="token-fn">base64_encode</span>(<span class="token-str">"Hello Bramand"</span>)
+<span class="token-kw">let</span> <span class="token-fn">decoded</span> <span class="token-op">=</span> <span class="token-fn">base64_decode</span>(<span class="token-fn">encoded</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 5: CRYPTOGRAPHY ================= -->
+
+      <section id="ch-crypto" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Security</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Cryptography & CSPRNG (Secure Random & UUIDv4)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Cryptographic hashing, HMAC authentication, cryptographically secure pseudo-random number generation (<code class="font-mono">crypto/rand</code>), and RFC 4122 v4 UUID creation.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Cryptography & Security</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Cryptographic Hashing</span>
+<span class="token-fn">println</span>(<span class="token-str">"SHA-256:"</span>, <span class="token-fn">sha256</span>(<span class="token-str">"password"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"SHA-512:"</span>, <span class="token-fn">sha512</span>(<span class="token-str">"password"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"MD5:    "</span>, <span class="token-fn">md5</span>(<span class="token-str">"data"</span>))
+<span class="token-fn">println</span>(<span class="token-str">"HMAC:   "</span>, <span class="token-fn">hmac_sha256</span>(<span class="token-str">"secret-key"</span>, <span class="token-str">"message"</span>))
+
+<span class="token-comment">// Cryptographically Secure Random & UUIDv4</span>
+<span class="token-kw">let</span> <span class="token-fn">token</span> <span class="token-op">=</span> <span class="token-fn">random_bytes</span>(<span class="token-num">16</span>)   <span class="token-comment">// 32 hex chars</span>
+<span class="token-kw">let</span> <span class="token-fn">dice</span> <span class="token-op">=</span> <span class="token-fn">random_int</span>(<span class="token-num">1</span>, <span class="token-num">6</span>)      <span class="token-comment">// [1, 6] range</span>
+<span class="token-kw">let</span> <span class="token-fn">id</span> <span class="token-op">=</span> <span class="token-fn">uuid</span>()                  <span class="token-comment">// RFC 4122 v4</span>
+<span class="token-fn">println</span>(<span class="token-str">"Secure Token:"</span>, <span class="token-fn">token</span>)
+<span class="token-fn">println</span>(<span class="token-str">"UUID:"</span>, <span class="token-fn">id</span>)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: TCP & UDP SOCKETS ================= -->
+
+      <section id="ch15" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 15</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standard Builtin Functions Reference</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          All builtin functions are implemented natively in Go without external dependencies. They are indexed in <code class="font-mono">compiler/builtins.go</code> and dispatched with zero overhead via <code class="font-mono">OpGetBuiltin</code>.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Builtin</th>
+                <th>Signature</th>
+                <th>Description & Return Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="font-mono font-bold">print</code></td>
+                <td><code class="font-mono">print(arg1, arg2, ...)</code></td>
+                <td>Prints space-separated representations of arguments followed by a newline. Returns <code class="font-mono">null</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">println</code></td>
+                <td><code class="font-mono">println(arg1, arg2, ...)</code></td>
+                <td>Alias to <code class="font-mono">print</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">print_raw</code></td>
+                <td><code class="font-mono">print_raw(arg1, ...)</code></td>
+                <td>Prints arguments without a trailing newline character.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">input</code></td>
+                <td><code class="font-mono">input([prompt])</code></td>
+                <td>Displays optional prompt and reads a line of text from standard input (<code class="font-mono">os.Stdin</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">len</code></td>
+                <td><code class="font-mono">len(collection)</code></td>
+                <td>Returns item count of an Array, rune length of a String, or pair count of a Hash as an <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">type</code></td>
+                <td><code class="font-mono">type(object)</code></td>
+                <td>Returns runtime type name string (e.g. <code class="font-mono">"INTEGER"</code>, <code class="font-mono">"ARRAY"</code>, <code class="font-mono">"CLOSURE"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">push</code></td>
+                <td><code class="font-mono">push(array, element)</code></td>
+                <td>Returns a new array containing all previous elements with the new element appended.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">pop</code></td>
+                <td><code class="font-mono">pop(array)</code></td>
+                <td>Removes and returns the last element of an array in place. Returns <code class="font-mono">null</code> if empty.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">contains</code></td>
+                <td><code class="font-mono">contains(coll, target)</code></td>
+                <td>Returns <code class="font-mono">true</code> if array contains item, hash contains key, or string contains substring.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">delete</code></td>
+                <td><code class="font-mono">delete(hash, key)</code></td>
+                <td>Deletes specified key from hash table in place. Returns <code class="font-mono">null</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">keys</code></td>
+                <td><code class="font-mono">keys(hash)</code></td>
+                <td>Returns an <code class="font-mono">ARRAY</code> containing all keys present in the hash map.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">values</code></td>
+                <td><code class="font-mono">values(hash)</code></td>
+                <td>Returns an <code class="font-mono">ARRAY</code> containing all values present in the hash map.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">slice</code></td>
+                <td><code class="font-mono">slice(arr, start, [end])</code></td>
+                <td>Returns a sub-array from index <code class="font-mono">start</code> up to optional <code class="font-mono">end</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">int</code></td>
+                <td><code class="font-mono">int(value)</code></td>
+                <td>Converts string, float, or boolean into a 64-bit signed <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">float</code></td>
+                <td><code class="font-mono">float(value)</code></td>
+                <td>Converts integer or numeric string into a 64-bit IEEE <code class="font-mono">FLOAT</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">str</code></td>
+                <td><code class="font-mono">str(value)</code></td>
+                <td>Converts any BramandScript runtime object into its <code class="font-mono">STRING</code> representation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">bool</code></td>
+                <td><code class="font-mono">bool(value)</code></td>
+                <td>Returns truthiness of value (<code class="font-mono">false</code> and <code class="font-mono">null</code> are falsy).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">now</code></td>
+                <td><code class="font-mono">now()</code></td>
+                <td>Returns current system Unix timestamp in seconds as an <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exit</code></td>
+                <td><code class="font-mono">exit([code])</code></td>
+                <td>Terminates current process immediately with optional exit status code (defaults to 0).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">chan</code></td>
+                <td><code class="font-mono">chan([capacity])</code></td>
+                <td>Creates an unbuffered or buffered channel of runtime objects for thread-safe message passing.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">close</code></td>
+                <td><code class="font-mono">close(channel)</code></td>
+                <td>Closes a channel. Senders can no longer send; receivers receive remaining messages then null.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">mutex</code></td>
+                <td><code class="font-mono">mutex()</code></td>
+                <td>Instantiates a mutual exclusion lock with <code class="font-mono">.lock()</code>, <code class="font-mono">.unlock()</code>, and <code class="font-mono">.try_lock()</code> methods.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">wait_group</code></td>
+                <td><code class="font-mono">wait_group()</code></td>
+                <td>Instantiates a synchronization barrier with <code class="font-mono">.add(n)</code>, <code class="font-mono">.done()</code>, and <code class="font-mono">.wait()</code> methods.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sleep</code></td>
+                <td><code class="font-mono">sleep(milliseconds)</code></td>
+                <td>Pauses current execution thread for the given number of milliseconds.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_file</code></td>
+                <td><code class="font-mono">read_file(path)</code></td>
+                <td>Reads entire file contents as a <code class="font-mono">STRING</code> (or returns error).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">write_file</code></td>
+                <td><code class="font-mono">write_file(path, content)</code></td>
+                <td>Writes content to file at path. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">append_file</code></td>
+                <td><code class="font-mono">append_file(path, content)</code></td>
+                <td>Appends content to file at path. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">delete_file</code></td>
+                <td><code class="font-mono">delete_file(path)</code></td>
+                <td>Removes file from filesystem. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">file_exists</code></td>
+                <td><code class="font-mono">file_exists(path)</code></td>
+                <td>Returns <code class="font-mono">true</code> if file or directory exists at path, otherwise <code class="font-mono">false</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">list_dir</code></td>
+                <td><code class="font-mono">list_dir([path])</code></td>
+                <td>Lists directory contents as an <code class="font-mono">ARRAY</code> of entry names. Defaults to <code class="font-mono">"."</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">chmod</code></td>
+                <td><code class="font-mono">chmod(path, mode)</code></td>
+                <td>Changes file permissions mode (e.g. <code class="font-mono">0755</code>). Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">is_dir</code></td>
+                <td><code class="font-mono">is_dir(path)</code></td>
+                <td>Returns <code class="font-mono">true</code> if the specified path is a directory.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">env</code></td>
+                <td><code class="font-mono">env([key])</code></td>
+                <td>Returns environment variable value as <code class="font-mono">STRING</code>, or full environment as <code class="font-mono">HASH</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">set_env</code></td>
+                <td><code class="font-mono">set_env(key, value)</code></td>
+                <td>Sets process environment variable. Returns <code class="font-mono">true</code> on success.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exec</code></td>
+                <td><code class="font-mono">exec(command, [args])</code></td>
+                <td>Runs external process and returns <code class="font-mono">{ stdout, stderr, code }</code> hash object.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">eprint</code></td>
+                <td><code class="font-mono">eprint(arg1, ...)</code></td>
+                <td>Prints space-separated arguments to standard error stream (<code class="font-mono">os.Stderr</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">eprintln</code></td>
+                <td><code class="font-mono">eprintln(arg1, ...)</code></td>
+                <td>Prints space-separated arguments to standard error stream followed by a newline.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_line</code></td>
+                <td><code class="font-mono">read_line([prompt])</code></td>
+                <td>Reads a line of text from standard input stream (<code class="font-mono">os.Stdin</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">color</code></td>
+                <td><code class="font-mono">color(name, text)</code></td>
+                <td>Wraps text in standard ANSI color escape sequences (<code class="font-mono">"red"</code>, <code class="font-mono">"green"</code>, <code class="font-mono">"blue"</code>, etc.).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">styled</code></td>
+                <td><code class="font-mono">styled(text, style)</code></td>
+                <td>Wraps text in ANSI style escape sequences (<code class="font-mono">"bold"</code>, <code class="font-mono">"dim"</code>, <code class="font-mono">"italic"</code>, <code class="font-mono">"underline"</code>).</td>
+              </tr>
+              <!-- Day 5 Scientific, Serialization & Security Builtins -->
+              <tr>
+                <td><code class="font-mono font-bold">big_int</code></td>
+                <td><code class="font-mono">big_int(value)</code></td>
+                <td>Constructs arbitrary-precision BigInt from integer, float, string, or existing BigInt.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">big_float</code></td>
+                <td><code class="font-mono">big_float(value, [precision])</code></td>
+                <td>Constructs arbitrary-precision BigFloat with optional bit precision (default 128).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">vec</code></td>
+                <td><code class="font-mono">vec(elements)</code></td>
+                <td>Constructs linear algebra Vector with <code class="font-mono">.dot()</code>, <code class="font-mono">.cross()</code>, <code class="font-mono">.norm()</code>, <code class="font-mono">.normalize()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">matrix</code></td>
+                <td><code class="font-mono">matrix(2d_array | rows, cols, [fill])</code></td>
+                <td>Constructs Matrix with <code class="font-mono">.mul()</code>, <code class="font-mono">.det()</code>, <code class="font-mono">.inv()</code>, <code class="font-mono">.transpose()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">pi</code></td>
+                <td><code class="font-mono">pi()</code></td>
+                <td>Returns mathematical constant PI (<code class="font-mono">3.141592653589793</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">e</code></td>
+                <td><code class="font-mono">e()</code></td>
+                <td>Returns mathematical constant E (<code class="font-mono">2.718281828459045</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sin / cos / tan</code></td>
+                <td><code class="font-mono">sin(x) / cos(x) / tan(x)</code></td>
+                <td>Standard trigonometric functions (angles in radians).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">asin / acos / atan</code></td>
+                <td><code class="font-mono">asin(x) / acos(x) / atan(x)</code></td>
+                <td>Inverse trigonometric arc functions.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">atan2</code></td>
+                <td><code class="font-mono">atan2(y, x)</code></td>
+                <td>Four-quadrant inverse tangent.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sinh / cosh / tanh</code></td>
+                <td><code class="font-mono">sinh(x) / cosh(x) / tanh(x)</code></td>
+                <td>Hyperbolic sine, cosine, and tangent.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sqrt / cbrt / hypot</code></td>
+                <td><code class="font-mono">sqrt(x) / cbrt(x) / hypot(a, b)</code></td>
+                <td>Square root, cube root, and Euclidean hypotenuse.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">log / log10 / log2</code></td>
+                <td><code class="font-mono">log(x) / log10(x) / log2(x)</code></td>
+                <td>Natural (base e), base-10, and base-2 logarithms.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">exp / pow</code></td>
+                <td><code class="font-mono">exp(x) / pow(base, exp)</code></td>
+                <td>Exponential e^x and power function base^exp.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">abs / floor / ceil / round</code></td>
+                <td><code class="font-mono">abs(x) / floor(x) / ceil(x) / round(x)</code></td>
+                <td>Absolute value and floating-point rounding functions.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">deg_to_rad / rad_to_deg</code></td>
+                <td><code class="font-mono">deg_to_rad(deg) / rad_to_deg(rad)</code></td>
+                <td>Angle conversion utilities between degrees and radians.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">min / max</code></td>
+                <td><code class="font-mono">min(arr | args...) / max(...)</code></td>
+                <td>Returns the minimum or maximum number among inputs.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sum</code></td>
+                <td><code class="font-mono">sum(array | args...)</code></td>
+                <td>Computes arithmetic sum of numbers.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">mean / median / mode</code></td>
+                <td><code class="font-mono">mean(arr) / median(arr) / mode(arr)</code></td>
+                <td>Descriptive statistical measures of central tendency.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">variance / std_dev</code></td>
+                <td><code class="font-mono">variance(arr) / std_dev(arr)</code></td>
+                <td>Computes population variance and standard deviation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">json_parse</code></td>
+                <td><code class="font-mono">json_parse(jsonString)</code></td>
+                <td>Parses JSON text into BramandScript data structures.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">json_stringify</code></td>
+                <td><code class="font-mono">json_stringify(object, [indent])</code></td>
+                <td>Serializes BramandScript objects into JSON with optional indentation.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">csv_parse</code></td>
+                <td><code class="font-mono">csv_parse(csvText, [delimiter])</code></td>
+                <td>Parses CSV formatted string into a 2D array of strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">csv_stringify</code></td>
+                <td><code class="font-mono">csv_stringify(2dArray, [delimiter])</code></td>
+                <td>Serializes a 2D array of values into a CSV formatted string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">base64_encode / base64_decode</code></td>
+                <td><code class="font-mono">base64_encode(text) / base64_decode(enc)</code></td>
+                <td>Standard Base64 encoding and decoding.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">base64_url_encode / base64_url_decode</code></td>
+                <td><code class="font-mono">base64_url_encode(text) / base64_url_decode(enc)</code></td>
+                <td>URL-safe Base64 encoding and decoding without padding.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sha256 / sha512 / md5</code></td>
+                <td><code class="font-mono">sha256(data) / sha512(data) / md5(data)</code></td>
+                <td>Computes cryptographic hash digests as hexadecimal strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">hmac_sha256</code></td>
+                <td><code class="font-mono">hmac_sha256(key, message)</code></td>
+                <td>Computes keyed HMAC-SHA256 authentication code as hex string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">random_bytes</code></td>
+                <td><code class="font-mono">random_bytes([byteCount])</code></td>
+                <td>Generates CSPRNG secure random bytes (returns hex string).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">random_int</code></td>
+                <td><code class="font-mono">random_int(min, max)</code></td>
+                <td>Generates cryptographically secure random integer in range [min, max].</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">uuid</code></td>
+                <td><code class="font-mono">uuid()</code></td>
+                <td>Generates an RFC 4122 Version 4 cryptographically secure UUID string.</td>
+              </tr>
+              <!-- Day 6 Networking, Web & AI Builtins -->
+              <tr>
+                <td><code class="font-mono font-bold">tcp_listen</code></td>
+                <td><code class="font-mono">tcp_listen(address)</code></td>
+                <td>Starts a TCP server listener on the specified IP:port address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">tcp_connect</code></td>
+                <td><code class="font-mono">tcp_connect(address, [timeout_ms])</code></td>
+                <td>Establishes a TCP client connection with optional connection timeout.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">udp_listen</code></td>
+                <td><code class="font-mono">udp_listen(address)</code></td>
+                <td>Creates an unbuffered UDP packet socket listening on address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">udp_connect</code></td>
+                <td><code class="font-mono">udp_connect(address)</code></td>
+                <td>Creates a connected UDP socket to a remote address.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_get</code></td>
+                <td><code class="font-mono">http_get(url, [headers])</code></td>
+                <td>Performs HTTP/HTTPS GET request. Returns <code class="font-mono">{ status, status_text, body, headers, json }</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_post</code></td>
+                <td><code class="font-mono">http_post(url, body, [headers])</code></td>
+                <td>Performs HTTP/HTTPS POST request with optional JSON or string payload.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_put</code></td>
+                <td><code class="font-mono">http_put(url, body, [headers])</code></td>
+                <td>Performs HTTP/HTTPS PUT request with payload.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_delete</code></td>
+                <td><code class="font-mono">http_delete(url, [headers])</code></td>
+                <td>Performs HTTP/HTTPS DELETE request.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_request</code></td>
+                <td><code class="font-mono">http_request(optionsHash)</code></td>
+                <td>Unified HTTP client request API accepting method, url, body, headers, timeout.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">http_server</code></td>
+                <td><code class="font-mono">http_server()</code></td>
+                <td>Creates built-in HTTP server with <code class="font-mono">.get()</code>, <code class="font-mono">.post()</code>, <code class="font-mono">.use()</code>, <code class="font-mono">.static()</code>, and <code class="font-mono">.listen()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ws_connect</code></td>
+                <td><code class="font-mono">ws_connect(url)</code></td>
+                <td>Connects to RFC 6455 WebSocket endpoint (<code class="font-mono">ws://</code> or <code class="font-mono">wss://</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ws_server</code></td>
+                <td><code class="font-mono">ws_server(address, [path])</code></td>
+                <td>Starts RFC 6455 WebSocket server listener with <code class="font-mono">.accept()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_prompt</code></td>
+                <td><code class="font-mono">ai_prompt(model, prompt, [options])</code></td>
+                <td>Queries an AI Large Language Model (Ollama / OpenAI / Gemini compatible).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_stream</code></td>
+                <td><code class="font-mono">ai_stream(options, chunk_callback)</code></td>
+                <td>Performs Server-Sent Events (SSE) streaming call, invoking callback on each token.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ai_structured</code></td>
+                <td><code class="font-mono">ai_structured(options, schema)</code></td>
+                <td>Enforces and parses structured JSON output from LLM directly into BramandScript Hash.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">cosine_similarity</code></td>
+                <td><code class="font-mono">cosine_similarity(vec1, vec2)</code></td>
+                <td>Computes cosine similarity between two numeric vectors in range [-1.0, 1.0].</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">cosine_distance</code></td>
+                <td><code class="font-mono">cosine_distance(vec1, vec2)</code></td>
+                <td>Computes cosine distance (1.0 - cosine_similarity).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">euclidean_distance</code></td>
+                <td><code class="font-mono">euclidean_distance(vec1, vec2)</code></td>
+                <td>Computes standard Euclidean distance between two vectors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">manhattan_distance</code></td>
+                <td><code class="font-mono">manhattan_distance(vec1, vec2)</code></td>
+                <td>Computes Manhattan (L1 norm) distance between two vectors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">vector_search</code></td>
+                <td><code class="font-mono">vector_search(query, candidates, [top_k], [metric])</code></td>
+                <td>Performs nearest-neighbor vector search over candidate documents or embeddings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert</code></td>
+                <td><code class="font-mono">assert(condition, [message])</code></td>
+                <td>Asserts that condition is truthy; raises fatal AssertionError if falsy.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert_eq</code></td>
+                <td><code class="font-mono">assert_eq(actual, expected, [message])</code></td>
+                <td>Asserts deep structural equality between two objects.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">assert_ne</code></td>
+                <td><code class="font-mono">assert_ne(actual, expected, [message])</code></td>
+                <td>Asserts that two objects are not structurally equal.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">panic</code></td>
+                <td><code class="font-mono">panic(message)</code></td>
+                <td>Halts execution immediately with an explicit panic error.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">test</code></td>
+                <td><code class="font-mono">test(name, fn)</code></td>
+                <td>Registers and executes a test block, measuring duration and catching assertion errors.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">describe</code></td>
+                <td><code class="font-mono">describe(suite_name, fn)</code></td>
+                <td>Groups related tests under a common suite heading.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_now</code></td>
+                <td><code class="font-mono">time_now()</code></td>
+                <td>Returns high-resolution UNIX timestamp in seconds with fractional precision.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_ms</code></td>
+                <td><code class="font-mono">time_ms()</code></td>
+                <td>Returns current UNIX epoch timestamp in milliseconds.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">benchmark</code></td>
+                <td><code class="font-mono">benchmark(name, fn, [iterations])</code></td>
+                <td>Executes benchmark loop and returns metrics hash with ops/sec and latency stats.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">args</code></td>
+                <td><code class="font-mono">args()</code></td>
+                <td>Returns command-line arguments passed to the script as an <code class="font-mono">ARRAY</code> of strings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">argv</code></td>
+                <td><code class="font-mono">argv()</code></td>
+                <td>Alias to <code class="font-mono">args()</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">substring</code></td>
+                <td><code class="font-mono">substring(str, start, [end])</code></td>
+                <td>Extracts a rune-accurate substring from index <code class="font-mono">start</code> to <code class="font-mono">end</code>. Alias to <code class="font-mono">slice</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">sort</code></td>
+                <td><code class="font-mono">sort(array)</code></td>
+                <td>Returns a new sorted <code class="font-mono">ARRAY</code> of integers, floats, or strings in ascending order.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">reverse</code></td>
+                <td><code class="font-mono">reverse(array_or_str)</code></td>
+                <td>Returns a new reversed <code class="font-mono">ARRAY</code> or reversed <code class="font-mono">STRING</code> (rune-accurate).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">split</code></td>
+                <td><code class="font-mono">split(str, delimiter)</code></td>
+                <td>Splits string by delimiter into an <code class="font-mono">ARRAY</code> of substrings.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">join</code></td>
+                <td><code class="font-mono">join(array, separator)</code></td>
+                <td>Concatenates array elements into a single <code class="font-mono">STRING</code> separated by delimiter.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">trim</code></td>
+                <td><code class="font-mono">trim(str, [cutset])</code></td>
+                <td>Removes leading and trailing whitespace or characters matching cutset from string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">to_lower</code></td>
+                <td><code class="font-mono">to_lower(str)</code></td>
+                <td>Returns string converted to lowercase.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">to_upper</code></td>
+                <td><code class="font-mono">to_upper(str)</code></td>
+                <td>Returns string converted to uppercase.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">replace</code></td>
+                <td><code class="font-mono">replace(str, old, new)</code></td>
+                <td>Replaces all occurrences of target substring with replacement string.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">time_iso</code></td>
+                <td><code class="font-mono">time_iso([timestamp])</code></td>
+                <td>Returns ISO 8601 UTC timestamp string (<code class="font-mono">"YYYY-MM-DDTHH:MM:SSZ"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">date_format</code></td>
+                <td><code class="font-mono">date_format([timestamp], [layout])</code></td>
+                <td>Formats UNIX timestamp according to layout pattern (default: <code class="font-mono">"2006-01-02 15:04:05"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">trunc</code></td>
+                <td><code class="font-mono">trunc(number)</code></td>
+                <td>Truncates decimal digits of float or integer, returning integer value of float.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= CHAPTER 16 ================= -->
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-8 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-blue-600 dark:text-blue-400 font-bold">✦</span>
+        <span>BramandScript · High-Performance Universal Programming Language</span>
+      </div>
+      <div>
+        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -27,8 +27,30 @@ func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 			cl.Fn.NumParameters, numArgs)
 	}
 
+	if cl.Instance == nil && vm.framesIndex > 0 {
+		parentFrame := vm.currentFrame()
+		if parentFrame != nil && parentFrame.cl != nil && parentFrame.cl.Instance != nil {
+			cl.Instance = parentFrame.cl.Instance
+		}
+	}
+
+	if cl.Instance != nil && len(cl.Fn.FreeNames) > 0 {
+		cl.Instance.Mu.RLock()
+		for i, name := range cl.Fn.FreeNames {
+			if i < len(cl.Free) {
+				k := (&object.String{Value: name}).HashKey()
+				if p, ok := cl.Instance.Pairs[k]; ok {
+					cl.Free[i] = p.Value
+				}
+			}
+		}
+		cl.Instance.Mu.RUnlock()
+	}
+
 	frame := NewFrame(cl, vm.sp-numArgs)
-	vm.pushFrame(frame)
+	if err := vm.pushFrame(frame); err != nil {
+		return err
+	}
 
 	vm.sp = frame.basePointer + cl.Fn.NumLocals
 	return nil

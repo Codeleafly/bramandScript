@@ -1,0 +1,37 @@
+// BramandScript Standard Library :: I/O Module (std/io)
+// Safe file operations, directory helpers, and console utilities.
+
+let read_text = fn(path) {
+    return read_file(path);
+};
+
+let write_text = fn(path, content) {
+    return write_file(path, content);
+};
+
+let append_text = fn(path, content) {
+    return append_file(path, content);
+};
+
+let exists = fn(path) {
+    return file_exists(path);
+};
+
+let remove = fn(path) {
+    return delete_file(path);
+};
+
+let list_directory = fn(path) {
+    return list_dir(path);
+};
+
+let println = fn(msg) {
+    print(msg);
+};
+
+let print_header = fn(title) {
+    let line = "──────────────────────────────────────────────────";
+    print(line);
+    print("✦ " + title);
+    print(line);
+};

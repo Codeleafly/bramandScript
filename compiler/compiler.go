@@ -160,6 +160,56 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return nil
 		}
 
+		if node.Operator == "&&" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+			jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
+			err = c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpBang)
+			c.emit(code.OpBang)
+
+			jumpToEnd := c.emit(code.OpJump, 9999)
+
+			afterRightPos := len(c.currentInstructions())
+			c.changeOperand(jumpNotTruthyPos, afterRightPos)
+			c.emit(code.OpFalse)
+
+			afterFalsePos := len(c.currentInstructions())
+			c.changeOperand(jumpToEnd, afterFalsePos)
+			return nil
+		}
+
+		if node.Operator == "||" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+			jumpIfFalsePos := c.emit(code.OpJumpNotTruthy, 9999)
+
+			c.emit(code.OpTrue)
+			jumpToEnd := c.emit(code.OpJump, 9999)
+
+			afterLeftTruthyPos := len(c.currentInstructions())
+			c.changeOperand(jumpIfFalsePos, afterLeftTruthyPos)
+
+			err = c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpBang)
+			c.emit(code.OpBang)
+
+			afterRightPos := len(c.currentInstructions())
+			c.changeOperand(jumpToEnd, afterRightPos)
+			return nil
+		}
+
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -435,11 +485,17 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.loadSymbol(s)
 		}
 
+		freeNames := make([]string, len(freeSymbols))
+		for i, s := range freeSymbols {
+			freeNames[i] = s.Name
+		}
+
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Parameters),
 			SourceMap:     sourceLines,
+			FreeNames:     freeNames,
 		}
 
 		fnIndex := c.addConstant(compiledFn)

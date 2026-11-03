@@ -105,6 +105,19 @@ func (vm *VM) setGlobal(index uint16, val object.Object) {
 }
 
 func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
+	if cl.Instance != nil && len(cl.Fn.FreeNames) > 0 {
+		cl.Instance.Mu.RLock()
+		for i, name := range cl.Fn.FreeNames {
+			if i < len(cl.Free) {
+				k := (&object.String{Value: name}).HashKey()
+				if p, ok := cl.Instance.Pairs[k]; ok {
+					cl.Free[i] = p.Value
+				}
+			}
+		}
+		cl.Instance.Mu.RUnlock()
+	}
+
 	childFrames := make([]*Frame, MaxFrames)
 	frame := NewFrame(cl, 0)
 	childFrames[0] = frame
@@ -199,9 +212,13 @@ func (vm *VM) currentFrame() *Frame {
 	return vm.frames[vm.framesIndex-1]
 }
 
-func (vm *VM) pushFrame(f *Frame) {
+func (vm *VM) pushFrame(f *Frame) error {
+	if vm.framesIndex >= MaxFrames {
+		return fmt.Errorf("stack overflow: maximum call stack size of %d frames exceeded", MaxFrames)
+	}
 	vm.frames[vm.framesIndex] = f
 	vm.framesIndex++
+	return nil
 }
 
 func (vm *VM) popFrame() *Frame {
@@ -433,6 +450,16 @@ func (vm *VM) runLoop() error {
 			returnValue := vm.pop()
 
 			frame := vm.popFrame()
+			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
+				frame.cl.Instance.Mu.Lock()
+				for i, name := range frame.cl.Fn.FreeNames {
+					if i < len(frame.cl.Free) {
+						strObj := &object.String{Value: name}
+						frame.cl.Instance.Pairs[strObj.HashKey()] = object.HashPair{Key: strObj, Value: frame.cl.Free[i]}
+					}
+				}
+				frame.cl.Instance.Mu.Unlock()
+			}
 			if vm.framesIndex == 0 {
 				return nil
 			}
@@ -445,6 +472,16 @@ func (vm *VM) runLoop() error {
 
 		case code.OpReturn:
 			frame := vm.popFrame()
+			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
+				frame.cl.Instance.Mu.Lock()
+				for i, name := range frame.cl.Fn.FreeNames {
+					if i < len(frame.cl.Free) {
+						strObj := &object.String{Value: name}
+						frame.cl.Instance.Pairs[strObj.HashKey()] = object.HashPair{Key: strObj, Value: frame.cl.Free[i]}
+					}
+				}
+				frame.cl.Instance.Mu.Unlock()
+			}
 			if vm.framesIndex == 0 {
 				return nil
 			}
@@ -564,6 +601,13 @@ func (vm *VM) runLoop() error {
 }
 
 func ObjectsEqual(left, right object.Object) bool {
+	return objectsEqualDepth(left, right, 0)
+}
+
+func objectsEqualDepth(left, right object.Object, depth int) bool {
+	if depth > 64 {
+		return false
+	}
 	if left == right {
 		return true
 	}
@@ -600,17 +644,27 @@ func ObjectsEqual(left, right object.Object) bool {
 		return l.Value.Cmp(right.(*object.BigFloat).Value) == 0
 	case *object.Array:
 		r := right.(*object.Array)
+		if l == r {
+			return true
+		}
 		if len(l.Elements) != len(r.Elements) {
 			return false
 		}
 		for i := range l.Elements {
-			if !ObjectsEqual(l.Elements[i], r.Elements[i]) {
+			if !objectsEqualDepth(l.Elements[i], r.Elements[i], depth+1) {
 				return false
 			}
 		}
 		return true
 	case *object.Hash:
 		r := right.(*object.Hash)
+		if l == r {
+			return true
+		}
+		l.Mu.RLock()
+		r.Mu.RLock()
+		defer l.Mu.RUnlock()
+		defer r.Mu.RUnlock()
 		if len(l.Pairs) != len(r.Pairs) {
 			return false
 		}
@@ -619,7 +673,7 @@ func ObjectsEqual(left, right object.Object) bool {
 			if !ok {
 				return false
 			}
-			if !ObjectsEqual(pair.Value, rPair.Value) {
+			if !objectsEqualDepth(pair.Value, rPair.Value, depth+1) {
 				return false
 			}
 		}
@@ -637,6 +691,8 @@ func isTruthy(obj object.Object) bool {
 		return false
 	case *object.Integer:
 		return obj.Value != 0
+	case *object.Float:
+		return obj.Value != 0.0
 	default:
 		return true
 	}

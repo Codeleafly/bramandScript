@@ -171,9 +171,12 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 	firstToken := p.curToken
 	expr := p.parseExpression(LOWEST)
 
-	if p.peekTokenIs(token.ASSIGN) {
+	if p.peekTokenIs(token.ASSIGN) || p.peekTokenIs(token.PLUS_ASSIGN) ||
+		p.peekTokenIs(token.MINUS_ASSIGN) || p.peekTokenIs(token.MUL_ASSIGN) ||
+		p.peekTokenIs(token.DIV_ASSIGN) {
 		p.nextToken()
 		assignToken := p.curToken
+		op := assignToken.Literal
 		p.nextToken()
 		val := p.parseExpression(LOWEST)
 
@@ -183,19 +186,21 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 
 		if idxExp, ok := expr.(*ast.IndexExpression); ok {
 			return &ast.IndexAssignStatement{
-				Token: assignToken,
-				Left:  idxExp.Left,
-				Index: idxExp.Index,
-				Value: val,
+				Token:    assignToken,
+				Left:     idxExp.Left,
+				Index:    idxExp.Index,
+				Operator: op,
+				Value:    val,
 			}
 		}
 
 		if dotExp, ok := expr.(*ast.DotExpression); ok {
 			return &ast.IndexAssignStatement{
-				Token: assignToken,
-				Left:  dotExp.Left,
-				Index: &ast.StringLiteral{Token: dotExp.Field.Token, Value: dotExp.Field.Value},
-				Value: val,
+				Token:    assignToken,
+				Left:     dotExp.Left,
+				Index:    &ast.StringLiteral{Token: dotExp.Field.Token, Value: dotExp.Field.Value},
+				Operator: op,
+				Value:    val,
 			}
 		}
 	}

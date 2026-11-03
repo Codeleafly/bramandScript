@@ -1,0 +1,191 @@
+// BramandScript Standard Library :: Collections Module (std/collections)
+// Functional transformations, aggregations, and array utilities.
+
+let map = fn(arr, transform) {
+    let out = [];
+    for item in arr {
+        push(out, transform(item));
+    }
+    return out;
+};
+
+let filter = fn(arr, predicate) {
+    let out = [];
+    for item in arr {
+        if predicate(item) {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+let reduce = fn(arr, accumulator, initial) {
+    let res = initial;
+    for item in arr {
+        res = accumulator(res, item);
+    }
+    return res;
+};
+
+let find = fn(arr, predicate) {
+    for item in arr {
+        if predicate(item) {
+            return item;
+        }
+    }
+    return null;
+};
+
+let find_index = fn(arr, predicate) {
+    let i = 0;
+    while i < len(arr) {
+        if predicate(arr[i]) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+};
+
+let every = fn(arr, predicate) {
+    for item in arr {
+        if !predicate(item) {
+            return false;
+        }
+    }
+    return true;
+};
+
+let some = fn(arr, predicate) {
+    for item in arr {
+        if predicate(item) {
+            return true;
+        }
+    }
+    return false;
+};
+
+let contains_item = fn(arr, target) {
+    for item in arr {
+        if item == target {
+            return true;
+        }
+    }
+    return false;
+};
+
+let unique = fn(arr) {
+    let out = [];
+    for item in arr {
+        if !contains_item(out, item) {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+let flatten = fn(arr) {
+    let out = [];
+    for item in arr {
+        if type(item) == "ARRAY" {
+            for sub in item {
+                push(out, sub);
+            }
+        } else {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+let chunk = fn(arr, size) {
+    if size <= 0 {
+        return [];
+    }
+    let out = [];
+    let cur = [];
+    for item in arr {
+        push(cur, item);
+        if len(cur) == size {
+            push(out, cur);
+            cur = [];
+        }
+    }
+    if len(cur) > 0 {
+        push(out, cur);
+    }
+    return out;
+};
+
+let zip = fn(arr1, arr2) {
+    let out = [];
+    let l1 = len(arr1);
+    let l2 = len(arr2);
+    let min_len = l1;
+    if l2 < min_len {
+        min_len = l2;
+    }
+    let i = 0;
+    while i < min_len {
+        push(out, [arr1[i], arr2[i]]);
+        i = i + 1;
+    }
+    return out;
+};
+
+let take = fn(arr, n) {
+    let out = [];
+    let limit = n;
+    if limit > len(arr) {
+        limit = len(arr);
+    }
+    let i = 0;
+    while i < limit {
+        push(out, arr[i]);
+        i = i + 1;
+    }
+    return out;
+};
+
+let drop = fn(arr, n) {
+    let out = [];
+    let i = n;
+    while i < len(arr) {
+        push(out, arr[i]);
+        i = i + 1;
+    }
+    return out;
+};
+
+let count = fn(arr, predicate) {
+    let c = 0;
+    for item in arr {
+        if predicate(item) {
+            c = c + 1;
+        }
+    }
+    return c;
+};
+
+let reverse_array = fn(arr) {
+    let out = [];
+    let i = len(arr) - 1;
+    while i >= 0 {
+        push(out, arr[i]);
+        i = i - 1;
+    }
+    return out;
+};
+
+let group_by = fn(arr, key_fn) {
+    let groups = {};
+    for item in arr {
+        let k = key_fn(item);
+        if groups[k] == null {
+            groups[k] = [item];
+        } else {
+            push(groups[k], item);
+        }
+    }
+    return groups;
+};

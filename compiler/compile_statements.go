@@ -125,19 +125,80 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 	case *ast.IndexAssignStatement:
 		c.currentLine = node.Token.Line
-		err := c.Compile(node.Left)
-		if err != nil {
-			return true, err
+		if node.Operator == "=" || node.Operator == "" {
+			err := c.Compile(node.Left)
+			if err != nil {
+				return true, err
+			}
+			err = c.Compile(node.Index)
+			if err != nil {
+				return true, err
+			}
+			err = c.Compile(node.Value)
+			if err != nil {
+				return true, err
+			}
+			c.emit(code.OpSetIndex)
+		} else {
+			// Compound assignment on index/dot: target[index] op= value
+			c.iterCount++
+			targetTemp := fmt.Sprintf("__cassign_t_%d", c.iterCount)
+			idxTemp := fmt.Sprintf("__cassign_i_%d", c.iterCount)
+
+			// 1. Evaluate target once and save in temp
+			err := c.Compile(node.Left)
+			if err != nil {
+				return true, err
+			}
+			tSym := c.symbolTable.Define(targetTemp, false)
+			if tSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, tSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, tSym.Index)
+			}
+
+			// 2. Evaluate index once and save in temp
+			err = c.Compile(node.Index)
+			if err != nil {
+				return true, err
+			}
+			iSym := c.symbolTable.Define(idxTemp, false)
+			if iSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, iSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, iSym.Index)
+			}
+
+			// 3. For OpSetIndex, stack requires: left, index, new_value
+			c.loadSymbol(tSym)
+			c.loadSymbol(iSym)
+
+			// 4. Compute new_value = target[index] <op> value
+			c.loadSymbol(tSym)
+			c.loadSymbol(iSym)
+			c.emit(code.OpIndex)
+
+			err = c.Compile(node.Value)
+			if err != nil {
+				return true, err
+			}
+
+			switch node.Operator {
+			case "+=":
+				c.emit(code.OpAdd)
+			case "-=":
+				c.emit(code.OpSub)
+			case "*=":
+				c.emit(code.OpMul)
+			case "/=":
+				c.emit(code.OpDiv)
+			default:
+				return true, fmt.Errorf("unsupported compound operator %s for index assignment", node.Operator)
+			}
+
+			// 5. OpSetIndex stores new_value into left[index]
+			c.emit(code.OpSetIndex)
 		}
-		err = c.Compile(node.Index)
-		if err != nil {
-			return true, err
-		}
-		err = c.Compile(node.Value)
-		if err != nil {
-			return true, err
-		}
-		c.emit(code.OpSetIndex)
 
 	case *ast.ForInStatement:
 		c.enterBlockScope()
@@ -292,11 +353,17 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			c.loadSymbol(s)
 		}
 
+		freeNames := make([]string, len(freeSymbols))
+		for i, s := range freeSymbols {
+			freeNames[i] = s.Name
+		}
+
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Fields),
 			SourceMap:     sourceLines,
+			FreeNames:     freeNames,
 		}
 
 		fnIndex := c.addConstant(compiledFn)
@@ -347,6 +414,8 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 				for _, stmt := range moduleProgram.Statements {
 					switch s := stmt.(type) {
 					case *ast.LetStatement:
+						exportedNames = append(exportedNames, s.Name.Value)
+					case *ast.ConstStatement:
 						exportedNames = append(exportedNames, s.Name.Value)
 					case *ast.ExpressionStatement:
 						if fnLit, ok := s.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
@@ -444,6 +513,58 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 }
 
 func (c *Compiler) resolveModulePath(importPath string) (string, error) {
+	// 0. Standard library resolution ("std/...", "stdlib/...")
+	var stdSubpath string
+	if strings.HasPrefix(importPath, "std/") {
+		stdSubpath = strings.TrimPrefix(importPath, "std/")
+	} else if strings.HasPrefix(importPath, "stdlib/") {
+		stdSubpath = strings.TrimPrefix(importPath, "stdlib/")
+	}
+
+	if stdSubpath != "" {
+		stdlibRoots := []string{}
+		if env := os.Getenv("BRAMAND_STDLIB"); env != "" {
+			stdlibRoots = append(stdlibRoots, env)
+		}
+		if execPath, err := os.Executable(); err == nil {
+			execDir := filepath.Dir(execPath)
+			stdlibRoots = append(stdlibRoots,
+				filepath.Join(execDir, "stdlib"),
+				filepath.Join(execDir, "..", "stdlib"),
+			)
+		}
+		stdlibRoots = append(stdlibRoots, "stdlib", filepath.Join(".", "stdlib"))
+		if c.BaseDir != "" {
+			stdlibRoots = append(stdlibRoots,
+				filepath.Join(c.BaseDir, "stdlib"),
+				filepath.Join(c.BaseDir, "..", "stdlib"),
+				filepath.Join(c.BaseDir, "..", "..", "stdlib"),
+			)
+		}
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			stdlibRoots = append(stdlibRoots,
+				filepath.Join(homeDir, ".bramand", "stdlib"),
+				filepath.Join(homeDir, ".bramand_libs", "stdlib"),
+			)
+		}
+
+		for _, root := range stdlibRoots {
+			candidates := []string{
+				filepath.Join(root, stdSubpath, "index.bmd"),
+				filepath.Join(root, stdSubpath+".bmd"),
+				filepath.Join(root, stdSubpath),
+			}
+			for _, cand := range candidates {
+				if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+					if abs, err := filepath.Abs(cand); err == nil {
+						return abs, nil
+					}
+					return cand, nil
+				}
+			}
+		}
+	}
+
 	candidates := []string{}
 
 	// 1. Check relative to c.BaseDir if specified

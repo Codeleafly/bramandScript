@@ -1,0 +1,34 @@
+// BramandScript Standard Library :: Testing Module (std/testing)
+// Complete testing harness assertions and utilities.
+
+let assert_true = fn(condition, msg) {
+    if !condition {
+        print("[FAIL] " + msg + " (expected true, got falsy)");
+        exit(1);
+    }
+    return true;
+};
+
+let assert_false = fn(condition, msg) {
+    if condition {
+        print("[FAIL] " + msg + " (expected false, got truthy)");
+        exit(1);
+    }
+    return true;
+};
+
+let assert_null = fn(val, msg) {
+    if val != null {
+        print("[FAIL] " + msg + " (expected null, got " + type(val) + ")");
+        exit(1);
+    }
+    return true;
+};
+
+let assert_not_null = fn(val, msg) {
+    if val == null {
+        print("[FAIL] " + msg + " (expected non-null, got null)");
+        exit(1);
+    }
+    return true;
+};

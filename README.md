@@ -54,9 +54,18 @@
       default => { "Server Error" }
   }
   ```
+- **Modular Standard Library (`stdlib/`)**:
+  - Lean VM core with dedicated high-level standard library modules written in BramandScript:
+  - `import "std/math" as math` (constants `PI`, `E`, `clamp`, `gcd`, `lcm`, `min`, `max`)
+  - `import "std/strings" as str` (`capitalize`, `pad_left`, `pad_right`, `slugify`, `reverse`)
+  - `import "std/collections" as coll` (`map`, `filter`, `reduce`, `find`, `unique`, `chunk`, `group_by`)
+  - `import "std/io" as io` (`read_text`, `write_text`, `append_text`, `exists`, `remove`)
+  - `import "std/json" as json` (`parse`, `stringify`, `safe_parse`)
+  - `import "std/testing" as t` (`assert_true`, `assert_false`, `assert_null`)
 - **Deno-Style Centralized Module Architecture**:
-  - Direct import: `import "helpers.bmd"`
-  - Namespaced import: `import "calc.bmd" as calc`
+  - Standard library import: `import "std/math" as math`
+  - Direct file import: `import "helpers.bmd"`
+  - Namespaced local import: `import "calc.bmd" as calc`
   - Centralized module caching at `$HOME/.bramand_libs/` avoiding `node_modules` per-project bloat.
 - **Rust/Clang-Style 10-Line Diagnostic Engine**: Exact column and line pointer (`--> file:line:col`), exactly 5 lines of contextual code above and 5 below, caret token underlining (`^~~~`), intelligent suggestions (`[Hint: ...]`), and zero ASCII box borders.
 - **In-Terminal Multi-Line Editor (`:editor`)**: Multi-line coding, running, and saving directly to disk from inside the interactive REPL.
@@ -152,6 +161,20 @@ for i, item in fruits {
     print("Item", i, "is", item)
 }
 ```
+
+---
+
+## ✦ Modular Documentation Portal
+
+The documentation is organized into dedicated, fast-loading modular guides:
+- [Getting Started & Overview](https://codeleafly.github.io/bramandScript/) — Installation, CLI commands, and REPL `:editor` mode.
+- [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, data types, operators, and functions.
+- [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, and pattern matching.
+- [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight tasks (`spawn`), channels, mutexes, and file I/O.
+- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — `std/math`, `std/strings`, `std/collections`, `std/io`, `std/json`, `std/testing`, BigInt/BigFloat, and builtins reference.
+- [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, AI streaming, and vector search.
+- [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), and package manager (`bmd pkg`).
+- [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — VM pipeline, diagnostics engine, and contributing guide.
 
 ---
 

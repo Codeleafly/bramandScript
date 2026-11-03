@@ -1,0 +1,18 @@
+// BramandScript Standard Library :: JSON Module (std/json)
+// High-level JSON encoding, decoding, and safe parsing.
+
+let stringify = fn(val) {
+    return json_stringify(val);
+};
+
+let parse = fn(raw_str) {
+    return json_parse(raw_str);
+};
+
+let safe_parse = fn(raw_str, default_val) {
+    let parsed = json_parse(raw_str);
+    if type(parsed) == "ERROR" {
+        return default_val;
+    }
+    return parsed;
+};

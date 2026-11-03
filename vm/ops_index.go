@@ -55,27 +55,28 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 		return fmt.Errorf("unusable as hash key: %s", index.Type())
 	}
 
+	hashObject.Mu.RLock()
 	pair, ok := hashObject.Pairs[key.HashKey()]
+	hashObject.Mu.RUnlock()
 	if ok {
-		return vm.push(pair.Value)
+		val := pair.Value
+		if cl, isCl := val.(*object.Closure); isCl {
+			hashObject.Mu.RLock()
+			_, isStruct := hashObject.Pairs[(&object.String{Value: "__struct__"}).HashKey()]
+			hashObject.Mu.RUnlock()
+			if isStruct {
+				cl.Instance = hashObject
+			}
+		}
+		return vm.push(val)
 	}
 
 	if strIdx, ok := index.(*object.String); ok {
 		if strIdx.Value == "length" || strIdx.Value == "len" {
-			return vm.push(&object.Integer{Value: int64(len(hashObject.Pairs))})
-		}
-	}
-
-	if intIdx, ok := index.(*object.Integer); ok {
-		i := intIdx.Value
-		if i >= 0 && i < int64(len(hashObject.Pairs)) {
-			curr := int64(0)
-			for _, p := range hashObject.Pairs {
-				if curr == i {
-					return vm.push(p.Key)
-				}
-				curr++
-			}
+			hashObject.Mu.RLock()
+			l := len(hashObject.Pairs)
+			hashObject.Mu.RUnlock()
+			return vm.push(&object.Integer{Value: int64(l)})
 		}
 	}
 
@@ -101,7 +102,9 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 		if !ok {
 			return fmt.Errorf("unusable as hash key: %s", index.Type())
 		}
+		l.Mu.Lock()
 		l.Pairs[key.HashKey()] = object.HashPair{Key: index, Value: value}
+		l.Mu.Unlock()
 		return nil
 
 	default:

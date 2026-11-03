@@ -1,0 +1,125 @@
+// BramandScript Standard Library :: Strings Module (std/strings)
+// Comprehensive string manipulation and utility functions.
+
+let repeat = fn(s, count) {
+    if count <= 0 {
+        return "";
+    }
+    let res = "";
+    let i = 0;
+    while i < count {
+        res = res + s;
+        i = i + 1;
+    }
+    return res;
+};
+
+let pad_left = fn(s, target_len, pad_char) {
+    let current_len = len(s);
+    if current_len >= target_len {
+        return s;
+    }
+    let needed = target_len - current_len;
+    return repeat(pad_char, needed) + s;
+};
+
+let pad_right = fn(s, target_len, pad_char) {
+    let current_len = len(s);
+    if current_len >= target_len {
+        return s;
+    }
+    let needed = target_len - current_len;
+    return s + repeat(pad_char, needed);
+};
+
+let char_at = fn(s, idx) {
+    if idx < 0 || idx >= len(s) {
+        return "";
+    }
+    return s[idx];
+};
+
+let slice = fn(s, start, end) {
+    let l = len(s);
+    if start < 0 { start = 0; }
+    if end > l { end = l; }
+    if start >= end { return ""; }
+    let res = "";
+    let i = start;
+    while i < end {
+        res = res + s[i];
+        i = i + 1;
+    }
+    return res;
+};
+
+let starts_with = fn(s, prefix) {
+    let plen = len(prefix);
+    if plen > len(s) {
+        return false;
+    }
+    return slice(s, 0, plen) == prefix;
+};
+
+let ends_with = fn(s, suffix) {
+    let slen = len(suffix);
+    let sl = len(s);
+    if slen > sl {
+        return false;
+    }
+    return slice(s, sl - slen, sl) == suffix;
+};
+
+let capitalize = fn(s) {
+    if len(s) == 0 {
+        return "";
+    }
+    let first = to_upper(char_at(s, 0));
+    let rest = slice(s, 1, len(s));
+    return first + rest;
+};
+
+let reverse = fn(s) {
+    let res = "";
+    let i = len(s) - 1;
+    while i >= 0 {
+        res = res + s[i];
+        i = i - 1;
+    }
+    return res;
+};
+
+let is_empty = fn(s) {
+    return len(trim(s)) == 0;
+};
+
+let truncate = fn(s, max_len, suffix) {
+    if len(s) <= max_len {
+        return s;
+    }
+    let sub = slice(s, 0, max_len);
+    return sub + suffix;
+};
+
+let words = fn(s) {
+    let raw = split(trim(s), " ");
+    let out = [];
+    for w in raw {
+        if len(trim(w)) > 0 {
+            push(out, trim(w));
+        }
+    }
+    return out;
+};
+
+let slugify = fn(s) {
+    let lower = to_lower(trim(s));
+    let w = split(lower, " ");
+    let out = [];
+    for part in w {
+        if len(part) > 0 {
+            push(out, part);
+        }
+    }
+    return join(out, "-");
+};

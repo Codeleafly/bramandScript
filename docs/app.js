@@ -182,8 +182,8 @@ function initScrollspy() {
 
   function setActiveNavLink(id) {
     navLinks.forEach(link => {
-      const href = link.getAttribute('href');
-      if (href === `#${id}`) {
+      const href = link.getAttribute('href') || '';
+      if (href === `#${id}` || href.endsWith(`#${id}`)) {
         link.classList.add('active');
         const sidebar = document.getElementById('sidebar-nav');
         if (sidebar) {

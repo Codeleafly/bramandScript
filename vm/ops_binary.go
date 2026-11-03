@@ -401,14 +401,8 @@ func (vm *VM) executeMinusOperator() error {
 
 func (vm *VM) executeBangOperator() error {
 	operand := vm.pop()
-	switch operand {
-	case True:
-		return vm.push(False)
-	case False:
-		return vm.push(True)
-	case Null:
-		return vm.push(True)
-	default:
+	if isTruthy(operand) {
 		return vm.push(False)
 	}
+	return vm.push(True)
 }

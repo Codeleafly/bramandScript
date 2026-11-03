@@ -513,7 +513,8 @@ func WsConnect(rawURL string) (*WsConn, error) {
 
 	var conn net.Conn
 	if u.Scheme == "wss" {
-		conn, err = tls.Dial("tcp", host, &tls.Config{InsecureSkipVerify: true})
+		serverName := strings.Split(host, ":")[0]
+		conn, err = tls.Dial("tcp", host, &tls.Config{ServerName: serverName})
 	} else {
 		conn, err = net.Dial("tcp", host)
 	}

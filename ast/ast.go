@@ -120,16 +120,21 @@ func (rs *ReturnStatement) String() string {
 }
 
 type IndexAssignStatement struct {
-	Token token.Token // token.ASSIGN
-	Left  Expression
-	Index Expression
-	Value Expression
+	Token    token.Token // '=', '+=', etc.
+	Left     Expression
+	Index    Expression
+	Operator string
+	Value    Expression
 }
 
 func (ias *IndexAssignStatement) statementNode()       {}
 func (ias *IndexAssignStatement) TokenLiteral() string { return ias.Token.Literal }
 func (ias *IndexAssignStatement) String() string {
-	return ias.Left.String() + "[" + ias.Index.String() + "] = " + ias.Value.String() + ";"
+	op := ias.Operator
+	if op == "" {
+		op = "="
+	}
+	return ias.Left.String() + "[" + ias.Index.String() + "] " + op + " " + ias.Value.String() + ";"
 }
 
 type ForInStatement struct {

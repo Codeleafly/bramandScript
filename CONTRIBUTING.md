@@ -53,7 +53,7 @@ Verify the build:
 ```
 Expected output:
 ```
-BramandScript 0.1.0 (arm64-linux)
+BramandScript 0.1.1 (arm64-linux)
 ```
 
 ---

@@ -131,6 +131,7 @@ type CompiledFunction struct {
 	NumLocals     int
 	NumParameters int
 	SourceMap     []int
+	FreeNames     []string
 }
 
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
@@ -140,8 +141,9 @@ func (cf *CompiledFunction) Inspect() string {
 
 // ---------------- Closure ----------------
 type Closure struct {
-	Fn   *CompiledFunction
-	Free []Object
+	Fn       *CompiledFunction
+	Free     []Object
+	Instance *Hash
 }
 
 func (c *Closure) Type() ObjectType { return CLOSURE_OBJ }
@@ -166,10 +168,23 @@ type Array struct {
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
 func (a *Array) Inspect() string {
+	return a.inspectDepth(0)
+}
+
+func (a *Array) inspectDepth(depth int) string {
+	if depth >= 16 {
+		return "[...]"
+	}
 	var out bytes.Buffer
 	var elements []string
 	for _, e := range a.Elements {
-		elements = append(elements, e.Inspect())
+		if subArr, ok := e.(*Array); ok {
+			elements = append(elements, subArr.inspectDepth(depth+1))
+		} else if subHash, ok := e.(*Hash); ok {
+			elements = append(elements, subHash.inspectDepth(depth+1))
+		} else {
+			elements = append(elements, e.Inspect())
+		}
 	}
 	out.WriteString("[")
 	out.WriteString(strings.Join(elements, ", "))
@@ -184,15 +199,34 @@ type HashPair struct {
 }
 
 type Hash struct {
+	Mu    sync.RWMutex
 	Pairs map[HashKey]HashPair
 }
 
 func (h *Hash) Type() ObjectType { return HASH_OBJ }
 func (h *Hash) Inspect() string {
+	return h.inspectDepth(0)
+}
+
+func (h *Hash) inspectDepth(depth int) string {
+	if depth >= 16 {
+		return "{...}"
+	}
+	h.Mu.RLock()
+	defer h.Mu.RUnlock()
 	var out bytes.Buffer
 	var pairs []string
 	for _, pair := range h.Pairs {
-		pairs = append(pairs, fmt.Sprintf("%s: %s", pair.Key.Inspect(), pair.Value.Inspect()))
+		keyStr := pair.Key.Inspect()
+		var valStr string
+		if subArr, ok := pair.Value.(*Array); ok {
+			valStr = subArr.inspectDepth(depth + 1)
+		} else if subHash, ok := pair.Value.(*Hash); ok {
+			valStr = subHash.inspectDepth(depth + 1)
+		} else {
+			valStr = pair.Value.Inspect()
+		}
+		pairs = append(pairs, fmt.Sprintf("%s: %s", keyStr, valStr))
 	}
 	out.WriteString("{")
 	out.WriteString(strings.Join(pairs, ", "))
@@ -213,7 +247,7 @@ func (c *Channel) Inspect() string {
 	return fmt.Sprintf("chan(%d)", c.Capacity)
 }
 
-func (c *Channel) Send(val Object) error {
+func (c *Channel) Send(val Object) (err error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -221,6 +255,12 @@ func (c *Channel) Send(val Object) error {
 	}
 	ch := c.Ch
 	c.mu.Unlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("send on closed channel: %v", r)
+		}
+	}()
 
 	ch <- val
 	return nil

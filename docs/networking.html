@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Networking, Web & AI ✦ BramandScript Documentation</title>
+  <meta name="description" content="Official documentation for BramandScript (bmd), a high-performance general-purpose programming language built in pure Go standard library with zero external dependencies.">
+  <link rel="canonical" href="https://codeleafly.github.io/bramandScript/networking.html">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Global Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Version -->
+      <div class="flex items-center gap-3">
+        <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none" aria-label="Toggle Menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
+          <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+        </a>
+      </div>
+
+      <!-- Top Nav Pills -->
+      <nav class="hidden xl:flex items-center gap-1 text-xs font-medium">
+        <a href="index.html" class="nav-pill ">Start</a>
+        <a href="fundamentals.html" class="nav-pill ">Fundamentals</a>
+        <a href="data-structures.html" class="nav-pill ">Data &amp; OOP</a>
+        <a href="concurrency.html" class="nav-pill ">Concurrency</a>
+        <a href="stdlib.html" class="nav-pill ">Stdlib</a>
+        <a href="networking.html" class="nav-pill active">Net &amp; AI</a>
+        <a href="tooling.html" class="nav-pill ">Tooling</a>
+        <a href="architecture.html" class="nav-pill ">Architecture</a>
+      </nav>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-xs relative hidden sm:block">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <input type="text" id="search-input" placeholder="Search docs... (Press '/')" 
+            class="w-full pl-9 pr-10 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+          <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+            <kbd class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 shadow-sm">/</kbd>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Utilities -->
+      <div class="flex items-center gap-2">
+        <a href="https://github.com/Codeleafly/bramandScript" target="_blank" rel="noopener" class="text-xs font-medium px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <span class="font-mono">❯_</span>
+          <span>GitHub</span>
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none flex items-center gap-1 text-xs font-medium" title="Toggle Theme">
+          <svg id="theme-icon-light" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-dark" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Drawer Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 z-40 hidden backdrop-blur-sm lg:hidden"></div>
+
+  <!-- Layout Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex gap-8 py-6">
+
+    <!-- Responsive Sidebar Navigation -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-5 transform -translate-x-full transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 lg:p-0 lg:bg-transparent lg:border-none flex flex-col">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 lg:hidden mb-4">
+        <span class="font-bold text-sm tracking-wide uppercase text-slate-500">Navigation</span>
+        <button id="mobile-close-btn" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" onclick="document.getElementById('sidebar-overlay').click()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="sidebar-nav" class="flex-1 overflow-y-auto pr-2 space-y-6 text-sm">
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Getting Started</h3>
+          <ul class="space-y-1">
+            <li><a href="index.html#ch1" class="nav-link "><span>1.</span> Introduction &amp; Vision</a></li>
+            <li><a href="index.html#ch2" class="nav-link"><span>2.</span> Quickstart &amp; CLI</a></li>
+            <li><a href="index.html#ch3" class="nav-link"><span>3.</span> REPL &amp; :editor Mode</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Language Fundamentals</h3>
+          <ul class="space-y-1">
+            <li><a href="fundamentals.html#ch4" class="nav-link "><span>4.</span> Syntax &amp; Semicolons</a></li>
+            <li><a href="fundamentals.html#ch5" class="nav-link"><span>5.</span> Variables &amp; Scoping</a></li>
+            <li><a href="fundamentals.html#ch6" class="nav-link"><span>6.</span> Data Types &amp; Literals</a></li>
+            <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
+            <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
+            <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Data Structures &amp; OOP</h3>
+          <ul class="space-y-1">
+            <li><a href="data-structures.html#ch10" class="nav-link "><span>10.</span> Arrays &amp; Hash Maps</a></li>
+            <li><a href="data-structures.html#ch11" class="nav-link"><span>11.</span> For-In Iterators</a></li>
+            <li><a href="data-structures.html#ch12" class="nav-link"><span>12.</span> Structs &amp; Methods</a></li>
+            <li><a href="data-structures.html#ch13" class="nav-link"><span>13.</span> Pattern Matching</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Concurrency &amp; System I/O</h3>
+          <ul class="space-y-1">
+            <li><a href="concurrency.html#ch-concurrency" class="nav-link "><span>✦</span> Concurrency &amp; Tasks</a></li>
+            <li><a href="concurrency.html#ch-channels" class="nav-link"><span>✦</span> Channels &amp; Message Passing</a></li>
+            <li><a href="concurrency.html#ch-mutex" class="nav-link"><span>✦</span> Mutex &amp; Synchronization</a></li>
+            <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
+          <ul class="space-y-1">
+            <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link "><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
+            <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
+            <li><a href="stdlib.html#ch-scimath" class="nav-link"><span>✦</span> Scientific Math &amp; Stats</a></li>
+            <li><a href="stdlib.html#ch-serialization" class="nav-link"><span>✦</span> JSON, CSV &amp; Base64</a></li>
+            <li><a href="stdlib.html#ch-crypto" class="nav-link"><span>✦</span> Cryptography &amp; CSPRNG</a></li>
+            <li><a href="stdlib.html#ch15" class="nav-link"><span>15.</span> Standard Builtins Reference</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Networking, Web &amp; AI</h3>
+          <ul class="space-y-1">
+            <li><a href="networking.html#ch-sockets" class="nav-link active"><span>✦</span> TCP &amp; UDP Sockets</a></li>
+            <li><a href="networking.html#ch-http" class="nav-link"><span>✦</span> HTTP Client &amp; Server</a></li>
+            <li><a href="networking.html#ch-websockets" class="nav-link"><span>✦</span> RFC 6455 WebSockets</a></li>
+            <li><a href="networking.html#ch-ai-integrations" class="nav-link"><span>✦</span> AI Streaming &amp; LLMs</a></li>
+            <li><a href="networking.html#ch-vector-search" class="nav-link"><span>✦</span> Vector Similarity &amp; Search</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Developer Tooling</h3>
+          <ul class="space-y-1">
+            <li><a href="tooling.html#ch-testrunner" class="nav-link "><span>✦</span> Test Runner &amp; Assertions</a></li>
+            <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
+            <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem &amp; Architecture</h3>
+          <ul class="space-y-1">
+            <li><a href="architecture.html#ch14" class="nav-link "><span>14.</span> Modules &amp; Package Store</a></li>
+            <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
+            <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
+            <li><a href="architecture.html#ch18" class="nav-link"><span>18.</span> Contributing Guide</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 max-w-4xl space-y-16 pb-24">
+      
+      <div class="border-b border-slate-200 dark:border-slate-800 pb-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mb-3">
+          <span>Sockets, Web & AI</span>
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-3">
+          Networking, Web & AI Integrations
+        </h1>
+        <p class="text-base text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
+          TCP & UDP sockets, HTTP web server and client, RFC 6455 WebSockets, streaming LLM integrations, and cosine vector similarity.
+        </p>
+      </div>
+  
+            <section id="ch-sockets" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Sockets</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">TCP & UDP Client & Server Sockets</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Low-level networking primitives built on pure Go stdlib (<code class="font-mono">net</code>). Supports both streaming TCP connections with line-by-line buffers and high-throughput UDP packet sockets.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — TCP and UDP Socket Communication</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Start TCP Listener</span>
+<span class="token-kw">let</span> <span class="token-fn">srv</span> <span class="token-op">=</span> <span class="token-fn">tcp_listen</span>(<span class="token-str">"127.0.0.1:8080"</span>)
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">srv</span>.<span class="token-fn">accept</span>()
+    <span class="token-kw">let</span> <span class="token-fn">line</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">read_line</span>()
+    <span class="token-fn">conn</span>.<span class="token-fn">write</span>(<span class="token-str">"echo:"</span> <span class="token-op">+</span> <span class="token-fn">line</span> <span class="token-op">+</span> <span class="token-str">"\n"</span>)
+    <span class="token-fn">conn</span>.<span class="token-fn">close</span>()
+}()
+
+<span class="token-comment">// Connect TCP Client</span>
+<span class="token-kw">let</span> <span class="token-fn">client</span> <span class="token-op">=</span> <span class="token-fn">tcp_connect</span>(<span class="token-str">"127.0.0.1:8080"</span>)
+<span class="token-fn">client</span>.<span class="token-fn">write</span>(<span class="token-str">"Hello Network\n"</span>)
+<span class="token-kw">let</span> <span class="token-fn">response</span> <span class="token-op">=</span> <span class="token-fn">client</span>.<span class="token-fn">read_line</span>()
+<span class="token-fn">client</span>.<span class="token-fn">close</span>()
+<span class="token-fn">srv</span>.<span class="token-fn">close</span>()
+
+<span class="token-comment">// UDP Datagrams</span>
+<span class="token-kw">let</span> <span class="token-fn">udpSrv</span> <span class="token-op">=</span> <span class="token-fn">udp_listen</span>(<span class="token-str">"127.0.0.1:9090"</span>)
+<span class="token-kw">let</span> <span class="token-fn">udpCli</span> <span class="token-op">=</span> <span class="token-fn">udp_connect</span>(<span class="token-str">"127.0.0.1:9090"</span>)
+<span class="token-fn">udpCli</span>.<span class="token-fn">write</span>(<span class="token-str">"fast_packet"</span>)
+<span class="token-kw">let</span> <span class="token-fn">pkt</span> <span class="token-op">=</span> <span class="token-fn">udpSrv</span>.<span class="token-fn">recv_from</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"data"</span>], <span class="token-str">"from"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"addr"</span>])</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: HTTP CLIENT & SERVER ================= -->
+
+      <section id="ch-http" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-green">Web Framework</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">HTTP/HTTPS Client & Built-in Web Server</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A modern web framework with intuitive Express/Flask-style routing, JSON serialization, query parameter extraction, middleware pipelines, static file hosting, and a high-performance HTTP client.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — HTTP Server & Client API</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Instantiate Web Server</span>
+<span class="token-kw">let</span> <span class="token-fn">app</span> <span class="token-op">=</span> <span class="token-fn">http_server</span>()
+
+<span class="token-comment">// Register Routes</span>
+<span class="token-fn">app</span>.<span class="token-fn">get</span>(<span class="token-str">"/api/users"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-fn">res</span>.<span class="token-fn">json</span>([{<span class="token-str">"id"</span>: <span class="token-num">1</span>, <span class="token-str">"name"</span>: <span class="token-str">"Alice"</span>}, {<span class="token-str">"id"</span>: <span class="token-num">2</span>, <span class="token-str">"name"</span>: <span class="token-str">"Bob"</span>}])
+})
+
+<span class="token-fn">app</span>.<span class="token-fn">post</span>(<span class="token-str">"/api/login"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">body</span> <span class="token-op">=</span> <span class="token-fn">req</span>.<span class="token-fn">json</span>()
+    <span class="token-fn">res</span>.<span class="token-fn">status</span>(<span class="token-num">201</span>).<span class="token-fn">json</span>({<span class="token-str">"token"</span>: <span class="token-fn">uuid</span>(), <span class="token-str">"user"</span>: <span class="token-fn">body</span>[<span class="token-str">"user"</span>]})
+})
+
+<span class="token-comment">// Host static directory and listen</span>
+<span class="token-fn">app</span>.<span class="token-fn">static</span>(<span class="token-str">"/public"</span>, <span class="token-str">"./dist"</span>)
+<span class="token-fn">app</span>.<span class="token-fn">listen</span>(<span class="token-num">3000</span>, <span class="token-kw">fn</span>() {
+    <span class="token-fn">println</span>(<span class="token-str">"Server listening on http://127.0.0.1:3000"</span>)
+})
+
+<span class="token-comment">// HTTP Client calls</span>
+<span class="token-kw">let</span> <span class="token-fn">resp</span> <span class="token-op">=</span> <span class="token-fn">http_get</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: RFC 6455 WEBSOCKETS ================= -->
+
+      <section id="ch-websockets" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Realtime</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">RFC 6455 WebSockets (Zero-Dependency)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A complete, compliant implementation of the RFC 6455 WebSocket protocol built entirely with the Go Standard Library. Includes automatic client-side frame masking, server-side unmasking, ping/pong heartbeats, and binary/text frame streams.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Realtime WebSocket Communication</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Start WebSocket Server</span>
+<span class="token-kw">let</span> <span class="token-fn">wsSrv</span> <span class="token-op">=</span> <span class="token-fn">ws_server</span>(<span class="token-str">"127.0.0.1:8081"</span>, <span class="token-str">"/ws"</span>)
+<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
+    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">wsSrv</span>.<span class="token-fn">accept</span>()
+    <span class="token-kw">while</span> <span class="token-fn">conn</span>.<span class="token-fn">is_open</span> {
+        <span class="token-kw">let</span> <span class="token-fn">msg</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">recv</span>()
+        <span class="token-kw">if</span> <span class="token-fn">msg</span> <span class="token-op">==</span> <span class="token-kw">null</span> { <span class="token-kw">break</span> }
+        <span class="token-fn">conn</span>.<span class="token-fn">send</span>(<span class="token-str">"Server Ack: "</span> <span class="token-op">+</span> <span class="token-fn">msg</span>)
+    }
+}()
+
+<span class="token-comment">// Connect WebSocket Client</span>
+<span class="token-kw">let</span> <span class="token-fn">ws</span> <span class="token-op">=</span> <span class="token-fn">ws_connect</span>(<span class="token-str">"ws://127.0.0.1:8081/ws"</span>)
+<span class="token-fn">ws</span>.<span class="token-fn">send</span>(<span class="token-str">"Hello Bramand WebSocket!"</span>)
+<span class="token-kw">let</span> <span class="token-fn">reply</span> <span class="token-op">=</span> <span class="token-fn">ws</span>.<span class="token-fn">recv</span>()
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">reply</span>)
+<span class="token-fn">ws</span>.<span class="token-fn">close</span>()
+<span class="token-fn">wsSrv</span>.<span class="token-fn">close</span>()</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: AI STREAMING & LLMS ================= -->
+
+      <section id="ch-ai-integrations" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-orange">AI Integration</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">AI Integrations: LLM Streaming & Structured Outputs</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          First-class primitives for connecting to modern AI Large Language Models (Ollama, OpenAI, Gemini, Anthropic, and local vLLM/llama.cpp inference nodes). Features realtime token streaming using Server-Sent Events (SSE) and schema-validated structured JSON output generation.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — LLM Streaming and Structured JSON</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// 1. Direct LLM Prompt (defaults to local Ollama http://localhost:11434)</span>
+<span class="token-kw">let</span> <span class="token-fn">reply</span> <span class="token-op">=</span> <span class="token-fn">ai_prompt</span>(<span class="token-str">"llama3"</span>, <span class="token-str">"Explain quantum computing in one sentence"</span>)
+<span class="token-fn">println</span>(<span class="token-fn">reply</span>)
+
+<span class="token-comment">// 2. Realtime Token Streaming via Server-Sent Events</span>
+<span class="token-fn">ai_stream</span>({
+    <span class="token-str">"url"</span>: <span class="token-str">"http://localhost:11434/api/generate"</span>,
+    <span class="token-str">"body"</span>: {<span class="token-str">"model"</span>: <span class="token-str">"llama3"</span>, <span class="token-str">"prompt"</span>: <span class="token-str">"Write a haiku"</span>, <span class="token-str">"stream"</span>: <span class="token-kw">true</span>}
+}, <span class="token-kw">fn</span>(<span class="token-fn">token</span>) {
+    <span class="token-fn">print_raw</span>(<span class="token-fn">token</span>)  <span class="token-comment">// Streams live tokens directly to console</span>
+})
+
+<span class="token-comment">// 3. Structured JSON Output Enforcement</span>
+<span class="token-kw">let</span> <span class="token-fn">schema</span> <span class="token-op">=</span> {<span class="token-str">"sentiment"</span>: <span class="token-str">"positive|negative|neutral"</span>, <span class="token-str">"score"</span>: <span class="token-num">0.0</span>}
+<span class="token-kw">let</span> <span class="token-fn">parsed</span> <span class="token-op">=</span> <span class="token-fn">ai_structured</span>({
+    <span class="token-str">"model"</span>: <span class="token-str">"llama3"</span>,
+    <span class="token-str">"prompt"</span>: <span class="token-str">"Analyze: 'I love BramandScript!'"</span>
+}, <span class="token-fn">schema</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Sentiment:"</span>, <span class="token-fn">parsed</span>[<span class="token-str">"sentiment"</span>], <span class="token-str">"Score:"</span>, <span class="token-fn">parsed</span>[<span class="token-str">"score"</span>])</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DAY 6: VECTOR SIMILARITY & EMBEDDINGS ================= -->
+
+      <section id="ch-vector-search" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">AI Embeddings</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Vector Similarity & AI Embeddings Search</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          High-dimensional vector distance metrics and nearest-neighbor search for AI retrieval-augmented generation (RAG) and embedding comparisons.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Vector Search and Distance Metrics</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Distance & Similarity Metrics</span>
+<span class="token-kw">let</span> <span class="token-fn">v1</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">1.0</span>, <span class="token-num">0.0</span>, <span class="token-num">0.5</span>])
+<span class="token-kw">let</span> <span class="token-fn">v2</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">0.8</span>, <span class="token-num">0.2</span>, <span class="token-num">0.4</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Cosine Similarity:"</span>, <span class="token-fn">cosine_similarity</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Cosine Distance:  "</span>, <span class="token-fn">cosine_distance</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+<span class="token-fn">println</span>(<span class="token-str">"Euclidean Distance:"</span>, <span class="token-fn">euclidean_distance</span>(<span class="token-fn">v1</span>, <span class="token-fn">v2</span>))
+
+<span class="token-comment">// Vector Database Search (RAG)</span>
+<span class="token-kw">let</span> <span class="token-fn">query</span> <span class="token-op">=</span> <span class="token-fn">vec</span>([<span class="token-num">0.9</span>, <span class="token-num">0.1</span>, <span class="token-num">0.0</span>])
+<span class="token-kw">let</span> <span class="token-fn">corpus</span> <span class="token-op">=</span> [
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_1"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Compiler Architecture"</span>, <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.88</span>, <span class="token-num">0.12</span>, <span class="token-num">0.01</span>])},
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_2"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Gardening Handbook"</span>,    <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.05</span>, <span class="token-num">0.85</span>, <span class="token-num">0.52</span>])},
+    {<span class="token-str">"id"</span>: <span class="token-str">"doc_3"</span>, <span class="token-str">"title"</span>: <span class="token-str">"Bytecode Virtual Machine"</span>, <span class="token-str">"embedding"</span>: <span class="token-fn">vec</span>([<span class="token-num">0.92</span>, <span class="token-num">0.08</span>, <span class="token-num">0.02</span>])}
+]
+
+<span class="token-kw">let</span> <span class="token-fn">matches</span> <span class="token-op">=</span> <span class="token-fn">vector_search</span>(<span class="token-fn">query</span>, <span class="token-fn">corpus</span>, <span class="token-num">2</span>, <span class="token-str">"cosine"</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Top Match:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"item"</span>][<span class="token-str">"title"</span>], <span class="token-str">"Score:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"score"</span>])</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: TEST RUNNER ================= -->
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-8 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-blue-600 dark:text-blue-400 font-bold">✦</span>
+        <span>BramandScript · High-Performance Universal Programming Language</span>
+      </div>
+      <div>
+        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
