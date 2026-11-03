@@ -237,6 +237,17 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 	right := vm.pop()
 	left := vm.pop()
 
+	if left.Type() == object.NULL_OBJ || right.Type() == object.NULL_OBJ {
+		switch op {
+		case code.OpEqual:
+			return vm.push(nativeBoolToBooleanObject(left.Type() == object.NULL_OBJ && right.Type() == object.NULL_OBJ))
+		case code.OpNotEqual:
+			return vm.push(nativeBoolToBooleanObject(!(left.Type() == object.NULL_OBJ && right.Type() == object.NULL_OBJ)))
+		default:
+			return vm.push(False)
+		}
+	}
+
 	if left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ {
 		return vm.executeIntegerComparison(op, left, right)
 	}
@@ -250,6 +261,9 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 	if left.Type() == object.BIG_FLOAT_OBJ || right.Type() == object.BIG_FLOAT_OBJ {
 		return vm.executeBigFloatComparison(op, left, right)
 	}
+	if left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ {
+		return vm.executeStringComparison(op, left, right)
+	}
 
 	switch op {
 	case code.OpEqual:
@@ -258,6 +272,24 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 		return vm.push(nativeBoolToBooleanObject(left.Inspect() != right.Inspect()))
 	default:
 		return fmt.Errorf("unknown comparison operator: %d (%s %s)", op, left.Type(), right.Type())
+	}
+}
+
+func (vm *VM) executeStringComparison(op code.Opcode, left, right object.Object) error {
+	leftVal := left.(*object.String).Value
+	rightVal := right.(*object.String).Value
+
+	switch op {
+	case code.OpEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal == rightVal))
+	case code.OpNotEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal != rightVal))
+	case code.OpGreaterThan:
+		return vm.push(nativeBoolToBooleanObject(leftVal > rightVal))
+	case code.OpGreaterThanEqual:
+		return vm.push(nativeBoolToBooleanObject(leftVal >= rightVal))
+	default:
+		return fmt.Errorf("unknown string comparison operator: %d", op)
 	}
 }
 

@@ -46,9 +46,75 @@ fn parse_direction(input_str) {
         return null;
     }
     let s = to_lower(trim(str(input_str)));
-    if s == "w" || s == "up" { return DIR_UP; }
-    if s == "d" || s == "right" { return DIR_RIGHT; }
-    if s == "s" || s == "down" { return DIR_DOWN; }
-    if s == "a" || s == "left" { return DIR_LEFT; }
+    if s == "w" || s == "up" || s == "k" { return DIR_UP; }
+    if s == "d" || s == "right" || s == "l" { return DIR_RIGHT; }
+    if s == "s" || s == "down" || s == "j" { return DIR_DOWN; }
+    if s == "a" || s == "left" || s == "h" { return DIR_LEFT; }
     return null;
+}
+
+fn parse_move_sequence(input_str, cur_dir) {
+    if input_str == null {
+        return [cur_dir];
+    }
+    let s = to_lower(trim(str(input_str)));
+    if s == "" {
+        return [cur_dir];
+    }
+    if s == "up" || s == "w" || s == "k" { return [DIR_UP]; }
+    if s == "down" || s == "s" || s == "j" { return [DIR_DOWN]; }
+    if s == "left" || s == "a" || s == "h" { return [DIR_LEFT]; }
+    if s == "right" || s == "d" || s == "l" { return [DIR_RIGHT]; }
+
+    let moves = [];
+    let i = 0;
+    while i < len(s) {
+        let ch = s[i];
+        if ch == " " || ch == "," {
+            i = i + 1;
+            continue;
+        }
+
+        let d = null;
+        if ch == "w" || ch == "k" { d = DIR_UP; }
+        else if ch == "s" || ch == "j" { d = DIR_DOWN; }
+        else if ch == "a" || ch == "h" { d = DIR_LEFT; }
+        else if ch == "d" || ch == "l" { d = DIR_RIGHT; }
+
+        if d != null {
+            let count_str = "";
+            let j = i + 1;
+            while j < len(s) && (s[j] == " ") {
+                j = j + 1;
+            }
+            while j < len(s) && (s[j] >= "0" && s[j] <= "9") {
+                count_str = count_str + s[j];
+                j = j + 1;
+            }
+
+            let repeat_count = 1;
+            if count_str != "" {
+                repeat_count = int(count_str);
+                if repeat_count > 50 {
+                    repeat_count = 50;
+                }
+                i = j;
+            } else {
+                i = i + 1;
+            }
+
+            let r = 0;
+            while r < repeat_count {
+                push(moves, d);
+                r = r + 1;
+            }
+        } else {
+            i = i + 1;
+        }
+    }
+
+    if len(moves) == 0 {
+        return null;
+    }
+    return moves;
 }

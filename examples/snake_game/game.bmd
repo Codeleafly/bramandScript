@@ -123,28 +123,81 @@ fn game_run_interactive(game, max_steps) {
 
     while !game["game_over"] && game["ticks"] < max_steps {
         clear_screen();
-        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Interactive Step", game["status_message"]);
+        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
         render_board(board, snake, game["food"]);
         render_controls(false);
 
-        print("\n" + color("cyan", "❯ Enter Direction [w/a/s/d, or q to quit]: "));
+        print("\n" + color("green", "❯ Steer [w/a/s/d, Enter=Step, q=Quit]: "));
         let input_str = read_line();
         let trimmed = to_lower(trim(input_str));
+
         if trimmed == "q" || trimmed == "quit" || trimmed == "exit" {
-            game["status_message"] = color("yellow", "[INFO] Game quit by user.");
+            game["status_message"] = color("yellow", "[INFO] Game quit by player.");
             break;
         }
 
-        let next_d = parse_direction(trimmed);
-        if next_d == null {
-            game["status_message"] = color("yellow", "[WARN] Invalid move! Use w/a/s/d.");
+        if trimmed == "r" || trimmed == "restart" {
+            let width = board.width;
+            let height = board.height;
+            let new_game = create_game(width, height);
+            new_game["high_score"] = game["high_score"];
+            game["board"] = new_game["board"];
+            game["snake"] = new_game["snake"];
+            game["food"] = new_game["food"];
+            game["score"] = 0;
+            game["ticks"] = 0;
+            game["game_over"] = false;
+            game["status_message"] = color("green", "[INFO] Game restarted!");
+            snake = game["snake"];
+            continue;
+        }
+
+        if trimmed == "ai" || trimmed == "auto" {
+            println(color("yellow", "\n[AI TAKEOVER] AI agent taking over the steering..."));
+            sleep(500);
+            game_run_ai(game, max_steps, 70);
+            return;
+        }
+
+        let move_seq = parse_move_sequence(trimmed, snake["direction"]);
+        if move_seq == null {
+            game["status_message"] = color("yellow", "[WARN] Invalid move! Use w/a/s/d, combos like 'd3', or Enter to step.");
         } else {
-            game_step(game, next_d);
+            for next_d in move_seq {
+                if game["game_over"] {
+                    break;
+                }
+                game_step(game, next_d);
+                if len(move_seq) > 1 {
+                    clear_screen();
+                    render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
+                    render_board(board, snake, game["food"]);
+                    render_controls(false);
+                    sleep(45);
+                }
+            }
         }
     }
 
     clear_screen();
-    render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Interactive Step", game["status_message"]);
+    render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
     render_board(board, snake, game["food"]);
-    println(color("yellow", "\n✦ Final Score: " + str(game["score"]) + " | Length: " + str(snake_length(snake)) + " | Ticks: " + str(game["ticks"])));
+
+    println(color("yellow", styled("\n✦ GAME SUMMARY ✦", "bold")));
+    println("Score:       " + str(game["score"]));
+    println("High Score:  " + str(game["high_score"]));
+    println("Length:      " + str(snake_length(snake)));
+    println("Total Steps: " + str(game["ticks"]));
+
+    if game["game_over"] {
+        print("\n" + color("cyan", "❯ Play again? [y/n]: "));
+        let ans = to_lower(trim(read_line()));
+        if ans == "y" || ans == "yes" {
+            let width = board.width;
+            let height = board.height;
+            let fresh_game = create_game(width, height);
+            fresh_game["high_score"] = game["high_score"];
+            game_run_interactive(fresh_game, max_steps);
+        }
+    }
 }

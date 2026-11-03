@@ -66,6 +66,24 @@ describe("Snake Game: Direction Vectors", fn() {
         assert_eq(parse_direction("d"), DIR_RIGHT);
         assert_eq(parse_direction("invalid"), null);
     });
+
+    test("Move sequence and combo parsing for player mode", fn() {
+        let empty_seq = parse_move_sequence("", DIR_RIGHT);
+        assert_eq(len(empty_seq), 1);
+        assert_eq(empty_seq[0], DIR_RIGHT);
+
+        let combo = parse_move_sequence("d3", DIR_RIGHT);
+        assert_eq(len(combo), 3);
+        assert_eq(combo[0], DIR_RIGHT);
+        assert_eq(combo[1], DIR_RIGHT);
+        assert_eq(combo[2], DIR_RIGHT);
+
+        let multi = parse_move_sequence("w a s", DIR_RIGHT);
+        assert_eq(len(multi), 3);
+        assert_eq(multi[0], DIR_UP);
+        assert_eq(multi[1], DIR_LEFT);
+        assert_eq(multi[2], DIR_DOWN);
+    });
 });
 
 describe("Snake Game: Board & Spawning", fn() {

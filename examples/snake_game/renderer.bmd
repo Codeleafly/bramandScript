@@ -81,6 +81,6 @@ fn render_controls(is_ai) {
     if is_ai {
         println(color("gray", "Autoplay Mode: Press [Ctrl+C] to stop simulation."));
     } else {
-        println(color("gray", "Controls: [W] Up | [S] Down | [A] Left | [D] Right | [Q] Quit"));
+        println(color("cyan", "Controls: [W/A/S/D] Turn | [Enter] Step Forward | [d3/wasd] Combos | [R] Restart | [Q] Quit"));
     }
 }

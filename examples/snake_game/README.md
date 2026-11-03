@@ -26,30 +26,36 @@ examples/snake_game/
 
 ## 2. Running the Game
 
+### Play as Human Player (Default Mode)
+Take direct control of the snake using standard `W/A/S/D` steering:
+```bash
+bmd run examples/snake_game/main.bmd
+```
+
+#### Controls & Shortcuts:
+- **`w` / `k` + Enter**: Turn Up
+- **`s` / `j` + Enter**: Turn Down
+- **`a` / `h` + Enter**: Turn Left
+- **`d` / `l` + Enter**: Turn Right
+- **`Enter` (empty)**: Step 1 tile forward in current direction
+- **Combos (`d3`, `w2`, `s5`, `wasd`)**: Execute multiple steps sequentially with smooth animation
+- **`ai` + Enter**: Ask the AI pathfinding agent to take over steering
+- **`r` + Enter**: Restart game immediately
+- **`q` + Enter**: Quit game
+
 ### Autonomous AI Demonstration (Autoplay)
 Watch the AI agent automatically seek food, avoid walls, navigate around its growing tail, and prevent dead-ends:
 ```bash
 bmd run examples/snake_game/main.bmd --ai
 ```
 
-### Fast Demonstration Run (30 ticks)
+### Fast Demonstration Run (20 ticks)
 ```bash
 bmd run examples/snake_game/main.bmd --demo
 ```
 
-### Turn-Based Interactive Mode
-Take control of the snake using standard `W/A/S/D` steering:
-```bash
-bmd run examples/snake_game/main.bmd --step
-```
-- `w` + Enter: Move Up
-- `s` + Enter: Move Down
-- `a` + Enter: Move Left
-- `d` + Enter: Move Right
-- `q` + Enter: Quit Game
-
 ### Automated Verification Test Suite
-Execute the built-in test suite verifying point geometry, collision math, and AI heuristics:
+Execute the built-in test suite verifying point geometry, collision math, player combos, and AI heuristics:
 ```bash
 bmd test examples/snake_game/snake_test.bmd
 ```
