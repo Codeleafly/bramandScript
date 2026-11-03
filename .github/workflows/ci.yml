@@ -9,13 +9,41 @@ on:
 
 jobs:
   test:
-    name: Test (${{ matrix.os }} - Go ${{ matrix.go-version }})
-    runs-on: ${{ matrix.os }}
+    name: Test (${{ matrix.target }} - Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.22', '1.23']
+        include:
+          # Linux
+          - target: Linux
+            runner: ubuntu-latest
+            is_android: false
+            go-version: '1.23'
+          - target: Linux
+            runner: ubuntu-latest
+            is_android: false
+            go-version: '1.22'
+
+          # Windows
+          - target: Windows
+            runner: windows-latest
+            is_android: false
+            go-version: '1.23'
+          - target: Windows
+            runner: windows-latest
+            is_android: false
+            go-version: '1.22'
+
+          # Android (Termux ARM64)
+          - target: Android
+            runner: ubuntu-latest
+            is_android: true
+            go-version: '1.23'
+          - target: Android
+            runner: ubuntu-latest
+            is_android: true
+            go-version: '1.22'
 
     steps:
       - name: Check out repository
@@ -25,10 +53,27 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true
+          cache: false
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests (Native)
+        if: ${{ !matrix.is_android }}
         run: go test ./... -v
 
-      - name: Build Standalone Binary
+      - name: Build Standalone Binary (Native)
+        if: ${{ !matrix.is_android }}
         run: go build -o bramand-test main.go
+
+      - name: Compile Test Suites (Android Termux ARM64)
+        if: ${{ matrix.is_android }}
+        run: |
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./code -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./lexer -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./parser -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./compiler -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./vm -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./formatter -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./diagnostics -o /dev/null
+
+      - name: Build Standalone Binary (Android Termux ARM64)
+        if: ${{ matrix.is_android }}
+        run: GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -v -o bramand-android-arm64 main.go
