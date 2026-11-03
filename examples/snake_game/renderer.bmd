@@ -1,0 +1,86 @@
+// renderer.bmd - ANSI Terminal Rendering and HUD for BramandScript Snake Game
+
+import "point.bmd"
+import "direction.bmd"
+import "board.bmd"
+import "snake.bmd"
+
+fn clear_screen() {
+    print("\033[2J\033[H");
+}
+
+fn render_hud(score, high_score, length, ticks, mode_name, status_msg) {
+    let title = color("cyan", styled("✦ BRAMAND SCRIPT MODULAR SNAKE ✦", "bold"));
+    println(title);
+    
+    let stats = "[MODE: " + mode_name + "] " +
+                "| SCORE: " + color("yellow", styled(str(score), "bold")) +
+                " | HIGH: " + str(high_score) +
+                " | LENGTH: " + str(length) +
+                " | TICKS: " + str(ticks);
+    println(stats);
+
+    if status_msg != "" {
+        println(status_msg);
+    } else {
+        println("────────────────────────────────────────────────────────────");
+    }
+}
+
+fn render_board(board, snake, food) {
+    let w = board.width;
+    let h = board.height;
+
+    // Build top border
+    let top_bar = "┏";
+    let bx = 0;
+    while bx < w {
+        top_bar = top_bar + "━━";
+        bx = bx + 1;
+    }
+    top_bar = top_bar + "┓";
+    println(color("blue", top_bar));
+
+    let head = snake_head(snake);
+
+    let y = 0;
+    while y < h {
+        let row_str = color("blue", "┃");
+        let x = 0;
+        while x < w {
+            let cur_pt = Point(x, y);
+
+            if head != null && cur_pt.equals(head) {
+                row_str = row_str + color("green", styled("● ", "bold"));
+            } else if snake_occupies(snake, cur_pt, true) {
+                row_str = row_str + color("green", "■ ");
+            } else if food != null && cur_pt.equals(food) {
+                row_str = row_str + color("red", styled("✦ ", "bold"));
+            } else {
+                row_str = row_str + "  ";
+            }
+            x = x + 1;
+        }
+        row_str = row_str + color("blue", "┃");
+        println(row_str);
+        y = y + 1;
+    }
+
+    // Build bottom border
+    let bot_bar = "┗";
+    bx = 0;
+    while bx < w {
+        bot_bar = bot_bar + "━━";
+        bx = bx + 1;
+    }
+    bot_bar = bot_bar + "┛";
+    println(color("blue", bot_bar));
+}
+
+fn render_controls(is_ai) {
+    if is_ai {
+        println(color("gray", "Autoplay Mode: Press [Ctrl+C] to stop simulation."));
+    } else {
+        println(color("gray", "Controls: [W] Up | [S] Down | [A] Left | [D] Right | [Q] Quit"));
+    }
+}

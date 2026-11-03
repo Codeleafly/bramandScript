@@ -1,0 +1,54 @@
+// direction.bmd - Direction Vectors and Helpers for BramandScript Snake Game
+
+let DIR_UP = 0;
+let DIR_RIGHT = 1;
+let DIR_DOWN = 2;
+let DIR_LEFT = 3;
+
+fn dir_dx(d) {
+    if d == DIR_RIGHT {
+        return 1;
+    }
+    if d == DIR_LEFT {
+        return -1;
+    }
+    return 0;
+}
+
+fn dir_dy(d) {
+    if d == DIR_DOWN {
+        return 1;
+    }
+    if d == DIR_UP {
+        return -1;
+    }
+    return 0;
+}
+
+fn dir_name(d) {
+    if d == DIR_UP { return "UP"; }
+    if d == DIR_RIGHT { return "RIGHT"; }
+    if d == DIR_DOWN { return "DOWN"; }
+    if d == DIR_LEFT { return "LEFT"; }
+    return "UNKNOWN";
+}
+
+fn is_opposite(d1, d2) {
+    if d1 == DIR_UP && d2 == DIR_DOWN { return true; }
+    if d1 == DIR_DOWN && d2 == DIR_UP { return true; }
+    if d1 == DIR_LEFT && d2 == DIR_RIGHT { return true; }
+    if d1 == DIR_RIGHT && d2 == DIR_LEFT { return true; }
+    return false;
+}
+
+fn parse_direction(input_str) {
+    if input_str == null {
+        return null;
+    }
+    let s = to_lower(trim(str(input_str)));
+    if s == "w" || s == "up" { return DIR_UP; }
+    if s == "d" || s == "right" { return DIR_RIGHT; }
+    if s == "s" || s == "down" { return DIR_DOWN; }
+    if s == "a" || s == "left" { return DIR_LEFT; }
+    return null;
+}

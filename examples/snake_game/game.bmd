@@ -1,0 +1,150 @@
+// game.bmd - Game Engine, State Coordination, and Game Loops for BramandScript Snake
+
+import "point.bmd"
+import "direction.bmd"
+import "board.bmd"
+import "snake.bmd"
+import "ai_controller.bmd"
+import "renderer.bmd"
+
+fn create_game(width, height) {
+    let b = create_board(width, height);
+    let start_x = int(width / 2);
+    let start_y = int(height / 2);
+    let s = create_snake(start_x, start_y, 3, DIR_RIGHT);
+    let f = board_spawn_food(b, s["body"]);
+
+    return {
+        "board": b,
+        "snake": s,
+        "food": f,
+        "score": 0,
+        "high_score": 0,
+        "ticks": 0,
+        "game_over": false,
+        "status_message": ""
+    };
+}
+
+fn game_step(game, input_dir) {
+    if game["game_over"] {
+        return false;
+    }
+
+    let snake = game["snake"];
+    let board = game["board"];
+
+    if input_dir != null {
+        snake_set_direction(snake, input_dir);
+    }
+
+    let cur_head = snake_head(snake);
+    let cur_dir = snake["direction"];
+    let dx = dir_dx(cur_dir);
+    let dy = dir_dy(cur_dir);
+    let next_head = cur_head.add(dx, dy);
+
+    // Check wall collision
+    if !board_in_bounds(board, next_head) {
+        game["game_over"] = true;
+        snake["alive"] = false;
+        game["status_message"] = color("red", styled("[GAME OVER] Snake crashed into the border wall!", "bold"));
+        return false;
+    }
+
+    // Check self collision (allow moving to tail if tail is vacating)
+    let is_tail = false;
+    let body = snake["body"];
+    if snake["growth_pending"] == 0 && len(body) > 0 {
+        let tail = body[len(body) - 1];
+        if next_head.equals(tail) {
+            is_tail = true;
+        }
+    }
+
+    if !is_tail && snake_occupies(snake, next_head, false) {
+        game["game_over"] = true;
+        snake["alive"] = false;
+        game["status_message"] = color("red", styled("[GAME OVER] Snake collided with its own body!", "bold"));
+        return false;
+    }
+
+    // Check food collision
+    let ate_food = false;
+    let food = game["food"];
+    if food != null && next_head.equals(food) {
+        ate_food = true;
+        let new_score = game["score"] + 10;
+        game["score"] = new_score;
+        if new_score > game["high_score"] {
+            game["high_score"] = new_score;
+        }
+        snake_grow(snake, 1);
+        game["food"] = board_spawn_food(board, snake["body"]);
+        game["status_message"] = color("green", "[OK] Food eaten! (+10 pts)");
+    } else {
+        game["status_message"] = "";
+    }
+
+    snake_move(snake, ate_food);
+    game["ticks"] = game["ticks"] + 1;
+    return true;
+}
+
+fn game_run_ai(game, max_ticks, delay_ms) {
+    let board = game["board"];
+    let snake = game["snake"];
+
+    while !game["game_over"] && game["ticks"] < max_ticks {
+        let chosen_dir = ai_choose_direction(snake, game["food"], board);
+        game_step(game, chosen_dir);
+
+        clear_screen();
+        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "AI Autonomous", game["status_message"]);
+        render_board(board, snake, game["food"]);
+        render_controls(true);
+
+        if delay_ms > 0 {
+            sleep(delay_ms);
+        }
+    }
+
+    if game["game_over"] {
+        clear_screen();
+        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "AI Autonomous", game["status_message"]);
+        render_board(board, snake, game["food"]);
+        println(color("yellow", "\n✦ Final Score: " + str(game["score"]) + " | Length: " + str(snake_length(snake)) + " | Ticks: " + str(game["ticks"])));
+    }
+}
+
+fn game_run_interactive(game, max_steps) {
+    let board = game["board"];
+    let snake = game["snake"];
+
+    while !game["game_over"] && game["ticks"] < max_steps {
+        clear_screen();
+        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Interactive Step", game["status_message"]);
+        render_board(board, snake, game["food"]);
+        render_controls(false);
+
+        print("\n" + color("cyan", "❯ Enter Direction [w/a/s/d, or q to quit]: "));
+        let input_str = read_line();
+        let trimmed = to_lower(trim(input_str));
+        if trimmed == "q" || trimmed == "quit" || trimmed == "exit" {
+            game["status_message"] = color("yellow", "[INFO] Game quit by user.");
+            break;
+        }
+
+        let next_d = parse_direction(trimmed);
+        if next_d == null {
+            game["status_message"] = color("yellow", "[WARN] Invalid move! Use w/a/s/d.");
+        } else {
+            game_step(game, next_d);
+        }
+    }
+
+    clear_screen();
+    render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Interactive Step", game["status_message"]);
+    render_board(board, snake, game["food"]);
+    println(color("yellow", "\n✦ Final Score: " + str(game["score"]) + " | Length: " + str(snake_length(snake)) + " | Ticks: " + str(game["ticks"])));
+}

@@ -1,0 +1,103 @@
+// snake.bmd - Snake Entity, Movement, Growth, and Collision Logic for BramandScript Snake Game
+
+import "point.bmd"
+import "direction.bmd"
+
+fn create_snake(start_x, start_y, initial_length, initial_dir) {
+    let initial_body = [];
+    let i = 0;
+    while i < initial_length {
+        push(initial_body, Point(start_x - i, start_y));
+        i = i + 1;
+    }
+    return {
+        "body": initial_body,
+        "direction": initial_dir,
+        "alive": true,
+        "growth_pending": 0
+    };
+}
+
+fn snake_head(snake) {
+    let body = snake["body"];
+    if len(body) == 0 {
+        return null;
+    }
+    return body[0];
+}
+
+fn snake_length(snake) {
+    return len(snake["body"]);
+}
+
+fn snake_set_direction(snake, new_dir) {
+    if new_dir == null {
+        return false;
+    }
+    let body = snake["body"];
+    if len(body) > 1 && is_opposite(snake["direction"], new_dir) {
+        return false;
+    }
+    snake["direction"] = new_dir;
+    return true;
+}
+
+fn snake_move(snake, should_grow) {
+    if !snake["alive"] {
+        return false;
+    }
+
+    let cur_head = snake_head(snake);
+    let cur_dir = snake["direction"];
+    let dx = dir_dx(cur_dir);
+    let dy = dir_dy(cur_dir);
+    let next_head = cur_head.add(dx, dy);
+
+    let old_body = snake["body"];
+    let new_body = [next_head];
+    let end_idx = len(old_body);
+
+    if !should_grow && snake["growth_pending"] == 0 {
+        end_idx = end_idx - 1;
+    } else if snake["growth_pending"] > 0 {
+        snake["growth_pending"] = snake["growth_pending"] - 1;
+    }
+
+    let i = 0;
+    while i < end_idx {
+        push(new_body, old_body[i]);
+        i = i + 1;
+    }
+
+    snake["body"] = new_body;
+    return true;
+}
+
+fn snake_grow(snake, amount) {
+    snake["growth_pending"] = snake["growth_pending"] + amount;
+}
+
+fn snake_occupies(snake, pt, ignore_head) {
+    if pt == null {
+        return false;
+    }
+    let body = snake["body"];
+    let start_idx = 0;
+    if ignore_head {
+        start_idx = 1;
+    }
+    let i = start_idx;
+    while i < len(body) {
+        let seg = body[i];
+        if seg.equals(pt) {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn snake_check_self_collision(snake) {
+    let h = snake_head(snake);
+    return snake_occupies(snake, h, true);
+}

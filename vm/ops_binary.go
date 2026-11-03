@@ -34,6 +34,11 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 			return vm.executeStringConcatenation(left, right)
 		}
 		return fmt.Errorf("unsupported operator %d for strings", op)
+	case leftType == object.ARRAY_OBJ && rightType == object.ARRAY_OBJ:
+		if op == code.OpAdd {
+			return vm.executeArrayConcatenation(left, right)
+		}
+		return fmt.Errorf("unsupported operator %d for arrays", op)
 	default:
 		return fmt.Errorf("unsupported types for binary operation: %s %d %s",
 			leftType, op, rightType)
@@ -217,6 +222,15 @@ func (vm *VM) executeBinaryBigFloatOperation(op code.Opcode, left, right object.
 
 func (vm *VM) executeStringConcatenation(left, right object.Object) error {
 	return vm.push(&object.String{Value: left.Inspect() + right.Inspect()})
+}
+
+func (vm *VM) executeArrayConcatenation(left, right object.Object) error {
+	leftArr := left.(*object.Array)
+	rightArr := right.(*object.Array)
+	elements := make([]object.Object, len(leftArr.Elements)+len(rightArr.Elements))
+	copy(elements, leftArr.Elements)
+	copy(elements[len(leftArr.Elements):], rightArr.Elements)
+	return vm.push(&object.Array{Elements: elements})
 }
 
 func (vm *VM) executeComparison(op code.Opcode) error {

@@ -1,0 +1,166 @@
+// snake_test.bmd - Automated Test Suite for Modular Snake Game Engine
+
+import "point.bmd"
+import "direction.bmd"
+import "board.bmd"
+import "snake.bmd"
+import "ai_controller.bmd"
+import "game.bmd"
+
+describe("Snake Game: Point Geometry", fn() {
+    test("Point equality and coordinates", fn() {
+        let p1 = Point(3, 7);
+        let p2 = Point(3, 7);
+        let p3 = Point(4, 7);
+
+        assert_eq(p1.x, 3);
+        assert_eq(p1.y, 7);
+        assert(p1.equals(p2));
+        assert(!p1.equals(p3));
+    });
+
+    test("Point addition and translation", fn() {
+        let p = Point(10, 20);
+        let translated = p.add(2, -5);
+
+        assert_eq(translated.x, 12);
+        assert_eq(translated.y, 15);
+    });
+
+    test("Manhattan distance calculation", fn() {
+        let p1 = Point(2, 3);
+        let p2 = Point(5, 7);
+
+        assert_eq(p1.manhattan_distance(p2), 7);
+        assert_eq(p2.manhattan_distance(p1), 7);
+    });
+});
+
+describe("Snake Game: Direction Vectors", fn() {
+    test("Direction deltas", fn() {
+        assert_eq(dir_dx(DIR_UP), 0);
+        assert_eq(dir_dy(DIR_UP), -1);
+
+        assert_eq(dir_dx(DIR_DOWN), 0);
+        assert_eq(dir_dy(DIR_DOWN), 1);
+
+        assert_eq(dir_dx(DIR_LEFT), -1);
+        assert_eq(dir_dy(DIR_LEFT), 0);
+
+        assert_eq(dir_dx(DIR_RIGHT), 1);
+        assert_eq(dir_dy(DIR_RIGHT), 0);
+    });
+
+    test("Opposite direction detection", fn() {
+        assert(is_opposite(DIR_UP, DIR_DOWN));
+        assert(is_opposite(DIR_DOWN, DIR_UP));
+        assert(is_opposite(DIR_LEFT, DIR_RIGHT));
+        assert(is_opposite(DIR_RIGHT, DIR_LEFT));
+        assert(!is_opposite(DIR_UP, DIR_LEFT));
+    });
+
+    test("Direction parsing from user input", fn() {
+        assert_eq(parse_direction("w"), DIR_UP);
+        assert_eq(parse_direction("s"), DIR_DOWN);
+        assert_eq(parse_direction("a"), DIR_LEFT);
+        assert_eq(parse_direction("d"), DIR_RIGHT);
+        assert_eq(parse_direction("invalid"), null);
+    });
+});
+
+describe("Snake Game: Board & Spawning", fn() {
+    test("Boundary collision checks", fn() {
+        let b = create_board(10, 10);
+
+        assert(board_in_bounds(b, Point(0, 0)));
+        assert(board_in_bounds(b, Point(9, 9)));
+        assert(!board_in_bounds(b, Point(-1, 5)));
+        assert(!board_in_bounds(b, Point(10, 5)));
+        assert(!board_in_bounds(b, Point(5, 10)));
+    });
+
+    test("Food spawning avoids snake body", fn() {
+        let b = create_board(5, 5);
+        let body = [Point(2, 2), Point(2, 3)];
+        let food = board_spawn_food(b, body);
+
+        assert(food != null);
+        assert(board_in_bounds(b, food));
+        assert(!food.equals(Point(2, 2)));
+        assert(!food.equals(Point(2, 3)));
+    });
+});
+
+describe("Snake Game: Movement & State", fn() {
+    test("Initial snake configuration", fn() {
+        let s = create_snake(5, 5, 3, DIR_RIGHT);
+
+        assert_eq(snake_length(s), 3);
+        assert(snake_head(s).equals(Point(5, 5)));
+        assert(s["alive"]);
+    });
+
+    test("Normal movement shifts body", fn() {
+        let s = create_snake(5, 5, 3, DIR_RIGHT);
+        snake_move(s, false);
+
+        assert_eq(snake_length(s), 3);
+        assert(snake_head(s).equals(Point(6, 5)));
+    });
+
+    test("Movement with food consumption grows body", fn() {
+        let s = create_snake(5, 5, 3, DIR_RIGHT);
+        snake_grow(s, 1);
+        snake_move(s, true);
+
+        assert_eq(snake_length(s), 4);
+        assert(snake_head(s).equals(Point(6, 5)));
+    });
+
+    test("Self-collision detection", fn() {
+        let s = create_snake(5, 5, 4, DIR_RIGHT);
+        assert(!snake_check_self_collision(s));
+
+        // Manually place head on body
+        s["body"][0] = Point(4, 5);
+        assert(snake_check_self_collision(s));
+    });
+});
+
+describe("Snake Game: AI & Game Engine Simulation", fn() {
+    test("AI chooses valid non-wall move", fn() {
+        let b = create_board(10, 10);
+        let s = create_snake(9, 5, 3, DIR_RIGHT); // Heading right towards wall at x=9
+        let food = Point(5, 5);
+
+        let chosen_dir = ai_choose_direction(s, food, b);
+        // Cannot keep moving right (wall!) and cannot reverse left (opposite). Must be UP or DOWN.
+        assert(chosen_dir == DIR_UP || chosen_dir == DIR_DOWN);
+    });
+
+    test("Full game tick updates score on food consumption", fn() {
+        let game = create_game(10, 10);
+        // Position food directly in front of snake
+        let head = snake_head(game["snake"]);
+        game["food"] = head.add(1, 0);
+
+        let prev_len = snake_length(game["snake"]);
+        assert_eq(game["score"], 0);
+
+        game_step(game, DIR_RIGHT);
+
+        assert_eq(game["score"], 10);
+        assert_eq(snake_length(game["snake"]), prev_len + 1);
+        assert(!game["game_over"]);
+    });
+
+    test("Game over on wall collision", fn() {
+        let game = create_game(5, 5);
+        game["snake"] = create_snake(4, 2, 2, DIR_RIGHT); // At right edge
+
+        game_step(game, DIR_RIGHT);
+
+        assert(game["game_over"]);
+        assert(!game["snake"]["alive"]);
+    });
+});

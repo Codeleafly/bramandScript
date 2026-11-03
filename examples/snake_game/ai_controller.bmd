@@ -1,0 +1,88 @@
+// ai_controller.bmd - Autonomous Heuristic AI Controller for BramandScript Snake
+
+import "point.bmd"
+import "direction.bmd"
+import "board.bmd"
+import "snake.bmd"
+
+fn count_free_neighbors(pt, board, snake) {
+    let dirs = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT];
+    let free_count = 0;
+    for d in dirs {
+        let n = pt.add(dir_dx(d), dir_dy(d));
+        if board_in_bounds(board, n) && !snake_occupies(snake, n, false) {
+            free_count = free_count + 1;
+        }
+    }
+    return free_count;
+}
+
+fn ai_choose_direction(snake, food, board) {
+    let head = snake_head(snake);
+    if head == null || food == null {
+        return snake["direction"];
+    }
+
+    let all_dirs = [DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT];
+    let safe_moves = [];
+    let cur_dir = snake["direction"];
+    let s_len = snake_length(snake);
+
+    for d in all_dirs {
+        if s_len > 1 && is_opposite(cur_dir, d) {
+            continue;
+        }
+
+        let next_pt = head.add(dir_dx(d), dir_dy(d));
+        if !board_in_bounds(board, next_pt) {
+            continue;
+        }
+
+        // Allow moving to tail position if tail is about to vacate
+        let is_tail = false;
+        let body = snake["body"];
+        if snake["growth_pending"] == 0 && len(body) > 0 {
+            let tail = body[len(body) - 1];
+            if next_pt.equals(tail) {
+                is_tail = true;
+            }
+        }
+
+        if !is_tail && snake_occupies(snake, next_pt, false) {
+            continue;
+        }
+
+        let dist = next_pt.manhattan_distance(food);
+        let freedom = count_free_neighbors(next_pt, board, snake);
+
+        push(safe_moves, {
+            "dir": d,
+            "dist": dist,
+            "freedom": freedom,
+            "next_pt": next_pt
+        });
+    }
+
+    if len(safe_moves) == 0 {
+        return cur_dir;
+    }
+
+    let best_move = safe_moves[0];
+    let best_score = best_move["dist"] * 10 - best_move["freedom"];
+
+    let i = 1;
+    while i < len(safe_moves) {
+        let m = safe_moves[i];
+        let score = m["dist"] * 10 - m["freedom"];
+        if best_move["freedom"] == 0 && m["freedom"] > 0 {
+            best_move = m;
+            best_score = score;
+        } else if m["freedom"] > 0 && score < best_score {
+            best_move = m;
+            best_score = score;
+        }
+        i = i + 1;
+    }
+
+    return best_move["dir"];
+}

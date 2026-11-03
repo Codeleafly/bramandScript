@@ -248,6 +248,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 	case *ast.StructStatement:
 		c.currentLine = node.Token.Line
+		structSym := c.symbolTable.Define(node.Name.Value, false)
 		c.enterScope()
 
 		for _, f := range node.Fields {
@@ -283,8 +284,13 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.emit(code.OpHash, numPairs*2)
 		c.emit(code.OpReturnValue)
 
+		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
 		instructions, sourceLines := c.leaveScope()
+
+		for _, s := range freeSymbols {
+			c.loadSymbol(s)
+		}
 
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
@@ -294,9 +300,8 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 		fnIndex := c.addConstant(compiledFn)
-		c.emit(code.OpClosure, fnIndex, 0)
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
-		structSym := c.symbolTable.Define(node.Name.Value, false)
 		if structSym.Scope == GlobalScope {
 			c.emit(code.OpSetGlobal, structSym.Index)
 		} else {
@@ -421,11 +426,15 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ReturnStatement:
-		err := c.Compile(node.ReturnValue)
-		if err != nil {
-			return true, err
+		if node.ReturnValue == nil {
+			c.emit(code.OpReturn)
+		} else {
+			err := c.Compile(node.ReturnValue)
+			if err != nil {
+				return true, err
+			}
+			c.emit(code.OpReturnValue)
 		}
-		c.emit(code.OpReturnValue)
 
 	default:
 		return false, nil

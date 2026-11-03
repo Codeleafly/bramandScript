@@ -1,0 +1,36 @@
+// point.bmd - 2D Coordinate Point Representation for BramandScript Snake Game
+
+struct Point {
+    x,
+    y,
+
+    fn equals(other) {
+        if other == null {
+            return false;
+        }
+        return x == other.x && y == other.y;
+    },
+
+    fn add(dx, dy) {
+        return Point(x + dx, y + dy);
+    },
+
+    fn manhattan_distance(other) {
+        if other == null {
+            return 999999;
+        }
+        let diff_x = x - other.x;
+        if diff_x < 0 {
+            diff_x = -diff_x;
+        }
+        let diff_y = y - other.y;
+        if diff_y < 0 {
+            diff_y = -diff_y;
+        }
+        return diff_x + diff_y;
+    },
+
+    fn to_string() {
+        return "(" + str(x) + ", " + str(y) + ")";
+    }
+}

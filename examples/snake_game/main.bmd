@@ -1,0 +1,67 @@
+// main.bmd - CLI Entry Point for BramandScript Modular Snake Game
+
+import "game.bmd"
+
+fn print_banner() {
+    println(color("cyan", styled("============================================================", "bold")));
+    println(color("green", styled("  ✦ BRAMAND SCRIPT MODULAR SNAKE GAME ENGINE ✦", "bold")));
+    println(color("cyan", styled("============================================================", "bold")));
+    println("Engine: Pure Bytecode Virtual Machine with Modular Architecture");
+    println("Standard Library: 100% Go stdlib | Zero External Dependencies\n");
+}
+
+fn print_usage() {
+    println("Usage: bmd run examples/snake_game/main.bmd [options]");
+    println("\nOptions:");
+    println("  --ai           Run autonomous AI solver demonstration (default)");
+    println("  --step, -i     Run interactive turn-based step mode");
+    println("  --demo         Run fast AI simulation (20 ticks, 30ms)");
+    println("  --fast         Run at high speed (20ms delay)");
+    println("  --help, -h     Show this help documentation\n");
+}
+
+fn main() {
+    let cli_args = args();
+    let is_interactive = false;
+    let is_demo = false;
+    let delay = 60;
+    let max_ticks = 80;
+    let width = 20;
+    let height = 10;
+
+    for arg in cli_args {
+        if arg == "--help" || arg == "-h" {
+            print_banner();
+            print_usage();
+            return;
+        } else if arg == "--step" || arg == "-i" || arg == "--interactive" {
+            is_interactive = true;
+        } else if arg == "--demo" {
+            is_demo = true;
+            max_ticks = 20;
+            delay = 25;
+        } else if arg == "--fast" {
+            delay = 20;
+        }
+    }
+
+    print_banner();
+
+    let game = create_game(width, height);
+
+    if is_interactive {
+        println(color("yellow", "Starting Interactive Step Mode..."));
+        println("Steer your snake to eat the food [✦] and avoid walls/self!");
+        sleep(1000);
+        game_run_interactive(game, max_ticks);
+    } else {
+        println(color("green", "Starting Autonomous AI Mode..."));
+        println("The heuristic pathfinding agent will steer the snake automatically!");
+        sleep(600);
+        game_run_ai(game, max_ticks, delay);
+    }
+
+    println(color("cyan", "\n✦ Thank you for playing BramandScript Snake! ✦"));
+}
+
+main();

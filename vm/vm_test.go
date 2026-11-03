@@ -348,6 +348,8 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`str(100)`, "100"},
 		{`bool(1)`, true},
 		{`bool(null)`, false},
+		{`len([1, 2] + [3, 4, 5])`, 5},
+		{`([10, 20] + [30, 40])[2]`, 30},
 		{`len(slice([1, 2, 3, 4, 5], 1, 4))`, 3},
 	}
 	runVmTests(t, tests)

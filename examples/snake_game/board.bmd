@@ -1,0 +1,65 @@
+// board.bmd - Game Grid Boundary and Food Placement for BramandScript Snake Game
+
+import "point.bmd"
+
+struct Board {
+    width,
+    height
+}
+
+fn create_board(width, height) {
+    return Board(width, height);
+}
+
+fn board_in_bounds(board, pt) {
+    if pt == null {
+        return false;
+    }
+    return pt.x >= 0 && pt.x < board.width && pt.y >= 0 && pt.y < board.height;
+}
+
+fn board_spawn_food(board, snake_body) {
+    let max_attempts = 100;
+    let attempt = 0;
+    while attempt < max_attempts {
+        let rx = random_int(0, board.width - 1);
+        let ry = random_int(0, board.height - 1);
+        let candidate = Point(rx, ry);
+
+        let occupied = false;
+        for seg in snake_body {
+            if seg.equals(candidate) {
+                occupied = true;
+                break;
+            }
+        }
+
+        if !occupied {
+            return candidate;
+        }
+        attempt = attempt + 1;
+    }
+
+    // Fallback exhaustive search if board is crowded
+    let y = 0;
+    while y < board.height {
+        let x = 0;
+        while x < board.width {
+            let candidate = Point(x, y);
+            let occupied = false;
+            for seg in snake_body {
+                if seg.equals(candidate) {
+                    occupied = true;
+                    break;
+                }
+            }
+            if !occupied {
+                return candidate;
+            }
+            x = x + 1;
+        }
+        y = y + 1;
+    }
+
+    return null;
+}

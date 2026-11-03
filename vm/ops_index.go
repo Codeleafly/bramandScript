@@ -60,6 +60,12 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 		return vm.push(pair.Value)
 	}
 
+	if strIdx, ok := index.(*object.String); ok {
+		if strIdx.Value == "length" || strIdx.Value == "len" {
+			return vm.push(&object.Integer{Value: int64(len(hashObject.Pairs))})
+		}
+	}
+
 	if intIdx, ok := index.(*object.Integer); ok {
 		i := intIdx.Value
 		if i >= 0 && i < int64(len(hashObject.Pairs)) {
@@ -121,12 +127,6 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		return vm.executeArrayIndex(left, index)
 	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
 		return vm.executeStringIndex(left, index)
-	case left.Type() == object.HASH_OBJ && index.Type() == object.STRING_OBJ:
-		prop := index.(*object.String).Value
-		if prop == "length" || prop == "len" {
-			return vm.push(&object.Integer{Value: int64(len(left.(*object.Hash).Pairs))})
-		}
-		return vm.executeHashIndex(left, index)
 	case left.Type() == object.HASH_OBJ:
 		return vm.executeHashIndex(left, index)
 	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ) && index.Type() == object.STRING_OBJ:
