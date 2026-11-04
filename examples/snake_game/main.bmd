@@ -13,10 +13,10 @@ fn print_banner() {
 fn print_usage() {
     println("Usage: bmd run examples/snake_game/main.bmd [options]");
     println("\nOptions:");
-    println("  (default)      Play interactive snake as human player");
+    println("  (default)      Play real-time interactive snake with Arrow keys / WASD");
     println("  --ai           Run autonomous heuristic AI solver");
     println("  --demo         Run fast AI simulation (20 ticks, 30ms)");
-    println("  --fast         Run at high speed (20ms delay)");
+    println("  --fast         Run at high speed (60ms tick delay)");
     println("  --help, -h     Show this help documentation\n");
 }
 
@@ -57,10 +57,10 @@ fn main() {
         sleep(600);
         game_run_ai(game, max_ticks, delay);
     } else {
-        println(color("yellow", "Starting Player Mode!"));
-        println("Use W/A/S/D to steer, Enter to step forward, or combos like 'd3'.");
+        println(color("yellow", "Starting Real-Time Arcade Player Mode!"));
+        println("Use Arrow keys (↑/↓/←/→) or W/A/S/D to steer. Space to pause, Q to quit.");
         sleep(800);
-        game_run_interactive(game, max_ticks);
+        game_run_interactive(game, max_ticks, delay);
     }
 
     println(color("cyan", "\n✦ Thank you for playing BramandScript Snake! ✦"));

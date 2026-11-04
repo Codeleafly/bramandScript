@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"bramandscript/ast"
 	"bramandscript/token"
 )
@@ -288,14 +289,26 @@ func (p *Parser) parseStructStatement() *ast.StructStatement {
 
 	p.nextToken()
 
+	seenFields := make(map[string]bool)
+	seenMethods := make(map[string]bool)
+
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		if p.curTokenIs(token.FUNCTION) {
 			fn := p.parseFunctionLiteral()
 			if fnLit, ok := fn.(*ast.FunctionLiteral); ok {
+				if fnLit.Name != "" && seenMethods[fnLit.Name] {
+					p.errors = append(p.errors, fmt.Sprintf("duplicate method '%s' in struct '%s' at line %d, col %d", fnLit.Name, stmt.Name.Value, fnLit.Token.Line, fnLit.Token.Col))
+				}
+				seenMethods[fnLit.Name] = true
 				stmt.Methods = append(stmt.Methods, fnLit)
 			}
 		} else if p.curTokenIs(token.IDENT) {
-			stmt.Fields = append(stmt.Fields, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+			fieldName := p.curToken.Literal
+			if seenFields[fieldName] {
+				p.errors = append(p.errors, fmt.Sprintf("duplicate field '%s' in struct '%s' at line %d, col %d", fieldName, stmt.Name.Value, p.curToken.Line, p.curToken.Col))
+			}
+			seenFields[fieldName] = true
+			stmt.Fields = append(stmt.Fields, &ast.Identifier{Token: p.curToken, Value: fieldName})
 			if p.peekTokenIs(token.COMMA) {
 				p.nextToken()
 			}

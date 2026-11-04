@@ -10,7 +10,7 @@ import (
 	"bramandscript/object"
 )
 
-const StackSize = 2048
+const StackSize = 65536
 const GlobalsSize = 65536
 const MaxFrames = 1024
 

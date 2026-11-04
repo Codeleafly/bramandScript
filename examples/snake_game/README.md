@@ -26,22 +26,20 @@ examples/snake_game/
 
 ## 2. Running the Game
 
-### Play as Human Player (Default Mode)
-Take direct control of the snake using standard `W/A/S/D` steering:
+### Play as Human Player (Real-Time Arcade Mode)
+Take direct control of the snake with real-time continuous motion and direct arrow keys (no Enter required!):
 ```bash
 bmd run examples/snake_game/main.bmd
 ```
 
 #### Controls & Shortcuts:
-- **`w` / `k` + Enter**: Turn Up
-- **`s` / `j` + Enter**: Turn Down
-- **`a` / `h` + Enter**: Turn Left
-- **`d` / `l` + Enter**: Turn Right
-- **`Enter` (empty)**: Step 1 tile forward in current direction
-- **Combos (`d3`, `w2`, `s5`, `wasd`)**: Execute multiple steps sequentially with smooth animation
-- **`ai` + Enter**: Ask the AI pathfinding agent to take over steering
-- **`r` + Enter**: Restart game immediately
-- **`q` + Enter**: Quit game
+- **`↑` / `w` / `k`**: Steer Up immediately
+- **`↓` / `s` / `j`**: Steer Down immediately
+- **`←` / `a` / `h`**: Steer Left immediately
+- **`→` / `d` / `l`**: Steer Right immediately
+- **`Space` / `p`**: Pause / Resume game loop
+- **`r`**: Restart game immediately
+- **`q` / `Esc`**: Quit game cleanly
 
 ### Autonomous AI Demonstration (Autoplay)
 Watch the AI agent automatically seek food, avoid walls, navigate around its growing tail, and prevent dead-ends:

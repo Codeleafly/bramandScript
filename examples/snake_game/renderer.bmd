@@ -81,6 +81,6 @@ fn render_controls(is_ai) {
     if is_ai {
         println(color("gray", "Autoplay Mode: Press [Ctrl+C] to stop simulation."));
     } else {
-        println(color("cyan", "Controls: [W/A/S/D] Turn | [Enter] Step Forward | [d3/wasd] Combos | [R] Restart | [Q] Quit"));
+        println(color("cyan", "Controls: [↑/↓/←/→] or [W/A/S/D] Steer | Real-Time Motion | [Space] Pause | [R] Restart | [Q] Quit"));
     }
 }

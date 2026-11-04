@@ -62,10 +62,17 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 		if rightVal == 0 {
 			return fmt.Errorf("division by zero")
 		}
+		if leftVal == math.MinInt64 && rightVal == -1 {
+			return fmt.Errorf("integer overflow in division")
+		}
 		result = leftVal / rightVal
 	case code.OpMod:
 		if rightVal == 0 {
 			return fmt.Errorf("modulo by zero")
+		}
+		if leftVal == math.MinInt64 && rightVal == -1 {
+			result = 0
+			break
 		}
 		result = leftVal % rightVal
 	case code.OpPow:
@@ -106,6 +113,11 @@ func (vm *VM) executeBinaryFloatOperation(op code.Opcode, left, right object.Obj
 			return fmt.Errorf("division by zero")
 		}
 		result = leftVal / rightVal
+	case code.OpMod:
+		if rightVal == 0 {
+			return fmt.Errorf("modulo by zero")
+		}
+		result = math.Mod(leftVal, rightVal)
 	case code.OpPow:
 		result = math.Pow(leftVal, rightVal)
 	default:
@@ -267,9 +279,9 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 
 	switch op {
 	case code.OpEqual:
-		return vm.push(nativeBoolToBooleanObject(left.Inspect() == right.Inspect()))
+		return vm.push(nativeBoolToBooleanObject(ObjectsEqual(left, right)))
 	case code.OpNotEqual:
-		return vm.push(nativeBoolToBooleanObject(left.Inspect() != right.Inspect()))
+		return vm.push(nativeBoolToBooleanObject(!ObjectsEqual(left, right)))
 	default:
 		return fmt.Errorf("unknown comparison operator: %d (%s %s)", op, left.Type(), right.Type())
 	}

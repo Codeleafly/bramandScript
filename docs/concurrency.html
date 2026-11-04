@@ -353,7 +353,15 @@
 
 <span class="token-comment">// Environment Variables</span>
 <span class="token-fn">set_env</span>(<span class="token-str">"APP_ENV"</span>, <span class="token-str">"production"</span>)
-<span class="token-fn">println</span>(<span class="token-str">"Environment:"</span>, <span class="token-fn">env</span>(<span class="token-str">"APP_ENV"</span>))</code></pre>
+<span class="token-fn">println</span>(<span class="token-str">"Environment:"</span>, <span class="token-fn">env</span>(<span class="token-str">"APP_ENV"</span>))
+
+<span class="token-comment">// Terminal Raw Mode & Real-Time Keyboard Input</span>
+<span class="token-fn">term_raw</span>(<span class="token-kw">true</span>) <span class="token-comment">// Disable line buffering & echo</span>
+<span class="token-kw">let</span> <span class="token-fn">key</span> <span class="token-op">=</span> <span class="token-fn">read_key</span>(100) <span class="token-comment">// Non-blocking wait up to 100ms</span>
+<span class="token-kw">if</span> <span class="token-fn">key</span> <span class="token-op">==</span> <span class="token-str">"up"</span> <span class="token-op">||</span> <span class="token-fn">key</span> <span class="token-op">==</span> <span class="token-str">"w"</span> {
+    <span class="token-fn">println</span>(<span class="token-str">"Steered Up!"</span>)
+}
+<span class="token-fn">term_raw</span>(<span class="token-kw">false</span>) <span class="token-comment">// Restore terminal mode</span></code></pre>
         </div>
       </section>
 
@@ -369,7 +377,7 @@
         <span>BramandScript · High-Performance Universal Programming Language</span>
       </div>
       <div>
-        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+        <span>MIT License · Author: <a href="https://github.com/Codeleafly" class="text-blue-600 dark:text-blue-400 hover:underline">Codeleafly</a> &lt;ziprecovery2024@gmail.com&gt;</span>
       </div>
     </div>
   </footer>

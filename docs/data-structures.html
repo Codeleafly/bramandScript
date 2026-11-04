@@ -360,6 +360,13 @@
 <span class="token-fn">pt</span>.<span class="token-fn">x</span> <span class="token-op">=</span> <span class="token-num">100</span>
 <span class="token-fn">print</span>(<span class="token-str">"After translation:"</span>, <span class="token-fn">pt</span>.<span class="token-fn">x</span>, <span class="token-fn">pt</span>.<span class="token-fn">y</span>)</code></pre>
         </div>
+
+        <div class="callout callout-info mt-4">
+          <h4 class="font-bold text-slate-800 dark:text-slate-100 mb-1">Bidirectional State Synchronization</h4>
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            In BramandScript v0.1.1+, struct methods and instance properties maintain strict bidirectional synchronization. When a method executes, instance properties are populated into the method closure's free variables, and when the method completes, mutated variables are written back to the instance hash. Mutating fields directly (<code class="font-mono">pt.x = 100</code>) or via method calls (<code class="font-mono">pt.translate(5, -10)</code>) preserves total data integrity.
+          </p>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 13 ================= -->
@@ -412,7 +419,7 @@
         <span>BramandScript · High-Performance Universal Programming Language</span>
       </div>
       <div>
-        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+        <span>MIT License · Author: <a href="https://github.com/Codeleafly" class="text-blue-600 dark:text-blue-400 hover:underline">Codeleafly</a> &lt;ziprecovery2024@gmail.com&gt;</span>
       </div>
     </div>
   </footer>

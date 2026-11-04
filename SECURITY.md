@@ -23,8 +23,8 @@ If you discover a potential security vulnerability in BramandScript (including B
 
 ### Disclosure Channels
 - **GitHub Private Vulnerability Reporting**: Submit through the GitHub repository's [Security Advisories tab](https://github.com/Codeleafly/bramandScript/security/advisories/new).
-- **Direct Maintainer Contact**: Email the security response team directly at:  
-  `security@codeleafly.dev` (Subject: `[SECURITY] BramandScript Vulnerability Report`)
+- **Direct Maintainer Contact**: Email the maintainer directly at:  
+  `ziprecovery2024@gmail.com` (Subject: `[SECURITY] BramandScript Vulnerability Report`)
 
 Please include:
 1. Clear description of the vulnerability and its potential impact.

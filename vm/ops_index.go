@@ -90,6 +90,8 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 		if !ok {
 			return fmt.Errorf("array index must be an INTEGER, got %s", index.Type())
 		}
+		l.Mu.Lock()
+		defer l.Mu.Unlock()
 		i := idx.Value
 		if i < 0 || i >= int64(len(l.Elements)) {
 			return fmt.Errorf("index out of bounds: %d (array length is %d)", i, len(l.Elements))
@@ -114,6 +116,8 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 
 func (vm *VM) executeArrayIndex(array, index object.Object) error {
 	arrayObject := array.(*object.Array)
+	arrayObject.Mu.RLock()
+	defer arrayObject.Mu.RUnlock()
 	i := index.(*object.Integer).Value
 	max := int64(len(arrayObject.Elements) - 1)
 

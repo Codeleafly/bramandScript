@@ -164,10 +164,13 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 // ---------------- Array ----------------
 type Array struct {
 	Elements []Object
+	Mu       sync.RWMutex
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
 func (a *Array) Inspect() string {
+	a.Mu.RLock()
+	defer a.Mu.RUnlock()
 	return a.inspectDepth(0)
 }
 
@@ -318,6 +321,9 @@ func (w *WaitGroup) Add(delta int) {
 }
 
 func (w *WaitGroup) Done() {
+	defer func() {
+		_ = recover()
+	}()
 	w.wg.Done()
 }
 

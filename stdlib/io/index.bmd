@@ -26,12 +26,12 @@ let list_directory = fn(path) {
 };
 
 let println = fn(msg) {
-    print(msg);
+    print(str(msg) + "\n");
 };
 
 let print_header = fn(title) {
-    let line = "──────────────────────────────────────────────────";
+    let line = "──────────────────────────────────────────────────\n";
     print(line);
-    print("✦ " + title);
+    print("✦ " + str(title) + "\n");
     print(line);
 };

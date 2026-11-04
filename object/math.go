@@ -174,12 +174,16 @@ func (v *Vector) Norm() float64 {
 
 func (v *Vector) Normalize() (*Vector, error) {
 	norm := v.Norm()
-	if norm == 0 {
-		return nil, fmt.Errorf("cannot normalize zero vector")
+	if norm == 0 || math.IsNaN(norm) || math.IsInf(norm, 0) {
+		return nil, fmt.Errorf("cannot normalize zero or invalid vector")
 	}
 	res := make([]float64, len(v.Elements))
 	for i, el := range v.Elements {
-		res[i] = el / norm
+		val := el / norm
+		if math.IsNaN(val) || math.IsInf(val, 0) {
+			val = 0
+		}
+		res[i] = val
 	}
 	return &Vector{Elements: res}, nil
 }
@@ -207,9 +211,16 @@ func (v *Vector) Sub(other *Vector) (*Vector, error) {
 }
 
 func (v *Vector) Scale(scalar float64) *Vector {
+	if math.IsNaN(scalar) || math.IsInf(scalar, 0) {
+		scalar = 0
+	}
 	res := make([]float64, len(v.Elements))
 	for i := range v.Elements {
-		res[i] = v.Elements[i] * scalar
+		val := v.Elements[i] * scalar
+		if math.IsNaN(val) || math.IsInf(val, 0) {
+			val = 0
+		}
+		res[i] = val
 	}
 	return &Vector{Elements: res}
 }

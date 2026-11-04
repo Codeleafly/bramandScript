@@ -254,6 +254,12 @@ func init() {
 						cmdArgs = append(cmdArgs, arg.Inspect())
 					}
 				}
+			} else if len(args) == 1 && strings.Contains(cmdStr, " ") {
+				parts := strings.Fields(cmdStr)
+				if len(parts) > 0 {
+					cmdStr = parts[0]
+					cmdArgs = parts[1:]
+				}
 			}
 			cmd := exec.Command(cmdStr, cmdArgs...)
 			var stdoutBuf, stderrBuf bytes.Buffer

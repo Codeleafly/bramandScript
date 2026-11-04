@@ -79,6 +79,9 @@ func readLineFromStdin(args []object.Object) string {
 			fmt.Print(args[0].Inspect())
 		}
 	}
+	if IsTermReaderActive() {
+		return ReadLineFromTermChan()
+	}
 	stdinReaderLock.Lock()
 	defer stdinReaderLock.Unlock()
 	text, _ := stdinReader.ReadString('\n')
@@ -101,11 +104,17 @@ func init() {
 				}
 				switch arg := args[0].(type) {
 				case *object.Array:
-					return &object.Integer{Value: int64(len(arg.Elements))}
+					arg.Mu.RLock()
+					count := int64(len(arg.Elements))
+					arg.Mu.RUnlock()
+					return &object.Integer{Value: count}
 				case *object.String:
 					return &object.Integer{Value: int64(len([]rune(arg.Value)))}
 				case *object.Hash:
-					return &object.Integer{Value: int64(len(arg.Pairs))}
+					arg.Mu.RLock()
+					count := int64(len(arg.Pairs))
+					arg.Mu.RUnlock()
+					return &object.Integer{Value: count}
 				default:
 					return &object.Error{Message: fmt.Sprintf("argument to `len` not supported, got %s", args[0].Type())}
 				}
@@ -166,7 +175,9 @@ func init() {
 					return &object.Error{Message: fmt.Sprintf("first argument to `push` must be ARRAY, got %s", args[0].Type())}
 				}
 				arr := args[0].(*object.Array)
+				arr.Mu.Lock()
 				arr.Elements = append(arr.Elements, args[1])
+				arr.Mu.Unlock()
 				return arr
 			},
 		},
@@ -179,7 +190,9 @@ func init() {
 					return &object.Error{Message: fmt.Sprintf("first argument to `append` must be ARRAY, got %s", args[0].Type())}
 				}
 				arr := args[0].(*object.Array)
+				arr.Mu.Lock()
 				arr.Elements = append(arr.Elements, args[1])
+				arr.Mu.Unlock()
 				return arr
 			},
 		},
@@ -192,6 +205,8 @@ func init() {
 				if !ok {
 					return &object.Error{Message: fmt.Sprintf("argument to `pop` must be ARRAY, got %s", args[0].Type())}
 				}
+				arr.Mu.Lock()
+				defer arr.Mu.Unlock()
 				if len(arr.Elements) == 0 {
 					return Null
 				}
@@ -273,6 +288,8 @@ func init() {
 				if !ok {
 					return &object.Error{Message: fmt.Sprintf("argument to `keys` must be HASH, got %s", args[0].Type())}
 				}
+				hash.Mu.RLock()
+				defer hash.Mu.RUnlock()
 				elements := make([]object.Object, 0, len(hash.Pairs))
 				for _, pair := range hash.Pairs {
 					elements = append(elements, pair.Key)
@@ -289,6 +306,8 @@ func init() {
 				if !ok {
 					return &object.Error{Message: fmt.Sprintf("argument to `values` must be HASH, got %s", args[0].Type())}
 				}
+				hash.Mu.RLock()
+				defer hash.Mu.RUnlock()
 				elements := make([]object.Object, 0, len(hash.Pairs))
 				for _, pair := range hash.Pairs {
 					elements = append(elements, pair.Value)
@@ -311,7 +330,10 @@ func init() {
 					length := int64(len(target.Elements))
 					s := start.Value
 					if s < 0 {
-						s = 0
+						s = length + s
+						if s < 0 {
+							s = 0
+						}
 					}
 					if s > length {
 						s = length
@@ -324,6 +346,12 @@ func init() {
 							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
 						}
 						e = end.Value
+						if e < 0 {
+							e = length + e
+							if e < 0 {
+								e = 0
+							}
+						}
 						if e > length {
 							e = length
 						}
@@ -341,7 +369,10 @@ func init() {
 					length := int64(len(runes))
 					s := start.Value
 					if s < 0 {
-						s = 0
+						s = length + s
+						if s < 0 {
+							s = 0
+						}
 					}
 					if s > length {
 						s = length
@@ -354,6 +385,12 @@ func init() {
 							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
 						}
 						e = end.Value
+						if e < 0 {
+							e = length + e
+							if e < 0 {
+								e = 0
+							}
+						}
 						if e > length {
 							e = length
 						}
@@ -427,7 +464,9 @@ func init() {
 					return False
 				case *object.Hash:
 					if key, ok := args[1].(object.Hashable); ok {
+						coll.Mu.RLock()
 						_, exists := coll.Pairs[key.HashKey()]
+						coll.Mu.RUnlock()
 						return nativeBoolToBooleanObject(exists)
 					}
 					return False
@@ -455,7 +494,9 @@ func init() {
 				if !ok {
 					return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
 				}
+				hash.Mu.Lock()
 				delete(hash.Pairs, key.HashKey())
+				hash.Mu.Unlock()
 				return Null
 			},
 		},
@@ -622,6 +663,8 @@ func bramandObjectToNative(obj object.Object) interface{} {
 		}
 		return res
 	case *object.Hash:
+		o.Mu.RLock()
+		defer o.Mu.RUnlock()
 		res := make(map[string]interface{})
 		for _, pair := range o.Pairs {
 			res[pair.Key.Inspect()] = bramandObjectToNative(pair.Value)

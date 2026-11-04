@@ -117,26 +117,39 @@ fn game_run_ai(game, max_ticks, delay_ms) {
     }
 }
 
-fn game_run_interactive(game, max_steps) {
+fn game_run_interactive(game, max_steps, tick_delay) {
+    if tick_delay == null || tick_delay <= 0 {
+        tick_delay = 110;
+    }
     let board = game["board"];
     let snake = game["snake"];
+    let paused = false;
+
+    term_raw(true);
 
     while !game["game_over"] && game["ticks"] < max_steps {
         clear_screen();
-        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
+        let status = game["status_message"];
+        if paused {
+            status = color("yellow", "[PAUSED] Press Space to resume");
+        }
+        render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode (Real-Time)", status);
         render_board(board, snake, game["food"]);
         render_controls(false);
 
-        print("\n" + color("green", "❯ Steer [w/a/s/d, Enter=Step, q=Quit]: "));
-        let input_str = read_line();
-        let trimmed = to_lower(trim(input_str));
+        let key = to_lower(read_key(tick_delay));
 
-        if trimmed == "q" || trimmed == "quit" || trimmed == "exit" {
+        if key == "q" || key == "esc" || key == "ctrl_c" {
             game["status_message"] = color("yellow", "[INFO] Game quit by player.");
             break;
         }
 
-        if trimmed == "r" || trimmed == "restart" {
+        if key == "space" || key == "p" {
+            paused = !paused;
+            continue;
+        }
+
+        if key == "r" {
             let width = board.width;
             let height = board.height;
             let new_game = create_game(width, height);
@@ -149,35 +162,35 @@ fn game_run_interactive(game, max_steps) {
             game["game_over"] = false;
             game["status_message"] = color("green", "[INFO] Game restarted!");
             snake = game["snake"];
+            board = game["board"];
+            paused = false;
             continue;
         }
 
-        if trimmed == "ai" || trimmed == "auto" {
-            println(color("yellow", "\n[AI TAKEOVER] AI agent taking over the steering..."));
-            sleep(500);
-            game_run_ai(game, max_steps, 70);
-            return;
-        }
+        if !paused {
+            let cur_dir = snake["direction"];
+            let new_dir = null;
+            if key == "up" || key == "w" || key == "k" {
+                new_dir = DIR_UP;
+            } else if key == "down" || key == "s" || key == "j" {
+                new_dir = DIR_DOWN;
+            } else if key == "left" || key == "a" || key == "h" {
+                new_dir = DIR_LEFT;
+            } else if key == "right" || key == "d" || key == "l" {
+                new_dir = DIR_RIGHT;
+            }
 
-        let move_seq = parse_move_sequence(trimmed, snake["direction"]);
-        if move_seq == null {
-            game["status_message"] = color("yellow", "[WARN] Invalid move! Use w/a/s/d, combos like 'd3', or Enter to step.");
-        } else {
-            for next_d in move_seq {
-                if game["game_over"] {
-                    break;
-                }
-                game_step(game, next_d);
-                if len(move_seq) > 1 {
-                    clear_screen();
-                    render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
-                    render_board(board, snake, game["food"]);
-                    render_controls(false);
-                    sleep(45);
+            if new_dir != null {
+                if !is_opposite(cur_dir, new_dir) || len(snake["body"]) <= 1 {
+                    snake["direction"] = new_dir;
                 }
             }
+
+            game_step(game, snake["direction"]);
         }
     }
+
+    term_raw(false);
 
     clear_screen();
     render_hud(game["score"], game["high_score"], snake_length(snake), game["ticks"], "Player Mode", game["status_message"]);
@@ -197,7 +210,7 @@ fn game_run_interactive(game, max_steps) {
             let height = board.height;
             let fresh_game = create_game(width, height);
             fresh_game["high_score"] = game["high_score"];
-            game_run_interactive(fresh_game, max_steps);
+            game_run_interactive(fresh_game, max_steps, tick_delay);
         }
     }
 }

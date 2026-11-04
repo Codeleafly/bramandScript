@@ -307,9 +307,35 @@ bramand fmt examples/01_quickstart.bmd</code></pre>
           <pre><code><span class="token-comment"># Build a standalone native binary for your platform</span>
 bramand build app.bmd -o my_app
 
+<span class="token-comment"># Explicit standalone packaging</span>
+bramand build app.bmd --standalone
+
 <span class="token-comment"># Run standalone executable directly (no interpreter or runtime needed!)</span>
 ./my_app</code></pre>
         </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: REPL EDITOR ================= -->
+
+      <section id="ch-repl-editor" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">REPL Experience</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Interactive REPL Multi-Line Editor</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The interactive terminal REPL provides a built-in multi-line editor buffer for authoring multi-statement algorithms, struct definitions, and complex control structures without leaving the terminal:
+        </p>
+
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside mb-4">
+          <li><code class="font-mono">:editor</code> — Launch interactive multi-line buffer mode</li>
+          <li><code class="font-mono">:editor &lt;file.bmd&gt;</code> — Open multi-line editor with auto-save target</li>
+          <li><code class="font-mono">:done</code> — Compile and execute buffered source statements</li>
+          <li><code class="font-mono">:cancel</code> — Discard buffer without execution</li>
+          <li><code class="font-mono">:clear</code> — Clear terminal screen</li>
+          <li><code class="font-mono">:reset</code> — Reset VM constant pool, symbol table, and globals</li>
+          <li><code class="font-mono">:exit</code> or <code class="font-mono">:quit</code> — Exit REPL session</li>
+        </ul>
       </section>
 
       <!-- ================= CHAPTER 14 ================= -->
@@ -324,7 +350,7 @@ bramand build app.bmd -o my_app
         <span>BramandScript · High-Performance Universal Programming Language</span>
       </div>
       <div>
-        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+        <span>MIT License · Author: <a href="https://github.com/Codeleafly" class="text-blue-600 dark:text-blue-400 hover:underline">Codeleafly</a> &lt;ziprecovery2024@gmail.com&gt;</span>
       </div>
     </div>
   </footer>

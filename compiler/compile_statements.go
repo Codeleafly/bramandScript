@@ -68,6 +68,11 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ConstStatement:
+		if existing, ok := c.symbolTable.Resolve(node.Name.Value); ok {
+			if existing.IsConst {
+				return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot re-declare constant '%s'", node.Name.Value)}
+			}
+		}
 		symbol := c.symbolTable.Define(node.Name.Value, true)
 		err := c.Compile(node.Value)
 		if err != nil {
@@ -276,6 +281,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		err = c.Compile(node.Body)
 		if err != nil {
 			c.leaveBlockScope()
+			c.loops = c.loops[:len(c.loops)-1]
 			return true, err
 		}
 
@@ -454,6 +460,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 		err := c.Compile(node.Condition)
 		if err != nil {
+			c.loops = c.loops[:len(c.loops)-1]
 			return true, err
 		}
 
@@ -461,6 +468,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 		err = c.Compile(node.Body)
 		if err != nil {
+			c.loops = c.loops[:len(c.loops)-1]
 			return true, err
 		}
 

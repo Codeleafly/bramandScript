@@ -23,6 +23,8 @@ const StandaloneSignature = "BMD_STANDALONE_1"
 const StandaloneFooterLen = 24
 
 func main() {
+	defer vm.RestoreTerm()
+
 	if checkEmbeddedStandalone() {
 		return
 	}

@@ -301,6 +301,47 @@ print("Version:", doc["version"])
 let output = json.stringify({"status": 200, "ok": true})
 print("Serialized:", output)</code></pre>
         </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">5. <code class="font-mono">std/io</code> — Safe Filesystem &amp; Console I/O</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
+          Clean file reading, writing, atomic appends, directory discovery, and console presentation utilities.
+        </p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/io</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/io" as io
+
+io.print_header("System Diagnostics")
+io.write_text("logs/session.log", "Engine started\n")
+io.append_text("logs/session.log", "Initialized stdlib\n")
+
+if io.exists("logs/session.log") {
+    let content = io.read_text("logs/session.log")
+    io.println("Log contents:\n" + content)
+}
+
+let entries = io.list_directory(".")
+io.println("Directory entries: " + str(entries))</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">6. <code class="font-mono">std/testing</code> — Unit Assertion Test Suite</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
+          Zero-dependency assertions for custom testing suites, regression pipelines, and test runners.
+        </p>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — std/testing</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/testing" as t
+
+t.assert_true(10 &gt; 5, "10 must be greater than 5")
+t.assert_false(5 &gt; 10, "5 cannot be greater than 10")
+t.assert_not_null("valid", "value must be defined")
+t.assert_null(null, "value must be null")</code></pre>
+        </div>
       </section>
 
 
@@ -678,6 +719,21 @@ print("Serialized:", output)</code></pre>
                 <td><code class="font-mono font-bold">read_line</code></td>
                 <td><code class="font-mono">read_line([prompt])</code></td>
                 <td>Reads a line of text from standard input stream (<code class="font-mono">os.Stdin</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">term_raw</code></td>
+                <td><code class="font-mono">term_raw(boolean)</code></td>
+                <td>Puts terminal in raw mode (no echo, immediate key input without Enter) or restores sane mode.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_key</code></td>
+                <td><code class="font-mono">read_key([timeout_ms])</code></td>
+                <td>Reads keyboard input or arrow keys (<code class="font-mono">"up"</code>, <code class="font-mono">"down"</code>, <code class="font-mono">"left"</code>, <code class="font-mono">"right"</code>, <code class="font-mono">"space"</code>, <code class="font-mono">"esc"</code>) with optional timeout in ms.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">poll_key</code></td>
+                <td><code class="font-mono">poll_key()</code></td>
+                <td>Instant non-blocking keyboard check; returns key string or empty string immediately without stalling the loop.</td>
               </tr>
               <tr>
                 <td><code class="font-mono font-bold">color</code></td>
@@ -1073,7 +1129,7 @@ print("Serialized:", output)</code></pre>
         <span>BramandScript · High-Performance Universal Programming Language</span>
       </div>
       <div>
-        <span>Built with Pure Go Standard Library · Zero Dependencies</span>
+        <span>MIT License · Author: <a href="https://github.com/Codeleafly" class="text-blue-600 dark:text-blue-400 hover:underline">Codeleafly</a> &lt;ziprecovery2024@gmail.com&gt;</span>
       </div>
     </div>
   </footer>

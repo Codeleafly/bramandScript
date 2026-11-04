@@ -221,4 +221,4 @@ Contributions are warmly welcomed! Please read [CONTRIBUTING.md](CONTRIBUTING.md
 ## ✦ License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
-Copyright (c) 2026 Codeleafly (BramandScript Authors and Contributors).
+Copyright (c) 2026 Codeleafly <ziprecovery2024@gmail.com> (https://github.com/Codeleafly). All rights reserved.

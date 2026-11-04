@@ -116,7 +116,11 @@ func init() {
 				}
 				var rec []string
 				for _, col := range rowArr.Elements {
-					rec = append(rec, col.Inspect())
+					if s, ok := col.(*object.String); ok {
+						rec = append(rec, s.Value)
+					} else {
+						rec = append(rec, col.Inspect())
+					}
 				}
 				if err := w.Write(rec); err != nil {
 					return &object.Error{Message: fmt.Sprintf("csv_stringify error: %s", err)}
@@ -149,7 +153,11 @@ func init() {
 			if !ok {
 				return &object.Error{Message: fmt.Sprintf("argument to `base64_decode` must be STRING, got %s", args[0].Type())}
 			}
-			data, err := base64.StdEncoding.DecodeString(strObj.Value)
+			cleanStr := strings.TrimSpace(strObj.Value)
+			data, err := base64.StdEncoding.DecodeString(cleanStr)
+			if err != nil {
+				data, err = base64.RawStdEncoding.DecodeString(cleanStr)
+			}
 			if err != nil {
 				return &object.Error{Message: fmt.Sprintf("base64_decode error: %s", err)}
 			}
@@ -179,7 +187,11 @@ func init() {
 			if !ok {
 				return &object.Error{Message: fmt.Sprintf("argument to `base64_url_decode` must be STRING, got %s", args[0].Type())}
 			}
-			data, err := base64.URLEncoding.DecodeString(strObj.Value)
+			cleanStr := strings.TrimSpace(strObj.Value)
+			data, err := base64.URLEncoding.DecodeString(cleanStr)
+			if err != nil {
+				data, err = base64.RawURLEncoding.DecodeString(cleanStr)
+			}
 			if err != nil {
 				return &object.Error{Message: fmt.Sprintf("base64_url_decode error: %s", err)}
 			}

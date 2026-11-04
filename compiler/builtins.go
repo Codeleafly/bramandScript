@@ -187,4 +187,9 @@ var Builtins = []BuiltinDef{
 	{Name: "replace"},
 	{Name: "time_iso"},
 	{Name: "date_format"},
+
+	// Terminal, Keyboard & Raw Input
+	{Name: "term_raw"},
+	{Name: "read_key"},
+	{Name: "poll_key"},
 }

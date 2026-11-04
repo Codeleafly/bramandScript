@@ -9,13 +9,14 @@ import (
 )
 
 type Lexer struct {
-	input        string
-	position     int  // current byte offset of ch
-	readPosition int  // next byte offset
-	ch           rune // current rune (0 for EOF)
-	chWidth      int  // byte width of current rune
-	line         int  // line number (1-based)
-	col          int  // col number (1-based, rune-based)
+	input                  string
+	position               int  // current byte offset of ch
+	readPosition           int  // next byte offset
+	ch                     rune // current rune (0 for EOF)
+	chWidth                int  // byte width of current rune
+	line                   int  // line number (1-based)
+	col                    int  // col number (1-based, rune-based)
+	hasUnterminatedComment bool
 }
 
 func New(input string) *Lexer {
@@ -58,6 +59,11 @@ func (l *Lexer) NextToken() token.Token {
 
 	curLine := l.line
 	curCol := l.col
+
+	if l.hasUnterminatedComment {
+		l.hasUnterminatedComment = false
+		return token.Token{Type: token.ILLEGAL, Literal: "unterminated block comment", Line: curLine, Col: curCol}
+	}
 
 	switch l.ch {
 	case '=':
@@ -235,6 +241,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			l.readChar()
 			for {
 				if l.ch == 0 {
+					l.hasUnterminatedComment = true
 					break
 				}
 				if l.ch == '\n' {

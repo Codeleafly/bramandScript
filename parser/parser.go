@@ -204,10 +204,16 @@ func (p *Parser) parseMatchExpression() ast.Expression {
 
 	p.nextToken()
 
+	hasDefault := false
+
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		clause := &ast.MatchClause{Values: []ast.Expression{}}
 
 		if p.curTokenIs(token.DEFAULT) {
+			if hasDefault {
+				p.errors = append(p.errors, fmt.Sprintf("multiple default clauses in match expression at line %d, col %d", p.curToken.Line, p.curToken.Col))
+			}
+			hasDefault = true
 			if !p.expectPeek(token.ARROW) {
 				return nil
 			}
@@ -229,6 +235,10 @@ func (p *Parser) parseMatchExpression() ast.Expression {
 
 		for p.peekTokenIs(token.COMMA) {
 			p.nextToken()
+			if p.peekTokenIs(token.ARROW) {
+				p.errors = append(p.errors, fmt.Sprintf("trailing comma without expression in match clause at line %d, col %d", p.curToken.Line, p.curToken.Col))
+				break
+			}
 			p.nextToken()
 			clause.Values = append(clause.Values, p.parseExpression(LOWEST))
 		}
@@ -486,6 +496,7 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
+	seen := make(map[string]bool)
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
@@ -495,12 +506,17 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	p.nextToken()
 
 	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	seen[ident.Value] = true
 	identifiers = append(identifiers, ident)
 
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
 		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		if seen[ident.Value] {
+			p.errors = append(p.errors, fmt.Sprintf("duplicate parameter '%s' in function definition at line %d, col %d", ident.Value, p.curToken.Line, p.curToken.Col))
+		}
+		seen[ident.Value] = true
 		identifiers = append(identifiers, ident)
 	}
 
