@@ -327,6 +327,7 @@ func executeSource(source, filename string) {
 
 	comp := compiler.New()
 	comp.SetBaseDir(filepath.Dir(filename))
+	comp.SetCurrentFile(filename, source)
 	err := comp.Compile(program)
 	if err != nil {
 		diag := diagnostics.Diagnostic{
@@ -340,6 +341,12 @@ func executeSource(source, filename string) {
 			diag.Line = ce.Line
 			diag.Col = ce.Col
 			diag.Message = ce.Message
+			if ce.File != "" {
+				diag.Filename = ce.File
+			}
+			if ce.Source != "" {
+				diag.Source = ce.Source
+			}
 			diag.Hint = diagnostics.GenerateHint(ce.Message)
 		} else {
 			diag.Line = 1

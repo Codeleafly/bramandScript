@@ -70,7 +70,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 	case *ast.ConstStatement:
 		if existing, ok := c.symbolTable.Resolve(node.Name.Value); ok {
 			if existing.IsConst {
-				return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot re-declare constant '%s'", node.Name.Value)}
+				return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
 			}
 		}
 		symbol := c.symbolTable.Define(node.Name.Value, true)
@@ -87,10 +87,10 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 	case *ast.ReassignStatement:
 		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
 		if !ok {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot assign to undefined variable '%s'", node.Name.Value)}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot assign to undefined variable '%s'", node.Name.Value)
 		}
 		if symbol.IsConst {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot reassign to constant variable '%s'", node.Name.Value)}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot reassign to constant variable '%s'", node.Name.Value)
 		}
 
 		if node.Operator == "=" {
@@ -247,7 +247,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 		lenSym, ok := c.symbolTable.Resolve("len")
 		if !ok {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: "builtin 'len' not found for loop iteration"}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "builtin 'len' not found for loop iteration")
 		}
 		c.loadSymbol(lenSym)
 		c.loadSymbol(iterSym)
@@ -385,7 +385,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.currentLine = node.Token.Line
 		filePath, err := c.resolveModulePath(node.Path)
 		if err != nil {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot import module '%s': %s", node.Path, err)}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
 		}
 
 		if !c.importedModules[filePath] {
@@ -393,28 +393,39 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 			data, err := os.ReadFile(filePath)
 			if err != nil {
-				return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("cannot import module '%s': %s", node.Path, err)}
+				return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
 			}
 
 			l := lexer.New(string(data))
 			p := parser.New(l)
 			moduleProgram := p.ParseProgram()
 			if len(p.Errors()) > 0 {
-				return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("syntax error in module '%s': %s", node.Path, p.Errors()[0])}
+				return true, c.makeError(node.Token.Line, node.Token.Col, "syntax error in module '%s': %s", node.Path, p.Errors()[0])
 			}
 
 			prevBaseDir := c.BaseDir
 			c.BaseDir = filepath.Dir(filePath)
 
+			prevFile := c.currentFile
+			prevSource := c.currentSource
+			c.currentFile = filePath
+			c.currentSource = string(data)
+
+			restoreFileCtx := func() {
+				c.BaseDir = prevBaseDir
+				c.currentFile = prevFile
+				c.currentSource = prevSource
+			}
+
 			if node.Alias == "" {
 				for _, stmt := range moduleProgram.Statements {
 					err := c.Compile(stmt)
 					if err != nil {
-						c.BaseDir = prevBaseDir
+						restoreFileCtx()
 						return true, err
 					}
 				}
-				c.BaseDir = prevBaseDir
+				restoreFileCtx()
 			} else {
 				exportedNames := []string{}
 				for _, stmt := range moduleProgram.Statements {
@@ -432,11 +443,11 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 					}
 					err := c.Compile(stmt)
 					if err != nil {
-						c.BaseDir = prevBaseDir
+						restoreFileCtx()
 						return true, err
 					}
 				}
-				c.BaseDir = prevBaseDir
+				restoreFileCtx()
 
 				for _, name := range exportedNames {
 					c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
@@ -485,14 +496,14 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 	case *ast.BreakStatement:
 		if len(c.loops) == 0 {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: "'break' statement outside of loop"}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "'break' statement outside of loop")
 		}
 		breakPos := c.emit(code.OpJump, 9999)
 		c.loops[len(c.loops)-1].breakJumps = append(c.loops[len(c.loops)-1].breakJumps, breakPos)
 
 	case *ast.ContinueStatement:
 		if len(c.loops) == 0 {
-			return true, &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: "'continue' statement outside of loop"}
+			return true, c.makeError(node.Token.Line, node.Token.Col, "'continue' statement outside of loop")
 		}
 		curr := &c.loops[len(c.loops)-1]
 		if curr.continuePos != -1 {

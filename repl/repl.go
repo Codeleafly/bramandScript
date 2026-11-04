@@ -208,6 +208,7 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 	}
 
 	comp := compiler.NewWithState(symbolTable, *constants)
+	comp.SetCurrentFile(filename, source)
 	err := comp.Compile(program)
 	if err != nil {
 		diag := diagnostics.Diagnostic{
@@ -222,6 +223,12 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 			diag.Line = ce.Line
 			diag.Col = ce.Col
 			diag.Message = ce.Message
+			if ce.File != "" {
+				diag.Filename = ce.File
+			}
+			if ce.Source != "" {
+				diag.Source = ce.Source
+			}
 			diag.Hint = diagnostics.GenerateHint(ce.Message)
 		} else {
 			diag.Line = 1

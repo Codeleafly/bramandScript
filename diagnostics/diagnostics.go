@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -42,6 +43,12 @@ func (d *Diagnostic) Format() string {
 	// Location link: --> filename:line:col
 	out.WriteString(fmt.Sprintf("  %s-->%s %s:%d:%d\n",
 		ColorCyan, ColorReset, d.Filename, d.Line, d.Col))
+
+	if (d.Source == "" || d.Line < 1 || d.Line > len(strings.Split(d.Source, "\n"))) && d.Filename != "" && d.Filename != "<repl>" && d.Filename != "<eval>" {
+		if content, err := os.ReadFile(d.Filename); err == nil {
+			d.Source = string(content)
+		}
+	}
 
 	if d.Source == "" {
 		return out.String()

@@ -9,12 +9,17 @@ import (
 )
 
 type CompilerError struct {
+	File    string
 	Line    int
 	Col     int
 	Message string
+	Source  string
 }
 
 func (ce *CompilerError) Error() string {
+	if ce.File != "" {
+		return fmt.Sprintf("%s:%d:%d: %s", ce.File, ce.Line, ce.Col, ce.Message)
+	}
 	return fmt.Sprintf("line %d, col %d: %s", ce.Line, ce.Col, ce.Message)
 }
 
@@ -52,10 +57,27 @@ type Compiler struct {
 	currentLine     int
 	importedModules map[string]bool
 	BaseDir         string
+	currentFile     string
+	currentSource   string
 }
 
 func (c *Compiler) SetBaseDir(dir string) {
 	c.BaseDir = dir
+}
+
+func (c *Compiler) SetCurrentFile(file, source string) {
+	c.currentFile = file
+	c.currentSource = source
+}
+
+func (c *Compiler) makeError(line, col int, format string, args ...interface{}) *CompilerError {
+	return &CompilerError{
+		File:    c.currentFile,
+		Line:    line,
+		Col:     col,
+		Message: fmt.Sprintf(format, args...),
+		Source:  c.currentSource,
+	}
 }
 
 func New() *Compiler {
@@ -338,7 +360,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.Identifier:
 		symbol, ok := c.symbolTable.Resolve(node.Value)
 		if !ok {
-			return &CompilerError{Line: node.Token.Line, Col: node.Token.Col, Message: fmt.Sprintf("undefined variable '%s'", node.Value)}
+			return c.makeError(node.Token.Line, node.Token.Col, "undefined variable '%s'", node.Value)
 		}
 		c.loadSymbol(symbol)
 
