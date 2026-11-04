@@ -130,6 +130,7 @@
             <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
             <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+            <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
           </ul>
         </div>
 
@@ -157,6 +158,7 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
           <ul class="space-y-1">
             <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link "><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
             <li><a href="stdlib.html#ch-scimath" class="nav-link"><span>✦</span> Scientific Math &amp; Stats</a></li>
@@ -602,7 +604,142 @@
         </div>
       </section>
 
-      <!-- ================= CHAPTER 10 ================= -->
+      <!-- ================= CHAPTER 10: LOW-LEVEL & SYSTEMS PRIMITIVES ================= -->
+
+      <section id="ch-systems" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Chapter 10 · Systems Programming</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Low-Level Primitives, Binary Bytes, Runes &amp; Dynamic Eval</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For binary protocol implementations, network packets, bytecode engines, and language toolchains, BramandScript provides first-class bitwise operators, high-performance raw byte buffers (<code class="font-mono">bytes</code>), Unicode code point introspection (<code class="font-mono">ord</code>, <code class="font-mono">chr</code>), and dynamic in-memory code execution (<code class="font-mono">eval</code>).
+        </p>
+
+        <!-- 10.1 Bitwise Operators -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">1. Bitwise Operators (<code class="font-mono">&amp;</code>, <code class="font-mono">|</code>, <code class="font-mono">^</code>, <code class="font-mono">&lt;&lt;</code>, <code class="font-mono">&gt;&gt;</code>, <code class="font-mono">~</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript natively supports standard bitwise integer manipulation directly in the compiler and virtual machine via dedicated bytecode opcodes (<code class="font-mono">OpBitwiseAnd</code>, <code class="font-mono">OpBitwiseOr</code>, <code class="font-mono">OpBitwiseXor</code>, <code class="font-mono">OpShiftLeft</code>, <code class="font-mono">OpShiftRight</code>, and <code class="font-mono">OpBitwiseNot</code>):
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — bitwise operations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Binary flag definitions using bit shifts</span>
+<span class="token-kw">const</span> <span class="token-fn">FLAG_READ</span>    <span class="token-op">=</span> <span class="token-num">1</span> <span class="token-op">&lt;&lt;</span> <span class="token-num">0</span>  <span class="token-comment">// 0b0001 (1)</span>
+<span class="token-kw">const</span> <span class="token-fn">FLAG_WRITE</span>   <span class="token-op">=</span> <span class="token-num">1</span> <span class="token-op">&lt;&lt;</span> <span class="token-num">1</span>  <span class="token-comment">// 0b0010 (2)</span>
+<span class="token-kw">const</span> <span class="token-fn">FLAG_EXECUTE</span> <span class="token-op">=</span> <span class="token-num">1</span> <span class="token-op">&lt;&lt;</span> <span class="token-num">2</span>  <span class="token-comment">// 0b0100 (4)</span>
+
+<span class="token-comment">// Bitwise OR combining flags</span>
+<span class="token-kw">let</span> <span class="token-fn">permissions</span> <span class="token-op">=</span> <span class="token-fn">FLAG_READ</span> <span class="token-op">|</span> <span class="token-fn">FLAG_WRITE</span>
+<span class="token-fn">println</span>(<span class="token-str">"Permissions mask:"</span>, <span class="token-fn">permissions</span>) <span class="token-comment">// 3</span>
+
+<span class="token-comment">// Bitwise AND testing flags</span>
+<span class="token-kw">let</span> <span class="token-fn">canWrite</span> <span class="token-op">=</span> (<span class="token-fn">permissions</span> <span class="token-op">&amp;</span> <span class="token-fn">FLAG_WRITE</span>) <span class="token-op">!=</span> <span class="token-num">0</span>
+<span class="token-fn">println</span>(<span class="token-str">"Can write:"</span>, <span class="token-fn">canWrite</span>)          <span class="token-comment">// true</span>
+
+<span class="token-comment">// Bitwise XOR toggling bits</span>
+<span class="token-kw">let</span> <span class="token-fn">toggled</span> <span class="token-op">=</span> <span class="token-fn">permissions</span> <span class="token-op">^</span> <span class="token-fn">FLAG_WRITE</span>
+<span class="token-fn">println</span>(<span class="token-str">"After toggle:"</span>, <span class="token-fn">toggled</span>)         <span class="token-comment">// 1 (only FLAG_READ remaining)</span>
+
+<span class="token-comment">// Bitwise Shifts</span>
+<span class="token-fn">println</span>(<span class="token-num">16</span> <span class="token-op">&gt;&gt;</span> <span class="token-num">2</span>)                         <span class="token-comment">// 4</span>
+<span class="token-fn">println</span>(<span class="token-num">1</span> <span class="token-op">&lt;&lt;</span> <span class="token-num">8</span>)                          <span class="token-comment">// 256</span>
+
+<span class="token-comment">// Unary Bitwise NOT</span>
+<span class="token-fn">println</span>(<span class="token-op">~</span><span class="token-num">0</span>)                              <span class="token-comment">// -1</span>
+<span class="token-fn">println</span>(<span class="token-op">~</span><span class="token-num">1</span>)                              <span class="token-comment">// -2</span></code></pre>
+        </div>
+
+        <!-- 10.2 Raw Byte Buffers -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">2. Raw Byte Buffers &amp; Binary I/O (<code class="font-mono">bytes</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">bytes</code> constructor allocates and wraps contiguous heap byte buffers (<code class="font-mono">[]byte</code>). Byte buffers support index mutations, hexadecimal export (<code class="font-mono">to_hex()</code>), string conversion (<code class="font-mono">to_string()</code> or <code class="font-mono">str()</code>), sub-slicing (<code class="font-mono">slice()</code>), and structured binary encoding for multi-byte integers with configurable endianness (<code class="font-mono">"be"</code> for Big-Endian, <code class="font-mono">"le"</code> for Little-Endian):
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — byte buffers</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// 1. Allocate a zeroed buffer of 16 bytes</span>
+<span class="token-kw">let</span> <span class="token-fn">buf</span> <span class="token-op">=</span> <span class="token-fn">bytes</span>(<span class="token-num">16</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Buffer capacity:"</span>, <span class="token-fn">len</span>(<span class="token-fn">buf</span>)) <span class="token-comment">// 16</span>
+
+<span class="token-comment">// 2. Direct byte indexing and mutations</span>
+<span class="token-fn">buf</span>[<span class="token-num">0</span>] <span class="token-op">=</span> <span class="token-num">72</span>   <span class="token-comment">// ASCII 'H'</span>
+<span class="token-fn">buf</span>[<span class="token-num">1</span>] <span class="token-op">=</span> <span class="token-num">101</span>  <span class="token-comment">// ASCII 'e'</span>
+<span class="token-fn">buf</span>[<span class="token-num">2</span>] <span class="token-op">=</span> <span class="token-num">121</span>  <span class="token-comment">// ASCII 'y'</span>
+<span class="token-fn">println</span>(<span class="token-fn">str</span>(<span class="token-fn">slice</span>(<span class="token-fn">buf</span>, <span class="token-num">0</span>, <span class="token-num">3</span>)))       <span class="token-comment">// "Hey"</span>
+
+<span class="token-comment">// 3. Structured Multi-Byte Binary I/O (Big-Endian &amp; Little-Endian)</span>
+<span class="token-kw">let</span> <span class="token-fn">packet</span> <span class="token-op">=</span> <span class="token-fn">bytes</span>(<span class="token-num">8</span>)
+<span class="token-fn">packet</span>.<span class="token-fn">write_u8</span>(<span class="token-num">0</span>, <span class="token-num">255</span>)              <span class="token-comment">// 8-bit unsigned integer</span>
+<span class="token-fn">packet</span>.<span class="token-fn">write_u16</span>(<span class="token-num">1</span>, <span class="token-num">0xABCD</span>, <span class="token-str">"be"</span>)     <span class="token-comment">// 16-bit Big-Endian</span>
+<span class="token-fn">packet</span>.<span class="token-fn">write_u32</span>(<span class="token-num">3</span>, <span class="token-num">12345678</span>, <span class="token-str">"le"</span>)   <span class="token-comment">// 32-bit Little-Endian</span>
+
+<span class="token-fn">println</span>(<span class="token-str">"Read u8:"</span>, <span class="token-fn">packet</span>.<span class="token-fn">read_u8</span>(<span class="token-num">0</span>))                 <span class="token-comment">// 255</span>
+<span class="token-fn">println</span>(<span class="token-str">"Read u16 (be):"</span>, <span class="token-fn">packet</span>.<span class="token-fn">read_u16</span>(<span class="token-num">1</span>, <span class="token-str">"be"</span>))     <span class="token-comment">// 43981 (0xABCD)</span>
+<span class="token-fn">println</span>(<span class="token-str">"Read u32 (le):"</span>, <span class="token-fn">packet</span>.<span class="token-fn">read_u32</span>(<span class="token-num">3</span>, <span class="token-str">"le"</span>))     <span class="token-comment">// 12345678</span>
+
+<span class="token-comment">// 4. Hexadecimal conversion &amp; String ingestion</span>
+<span class="token-kw">let</span> <span class="token-fn">raw</span> <span class="token-op">=</span> <span class="token-fn">bytes</span>([<span class="token-num">0xDE</span>, <span class="token-num">0xAD</span>, <span class="token-num">0xBE</span>, <span class="token-num">0xEF</span>])
+<span class="token-fn">println</span>(<span class="token-str">"Hex representation:"</span>, <span class="token-fn">raw</span>.<span class="token-fn">to_hex</span>()) <span class="token-comment">// "deadbeef"</span></code></pre>
+        </div>
+
+        <!-- 10.3 Rune Primitives -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">3. Unicode Code Point &amp; Rune Primitives (<code class="font-mono">ord</code>, <code class="font-mono">chr</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For language parsers, text transformation pipelines, and character scanners, BramandScript includes built-in rune introspection:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — ord and chr</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// ord(char): returns Unicode code point integer</span>
+<span class="token-fn">println</span>(<span class="token-fn">ord</span>(<span class="token-str">"A"</span>))  <span class="token-comment">// 65</span>
+<span class="token-fn">println</span>(<span class="token-fn">ord</span>(<span class="token-str">"z"</span>))  <span class="token-comment">// 122</span>
+<span class="token-fn">println</span>(<span class="token-fn">ord</span>(<span class="token-str">"✦"</span>))  <span class="token-comment">// 10022</span>
+
+<span class="token-comment">// chr(code): returns single UTF-8 rune string</span>
+<span class="token-fn">println</span>(<span class="token-fn">chr</span>(<span class="token-num">65</span>))    <span class="token-comment">// "A"</span>
+<span class="token-fn">println</span>(<span class="token-fn">chr</span>(<span class="token-num">122</span>))   <span class="token-comment">// "z"</span>
+<span class="token-fn">println</span>(<span class="token-fn">chr</span>(<span class="token-num">10022</span>)) <span class="token-comment">// "✦"</span>
+
+<span class="token-comment">// Check if character is an ASCII uppercase letter</span>
+<span class="token-kw">let</span> <span class="token-fn">isUpper</span> <span class="token-op">=</span> <span class="token-kw">fn</span>(<span class="token-fn">ch</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">code</span> <span class="token-op">=</span> <span class="token-fn">ord</span>(<span class="token-fn">ch</span>)
+    <span class="token-kw">return</span> <span class="token-fn">code</span> <span class="token-op">&gt;=</span> <span class="token-num">65</span> <span class="token-op">&amp;&amp;</span> <span class="token-fn">code</span> <span class="token-op">&lt;=</span> <span class="token-num">90</span>
+}
+<span class="token-fn">println</span>(<span class="token-str">"Is 'M' uppercase:"</span>, <span class="token-fn">isUpper</span>(<span class="token-str">"M"</span>)) <span class="token-comment">// true</span></code></pre>
+        </div>
+
+        <!-- 10.4 In-Memory Dynamic Eval -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">4. In-Memory Dynamic Code Evaluation (<code class="font-mono">eval</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">eval(code_str)</code> builtin allows BramandScript programs to parse, compile, and execute code dynamically at runtime inside an isolated VM execution context. Syntax and compiler errors raise catchable runtime diagnostics:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — dynamic eval</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Dynamically evaluate mathematical expressions</span>
+<span class="token-kw">let</span> <span class="token-fn">expr</span> <span class="token-op">=</span> <span class="token-str">"25 * 4 + 15"</span>
+<span class="token-kw">let</span> <span class="token-fn">result</span> <span class="token-op">=</span> <span class="token-fn">eval</span>(<span class="token-fn">expr</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Eval calculation:"</span>, <span class="token-fn">result</span>) <span class="token-comment">// 115</span>
+
+<span class="token-comment">// Dynamically execute logic scripts</span>
+<span class="token-kw">let</span> <span class="token-fn">script</span> <span class="token-op">=</span> <span class="token-str">"let a = 50; let b = 75; if a &lt; b { 'PASS' } else { 'FAIL' }"</span>
+<span class="token-kw">let</span> <span class="token-fn">status</span> <span class="token-op">=</span> <span class="token-fn">eval</span>(<span class="token-fn">script</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Script output:"</span>, <span class="token-fn">status</span>)    <span class="token-comment">// "PASS"</span></code></pre>
+        </div>
+      </section>
     </main>
   </div>
 

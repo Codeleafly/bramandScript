@@ -35,8 +35,8 @@ type Diagnostic struct {
 func (d *Diagnostic) Format() string {
 	var out strings.Builder
 
-	// Header: error[Kind]: Message
-	out.WriteString(fmt.Sprintf("%s%serror[%s]%s: %s%s%s\n",
+	// Header: ✦ error[Kind]: Message
+	out.WriteString(fmt.Sprintf("%s%s✦ error[%s]%s: %s%s%s\n",
 		ColorBold, ColorRed, d.Kind, ColorReset,
 		ColorBold, d.Message, ColorReset))
 

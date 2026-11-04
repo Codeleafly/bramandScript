@@ -1925,3 +1925,26 @@ func TestBlockScopingExecution(t *testing.T) {
 	}
 	runVmTests(t, tests)
 }
+
+func TestAllCompilerBuiltinsRegisteredInVM(t *testing.T) {
+	for i, def := range compiler.Builtins {
+		b := getBuiltinByName(def.Name)
+		if b == nil {
+			t.Errorf("builtin at index %d (%s) is in compiler.Builtins but NOT registered in VM builtinRegistry", i, def.Name)
+		}
+	}
+	builtinRegistryMu.RLock()
+	defer builtinRegistryMu.RUnlock()
+	for name := range builtinRegistry {
+		found := false
+		for _, def := range compiler.Builtins {
+			if def.Name == name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Logf("Note: builtin %q is registered in VM but not listed in compiler.Builtins", name)
+		}
+	}
+}

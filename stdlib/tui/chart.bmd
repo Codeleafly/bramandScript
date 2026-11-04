@@ -1,0 +1,140 @@
+// BramandScript Standard Library :: TUI Charts & Sparklines (std/tui/chart)
+// Terminal-native data visualization: sparklines, horizontal bar charts, and column charts.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/terminal" as terminal
+
+let SPARK_TICKS = [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+
+// Render compact sparkline from an array of numbers
+let sparkline = fn(numbers, opts) {
+    if opts == null { opts = {}; }
+    if len(numbers) == 0 { return ""; }
+
+    let min_val = numbers[0];
+    let max_val = numbers[0];
+    let i = 1;
+    while i < len(numbers) {
+        let v = numbers[i];
+        if v < min_val { min_val = v; }
+        if v > max_val { max_val = v; }
+        i = i + 1;
+    }
+
+    let range = max_val - min_val;
+    if range == 0 { range = 1; }
+
+    let spark_color = "";
+    if opts.color != null && opts.color != "" {
+        spark_color = opts.color;
+    }
+
+    let out = "";
+    i = 0;
+    while i < len(numbers) {
+        let v = numbers[i];
+        let normalized = ((v - min_val) * 1.0) / range;
+        let tick_idx = int(normalized * 7);
+        if tick_idx < 0 { tick_idx = 0; }
+        if tick_idx > 7 { tick_idx = 7; }
+        out = out + SPARK_TICKS[tick_idx];
+        i = i + 1;
+    }
+
+    if opts.gradient_start != null && opts.gradient_end != null {
+        return color.gradient(out, opts.gradient_start, opts.gradient_end);
+    }
+    if spark_color != "" {
+        return spark_color + out + color.RESET;
+    }
+    return out;
+};
+
+// Render horizontal bar chart
+// data: list of hashes [ {"label": "CPU", "value": 45}, {"label": "RAM", "value": 78} ]
+let bar_chart_h = fn(data, opts) {
+    if opts == null { opts = {}; }
+    let term_w = terminal.width();
+    if term_w == null || term_w <= 0 { term_w = 80; }
+
+    let max_width = 30;
+    if opts.width != null && opts.width > 0 {
+        max_width = opts.width;
+    }
+
+    // Find max label len and max value
+    let max_label_len = 0;
+    let max_val = 0;
+    let i = 0;
+    while i < len(data) {
+        let item = data[i];
+        let l_len = style.visible_len(item.label);
+        if l_len > max_label_len {
+            max_label_len = l_len;
+        }
+        if item.value > max_val {
+            max_val = item.value;
+        }
+        i = i + 1;
+    }
+
+    // Cap label width for narrow terminals so the bar still has room
+    let label_cap = term_w / 3;
+    if label_cap < 8 { label_cap = 8; }
+    if max_label_len > label_cap {
+        max_label_len = label_cap;
+    }
+
+    // Ensure bar doesn't overflow terminal: label + " │ " (3) + bar + " 100%" (6) + box margins (4)
+    let max_bar_avail = term_w - max_label_len - 14;
+    if max_bar_avail < 6 { max_bar_avail = 6; }
+    if max_width > max_bar_avail {
+        max_width = max_bar_avail;
+    }
+
+    if max_val == 0 { max_val = 1; }
+
+    let bar_char = "█";
+    if opts.bar_char != null && opts.bar_char != "" {
+        bar_char = opts.bar_char;
+    }
+
+    let bar_col = color.CYAN;
+    if opts.bar_color != null && opts.bar_color != "" {
+        bar_col = opts.bar_color;
+    }
+
+    let lines = [];
+    i = 0;
+    while i < len(data) {
+        let item = data[i];
+        let l_text = item.label;
+        if style.visible_len(l_text) > max_label_len {
+            l_text = style.truncate(l_text, max_label_len, "…");
+        }
+        let label = style.pad_left(l_text, max_label_len);
+        let bar_len = int(((item.value * 1.0) / max_val) * max_width);
+        if bar_len < 1 && item.value > 0 {
+            bar_len = 1;
+        }
+
+        let bar_str = "";
+        let b = 0;
+        while b < bar_len {
+            bar_str = bar_str + bar_char;
+            b = b + 1;
+        }
+
+        let val_str = " " + item.value;
+        if opts.unit != null && opts.unit != "" {
+            val_str = val_str + opts.unit;
+        }
+
+        let line = color.BOLD + label + color.RESET + " │ " + bar_col + bar_str + color.RESET + val_str;
+        lines = lines + [line];
+        i = i + 1;
+    }
+
+    return join(lines, "\n");
+};

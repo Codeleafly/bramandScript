@@ -20,11 +20,13 @@ const DIVIDER = "_______________________________________________________________
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
-	fmt.Fprintf(out, "%s✦ BramandScript 0.1.1 (%s-%s)%s\n", diagnostics.ColorBold, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
-	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
-	fmt.Fprintf(out, "Welcome to BramandScript. Type %s:help%s for documentation, %s:exit%s to quit.\n",
-		diagnostics.ColorCyan, diagnostics.ColorReset, diagnostics.ColorCyan, diagnostics.ColorReset)
-	fmt.Fprintf(out, "%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s✦ %sBramandScript 0.1.1%s %s(%s-%s) · High-Performance Bytecode VM%s\n",
+		diagnostics.ColorCyan, diagnostics.ColorBold, diagnostics.ColorReset,
+		diagnostics.ColorDim, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
+	fmt.Fprintf(out, "%s  Type %s:help%s for documentation, %s:editor%s for multi-line, %s:exit%s to quit.%s\n\n",
+		diagnostics.ColorDim, diagnostics.ColorCyan, diagnostics.ColorDim,
+		diagnostics.ColorCyan, diagnostics.ColorDim,
+		diagnostics.ColorCyan, diagnostics.ColorDim, diagnostics.ColorReset)
 
 	constants := []object.Object{}
 	globals := make([]object.Object, vm.GlobalsSize)
@@ -39,10 +41,10 @@ func Start(in io.Reader, out io.Writer) {
 
 	for {
 		if depth == 0 {
-			fmt.Fprintf(out, "%sbmd > %s", diagnostics.ColorGreen, diagnostics.ColorReset)
+			fmt.Fprintf(out, "%s✦ %sbmd %s❯%s ", diagnostics.ColorCyan, diagnostics.ColorBold, diagnostics.ColorGreen, diagnostics.ColorReset)
 		} else {
 			indent := strings.Repeat("  ", depth)
-			fmt.Fprintf(out, "%s....%s %s", diagnostics.ColorDim, diagnostics.ColorReset, indent)
+			fmt.Fprintf(out, "%s· ···%s %s", diagnostics.ColorDim, diagnostics.ColorReset, indent)
 		}
 
 		scanned := scanner.Scan()

@@ -157,6 +157,7 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
           <ul class="space-y-1">
             <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link "><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
             <li><a href="stdlib.html#ch-scimath" class="nav-link"><span>✦</span> Scientific Math &amp; Stats</a></li>
@@ -239,7 +240,7 @@
               <span>Modular Standard Library</span>
               <span>→</span>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">std/math, std/strings, std/collections, std/io, std/json.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">std/tui, std/math, std/strings, std/collections, std/io, std/json.</p>
           </a>
 
           <a href="concurrency.html" class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-900/50 transition group">
@@ -404,18 +405,16 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
             <span>terminal — bmd repl</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code>BramandScript 0.1.1 (arm64-linux)
-__________________________________________________________________
-Welcome to BramandScript. Type :help for documentation, :exit to quit.
-__________________________________________________________________
+          <pre><code>✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM
+  Type :help for documentation, :editor for multi-line, :exit to quit.
 
-bmd > let greeting = "Hello, Universe!"
-bmd > print(greeting)
+✦ bmd ❯ let greeting = "Hello, Universe!"
+✦ bmd ❯ println(greeting)
 Hello, Universe!
-bmd > fn square(n) {
-....   return n * n
-.... }
-bmd > square(12)
+✦ bmd ❯ fn square(n) {
+· ···     return n * n
+· ···   }
+✦ bmd ❯ square(12)
 144</code></pre>
         </div>
 
@@ -429,17 +428,17 @@ bmd > square(12)
             <span>terminal — :editor mode</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code>bmd > :editor fib.bmd
+          <pre><code>✦ bmd ❯ :editor fib.bmd
 __________________________________________________________________
 Multi-Line Editor Mode
 Type code line-by-line. Type :done to execute, :cancel to abort.
 To save to file on disk: :done &lt;filename.bmd&gt;
 __________________________________________________________________
 01 | fn fib(n) {
-02 |   if n <= 1 { return n }
+02 |   if n &lt;= 1 { return n }
 03 |   return fib(n - 1) + fib(n - 2)
 04 | }
-05 | print("Fib(10) =", fib(10))
+05 | println("Fib(10) =", fib(10))
 06 | :done
 [OK] Saved 108 bytes to fib.bmd
 Executing buffer...

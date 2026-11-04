@@ -185,6 +185,31 @@ func ReadKeyWithTimeout(timeoutMs int64) string {
 						return "home"
 					case 'F':
 						return "end"
+					case '<':
+						// SGR Mouse Event: \x1b[<btn;x;yM or m
+						var mouseBuf strings.Builder
+						for {
+							select {
+							case mb := <-termChan:
+								if mb == 'M' || mb == 'm' {
+									action := "down"
+									if mb == 'm' {
+										action = "up"
+									}
+									parts := strings.Split(mouseBuf.String(), ";")
+									if len(parts) == 3 {
+										btn := parts[0]
+										x := parts[1]
+										y := parts[2]
+										return fmt.Sprintf("mouse:%s:%s:%s:%s", btn, x, y, action)
+									}
+									return "mouse"
+								}
+								mouseBuf.WriteByte(mb)
+							case <-time.After(30 * time.Millisecond):
+								return "mouse"
+							}
+						}
 					case '1', '2', '3', '4', '5', '6':
 						// E.g. \x1b[3~ (delete), \x1b[5~ (pageup), \x1b[6~ (pagedown)
 						select {
@@ -270,6 +295,52 @@ func init() {
 				return &object.Error{Message: fmt.Sprintf("term_raw error: %s", err)}
 			}
 			return True
+		},
+	})
+
+	RegisterBuiltin("term_size", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			cols := 80
+			rows := 24
+			cmd := exec.Command("stty", "size")
+			cmd.Stdin = os.Stdin
+			out, err := cmd.Output()
+			if err == nil {
+				fields := strings.Fields(string(out))
+				if len(fields) >= 2 {
+					var r, c int
+					fmt.Sscanf(fields[0], "%d", &r)
+					fmt.Sscanf(fields[1], "%d", &c)
+					if r > 0 {
+						rows = r
+					}
+					if c > 0 {
+						cols = c
+					}
+				}
+			}
+			if cStr := os.Getenv("COLUMNS"); cStr != "" {
+				var c int
+				if _, err := fmt.Sscanf(cStr, "%d", &c); err == nil && c > 0 {
+					cols = c
+				}
+			}
+			if rStr := os.Getenv("LINES"); rStr != "" {
+				var r int
+				if _, err := fmt.Sscanf(rStr, "%d", &r); err == nil && r > 0 {
+					rows = r
+				}
+			}
+			pairs := make(map[object.HashKey]object.HashPair)
+			pairs[(&object.String{Value: "cols"}).HashKey()] = object.HashPair{
+				Key:   &object.String{Value: "cols"},
+				Value: &object.Integer{Value: int64(cols)},
+			}
+			pairs[(&object.String{Value: "rows"}).HashKey()] = object.HashPair{
+				Key:   &object.String{Value: "rows"},
+				Value: &object.Integer{Value: int64(rows)},
+			}
+			return &object.Hash{Pairs: pairs}
 		},
 	})
 

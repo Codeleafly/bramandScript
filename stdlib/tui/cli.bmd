@@ -1,0 +1,231 @@
+// BramandScript Standard Library :: CLI Application Framework (std/tui/cli)
+// Modern command routing, argument/flag parsing, subcommands, and auto-generated help.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+
+let starts_with = fn(s, prefix) {
+    let plen = len(prefix);
+    if plen > len(s) { return false; }
+    return slice(s, 0, plen) == prefix;
+};
+
+// Parse raw argument list into flags and positional arguments
+let parse_args = fn(raw_args) {
+    let flags = {};
+    let positionals = [];
+    let i = 0;
+
+    while i < len(raw_args) {
+        let arg = raw_args[i];
+
+        if starts_with(arg, "--") {
+            let flag_body = slice(arg, 2, len(arg));
+            if contains(flag_body, "=") {
+                let parts = split(flag_body, "=");
+                let k = parts[0];
+                let v = parts[1];
+                flags[k] = v;
+            } else {
+                // Check if next arg is value or another flag
+                if i + 1 < len(raw_args) && !starts_with(raw_args[i + 1], "-") {
+                    flags[flag_body] = raw_args[i + 1];
+                    i = i + 1;
+                } else {
+                    flags[flag_body] = true;
+                }
+            }
+        } else if starts_with(arg, "-") && len(arg) > 1 {
+            let flag_body = slice(arg, 1, len(arg));
+            if contains(flag_body, "=") {
+                let parts = split(flag_body, "=");
+                flags[parts[0]] = parts[1];
+            } else {
+                flags[flag_body] = true;
+            }
+        } else {
+            positionals = positionals + [arg];
+        }
+
+        i = i + 1;
+    }
+
+    return {
+        "flags": flags,
+        "positionals": positionals
+    };
+};
+
+struct CliApp {
+    name,
+    version,
+    description,
+    commands,
+    command_list,
+    flags,
+    flag_list,
+
+    fn command(cmd_name, desc, handler) {
+        commands[cmd_name] = {
+            "name": cmd_name,
+            "description": desc,
+            "handler": handler
+        };
+        command_list = command_list + [cmd_name];
+    }
+
+    fn flag(flag_name, short_flag, desc, default_val) {
+        flags[flag_name] = {
+            "name": flag_name,
+            "short": short_flag,
+            "description": desc,
+            "default": default_val
+        };
+        flag_list = flag_list + [flag_name];
+    }
+
+    fn show_help() {
+        println("");
+        println(color.BOLD + color.CYAN + "✦ " + name + color.RESET + " " + color.GRAY + "v" + version + color.RESET + " — " + description);
+        println("");
+        println(color.BOLD + "USAGE:" + color.RESET);
+        println("  " + name + " <command> [flags] [arguments]");
+        println("");
+
+        if len(command_list) > 0 {
+            println(color.BOLD + "COMMANDS:" + color.RESET);
+            let max_len = 0;
+            let i = 0;
+            while i < len(command_list) {
+                let clen = len(command_list[i]);
+                if clen > max_len { max_len = clen; }
+                i = i + 1;
+            }
+
+            i = 0;
+            while i < len(command_list) {
+                let cname = command_list[i];
+                let cmd_info = commands[cname];
+                let padded = style.pad_right(cname, max_len + 4);
+                println("  " + color.GREEN + padded + color.RESET + color.GRAY + cmd_info.description + color.RESET);
+                i = i + 1;
+            }
+            println("");
+        }
+
+        println(color.BOLD + "FLAGS:" + color.RESET);
+        println("  " + color.YELLOW + style.pad_right("-h, --help", 18) + color.RESET + color.GRAY + "Show help information" + color.RESET);
+        println("  " + color.YELLOW + style.pad_right("-v, --version", 18) + color.RESET + color.GRAY + "Show application version" + color.RESET);
+
+        let i = 0;
+        while i < len(flag_list) {
+            let fname = flag_list[i];
+            let finfo = flags[fname];
+            let flag_str = "--" + fname;
+            if finfo.short != null && finfo.short != "" {
+                flag_str = "-" + finfo.short + ", " + flag_str;
+            }
+            let padded = style.pad_right(flag_str, 18);
+            println("  " + color.YELLOW + padded + color.RESET + color.GRAY + finfo.description + color.RESET);
+            i = i + 1;
+        }
+        println("");
+    }
+
+    fn show_version() {
+        println(color.BOLD + color.CYAN + name + color.RESET + " version " + color.BOLD + version + color.RESET);
+    }
+
+    fn run(custom_args) {
+        let raw = custom_args;
+        if raw == null {
+            raw = args();
+        }
+
+        let parsed = parse_args(raw);
+        let fl = parsed.flags;
+        let pos = parsed.positionals;
+
+        // Resolve flag aliases and defaults
+        let fi = 0;
+        while fi < len(flag_list) {
+            let fname = flag_list[fi];
+            let finfo = flags[fname];
+            let sname = finfo.short;
+
+            let was_bool_short = (sname != null && fl[sname] == true);
+            let was_bool_long = (fl[fname] == true);
+            let expects_val = (finfo["default"] != null && type(finfo["default"]) != "BOOLEAN");
+
+            if expects_val && (was_bool_short || was_bool_long) && len(pos) > 1 {
+                let val = pos[1];
+                fl[fname] = val;
+                if sname != null { fl[sname] = val; }
+                let new_pos = [pos[0]];
+                let pi = 2;
+                while pi < len(pos) {
+                    new_pos = new_pos + [pos[pi]];
+                    pi = pi + 1;
+                }
+                pos = new_pos;
+            }
+
+            if fl[fname] == null && sname != null && fl[sname] != null {
+                fl[fname] = fl[sname];
+            } else if fl[fname] != null && sname != null && fl[sname] == null {
+                fl[sname] = fl[fname];
+            }
+            if fl[fname] == null && finfo["default"] != null {
+                fl[fname] = finfo["default"];
+                if sname != null {
+                    fl[sname] = finfo["default"];
+                }
+            }
+            fi = fi + 1;
+        }
+
+        if fl["help"] == true || fl["h"] == true {
+            show_help();
+            return 0;
+        }
+
+        if fl["version"] == true || fl["v"] == true {
+            show_version();
+            return 0;
+        }
+
+        if len(pos) == 0 {
+            show_help();
+            return 0;
+        }
+
+        let cmd_name = pos[0];
+        let sub_args = [];
+        let i = 1;
+        while i < len(pos) {
+            sub_args = sub_args + [pos[i]];
+            i = i + 1;
+        }
+
+        if commands[cmd_name] != null {
+            let handler = commands[cmd_name].handler;
+            let ctx = {
+                "command": cmd_name,
+                "args": sub_args,
+                "flags": fl
+            };
+            return handler(ctx);
+        } else {
+            println(color.BOLD + color.RED + "Error:" + color.RESET + " Unknown command: " + cmd_name);
+            println("Run '" + name + " --help' for usage.");
+            return 1;
+        }
+    }
+}
+
+let new_cli_app = fn(name, version, description) {
+    if version == null || version == "" { version = "1.0.0"; }
+    if description == null { description = ""; }
+    return CliApp(name, version, description, {}, [], {}, []);
+};
+let create_cli = new_cli_app;

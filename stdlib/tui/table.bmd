@@ -1,0 +1,274 @@
+// BramandScript Standard Library :: TUI Table Engine (std/tui/table)
+// Responsive, auto-sizing, styled tables with custom borders, alignment, and TrueColor support.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/terminal" as terminal
+
+let TABLE_SINGLE = {
+    "tl": "┌", "tm": "┬", "tr": "┐",
+    "ml": "├", "mm": "┼", "mr": "┤",
+    "bl": "└", "bm": "┴", "br": "┘",
+    "h": "─", "v": "│"
+};
+
+let TABLE_ROUNDED = {
+    "tl": "╭", "tm": "┬", "tr": "╮",
+    "ml": "├", "mm": "┼", "mr": "┤",
+    "bl": "╰", "bm": "┴", "br": "╯",
+    "h": "─", "v": "│"
+};
+
+let TABLE_DOUBLE = {
+    "tl": "╔", "tm": "╦", "tr": "╗",
+    "ml": "╠", "mm": "╬", "mr": "╣",
+    "bl": "╚", "bm": "╩", "br": "╝",
+    "h": "═", "v": "║"
+};
+
+let TABLE_HEAVY = {
+    "tl": "┏", "tm": "┳", "tr": "┓",
+    "ml": "┣", "mm": "╋", "mr": "┫",
+    "bl": "┗", "bm": "┻", "br": "┛",
+    "h": "━", "v": "┃"
+};
+
+let TABLE_ASCII = {
+    "tl": "+", "tm": "+", "tr": "+",
+    "ml": "+", "mm": "+", "mr": "+",
+    "bl": "+", "bm": "+", "br": "+",
+    "h": "-", "v": "|"
+};
+
+let get_table_border = fn(style_name) {
+    if style_name == "single" { return TABLE_SINGLE; }
+    if style_name == "double" { return TABLE_DOUBLE; }
+    if style_name == "heavy" { return TABLE_HEAVY; }
+    if style_name == "ascii" { return TABLE_ASCII; }
+    return TABLE_ROUNDED;
+};
+
+// Calculate maximum column widths based on headers and rows
+let calc_col_widths = fn(headers, rows) {
+    let widths = [];
+    let col_count = len(headers);
+    let i = 0;
+    while i < col_count {
+        widths = widths + [style.visible_len(headers[i])];
+        i = i + 1;
+    }
+
+    let r = 0;
+    while r < len(rows) {
+        let row = rows[r];
+        let c = 0;
+        while c < col_count && c < len(row) {
+            let cell_len = style.visible_len(row[c]);
+            if cell_len > widths[c] {
+                widths[c] = cell_len;
+            }
+            c = c + 1;
+        }
+        r = r + 1;
+    }
+    return widths;
+};
+
+let repeat_char = fn(ch, count) {
+    let s = "";
+    let i = 0;
+    while i < count {
+        s = s + ch;
+        i = i + 1;
+    }
+    return s;
+};
+
+// Render full table string from headers, rows, and options
+let render_table = fn(headers, rows, opts) {
+    if opts == null { opts = {}; }
+    let b = get_table_border(opts.border);
+    let border_color = "";
+    if opts.border_color != null && opts.border_color != "" {
+        border_color = opts.border_color;
+    }
+    let header_color = color.BOLD + color.CYAN;
+    if opts.header_color != null && opts.header_color != "" {
+        header_color = opts.header_color;
+    }
+
+    let widths = calc_col_widths(headers, rows);
+    let col_count = len(headers);
+    let padding = 1; // default 1 space on each side
+
+    // Responsive fitting: calculate terminal width and scale/truncate columns if table exceeds screen
+    let term_w = terminal.width();
+    if term_w == null || term_w <= 0 {
+        term_w = 80;
+    }
+    let overhead = (col_count * 2) + col_count + 1;
+    let avail_content = term_w - overhead;
+    if avail_content < col_count * 4 {
+        avail_content = col_count * 4;
+    }
+
+    let total_content = 0;
+    let c_idx = 0;
+    while c_idx < col_count {
+        total_content = total_content + widths[c_idx];
+        c_idx = c_idx + 1;
+    }
+
+    while total_content > avail_content {
+        let max_c = 0;
+        let max_val = widths[0];
+        let i = 1;
+        while i < col_count {
+            if widths[i] > max_val {
+                max_val = widths[i];
+                max_c = i;
+            }
+            i = i + 1;
+        }
+        if max_val <= 4 {
+            break;
+        }
+        widths[max_c] = widths[max_c] - 1;
+        total_content = total_content - 1;
+    }
+
+    // Helper to color borders
+    let cb = fn(text) {
+        if border_color == "" { return text; }
+        return border_color + text + color.RESET;
+    };
+
+    let result = [];
+
+    // 1. Top border
+    let top = b.tl;
+    let i = 0;
+    while i < col_count {
+        top = top + repeat_char(b.h, widths[i] + padding * 2);
+        if i < col_count - 1 {
+            top = top + b.tm;
+        } else {
+            top = top + b.tr;
+        }
+        i = i + 1;
+    }
+    result = result + [cb(top)];
+
+    // 2. Header row
+    let header_line = cb(b.v);
+    i = 0;
+    while i < col_count {
+        let h_text = headers[i];
+        if style.visible_len(h_text) > widths[i] {
+            h_text = style.truncate(h_text, widths[i], "…");
+        }
+        let h_cell = " " + style.pad_right(h_text, widths[i]) + " ";
+        header_line = header_line + header_color + h_cell + color.RESET + cb(b.v);
+        i = i + 1;
+    }
+    result = result + [header_line];
+
+    // 3. Middle separator
+    let mid = b.ml;
+    i = 0;
+    while i < col_count {
+        mid = mid + repeat_char(b.h, widths[i] + padding * 2);
+        if i < col_count - 1 {
+            mid = mid + b.mm;
+        } else {
+            mid = mid + b.mr;
+        }
+        i = i + 1;
+    }
+    result = result + [cb(mid)];
+
+    // 4. Data rows
+    let r = 0;
+    while r < len(rows) {
+        let row = rows[r];
+        let row_line = cb(b.v);
+        i = 0;
+        let alt_bg = "";
+        if opts.zebra == true && r % 2 == 1 {
+            alt_bg = color.bg_hex("#161b22");
+        }
+        while i < col_count {
+            let raw_val = "";
+            if i < len(row) {
+                raw_val = "" + row[i];
+            }
+            if style.visible_len(raw_val) > widths[i] {
+                raw_val = style.truncate(raw_val, widths[i], "…");
+            }
+            let align = "left";
+            if opts.align != null && i < len(opts.align) {
+                align = opts.align[i];
+            }
+
+            let padded_cell = "";
+            if align == "right" {
+                padded_cell = style.pad_left(raw_val, widths[i]);
+            } else if align == "center" {
+                padded_cell = style.pad_center(raw_val, widths[i]);
+            } else {
+                padded_cell = style.pad_right(raw_val, widths[i]);
+            }
+
+            let cell_text = " " + padded_cell + " ";
+            if alt_bg != "" {
+                row_line = row_line + alt_bg + cell_text + color.RESET + cb(b.v);
+            } else {
+                row_line = row_line + cell_text + cb(b.v);
+            }
+            i = i + 1;
+        }
+        result = result + [row_line];
+        r = r + 1;
+    }
+
+    // 5. Bottom border
+    let bot = b.bl;
+    i = 0;
+    while i < col_count {
+        bot = bot + repeat_char(b.h, widths[i] + padding * 2);
+        if i < col_count - 1 {
+            bot = bot + b.bm;
+        } else {
+            bot = bot + b.br;
+        }
+        i = i + 1;
+    }
+    result = result + [cb(bot)];
+
+    return join(result, "\n");
+};
+
+// Table struct for fluent composition
+struct Table {
+    headers,
+    rows,
+    options,
+
+    fn add_row(row) {
+        rows = rows + [row];
+    }
+
+    fn render() {
+        return render_table(headers, rows, options);
+    }
+
+    fn print() {
+        println(render_table(headers, rows, options));
+    }
+}
+
+let new_table = fn(headers, opts) {
+    if opts == null { opts = {}; }
+    return Table(headers, [], opts);
+};
+let create_table = new_table;

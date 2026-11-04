@@ -1,0 +1,80 @@
+// BramandScript Standard Library :: TUI Tree View Engine (std/tui/tree)
+// Hierarchical tree visualization with Unicode branch lines and custom node styling.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+
+let BRANCH_CHILD = "├── ";
+let BRANCH_LAST  = "└── ";
+let BRANCH_PIPE  = "│   ";
+let BRANCH_SPACE = "    ";
+
+let render_subtree = fn(node, prefix, is_last, is_root, opts) {
+    let branch_col = color.GRAY;
+    if branch_col == null { branch_col = ""; }
+    if opts.branch_color != null && opts.branch_color != "" {
+        branch_col = opts.branch_color;
+    }
+    if prefix == null { prefix = ""; }
+
+    let line = "";
+    if !is_root {
+        let connector = BRANCH_CHILD;
+        if is_last {
+            connector = BRANCH_LAST;
+        }
+        line = prefix + branch_col + connector + color.RESET;
+    }
+
+    let label_style = "";
+    if opts.node_color != null && opts.node_color != "" {
+        label_style = opts.node_color;
+    }
+    line = line + label_style + node.label + color.RESET;
+
+    let result = [line];
+
+    if node.children != null && len(node.children) > 0 {
+        let next_prefix = "";
+        if is_root {
+            next_prefix = "";
+        } else if is_last {
+            next_prefix = prefix + BRANCH_SPACE;
+        } else {
+            next_prefix = prefix + branch_col + BRANCH_PIPE + color.RESET;
+        }
+
+        let child_count = len(node.children);
+        let i = 0;
+        while i < child_count {
+            let child = node.children[i];
+            let child_is_last = (i == child_count - 1);
+            let child_lines = render_subtree(child, next_prefix, child_is_last, false, opts);
+            let c = 0;
+            while c < len(child_lines) {
+                result = result + [child_lines[c]];
+                c = c + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    return result;
+};
+
+// Render hierarchical tree from root node
+// node: { label: "Project", children: [ { label: "src", children: [...] } ] }
+let render_tree = fn(root, opts) {
+    if opts == null { opts = {}; }
+    let lines = render_subtree(root, "", true, true, opts);
+    return join(lines, "\n");
+};
+
+// Helper node constructor
+let node = fn(label, children) {
+    if children == null { children = []; }
+    return {
+        "label": label,
+        "children": children
+    };
+};

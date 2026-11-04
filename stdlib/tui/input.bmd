@@ -1,0 +1,98 @@
+// BramandScript Standard Library :: TUI User Input Engine (std/tui/input)
+// Styled interactive prompts, confirmations, masked passwords, and option selection.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/terminal" as terminal
+
+// Simple text prompt with optional default value
+let ask = fn(message, default_val) {
+    let p = color.BOLD + color.CYAN + "✦ " + color.RESET + color.BOLD + message + color.RESET;
+    if default_val != null && default_val != "" {
+        p = p + color.GRAY + " [" + default_val + "]" + color.RESET;
+    }
+    p = p + ": ";
+    let ans = input(p);
+    if ans == "" && default_val != null {
+        return default_val;
+    }
+    return ans;
+};
+
+// Confirmation prompt (y/n) returning boolean
+let confirm = fn(message, default_yes) {
+    let hint = " (y/N): ";
+    if default_yes == true {
+        hint = " (Y/n): ";
+    }
+    let p = color.BOLD + color.YELLOW + "✦ " + color.RESET + color.BOLD + message + color.RESET + color.GRAY + hint + color.RESET;
+    let ans = input(p);
+    if ans == "" {
+        return default_yes == true;
+    }
+    let first = to_lower(trim(ans));
+    return first == "y" || first == "yes" || first == "true" || first == "1";
+};
+
+// Password / secret input with '*' masking using terminal raw mode
+let secret = fn(message) {
+    let p = color.BOLD + color.MAGENTA + "✦ " + color.RESET + color.BOLD + message + ": " + color.RESET;
+    print(p);
+
+    terminal.raw_mode(true);
+    let chars = "";
+
+    while true {
+        let k = terminal.read_key();
+        if k == "\n" || k == "\r" || k == "enter" {
+            break;
+        } else if k == "\x03" || k == "ctrl-c" {
+            terminal.raw_mode(false);
+            println("");
+            return "";
+        } else if k == "\x7f" || k == "\b" || k == "backspace" {
+            if len(chars) > 0 {
+                chars = slice(chars, 0, len(chars) - 1);
+                print("\b \b");
+            }
+        } else if len(k) == 1 {
+            chars = chars + k;
+            print("*");
+        }
+    }
+
+    terminal.raw_mode(false);
+    println("");
+    return chars;
+};
+
+// Choose from an enumerated list of options
+let choose = fn(message, options, default_idx) {
+    if default_idx == null { default_idx = 0; }
+    println(color.BOLD + color.CYAN + "✦ " + color.RESET + color.BOLD + message + color.RESET);
+
+    let i = 0;
+    while i < len(options) {
+        let opt_num = i + 1;
+        let prefix = "  " + color.GRAY + "[" + opt_num + "]" + color.RESET + " ";
+        if i == default_idx {
+            prefix = "  " + color.GREEN + "[" + opt_num + "]" + color.RESET + " ";
+        }
+        println(prefix + options[i]);
+        i = i + 1;
+    }
+
+    let def_num = default_idx + 1;
+    let prompt_text = color.GRAY + "Select option [1-" + len(options) + "] (default " + def_num + "): " + color.RESET;
+    let ans = input(prompt_text);
+
+    if ans == "" {
+        return default_idx;
+    }
+
+    let parsed = int(ans);
+    if parsed >= 1 && parsed <= len(options) {
+        return parsed - 1;
+    }
+    return default_idx;
+};

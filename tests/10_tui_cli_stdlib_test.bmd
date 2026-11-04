@@ -1,0 +1,310 @@
+// BramandScript Terminal UI & CLI Standard Library Test Suite (tests/10_tui_cli_stdlib_test.bmd)
+// Tests: std/tui, color engine, styling, borders, tables, progress, charts, tree, and CLI framework
+
+import "std/tui" as tui
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/border" as border
+import "std/tui/component" as component
+import "std/tui/table" as table
+import "std/tui/progress" as progress
+import "std/tui/chart" as chart
+import "std/tui/tree" as tree
+import "std/tui/cli" as cli
+import "std/tui/terminal" as terminal
+
+describe("Color Engine & TrueColor Math", fn() {
+    test("HEX to RGB conversion", fn() {
+        let red = color.hex_to_rgb("#ff0000");
+        assert_eq(red.r, 255);
+        assert_eq(red.g, 0);
+        assert_eq(red.b, 0);
+
+        let green = color.hex_to_rgb("#00ff00");
+        assert_eq(green.r, 0);
+        assert_eq(green.g, 255);
+        assert_eq(green.b, 0);
+
+        let custom = color.hex_to_rgb("#1a2b3c");
+        assert_eq(custom.r, 26);
+        assert_eq(custom.g, 43);
+        assert_eq(custom.b, 60);
+    });
+
+    test("RGB to HEX conversion", fn() {
+        assert_eq(color.rgb_to_hex(255, 0, 0), "#ff0000");
+        assert_eq(color.rgb_to_hex(0, 255, 0), "#00ff00");
+        assert_eq(color.rgb_to_hex(0, 0, 255), "#0000ff");
+        assert_eq(color.rgb_to_hex(26, 43, 60), "#1a2b3c");
+    });
+
+    test("24-bit TrueColor sequences", fn() {
+        let code = color.rgb(100, 150, 200);
+        let text = code + "Hello" + color.RESET;
+        assert(contains(text, "\x1b[38;2;100;150;200m"));
+        assert(contains(text, "Hello"));
+        assert(contains(text, "\x1b[0m"));
+
+        let hex_code = color.hex("#00ffff");
+        let hex_text = hex_code + "World" + color.RESET;
+        assert(contains(hex_text, "\x1b[38;2;0;255;255m"));
+    });
+
+    test("Linear gradient generation", fn() {
+        let grad = color.gradient("BramandScript", "#ff0000", "#0000ff");
+        assert(len(grad) > len("BramandScript"));
+        assert_eq(style.strip_ansi(grad), "BramandScript");
+    });
+});
+
+describe("Text Styling & Measurement Engine", fn() {
+    test("Strip ANSI escape codes", fn() {
+        let colored = color.CYAN + "Testing" + color.RESET;
+        assert_eq(style.strip_ansi(colored), "Testing");
+
+        let bold_colored = color.BOLD + color.RED + "Error" + color.RESET;
+        assert_eq(style.strip_ansi(bold_colored), "Error");
+    });
+
+    test("Visible length calculation ignores escape codes", fn() {
+        let colored = color.hex("#ff5500") + "Bramand" + color.RESET;
+        assert_eq(style.visible_len(colored), 7);
+    });
+
+    test("Text padding and alignment", fn() {
+        assert_eq(style.pad_right("hello", 10), "hello     ");
+        assert_eq(style.pad_left("hello", 10), "     hello");
+        assert_eq(style.pad_center("test", 10), "   test   ");
+    });
+
+    test("Truncate string with ellipsis", fn() {
+        assert_eq(style.truncate("BramandScript Engine", 10, "..."), "Bramand...");
+        assert_eq(style.truncate("Short", 10, "..."), "Short");
+    });
+});
+
+describe("Terminal Capabilities Builtin", fn() {
+    test("term_size builtin returns positive integers", fn() {
+        let sz = term_size();
+        assert(sz.cols > 0);
+        assert(sz.rows > 0);
+    });
+
+    test("Terminal module helper functions", fn() {
+        assert(terminal.width() > 0);
+        assert(terminal.height() > 0);
+    });
+});
+
+describe("Borders and Box Drawing", fn() {
+    test("Box rendering with rounded borders", fn() {
+        let lines = ["Line 1", "Second line of text"];
+        let rendered = border.render_box(lines, {"title": "Test Box", "border": "rounded"});
+        assert(contains(rendered, "╭"));
+        assert(contains(rendered, "╮"));
+        assert(contains(rendered, "╰"));
+        assert(contains(rendered, "╯"));
+        assert(contains(rendered, "Test Box"));
+        assert(contains(rendered, "Line 1"));
+    });
+});
+
+describe("Component Rendering Engine", fn() {
+    test("Badge rendering", fn() {
+        let b = component.badge("INFO", "#06b6d4", "#ffffff");
+        assert(contains(style.strip_ansi(b), "INFO"));
+    });
+
+    test("Status indicator", fn() {
+        let s = component.status_indicator("ok", "System Online");
+        assert(contains(s, "●"));
+        assert(contains(s, "System Online"));
+    });
+
+    test("Key-value formatting", fn() {
+        let kv = component.key_value("Runtime", "Bytecode VM", 12);
+        assert(contains(kv, "Runtime"));
+        assert(contains(kv, "Bytecode VM"));
+    });
+});
+
+describe("Table Rendering Engine", fn() {
+    test("Auto column sizing and alignment", fn() {
+        let headers = ["ID", "Name", "Role"];
+        let rows = [
+            ["1", "Alice", "Admin"],
+            ["2", "Bob", "Developer"]
+        ];
+        let tbl = table.render_table(headers, rows, {"border": "rounded"});
+        let stripped = style.strip_ansi(tbl);
+        assert(contains(stripped, "ID"));
+        assert(contains(stripped, "Alice"));
+        assert(contains(stripped, "Bob"));
+        assert(contains(stripped, "Admin"));
+    });
+
+    test("Table struct builder", fn() {
+        let t = table.new_table(["Package", "Status"], {});
+        t.add_row(["std/tui", "Ready"]);
+        t.add_row(["std/math", "Ready"]);
+        let out = t.render();
+        assert(contains(out, "std/tui"));
+        assert(contains(out, "Ready"));
+    });
+});
+
+describe("Progress Bars and Spinners", fn() {
+    test("Progress bar rendering at 50%", fn() {
+        let bar = progress.render_bar(50, 100, {"width": 20, "show_pct": true});
+        let stripped = style.strip_ansi(bar);
+        assert(contains(stripped, "50%"));
+        assert(contains(stripped, "█"));
+        assert(contains(stripped, "░"));
+    });
+
+    test("Spinner frames cycling", fn() {
+        let f0 = progress.spinner_frame("dots", 0);
+        let f1 = progress.spinner_frame("dots", 1);
+        assert_eq(f0, "⠋");
+        assert_eq(f1, "⠙");
+
+        let line_f = progress.spinner_frame("line", 2);
+        assert_eq(line_f, "|");
+    });
+});
+
+describe("Charts and Data Visualization", fn() {
+    test("Sparkline generation", fn() {
+        let spark = chart.sparkline([0, 2, 5, 8, 10], {});
+        let stripped = style.strip_ansi(spark);
+        assert_eq(len(stripped), 5);
+        assert(contains(stripped, " "));
+        assert(contains(stripped, "█"));
+    });
+
+    test("Horizontal bar chart", fn() {
+        let data = [
+            {"label": "CPU", "value": 50},
+            {"label": "RAM", "value": 80}
+        ];
+        let chart_out = chart.bar_chart_h(data, {"width": 20, "unit": "%"});
+        assert(contains(chart_out, "CPU"));
+        assert(contains(chart_out, "RAM"));
+        assert(contains(chart_out, "50%"));
+        assert(contains(chart_out, "80%"));
+    });
+});
+
+describe("Tree View Engine", fn() {
+    test("Tree hierarchy rendering", fn() {
+        let tree_data = tree.node("Project", [
+            tree.node("src", [
+                tree.node("main.bmd", [])
+            ]),
+            tree.node("README.md", [])
+        ]);
+        let rendered = tree.render_tree(tree_data, {});
+        let stripped = style.strip_ansi(rendered);
+        assert(contains(stripped, "Project"));
+        assert(contains(stripped, "src"));
+        assert(contains(stripped, "main.bmd"));
+        assert(contains(stripped, "README.md"));
+        assert(contains(stripped, "├──"));
+        assert(contains(stripped, "└──"));
+    });
+});
+
+describe("CLI Application Framework", fn() {
+    test("Argument and flag parser", fn() {
+        let parsed = cli.parse_args(["build", "--target=arm64", "--release", "-v", "output.bin"]);
+        assert_eq(len(parsed.positionals), 2);
+        assert_eq(parsed.positionals[0], "build");
+        assert_eq(parsed.positionals[1], "output.bin");
+        assert_eq(parsed.flags["target"], "arm64");
+        assert_eq(parsed.flags["release"], true);
+        assert_eq(parsed.flags["v"], true);
+    });
+
+    test("CLI Command registration and dispatch", fn() {
+        let app = cli.new_cli_app("testapp", "1.0.0", "Test CLI tool");
+        let state = {"executed": false, "received_arg": ""};
+
+        app.command("run", "Run job", fn(ctx) {
+            state["executed"] = true;
+            state["received_arg"] = ctx.args[0];
+            return 0;
+        });
+
+        let exit_code = app.run(["run", "my_script.bmd"]);
+        assert_eq(exit_code, 0);
+        assert_eq(state["executed"], true);
+        assert_eq(state["received_arg"], "my_script.bmd");
+    });
+
+    test("CLI Flag defaults and alias resolution", fn() {
+        let app = cli.new_cli_app("server", "2.0.0", "Web server CLI");
+        app.flag("port", "p", "Listening port", "8080");
+        app.flag("env", "e", "Environment mode", "production");
+
+        let captured = {};
+        app.command("start", "Start server", fn(ctx) {
+            captured["port"] = ctx.flags["port"];
+            captured["env"] = ctx.flags["env"];
+            captured["p"] = ctx.flags["p"];
+            return 0;
+        });
+
+        // Run with short flag -e development, default port 8080
+        let exit_code = app.run(["start", "-e", "development"]);
+        assert_eq(exit_code, 0);
+        assert_eq(captured["port"], "8080");
+        assert_eq(captured["p"], "8080");
+        assert_eq(captured["env"], "development");
+    });
+});
+
+describe("Advanced TUI Features & Edge Cases", fn() {
+    test("Box rendering with single multi-line string", fn() {
+        let content = "First line\nSecond line";
+        let out = border.render_box(content, {"title": "String Box"});
+        assert(contains(out, "First line"));
+        assert(contains(out, "Second line"));
+        assert(contains(out, "String Box"));
+    });
+
+    test("High-resolution smooth progress bar", fn() {
+        let bar = progress.render_bar(33, 100, {"width": 20, "smooth": true, "show_pct": true});
+        let stripped = style.strip_ansi(bar);
+        assert(contains(stripped, "33%"));
+    });
+
+    test("Style text casing and trimming helpers", fn() {
+        assert_eq(style.lower("BRAMAND"), "bramand");
+        assert_eq(style.upper("bramand"), "BRAMAND");
+        assert_eq(style.trim_text("   trimmed   "), "trimmed");
+    });
+
+    test("Dynamic responsive box border alignment", fn() {
+        let box_out = border.render_box(["1234567890"], {"title": "ABC", "width": 12});
+        let box_lines = split(box_out, "\n");
+        assert_eq(len(box_lines), 3);
+        let len_top = style.visible_len(box_lines[0]);
+        let len_mid = style.visible_len(box_lines[1]);
+        let len_bot = style.visible_len(box_lines[2]);
+        assert_eq(len_top, len_mid);
+        assert_eq(len_mid, len_bot);
+        assert_eq(len_top, 16);
+    });
+
+    test("Responsive table column truncation on constrained widths", fn() {
+        let headers = ["Identifier", "Status", "Note"];
+        let rows = [["long_service_identifier_string_xyz", "Active", "Normal system load"]];
+        let t_out = table.render_table(headers, rows, {});
+        let t_lines = split(t_out, "\n");
+        let top_w = style.visible_len(t_lines[0]);
+        let r_w = style.visible_len(t_lines[1]);
+        let bot_w = style.visible_len(t_lines[len(t_lines) - 1]);
+        assert_eq(top_w, r_w);
+        assert_eq(r_w, bot_w);
+    });
+});

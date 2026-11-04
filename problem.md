@@ -20,12 +20,12 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 | Category | Count | Status Overview |
 |---|---|---|
 | 1. Parser & Syntax Edge Cases | 10 | Cataloged & Validated |
-| 2. Compiler Bytecode & Symbol Scoping | 10 | Cataloged & Validated |
-| 3. VM Execution, Type System & Runtime Operations | 10 | High-Impact Resolved |
-| 4. Standard Library & Builtins Inconsistencies | 10 | High-Impact Resolved |
-| 5. Concurrency, Safety & Memory Guardrails | 10 | High-Impact Resolved |
-| 6. Documentation & Developer Experience Discrepancies | 6 | All Resolved in `docs/` |
-| **Total Cataloged Problems** | **56** | **Zero-Defect Release Standard** |
+| 2. Compiler Bytecode & Symbol Scoping | 12 | Cataloged & Validated |
+| 3. VM Execution, Type System & Runtime Operations | 12 | High-Impact Resolved |
+| 4. Standard Library & Builtins Inconsistencies | 14 | High-Impact Resolved |
+| 5. Concurrency, Safety & Memory Guardrails | 11 | High-Impact Resolved |
+| 6. Developer Experience, Tooling & Documentation | 13 | All Resolved |
+| **Total Cataloged Problems** | **72** | **Zero-Defect Release Standard** |
 
 ---
 
@@ -440,6 +440,89 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Description**: Integer literals with prefixes `0x`, `0b`, `0o` (e.g. `0xFF`, `0b1010`) were split into separate integer `0` and identifier tokens.
 - **Root Cause**: `readNumber()` in lexer did not inspect radix prefix after leading `'0'`.
 - **Status**: `[RESOLVED]`
+
+### P66: Repeated Module Imports with Aliases Failed to Bind Export Hash
+- **File/Location**: `compiler/compile_statements.go`, `compiler/compiler.go`
+- **Description**: When importing a module with an alias (`import "module" as m`) that had already been compiled by another file or an earlier statement (`c.importedModules[filePath] == true`), the compiler skipped statement compilation entirely and failed to populate the exported symbols into the alias hash, leaving the alias variable unassigned or empty.
+- **Root Cause**: `c.importedModules[filePath]` tracked visited files without caching `moduleExports[filePath]`. When the alias branch executed on an already imported module, `exportedNames` was empty.
+- **Fix**: Stored module exported names in `c.moduleExports[filePath] = exportedNames` and reused cached export symbols on subsequent alias imports.
+- **Status**: `[RESOLVED]`
+
+### P67: Terminal-Breaking Box Characters in Compiler & Runtime Diagnostics
+- **File/Location**: `diagnostics/diagnostics.go`
+- **Description**: Diagnostics previously rendered heavy Unicode box borders (`╭─╮`, `│`, `╰─╯`) around error messages. On narrow mobile terminals (Android Termux ARM64) and standard terminal emulators, these fixed-width box boundaries wrapped awkwardly, split line numbers, and caused severe visual clutter and indentation corruption.
+- **Root Cause**: Reliance on box-drawing characters for error frames rather than standard industrial vertical gutter formatting.
+- **Fix**: Redesigned diagnostics engine with a zero-box standard: bold error header `✦ error[Kind]: Message`, clickable file link `--> file:line:col`, 5 lines of contextual source code before and after with clean vertical gutter `|`, precise caret pointer `^`, underline tildes `~~~`, and actionable `[Hint: ...]`.
+- **Status**: `[RESOLVED]`
+
+### P68: Outdated and Cluttered Interactive REPL Branding & Missing Execution Timing
+- **File/Location**: `repl/repl.go`
+- **Description**: The REPL printed verbose banner dividers, ASCII-only prompts (`bmd > `, `.... `), and lacked execution timing for evaluated statements.
+- **Root Cause**: Early prototype REPL formatting not updated to modern language design standards.
+- **Fix**: Modernized REPL with sleek minimal branding (`✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM`), crisp Unicode prompts (`✦ bmd ❯ `, continuation `· ··· `), timing diagnostics, multi-line editor integration, and adherence to the No-Emojis Policy.
+- **Status**: `[RESOLVED]`
+
+### P69: Absence of Native Terminal UI (TUI) and CLI Standard Library Framework
+- **File/Location**: `stdlib/tui/` (`color.bmd`, `style.bmd`, `terminal.bmd`, `border.bmd`, `component.bmd`, `table.bmd`, `progress.bmd`, `chart.bmd`, `tree.bmd`, `input.bmd`, `cli.bmd`)
+- **Description**: BramandScript lacked a native high-level Terminal UI and CLI framework in its standard library for terminal dashboards, interactive command dispatching, tables, charts, and progress bars.
+- **Root Cause**: stdlib was previously focused on core data structures and math without dedicated terminal visual components.
+- **Fix**: Built a 100% pure BramandScript modular TUI and CLI ecosystem under `stdlib/tui/` across 11 submodules providing 24-bit TrueColor/HEX gradients, text measurement with ANSI stripping, responsive boxes, status badges, auto-sizing tables, 1/8th sub-block progress bars, animated spinners, sparklines, bar charts, tree views, masked input prompts, and a CLI subcommand dispatcher.
+- **Status**: `[RESOLVED]`
+
+### P70: Missing Terminal Screen Dimension Builtin `term_size()`
+- **File/Location**: `vm/builtins_term.go`, `compiler/builtins.go`
+- **Description**: Interactive terminal layouts and TUI tables could not detect host terminal width and height dynamically, falling back to hardcoded 80x24 dimensions.
+- **Root Cause**: Omission of termios / ioctl `TIOCGWINSZ` syscall in VM builtins.
+- **Fix**: Implemented `term_size()` builtin querying terminal window size with fallback to `COLUMNS`/`LINES` environment variables. Registered in compiler and VM.
+- **Status**: `[RESOLVED]`
+
+### P71: Day 8 & Day 9 Language Features Validation & Integration
+- **File/Location**: `date/1126/Second_week_task.md`, `tests/09_week2_day8_day9_test.bmd`
+- **Description**: Day 8 (bitwise operators `&`, `|`, `^`, `<<`, `>>`, `~`; raw byte buffers `bytes`; rune primitives `ord`/`chr`; dynamic `eval`) and Day 9 (`enum`, struct composition `embed`, callable structs `__call__`, magic `__str__`, interface validation `implements`) required automated end-to-end regression testing and documentation synchronization.
+- **Root Cause**: Features implemented across earlier cycles required thorough test suite coverage and integration into developer documentation portal.
+- **Fix**: Created dedicated automated test suites in `tests/09_week2_day8_day9_test.bmd` (17 tests passing), verified all features in `date/1126/Second_week_task.md`, and authored comprehensive documentation across `docs/fundamentals.html`, `docs/data-structures.html`, `docs/tooling.html`, and `docs/stdlib.html`.
+- **Status**: `[RESOLVED]`
+
+### P72: Standard Library & Builtins Ultra-Detailed Documentation & Registry Parity
+- **File/Location**: `docs/stdlib.html`, `compiler/builtins.go`, `vm/builtins*.go`, `tests/`
+- **Description**: Standard library documentation previously omitted several submodules and lacked an exhaustive, categorized dictionary of all registered VM builtins with parameter types, return signatures, and concrete examples.
+- **Root Cause**: Rapid language capability additions across Week 1 and Week 2 required complete documentation synchronization and automated 1:1 parity auditing between `compiler.Builtins` and `vm.builtinRegistry`.
+- **Fix**: Expanded `docs/stdlib.html` to Ultra-Detailed commercial standard: documented every function in `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/testing`, and all 11 submodules of `std/tui`. Authored an exhaustive 19-table dictionary covering all 116 builtins registered in `compiler/builtins.go`. Added automated parity unit test `TestAllCompilerBuiltinsRegisteredInVM` in `vm/vm_test.go` ensuring 100% test coverage.
+- **Status**: `[RESOLVED]`
+
+### P73: Dynamic Responsive Box Drawing, Table Auto-Fitting, and Terminal Width Adaptability
+- **File/Location**: `stdlib/tui/border.bmd`, `stdlib/tui/table.bmd`, `stdlib/tui/component.bmd`, `stdlib/tui/chart.bmd`, `vm/builtins_term.go`, `examples/tui_showcase/dashboard.bmd`
+- **Description**: Box borders and table layouts in `std/tui` previously overflowed narrow terminals (such as mobile Termux screens with 40-60 columns) because boxes lacked dynamic width clamping and title calculation was off by 1 character (`max_w + 3` vs `max_w + 4`), causing split rows and right border wrapping (`│`). Tables also overflowed terminal boundaries when column content sums exceeded screen width.
+- **Root Cause**: `render_box` computed `remaining` horizontal space as `max_w - visible_len(title_str)` instead of `(max_w + 2) - 1 - visible_len(title_str)` and lacked live terminal width query or content line truncation. `render_table` did not adapt column widths to screen dimensions. `dashboard.bmd` had a hardcoded minimum width clamp of 70.
+- **Fix**:
+  1. Updated `stdlib/tui/border.bmd`: `render_box` queries `terminal.width()`, clamps `max_w` to `term_w - 4`, enforces exact `max_w + 4` width across top, body, and bottom borders, and safely truncates overflowing lines with ellipsis `…`.
+  2. Updated `stdlib/tui/table.bmd`: `render_table` queries `terminal.width()` and iteratively scales/truncates the widest column cells when total content exceeds screen boundaries, guaranteeing zero line wrapping.
+  3. Updated `stdlib/tui/component.bmd` and `stdlib/tui/chart.bmd`: dividers, cards, and horizontal bar charts automatically adapt to available terminal width.
+  4. Updated `vm/builtins_term.go`: `term_size` respects explicit `COLUMNS` and `LINES` environment overrides.
+  5. Refactored `examples/tui_showcase/dashboard.bmd`: removed hardcoded 70-column clamp, implemented responsive compact/full layout modes adapting cleanly from narrow mobile screens (36-40 cols) to wide desktops (120+ cols).
+  6. Added automated unit tests in `tests/10_tui_cli_stdlib_test.bmd` verifying box border alignment and table column truncation.
+- **Status**: `[RESOLVED]`
+
+---
+
+## 7. Open Improvements & Future Roadmap (Week 2 Horizon)
+
+The following architectural and standard library capabilities represent high-value enhancements tracked for upcoming implementation cycles:
+
+1. **Production HTTP Trie Router (`stdlib/net/router.bmd`) [Day 10]**:
+   - High-performance radix-tree URL router supporting parameterized path segments (`/api/users/:id`), wildcards (`/static/*path`), and route grouping (`/api/v1`).
+2. **Composable HTTP Middleware Pipeline (`stdlib/net/`) [Day 10]**:
+   - Re-entrant middleware handler chaining (`logger`, `cors`, `rate_limit`, `recovery`, `jwt_auth`) with lifecycle hooks.
+3. **Pure BramandScript Key-Value Storage Engine (`stdlib/db/kv.bmd`) [Day 11]**:
+   - Append-only write-ahead log (WAL), memory index, binary record serialization, crash recovery, and background compaction.
+4. **JSON Document Database (`stdlib/db/doc.bmd`) [Day 11]**:
+   - Document collection storage with predicate query filtering, document updates, and index acceleration.
+5. **Multi-Dimensional Tensor & Linear Algebra Engine (`stdlib/math/tensor.bmd`) [Day 12]**:
+   - N-dimensional tensor striding, matrix operations, broadcasting, and autograd computation graph.
+6. **Pure BramandScript Self-Hosting Toolchain (`stdlib/lang/`) [Day 13]**:
+   - Reusable Lexer, Pratt Parser, Bytecode VM, and mini programming language demonstration built 100% in BramandScript.
+7. **Package Registry Web Server & Bytecode Disassembler (`tools/`) [Day 14]**:
+   - Centralized package publisher and distribution server, along with REPL `:disasm` and runtime profiler.
 
 ---
 

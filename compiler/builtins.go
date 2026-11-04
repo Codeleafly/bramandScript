@@ -191,6 +191,7 @@ var Builtins = []BuiltinDef{
 
 	// Terminal, Keyboard & Raw Input
 	{Name: "term_raw"},
+	{Name: "term_size"},
 	{Name: "read_key"},
 	{Name: "poll_key"},
 

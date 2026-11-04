@@ -1,0 +1,174 @@
+// BramandScript Standard Library :: TUI Colors (std/tui/color)
+// 24-bit TrueColor, RGB, HEX, ANSI 16/256, Gradients, and Color Math.
+
+// ANSI Escape Constants
+const RESET = "\033[0m";
+const BOLD = "\033[1m";
+const DIM = "\033[2m";
+const ITALIC = "\033[3m";
+const UNDERLINE = "\033[4m";
+const REVERSE = "\033[7m";
+
+// Standard ANSI 16 Foreground Colors
+const BLACK = "\033[30m";
+const RED = "\033[31m";
+const GREEN = "\033[32m";
+const YELLOW = "\033[33m";
+const BLUE = "\033[34m";
+const MAGENTA = "\033[35m";
+const CYAN = "\033[36m";
+const WHITE = "\033[37m";
+
+// Bright / Bold Foreground Colors
+const GRAY = "\033[90m";
+const BRIGHT_BLACK = "\033[90m";
+const BRIGHT_RED = "\033[91m";
+const BRIGHT_GREEN = "\033[92m";
+const BRIGHT_YELLOW = "\033[93m";
+const BRIGHT_BLUE = "\033[94m";
+const BRIGHT_MAGENTA = "\033[95m";
+const BRIGHT_CYAN = "\033[96m";
+const BRIGHT_WHITE = "\033[97m";
+
+// 24-bit TrueColor Foreground Generator
+let rgb = fn(r, g, b) {
+    if r < 0 { r = 0; }
+    if r > 255 { r = 255; }
+    if g < 0 { g = 0; }
+    if g > 255 { g = 255; }
+    if b < 0 { b = 0; }
+    if b > 255 { b = 255; }
+    return "\033[38;2;" + str(r) + ";" + str(g) + ";" + str(b) + "m";
+};
+
+// 24-bit TrueColor Background Generator
+let bg_rgb = fn(r, g, b) {
+    if r < 0 { r = 0; }
+    if r > 255 { r = 255; }
+    if g < 0 { g = 0; }
+    if g > 255 { g = 255; }
+    if b < 0 { b = 0; }
+    if b > 255 { b = 255; }
+    return "\033[48;2;" + str(r) + ";" + str(g) + ";" + str(b) + "m";
+};
+
+// ANSI 256 Color Generator
+let ansi256 = fn(code) {
+    if code < 0 { code = 0; }
+    if code > 255 { code = 255; }
+    return "\033[38;5;" + str(code) + "m";
+};
+
+let bg_ansi256 = fn(code) {
+    if code < 0 { code = 0; }
+    if code > 255 { code = 255; }
+    return "\033[48;5;" + str(code) + "m";
+};
+
+// Internal hex digit to int
+let _hex_digit = fn(ch) {
+    if ch >= "0" && ch <= "9" {
+        return ord(ch) - 48;
+    }
+    if ch >= "a" && ch <= "f" {
+        return ord(ch) - 87;
+    }
+    if ch >= "A" && ch <= "F" {
+        return ord(ch) - 55;
+    }
+    return 0;
+};
+
+let _to_hex2 = fn(n) {
+    if n < 0 { n = 0; }
+    if n > 255 { n = 255; }
+    let hex_chars = "0123456789abcdef";
+    let hi = int(n / 16);
+    let lo = n % 16;
+    return hex_chars[hi] + hex_chars[lo];
+};
+
+// Convert RGB components (0-255) to "#RRGGBB" HEX string
+let rgb_to_hex = fn(r, g, b) {
+    return "#" + _to_hex2(r) + _to_hex2(g) + _to_hex2(b);
+};
+
+// Parse HEX string ("#RRGGBB" or "RRGGBB") to {"r": R, "g": G, "b": B}
+let hex_to_rgb = fn(hex_str) {
+    let s = hex_str;
+    if len(s) > 0 && s[0] == "#" {
+        s = slice(s, 1, len(s));
+    }
+    if len(s) < 6 {
+        return {"r": 255, "g": 255, "b": 255};
+    }
+    let r = (_hex_digit(s[0]) * 16) + _hex_digit(s[1]);
+    let g = (_hex_digit(s[2]) * 16) + _hex_digit(s[3]);
+    let b = (_hex_digit(s[4]) * 16) + _hex_digit(s[5]);
+    return {"r": r, "g": g, "b": b};
+};
+
+// 24-bit TrueColor via HEX string
+let hex = fn(hex_str) {
+    let c = hex_to_rgb(hex_str);
+    return rgb(c.r, c.g, c.b);
+};
+
+let bg_hex = fn(hex_str) {
+    let c = hex_to_rgb(hex_str);
+    return bg_rgb(c.r, c.g, c.b);
+};
+
+// Interpolate between two RGB colors (factor 0.0 to 1.0)
+let interpolate = fn(c1, c2, factor) {
+    if factor < 0.0 { factor = 0.0; }
+    if factor > 1.0 { factor = 1.0; }
+    let r = int(float(c1.r) + (float(c2.r) - float(c1.r)) * factor);
+    let g = int(float(c1.g) + (float(c2.g) - float(c1.g)) * factor);
+    let b = int(float(c1.b) + (float(c2.b) - float(c1.b)) * factor);
+    return {"r": r, "g": g, "b": b};
+};
+
+// Apply linear color gradient across string
+let gradient = fn(text, start_hex, end_hex) {
+    let length = len(text);
+    if length <= 0 {
+        return "";
+    }
+    if length == 1 {
+        return hex(start_hex) + text + RESET;
+    }
+    let c1 = hex_to_rgb(start_hex);
+    let c2 = hex_to_rgb(end_hex);
+    let out = "";
+    let i = 0;
+    while i < length {
+        let factor = float(i) / float(length - 1);
+        let curr = interpolate(c1, c2, factor);
+        out = out + rgb(curr.r, curr.g, curr.b) + text[i];
+        i = i + 1;
+    }
+    return out + RESET;
+};
+
+// Style text with foreground and background
+let colorize = fn(text, fg_color, bg_color) {
+    let out = "";
+    if fg_color != "" {
+        out = out + fg_color;
+    }
+    if bg_color != "" {
+        out = out + bg_color;
+    }
+    return out + text + RESET;
+};
+
+// Modern Cyberpunk & Neon Color Presets
+const NEON_CYAN = "#00f0ff";
+const NEON_PINK = "#ff007f";
+const NEON_GREEN = "#39ff14";
+const NEON_YELLOW = "#ffe700";
+const NEON_PURPLE = "#b026ff";
+const NEON_ORANGE = "#ff5f1f";
+const DARK_BG = "#0d1117";
+const CARD_BG = "#161b22";

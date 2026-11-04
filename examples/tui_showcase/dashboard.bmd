@@ -1,0 +1,347 @@
+// BramandScript TUI Showcase Dashboard (examples/tui_showcase/dashboard.bmd)
+// A comprehensive demonstration of BramandScript's native Terminal UI framework:
+// 24-bit TrueColor, gradients, cards, badges, tables, progress bars, sparklines, trees, and CLI parsing.
+
+import "std/tui" as tui
+
+// Parse command-line flags
+let parsed_args = tui.parse_cli_args(args());
+let is_live = (parsed_args.flags["live"] == true || parsed_args.flags["l"] == true);
+
+// Color Palette Constants
+let NEON_CYAN   = tui.NEON_CYAN;
+let NEON_PINK   = tui.NEON_PINK;
+let NEON_GREEN  = tui.NEON_GREEN;
+let NEON_YELLOW = tui.NEON_YELLOW;
+let NEON_PURPLE = tui.NEON_PURPLE;
+let NEON_ORANGE = tui.NEON_ORANGE;
+let SLATE_GRAY  = "#64748b";
+
+let render_dashboard = fn(tick) {
+    let term_w = tui.width();
+    if term_w == null || term_w <= 0 { term_w = 80; }
+    if term_w < 36 { term_w = 36; }
+
+    let box_w = term_w - 4;
+    let is_compact = (term_w < 70);
+
+    println("");
+    // --- 1. Header Banner with Cyberpunk Gradient ---
+    let title_line = "✦ BRAMAND VIRTUAL MACHINE :: CYBERNETIC CLUSTER MONITOR ✦";
+    let subtitle = "Next-Generation Bytecode Virtual Machine & Terminal UI Framework";
+    let node_line = "Node: bmd-cluster-node-01 · Region: local-termux-arm64 · Arch: Go Stdlib";
+
+    if is_compact {
+        title_line = "✦ BRAMAND VM CLUSTER ✦";
+        subtitle = "Bytecode VM & Terminal UI Framework";
+        node_line = "Node: bmd-01 · Termux ARM64 · Stdlib";
+    }
+
+    let banner_text = [
+        tui.pad_center(tui.gradient(title_line, NEON_CYAN, NEON_PINK), box_w - 2),
+        tui.pad_center(tui.gradient(subtitle, NEON_GREEN, NEON_CYAN), box_w - 2),
+        tui.pad_center(tui.dim(node_line), box_w - 2)
+    ];
+
+    let banner_box = tui.box(banner_text, {
+        "title": "BRAMAND-TUI-SHOWCASE",
+        "border": "rounded",
+        "border_color": tui.hex(NEON_CYAN),
+        "width": box_w
+    });
+    println(banner_box);
+    println("");
+
+    // --- 2. System Status & Badges Bar ---
+    let b_vm = tui.badge("VM ONLINE", "#10b981", "#ffffff");
+    let b_arch = tui.badge("ARM64 NATIVE", "#3b82f6", "#ffffff");
+    let b_deps = tui.badge("0 DEPENDENCIES", "#b026ff", "#ffffff");
+    let b_status = tui.badge("PRODUCTION READY", "#ff5f1f", "#ffffff");
+    if term_w < 55 {
+        println("  " + b_vm + "  " + b_arch);
+    } else if term_w < 75 {
+        println("  " + b_vm + "  " + b_arch + "  " + b_status);
+    } else {
+        println("  " + b_vm + "  " + b_arch + "  " + b_deps + "  " + b_status);
+    }
+    println("");
+
+    // --- 3. Telemetry & Core Metrics Card ---
+    let kw = 20;
+    if term_w < 65 { kw = 14; }
+    if term_w < 45 { kw = 10; }
+
+    let bar_w = int(term_w / 3);
+    if bar_w < 8 { bar_w = 8; }
+    if bar_w > 26 { bar_w = 26; }
+
+    let metrics_lines = [];
+    if is_compact {
+        metrics_lines = [
+            tui.key_value("Runtime", "Stack Bytecode VM", kw),
+            tui.key_value("Op Rate", "1.84M ops/sec", kw),
+            tui.key_value("Alloc Heap", "14.2 / 64 MB", kw),
+            tui.key_value("Fibers", "16 Spawn Tasks", kw),
+            tui.key_value("Uptime", "07d 14h 22m", kw),
+            "",
+            tui.bold("  Vitals:"),
+            "  Heap:  " + tui.render_bar(22 + (tick % 10), 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_CYAN,
+                "gradient_end": NEON_PURPLE,
+                "show_pct": true
+            }),
+            "  Stack: " + tui.render_bar(45 + (tick % 8), 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_GREEN,
+                "gradient_end": NEON_YELLOW,
+                "show_pct": true
+            }),
+            "  I/O:   " + tui.render_bar(78, 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_ORANGE,
+                "gradient_end": NEON_PINK,
+                "show_pct": true
+            })
+        ];
+    } else {
+        metrics_lines = [
+            tui.key_value("Runtime Engine", "Stack-Based Bytecode VM (64K Slots)", kw),
+            tui.key_value("Bytecode Opcode Rate", "1,842,500 ops/sec", kw),
+            tui.key_value("Allocated Heap", "14.2 MB / 64.0 MB", kw),
+            tui.key_value("Active Fibers", "16 Concurrent Spawn Tasks", kw),
+            tui.key_value("GC Invocation", "Incremental Mark & Sweep (Zero Pause)", kw),
+            tui.key_value("System Uptime", "07d 14h 22m 38s", kw),
+            "",
+            tui.bold("  Resource Allocation Vitals:"),
+            "  Heap Usage:  " + tui.render_bar(22 + (tick % 10), 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_CYAN,
+                "gradient_end": NEON_PURPLE,
+                "show_pct": true
+            }),
+            "  Stack Usage: " + tui.render_bar(45 + (tick % 8), 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_GREEN,
+                "gradient_end": NEON_YELLOW,
+                "show_pct": true
+            }),
+            "  Channel I/O: " + tui.render_bar(78, 100, {
+                "width": bar_w,
+                "smooth": true,
+                "gradient_start": NEON_ORANGE,
+                "gradient_end": NEON_PINK,
+                "show_pct": true
+            })
+        ];
+    }
+
+    let card_title = "SYSTEM TELEMETRY";
+    if !is_compact {
+        card_title = "SYSTEM TELEMETRY & MEMORY ALLOCATION";
+    }
+
+    let metrics_card = tui.card(card_title, metrics_lines, NEON_CYAN, { "width": box_w });
+    println(metrics_card);
+    println("");
+
+    // --- 4. Subsystem CPU Load Bar Chart ---
+    let chart_data = [];
+    if is_compact {
+        chart_data = [
+            {"label": "Lexer",    "value": 18 + (tick % 4)},
+            {"label": "Parser",   "value": 34 + (tick % 6)},
+            {"label": "Compiler", "value": 52 + (tick % 5)},
+            {"label": "VM Core",  "value": 85 + (tick % 8)},
+            {"label": "Async",    "value": 41 + (tick % 7)}
+        ];
+    } else {
+        chart_data = [
+            {"label": "Lexer & Tokenizer", "value": 18 + (tick % 4)},
+            {"label": "Pratt AST Parser",  "value": 34 + (tick % 6)},
+            {"label": "Bytecode Compiler", "value": 52 + (tick % 5)},
+            {"label": "VM Execution Core", "value": 85 + (tick % 8)},
+            {"label": "Concurrency & I/O","value": 41 + (tick % 7)}
+        ];
+    }
+
+    let chart_rendered = tui.bar_chart(chart_data, {
+        "width": bar_w,
+        "bar_color": tui.hex(NEON_CYAN),
+        "bar_char": "█",
+        "unit": "%"
+    });
+
+    let chart_box = tui.box(chart_rendered, {
+        "title": "SUBSYSTEM WORKLOAD DISTRIBUTION",
+        "border": "rounded",
+        "border_color": tui.hex(NEON_PURPLE),
+        "width": box_w
+    });
+    println(chart_box);
+    println("");
+
+    // --- 5. Activity Sparklines Section ---
+    println(tui.divider("REAL-TIME ACTIVITY STREAMS", box_w, "─"));
+    let full_cpu_samples = [12, 18, 25, 40, 35, 60, 72, 85, 95, 88, 70, 65, 50, 48, 55, 62, 78, 82, 90, 84, 76, 68, 55, 42];
+    let full_net_samples = [20, 24, 28, 35, 42, 50, 58, 65, 74, 82, 91, 88, 80, 75, 68, 60, 52, 45, 38, 32, 28, 25, 22, 20];
+
+    let n_samples = int(term_w / 4);
+    if n_samples < 8 { n_samples = 8; }
+    if n_samples > 24 { n_samples = 24; }
+
+    let cpu_samples = slice(full_cpu_samples, 0, n_samples);
+    let net_samples = slice(full_net_samples, 0, n_samples);
+
+    let spark1 = tui.sparkline(cpu_samples, {
+        "gradient_start": NEON_GREEN,
+        "gradient_end": NEON_PINK
+    });
+    let spark2 = tui.sparkline(net_samples, {
+        "gradient_start": NEON_CYAN,
+        "gradient_end": NEON_YELLOW
+    });
+
+    if is_compact {
+        println("  " + tui.status("ok", "CPU: ") + spark1 + " " + tui.dim("95%"));
+        println("  " + tui.status("info", "Net: ") + spark2 + " " + tui.dim("91M"));
+    } else {
+        println("  " + tui.status("ok", "CPU Load History (24s)  : ") + spark1 + "  " + tui.dim("Peak: 95%"));
+        println("  " + tui.status("info", "Network Ingress (MB/s)  : ") + spark2 + "  " + tui.dim("Peak: 91 MB/s"));
+    }
+    println("");
+
+    // --- 6. Cluster Microservices Status Table ---
+    let table_headers = [];
+    let table_rows = [];
+    if is_compact {
+        table_headers = ["Service", "Port", "RAM", "Health"];
+        table_rows = [
+            ["vm.worker-01",  "9001", "4.2M", tui.badge("OK", "#10b981", "#ffffff")],
+            ["vm.worker-02",  "9002", "4.1M", tui.badge("OK", "#10b981", "#ffffff")],
+            ["compiler",     "9010", "7.8M", tui.badge("OK", "#10b981", "#ffffff")],
+            ["dispatcher",   "9020", "3.5M", tui.badge("OK", "#10b981", "#ffffff")],
+            ["http.gw",      "8080", "9.6M", tui.badge("WARN", "#f59e0b", "#ffffff")],
+            ["repl",         "tty",  "1.8M", tui.badge("OK", "#10b981", "#ffffff")]
+        ];
+    } else {
+        table_headers = ["Service Identifier", "Port", "Fibers", "Memory", "Latency", "Health"];
+        table_rows = [
+            ["bmd.core.vm.worker-01",  "9001", "4",  "4.2 MB", "0.38 ms", tui.badge("OK", "#10b981", "#ffffff")],
+            ["bmd.core.vm.worker-02",  "9002", "4",  "4.1 MB", "0.41 ms", tui.badge("OK", "#10b981", "#ffffff")],
+            ["bmd.compiler.daemon",   "9010", "2",  "7.8 MB", "1.12 ms", tui.badge("OK", "#10b981", "#ffffff")],
+            ["bmd.async.dispatcher",   "9020", "8",  "3.5 MB", "0.24 ms", tui.badge("OK", "#10b981", "#ffffff")],
+            ["bmd.http.gateway",       "8080", "16", "9.6 MB", "2.85 ms", tui.badge("WARN", "#f59e0b", "#ffffff")],
+            ["bmd.repl.interactive",   "tty",  "1",  "1.8 MB", "0.05 ms", tui.badge("OK", "#10b981", "#ffffff")]
+        ];
+    }
+
+    let cluster_table = tui.render_table(table_headers, table_rows, {
+        "border": "rounded",
+        "border_color": tui.hex(NEON_CYAN),
+        "header_color": tui.BOLD + tui.hex(NEON_PINK)
+    });
+    println(cluster_table);
+    println("");
+
+    // --- 7. Architecture Hierarchy Tree ---
+    let tree_data = null;
+    if is_compact {
+        tree_data = tui.new_tree_node(tui.bold("BramandScript Architecture"), [
+            tui.new_tree_node("Frontend (Lexer, Parser, AST)", []),
+            tui.new_tree_node("Compiler (Bytecode, Symtab)", []),
+            tui.new_tree_node("VM Engine (Stack, Fibers)", []),
+            tui.new_tree_node("Stdlib & Tools (TUI, Math, IO)", [])
+        ]);
+    } else {
+        tree_data = tui.new_tree_node(tui.bold("BramandScript Language Architecture"), [
+            tui.new_tree_node("Frontend Compilation Pipeline", [
+                tui.new_tree_node("Unicode Lexer & Token Scanner", []),
+                tui.new_tree_node("Pratt Top-Down Operator Precedence Parser (AST)", []),
+                tui.new_tree_node("Bytecode Compiler & Opcode Emitter", [
+                    tui.new_tree_node("Constant Pool Manager", []),
+                    tui.new_tree_node("Lexical Symbol Table (Global/Local/Free)", [])
+                ])
+            ]),
+            tui.new_tree_node("Virtual Machine Runtime Engine", [
+                tui.new_tree_node("Stack-Based VM Execution Loop (64K Slots)", []),
+                tui.new_tree_node("Call Frame Stack (1024 Max Frames)", []),
+                tui.new_tree_node("Thread-Safe Object Model (RWMutex Protected)", []),
+                tui.new_tree_node("Fiber Concurrency Engine (spawn, chan, mutex)", [])
+            ]),
+            tui.new_tree_node("Standard Library & Tooling (std/)", [
+                tui.new_tree_node("Terminal UI Framework (std/tui)", []),
+                tui.new_tree_node("Scientific Math & Linear Algebra (std/math)", []),
+                tui.new_tree_node("JSON, Crypto & Networking (std/json, std/crypto)", []),
+                tui.new_tree_node("Automated Test Runner (bramand test)", [])
+            ])
+        ]);
+    }
+
+    let rendered_tree = tui.render_tree(tree_data, {
+        "branch_color": tui.hex(SLATE_GRAY),
+        "node_color": tui.hex(NEON_CYAN)
+    });
+
+    let tree_box = tui.box(rendered_tree, {
+        "title": "ARCHITECTURE HIERARCHY",
+        "border": "rounded",
+        "border_color": tui.hex(NEON_GREEN),
+        "width": box_w
+    });
+    println(tree_box);
+    println("");
+
+    // --- 8. System Diagnostics Alert Banner ---
+    let alert_msg = tui.alert("info", "Optimization Notice", "Bytecode JIT hot-path optimization enabled. Tail recursion active.");
+    if is_compact {
+        alert_msg = tui.alert("info", "VM Notice", "Tail recursion active.");
+    }
+    println(alert_msg);
+    println("");
+
+    // --- 9. Clean Exit Footer ---
+    let footer_text = [];
+    if is_compact {
+        footer_text = [
+            tui.pad_center(tui.bold("[OK] Dashboard executed."), box_w - 4),
+            tui.pad_center(tui.dim("Zero defects verified."), box_w - 4)
+        ];
+    } else {
+        footer_text = [
+            tui.pad_center(tui.bold("[OK] BramandScript TUI Showcase Dashboard successfully executed."), box_w - 4),
+            tui.pad_center(tui.dim("All visual components, tables, and layouts verified with zero defects."), box_w - 4),
+            tui.pad_center(tui.hex(NEON_YELLOW) + "Live animated dashboard: bmd examples/tui_showcase/dashboard.bmd --live" + tui.RESET, box_w - 4)
+        ];
+    }
+
+    let footer_box = tui.box(footer_text, {
+        "title": "EXECUTION SUMMARY",
+        "border": "rounded",
+        "border_color": tui.hex(NEON_PINK),
+        "width": box_w
+    });
+    println(footer_box);
+    println("");
+};
+
+// Execution Router
+if is_live {
+    println(tui.gradient("Entering Live Dashboard Mode (Press Ctrl+C to exit)...", NEON_CYAN, NEON_PINK));
+    let tick = 0;
+    while tick < 5 {
+        tui.clear();
+        render_dashboard(tick);
+        sleep(200);
+        tick = tick + 1;
+    }
+    println(tui.bold("✦ Live simulation completed (5 cycles)."));
+} else {
+    // Non-interactive single pass execution
+    render_dashboard(0);
+}

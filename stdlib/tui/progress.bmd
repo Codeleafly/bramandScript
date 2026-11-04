@@ -1,0 +1,164 @@
+// BramandScript Standard Library :: TUI Progress & Loading Engine (std/tui/progress)
+// High-resolution progress bars, smooth partial blocks, gradient fills, and animation spinners.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+
+let SPINNER_DOTS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+let SPINNER_LINE = ["-", "\\", "|", "/"];
+let SPINNER_CIRCLE = ["◐", "◓", "◑", "◒"];
+let SPINNER_BLOCK = ["▖", "▘", "▝", "▗"];
+let SPINNER_PULSE = ["█", "▓", "▒", "░", "▒", "▓"];
+let SPINNER_ARROWS = ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"];
+
+let PARTIAL_BLOCKS = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"];
+
+let get_spinner_frames = fn(name) {
+    if name == "line" { return SPINNER_LINE; }
+    if name == "circle" { return SPINNER_CIRCLE; }
+    if name == "block" { return SPINNER_BLOCK; }
+    if name == "pulse" { return SPINNER_PULSE; }
+    if name == "arrows" { return SPINNER_ARROWS; }
+    return SPINNER_DOTS;
+};
+
+let spinner_frame = fn(name, step) {
+    let frames = get_spinner_frames(name);
+    let count = len(frames);
+    let idx = step % count;
+    return frames[idx];
+};
+
+let render_spinner = fn(name, step, message, spin_color) {
+    let icon = spinner_frame(name, step);
+    if spin_color == null || spin_color == "" {
+        spin_color = color.CYAN;
+    }
+    return spin_color + icon + color.RESET + " " + message;
+};
+
+// Render progress bar
+// current: numeric current progress (e.g. 50)
+// total: numeric total (e.g. 100)
+// opts: { width: 30, filled_color: color.CYAN, empty_char: "░", filled_char: "█", show_pct: true }
+let render_bar = fn(current, total, opts) {
+    if opts == null { opts = {}; }
+    let bar_width = 30;
+    if opts.width != null && opts.width > 0 {
+        bar_width = opts.width;
+    }
+    if total <= 0 { total = 1; }
+    if current < 0 { current = 0; }
+    if current > total { current = total; }
+
+    let ratio = (current * 1.0) / total;
+    let pct = int(ratio * 100);
+
+    let fill_char = "█";
+    if opts.filled_char != null && opts.filled_char != "" {
+        fill_char = opts.filled_char;
+    }
+    let empty_char = "░";
+    if opts.empty_char != null && opts.empty_char != "" {
+        empty_char = opts.empty_char;
+    }
+
+    let fill_str = "";
+    let empty_str = "";
+
+    if opts.smooth == true {
+        let total_units = bar_width * 8;
+        let filled_units = int(ratio * total_units);
+        let full_blocks = filled_units / 8;
+        let rem = filled_units % 8;
+        let i = 0;
+        while i < full_blocks {
+            fill_str = fill_str + "█";
+            i = i + 1;
+        }
+        if rem > 0 {
+            fill_str = fill_str + PARTIAL_BLOCKS[rem];
+        }
+        let empty_len = bar_width - full_blocks;
+        if rem > 0 {
+            empty_len = empty_len - 1;
+        }
+        i = 0;
+        while i < empty_len {
+            empty_str = empty_str + empty_char;
+            i = i + 1;
+        }
+    } else {
+        let filled_len = int(ratio * bar_width);
+        let empty_len = bar_width - filled_len;
+
+        let i = 0;
+        while i < filled_len {
+            fill_str = fill_str + fill_char;
+            i = i + 1;
+        }
+
+        i = 0;
+        while i < empty_len {
+            empty_str = empty_str + empty_char;
+            i = i + 1;
+        }
+    }
+
+    let fill_color = color.CYAN;
+    if opts.filled_color != null && opts.filled_color != "" {
+        fill_color = opts.filled_color;
+    }
+    let empty_color = color.GRAY;
+    if opts.empty_color != null && opts.empty_color != "" {
+        empty_color = opts.empty_color;
+    }
+
+    let bar_out = fill_color + fill_str + color.RESET + empty_color + empty_str + color.RESET;
+
+    if opts.gradient_start != null && opts.gradient_end != null {
+        bar_out = color.gradient(fill_str, opts.gradient_start, opts.gradient_end) + empty_color + empty_str + color.RESET;
+    }
+
+    let result = bar_out;
+    if opts.show_pct != false {
+        let pct_str = style.pad_left("" + pct + "%", 4);
+        result = result + " " + color.BOLD + pct_str + color.RESET;
+    }
+
+    if opts.label != null && opts.label != "" {
+        result = opts.label + " " + result;
+    }
+
+    return result;
+};
+
+// Progress tracker struct
+struct ProgressBar {
+    current,
+    total,
+    options,
+
+    fn update(val) {
+        current = val;
+    }
+
+    fn increment(amount) {
+        if amount == null { amount = 1; }
+        current = current + amount;
+    }
+
+    fn render() {
+        return render_bar(current, total, options);
+    }
+
+    fn print() {
+        print("\r" + render_bar(current, total, options));
+    }
+}
+
+let new_progress_bar = fn(total, opts) {
+    if opts == null { opts = {}; }
+    return ProgressBar(0, total, opts);
+};
+let create_progress = new_progress_bar;

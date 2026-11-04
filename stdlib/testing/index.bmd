@@ -3,7 +3,9 @@
 
 let assert_true = fn(condition, msg) {
     if !condition {
-        println("[FAIL] " + msg + " (expected true, got falsy)");
+        let m = "expected true, got falsy";
+        if msg != null { m = str(msg); }
+        println("[FAIL] " + m);
         exit(1);
     }
     return true;
@@ -11,7 +13,9 @@ let assert_true = fn(condition, msg) {
 
 let assert_false = fn(condition, msg) {
     if condition {
-        println("[FAIL] " + msg + " (expected false, got truthy)");
+        let m = "expected false, got truthy";
+        if msg != null { m = str(msg); }
+        println("[FAIL] " + m);
         exit(1);
     }
     return true;
@@ -19,7 +23,9 @@ let assert_false = fn(condition, msg) {
 
 let assert_null = fn(val, msg) {
     if val != null {
-        println("[FAIL] " + msg + " (expected null, got " + type(val) + ")");
+        let m = "expected null, got " + type(val);
+        if msg != null { m = str(msg); }
+        println("[FAIL] " + m);
         exit(1);
     }
     return true;
@@ -27,7 +33,9 @@ let assert_null = fn(val, msg) {
 
 let assert_not_null = fn(val, msg) {
     if val == null {
-        println("[FAIL] " + msg + " (expected non-null, got null)");
+        let m = "expected non-null, got null";
+        if msg != null { m = str(msg); }
+        println("[FAIL] " + m);
         exit(1);
     }
     return true;

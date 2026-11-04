@@ -56,6 +56,7 @@ type Compiler struct {
 	iterCount       int
 	currentLine     int
 	importedModules map[string]bool
+	moduleExports   map[string][]string
 	BaseDir         string
 	currentFile     string
 	currentSource   string
@@ -100,6 +101,7 @@ func New() *Compiler {
 		scopeIndex:      0,
 		currentLine:     1,
 		importedModules: make(map[string]bool),
+		moduleExports:   make(map[string][]string),
 	}
 }
 

@@ -1,0 +1,83 @@
+// BramandScript Standard Library :: TUI Terminal Engine (std/tui/terminal)
+// Low-level terminal controls, alternate screen buffers, and cursor navigation.
+
+let size = fn() {
+    return term_size();
+};
+
+let width = fn() {
+    let s = term_size();
+    return s.cols;
+};
+
+let height = fn() {
+    let s = term_size();
+    return s.rows;
+};
+
+let clear = fn() {
+    print_raw("\033[2J\033[H");
+};
+
+let clear_line = fn() {
+    print_raw("\033[2K\r");
+};
+
+let cursor_to = fn(row, col) {
+    print_raw("\033[" + str(row) + ";" + str(col) + "H");
+};
+
+let cursor_up = fn(n) {
+    if n == null || n <= 0 { n = 1; }
+    print_raw("\033[" + str(n) + "A");
+};
+
+let cursor_down = fn(n) {
+    if n == null || n <= 0 { n = 1; }
+    print_raw("\033[" + str(n) + "B");
+};
+
+let cursor_forward = fn(n) {
+    if n == null || n <= 0 { n = 1; }
+    print_raw("\033[" + str(n) + "C");
+};
+
+let cursor_back = fn(n) {
+    if n == null || n <= 0 { n = 1; }
+    print_raw("\033[" + str(n) + "D");
+};
+
+let cursor_hide = fn() {
+    print_raw("\033[?25l");
+};
+
+let cursor_show = fn() {
+    print_raw("\033[?25h");
+};
+
+let enter_alt_screen = fn() {
+    print_raw("\033[?1049h\033[H");
+};
+
+let exit_alt_screen = fn() {
+    print_raw("\033[?1049l");
+};
+
+let enable_mouse = fn() {
+    print_raw("\033[?1000h\033[?1002h\033[?1006h");
+};
+
+let disable_mouse = fn() {
+    print_raw("\033[?1000l\033[?1002l\033[?1006l");
+};
+
+let raw = fn(enable) {
+    if enable == null {
+        enable = true;
+    }
+    return term_raw(enable);
+};
+
+let raw_mode = raw;
+let read_key = read_key;
+let poll_key = poll_key;

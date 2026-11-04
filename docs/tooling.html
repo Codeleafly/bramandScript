@@ -157,6 +157,7 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
           <ul class="space-y-1">
             <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link "><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
             <li><a href="stdlib.html#ch-scimath" class="nav-link"><span>✦</span> Scientific Math &amp; Stats</a></li>
@@ -180,6 +181,8 @@
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Developer Tooling</h3>
           <ul class="space-y-1">
+            <li><a href="tooling.html#ch-repl" class="nav-link "><span>✦</span> Modern Interactive REPL</a></li>
+            <li><a href="tooling.html#ch-diagnostics" class="nav-link"><span>✦</span> Zero-Box Diagnostics</a></li>
             <li><a href="tooling.html#ch-testrunner" class="nav-link active"><span>✦</span> Test Runner &amp; Assertions</a></li>
             <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
@@ -213,7 +216,164 @@
         </p>
       </div>
   
-            <section id="ch-testrunner" class="section-anchor">
+            <!-- ================= DEVELOPER TOOLING: MODERN REPL ================= -->
+
+      <section id="ch-repl" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Interactive REPL</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Modern Terminal REPL Experience</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript features a sleek, minimal, high-productivity terminal REPL built directly into the unified CLI (<code class="font-mono">bramand repl</code> or <code class="font-mono">bmd repl</code>). Designed with a clean international aesthetic adhering to our strict No-Emojis Policy, it presents crisp Unicode indicators (<code class="font-mono">✦</code>, <code class="font-mono">❯</code>, <code class="font-mono">·</code>), automatic block-depth continuation prompts, and built-in execution timing:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — modern bmd repl session</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM
+  Type :help for documentation, :editor for multi-line, :exit to quit.
+
+✦ bmd ❯ let greeting = "Hello, Universe!"
+✦ bmd ❯ println(greeting)
+Hello, Universe!
+
+✦ bmd ❯ fn factorial(n) {
+· ···     if n &lt;= 1 { return 1 }
+· ···     return n * factorial(n - 1)
+· ···   }
+✦ bmd ❯ factorial(7)
+5040</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Multi-Line Buffer Editor Mode (<code class="font-mono">:editor</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Type <code class="font-mono">:editor</code> or <code class="font-mono">:edit [filename.bmd]</code> to switch into multi-line buffered mode. Line numbers are automatically rendered, allowing you to edit multi-statement modules and functions before compiling. Type <code class="font-mono">:done</code> to execute or save directly to disk with <code class="font-mono">:done &lt;filename.bmd&gt;</code>:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — :editor mode</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>✦ bmd ❯ :editor math_util.bmd
+__________________________________________________________________
+Multi-Line Editor Mode
+Type code line-by-line. Type :done to execute, :cancel to abort.
+To save to file on disk: :done &lt;filename.bmd&gt;
+__________________________________________________________________
+01 | fn is_prime(n) {
+02 |   if n &lt;= 1 { return false }
+03 |   let i = 2
+04 |   while i * i &lt;= n {
+05 |     if n % i == 0 { return false }
+06 |     i += 1
+07 |   }
+08 |   return true
+09 | }
+10 | println("Is 97 prime?", is_prime(97))
+11 | :done
+[OK] Saved 210 bytes to math_util.bmd
+Executing buffer...
+Is 97 prime? true</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">REPL Subcommands Reference</h3>
+        <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl mb-6">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 font-semibold">
+              <tr>
+                <th class="p-3">Command</th>
+                <th class="p-3">Description</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:help</code></td>
+                <td class="p-3">Displays BramandScript language cheat sheet and syntax quick reference.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:editor</code> / <code class="font-mono font-bold">:edit [file]</code></td>
+                <td class="p-3">Enters multi-line buffered editor mode with line numbers and optional file destination.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:done [file]</code></td>
+                <td class="p-3">Compiles and executes editor buffer; optionally writes source code to disk.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:cancel</code></td>
+                <td class="p-3">Discards multi-line buffer and returns to standard REPL prompt.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:clear</code></td>
+                <td class="p-3">Clears terminal display and scrolls to top of viewport.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:reset</code></td>
+                <td class="p-3">Wipes VM symbol table, constant pool, and global variables store for a clean state.</td>
+              </tr>
+              <tr>
+                <td class="p-3"><code class="font-mono font-bold">:exit</code> / <code class="font-mono font-bold">:quit</code></td>
+                <td class="p-3">Gracefully closes REPL and exits to host terminal shell.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: ZERO-BOX DIAGNOSTICS ================= -->
+
+      <section id="ch-diagnostics" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Diagnostics Engine</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Zero-Box Clang/Rust-Style Diagnostic Engine</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript employs a zero-box diagnostic formatter engineered for international terminal compatibility. Box-drawing characters (<code class="font-mono">╭───╮</code>, <code class="font-mono">│</code>, <code class="font-mono">╰───╯</code>) commonly cause severe wrapping artifacts, broken vertical margins, and copy-paste corruptions on narrow mobile screens (Termux ARM64) and varied console emulators.
+        </p>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Our diagnostic engine replaces all box characters with clean, standard Clang/Rust-style vertical gutters (<code class="font-mono">|</code>), clickable file location links (<code class="font-mono">--&gt; file:line:col</code>), 5-line contextual source windows, exact caret pointers (<code class="font-mono">^</code>), token span underlines (<code class="font-mono">~~~</code>), and actionable inline hints (<code class="font-mono">[Hint: ...]</code>):
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>terminal — zero-box compiler diagnostic</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>✦ error[SyntaxError]: expected next token to be RPAREN, got INT instead
+  --> server.bmd:14:28
+   |
+ 9 |   let port = 8080
+10 |   let host = "0.0.0.0"
+11 |   
+12 |   fn start_listener() {
+13 |       println("Listening on", host, port)
+14 |       if (connection_count &gt; 100 200) {
+   |                              ^~~ [Hint: check syntax for missing operator, parenthesis, or delimiter]
+15 |           println("Server under load")
+16 |       }
+17 |   }
+18 |   
+19 |   start_listener()
+   |</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Diagnostic Architectural Principles</h3>
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside mb-4">
+          <li><strong>Clickable Hyperlinks (<code class="font-mono">--&gt; file:line:col</code>):</strong> Formatted according to GNU/Rust convention, enabling direct click-to-open in VSCode, JetBrains, and modern terminal multiplexers.</li>
+          <li><strong>5-Line Source Window Context:</strong> Automatically loads up to 5 preceding and 5 succeeding lines surrounding the defect for instant situational context.</li>
+          <li><strong>Exact Caret &amp; Span Highlighting (<code class="font-mono">^~~~</code>):</strong> The caret points to the starting column, while tildes underline the token width.</li>
+          <li><strong>Actionable Intelligence (<code class="font-mono">[Hint: ...]</code>):</strong> Every diagnostic is paired with heuristic rules that explain likely remedies directly in the terminal.</li>
+        </ul>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: TEST RUNNER ================= -->
+
+      <section id="ch-testrunner" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Tooling & Verification</span>
         </div>
@@ -236,7 +396,7 @@ bramand test tests/
 bramand test tests/01_language_foundation_test.bmd</code></pre>
         </div>
 
-        <h3 class="text-xl font-semibold mt-6 mb-3">Writing Test Suites (<code class="font-mono">test</code>, <code class="font-mono">describe</code>, <code class="font-mono">assert_eq</code>)</h3>
+        <h3 class="text-xl font-semibold mt-6 mb-3">Writing Test Suites (<code class="font-mono">describe</code>, <code class="font-mono">test</code>, <code class="font-mono">assert_*</code>)</h3>
 
         <div class="code-block-wrapper">
           <div class="code-block-header">
@@ -248,11 +408,15 @@ bramand test tests/01_language_foundation_test.bmd</code></pre>
         <span class="token-kw">let</span> <span class="token-fn">x</span> <span class="token-op">=</span> <span class="token-num">15</span> <span class="token-op">+</span> <span class="token-num">25</span>
         <span class="token-fn">assert_eq</span>(<span class="token-fn">x</span>, <span class="token-num">40</span>)
         <span class="token-fn">assert_ne</span>(<span class="token-fn">x</span>, <span class="token-num">0</span>)
+        <span class="token-fn">assert_true</span>(<span class="token-fn">x</span> <span class="token-op">&gt;</span> <span class="token-num">30</span>)
+        <span class="token-fn">assert_false</span>(<span class="token-fn">x</span> <span class="token-op">&lt;</span> <span class="token-num">10</span>)
     })
 
     <span class="token-fn">test</span>(<span class="token-str">"Deep collection equality"</span>, <span class="token-kw">fn</span>() {
         <span class="token-fn">assert_eq</span>([<span class="token-num">1</span>, <span class="token-num">2</span>, <span class="token-num">3</span>], [<span class="token-num">1</span>, <span class="token-num">2</span>, <span class="token-num">3</span>])
         <span class="token-fn">assert_eq</span>({<span class="token-str">"status"</span>: <span class="token-str">"ok"</span>}, {<span class="token-str">"status"</span>: <span class="token-str">"ok"</span>})
+        <span class="token-fn">assert_not_null</span>({<span class="token-str">"status"</span>: <span class="token-str">"ok"</span>})
+        <span class="token-fn">assert_null</span>(<span class="token-kw">null</span>)
     })
 })</code></pre>
         </div>
@@ -313,29 +477,6 @@ bramand build app.bmd --standalone
 <span class="token-comment"># Run standalone executable directly (no interpreter or runtime needed!)</span>
 ./my_app</code></pre>
         </div>
-      </section>
-
-      <!-- ================= DEVELOPER TOOLING: REPL EDITOR ================= -->
-
-      <section id="ch-repl-editor" class="section-anchor">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-purple">REPL Experience</span>
-        </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Interactive REPL Multi-Line Editor</h2>
-
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          The interactive terminal REPL provides a built-in multi-line editor buffer for authoring multi-statement algorithms, struct definitions, and complex control structures without leaving the terminal:
-        </p>
-
-        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside mb-4">
-          <li><code class="font-mono">:editor</code> — Launch interactive multi-line buffer mode</li>
-          <li><code class="font-mono">:editor &lt;file.bmd&gt;</code> — Open multi-line editor with auto-save target</li>
-          <li><code class="font-mono">:done</code> — Compile and execute buffered source statements</li>
-          <li><code class="font-mono">:cancel</code> — Discard buffer without execution</li>
-          <li><code class="font-mono">:clear</code> — Clear terminal screen</li>
-          <li><code class="font-mono">:reset</code> — Reset VM constant pool, symbol table, and globals</li>
-          <li><code class="font-mono">:exit</code> or <code class="font-mono">:quit</code> — Exit REPL session</li>
-        </ul>
       </section>
 
       <!-- ================= CHAPTER 14 ================= -->

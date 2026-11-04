@@ -1,0 +1,125 @@
+// BramandScript Standard Library :: TUI Components (std/tui/component)
+// Badges, Cards, Dividers, Key-Value pairs, Status indicators, and Alerts.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/border" as border
+import "std/tui/terminal" as terminal
+
+// Modern colored pill badge e.g. [OK], [PENDING], [ACTIVE]
+let badge = fn(label, bg_color_hex, fg_color_hex) {
+    if bg_color_hex == null || bg_color_hex == "" {
+        bg_color_hex = "#3b82f6";
+    }
+    if fg_color_hex == null || fg_color_hex == "" {
+        fg_color_hex = "#ffffff";
+    }
+    let bg = color.bg_hex(bg_color_hex);
+    let fg = color.hex(fg_color_hex);
+    return bg + fg + style.bold(" " + label + " ") + color.RESET;
+};
+
+// Horizontal divider with optional centered title
+let divider = fn(title, width, h_char) {
+    let term_w = terminal.width();
+    if term_w == null || term_w <= 0 {
+        term_w = 80;
+    }
+    let max_avail = term_w - 2;
+    if max_avail < 12 { max_avail = 12; }
+
+    if width == null || width <= 0 {
+        width = max_avail;
+    } else if width > max_avail {
+        width = max_avail;
+    }
+    if h_char == null || h_char == "" {
+        h_char = "─";
+    }
+    if title == null || title == "" {
+        let bar = "";
+        let i = 0;
+        while i < width {
+            bar = bar + h_char;
+            i = i + 1;
+        }
+        return color.hex("#4b5563") + bar + color.RESET;
+    }
+    let t_text = title;
+    let max_t_len = width - 4;
+    if max_t_len < 3 { max_t_len = 3; }
+    if style.visible_len(t_text) > max_t_len {
+        t_text = style.truncate(t_text, max_t_len, "…");
+    }
+    let t_str = " " + t_text + " ";
+    let t_len = style.visible_len(t_str);
+    let side_len = (width - t_len) / 2;
+    if side_len < 1 { side_len = 1; }
+    let side = "";
+    let i = 0;
+    while i < side_len {
+        side = side + h_char;
+        i = i + 1;
+    }
+    return color.hex("#4b5563") + side + color.RESET + style.bold(t_str) + color.hex("#4b5563") + side + color.RESET;
+};
+
+// Key-Value formatted pair
+let key_value = fn(key, val, key_width) {
+    if key_width == null || key_width <= 0 {
+        key_width = 16;
+    }
+    let k_padded = style.pad_right(key, key_width);
+    return color.hex("#94a3b8") + k_padded + color.RESET + " " + color.hex("#f8fafc") + style.bold(str(val)) + color.RESET;
+};
+
+// Status indicator dot
+let status_indicator = fn(status, text) {
+    let dot = "●";
+    let col = color.hex("#10b981"); // green
+    if status == "error" || status == "offline" || status == "failed" {
+        col = color.hex("#ef4444"); // red
+    } else if status == "warn" || status == "warning" || status == "pending" {
+        col = color.hex("#f59e0b"); // yellow
+    } else if status == "info" || status == "running" {
+        col = color.hex("#06b6d4"); // cyan
+    }
+    return col + dot + color.RESET + " " + text;
+};
+
+// Styled card panel
+let card = fn(title, lines, border_hex, opts) {
+    if opts == null { opts = {}; }
+    if border_hex == null || border_hex == "" {
+        border_hex = color.NEON_CYAN;
+    }
+    let box_opts = {
+        "title": title,
+        "border": "rounded",
+        "border_color": color.hex(border_hex)
+    };
+    if opts.width != null { box_opts["width"] = opts.width; }
+    if opts.full_width != null { box_opts["full_width"] = opts.full_width; }
+    if opts.responsive != null { box_opts["responsive"] = opts.responsive; }
+    return border.render_box(lines, box_opts);
+};
+
+// Alert banner (info, success, warning, error)
+let alert = fn(kind, title, message) {
+    let badge_bg = "#3b82f6";
+    let border_fg = color.hex("#3b82f6");
+    if kind == "success" {
+        badge_bg = "#10b981";
+        border_fg = color.hex("#10b981");
+    } else if kind == "warning" {
+        badge_bg = "#f59e0b";
+        border_fg = color.hex("#f59e0b");
+    } else if kind == "error" {
+        badge_bg = "#ef4444";
+        border_fg = color.hex("#ef4444");
+    }
+    let b = badge(to_upper(kind), badge_bg, "#ffffff");
+    let header = b + " " + style.bold(title);
+    let body = "  " + message;
+    return header + "\n" + body;
+};

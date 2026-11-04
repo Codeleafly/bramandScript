@@ -1,0 +1,111 @@
+// BramandScript Standard Library :: Terminal UI & CLI Ecosystem (std/tui)
+// Comprehensive native terminal styling, layout, widgets, data visualization, and CLI routing.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/terminal" as terminal
+import "std/tui/border" as border
+import "std/tui/component" as component
+import "std/tui/table" as table
+import "std/tui/progress" as progress
+import "std/tui/chart" as chart
+import "std/tui/tree" as tree
+import "std/tui/input" as input
+import "std/tui/cli" as cli
+
+// --- Module Exports ---
+let Color = color;
+let Style = style;
+let Terminal = terminal;
+let Border = border;
+let Component = component;
+let Table = table;
+let Progress = progress;
+let Chart = chart;
+let Tree = tree;
+let Input = input;
+let Cli = cli;
+
+// --- High-Level Convenience Shortcuts ---
+
+// Color shortcuts
+let rgb = color.rgb;
+let bg_rgb = color.bg_rgb;
+let hex = color.hex;
+let bg_hex = color.bg_hex;
+let rgb_to_hex = color.rgb_to_hex;
+let hex_to_rgb = color.hex_to_rgb;
+let gradient = color.gradient;
+let RESET = color.RESET;
+let BOLD = color.BOLD;
+let DIM = color.DIM;
+let CYAN = color.CYAN;
+let GREEN = color.GREEN;
+let RED = color.RED;
+let YELLOW = color.YELLOW;
+let BLUE = color.BLUE;
+let MAGENTA = color.MAGENTA;
+let NEON_CYAN = color.NEON_CYAN;
+let NEON_PINK = color.NEON_PINK;
+let NEON_GREEN = color.NEON_GREEN;
+let NEON_YELLOW = color.NEON_YELLOW;
+let NEON_PURPLE = color.NEON_PURPLE;
+let NEON_ORANGE = color.NEON_ORANGE;
+
+// Style shortcuts
+let bold = style.bold;
+let dim = style.dim;
+let italic = style.italic;
+let underline = style.underline;
+let strip_ansi = style.strip_ansi;
+let visible_len = style.visible_len;
+let pad_right = style.pad_right;
+let pad_left = style.pad_left;
+let pad_center = style.pad_center;
+
+// Terminal shortcuts
+let size = terminal.size;
+let width = terminal.width;
+let height = terminal.height;
+let clear = terminal.clear;
+let cursor_to = terminal.cursor_to;
+let cursor_hide = terminal.cursor_hide;
+let cursor_show = terminal.cursor_show;
+
+// Border and Box shortcuts
+let box = border.render_box;
+
+// Component shortcuts
+let badge = component.badge;
+let card = component.card;
+let divider = component.divider;
+let key_value = component.key_value;
+let status = component.status_indicator;
+let alert = component.alert;
+
+// Table constructor
+let new_table = table.new_table;
+let render_table = table.render_table;
+
+// Progress & Spinner
+let new_progress = progress.new_progress_bar;
+let render_bar = progress.render_bar;
+let render_spinner = progress.render_spinner;
+
+// Data Visualization
+let sparkline = chart.sparkline;
+let bar_chart = chart.bar_chart_h;
+
+// Tree View
+let new_tree_node = tree.node;
+let render_tree = tree.render_tree;
+
+// User Prompts
+let ask = input.ask;
+let confirm = input.confirm;
+let secret = input.secret;
+let choose = input.choose;
+
+// CLI Application Builder
+let new_cli = cli.new_cli_app;
+let parse_cli_args = cli.parse_args;

@@ -481,53 +481,46 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 				c.currentSource = prevSource
 			}
 
-			if node.Alias == "" {
-				for _, stmt := range moduleProgram.Statements {
-					err := c.Compile(stmt)
-					if err != nil {
-						restoreFileCtx()
-						return true, err
+			exportedNames := []string{}
+			for _, stmt := range moduleProgram.Statements {
+				switch s := stmt.(type) {
+				case *ast.LetStatement:
+					exportedNames = append(exportedNames, s.Name.Value)
+				case *ast.ConstStatement:
+					exportedNames = append(exportedNames, s.Name.Value)
+				case *ast.ExpressionStatement:
+					if fnLit, ok := s.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
+						exportedNames = append(exportedNames, fnLit.Name)
 					}
+				case *ast.StructStatement:
+					exportedNames = append(exportedNames, s.Name.Value)
+				case *ast.EnumStatement:
+					exportedNames = append(exportedNames, s.Name.Value)
 				}
-				restoreFileCtx()
+				err := c.Compile(stmt)
+				if err != nil {
+					restoreFileCtx()
+					return true, err
+				}
+			}
+			restoreFileCtx()
+			c.moduleExports[filePath] = exportedNames
+		}
+
+		if node.Alias != "" {
+			exportedNames := c.moduleExports[filePath]
+			for _, name := range exportedNames {
+				c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
+				sym, _ := c.symbolTable.Resolve(name)
+				c.loadSymbol(sym)
+			}
+			c.emit(code.OpHash, len(exportedNames)*2)
+
+			aliasSym := c.symbolTable.Define(node.Alias, false)
+			if aliasSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, aliasSym.Index)
 			} else {
-				exportedNames := []string{}
-				for _, stmt := range moduleProgram.Statements {
-					switch s := stmt.(type) {
-					case *ast.LetStatement:
-						exportedNames = append(exportedNames, s.Name.Value)
-					case *ast.ConstStatement:
-						exportedNames = append(exportedNames, s.Name.Value)
-					case *ast.ExpressionStatement:
-						if fnLit, ok := s.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
-							exportedNames = append(exportedNames, fnLit.Name)
-						}
-					case *ast.StructStatement:
-						exportedNames = append(exportedNames, s.Name.Value)
-					case *ast.EnumStatement:
-						exportedNames = append(exportedNames, s.Name.Value)
-					}
-					err := c.Compile(stmt)
-					if err != nil {
-						restoreFileCtx()
-						return true, err
-					}
-				}
-				restoreFileCtx()
-
-				for _, name := range exportedNames {
-					c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
-					sym, _ := c.symbolTable.Resolve(name)
-					c.loadSymbol(sym)
-				}
-				c.emit(code.OpHash, len(exportedNames)*2)
-
-				aliasSym := c.symbolTable.Define(node.Alias, false)
-				if aliasSym.Scope == GlobalScope {
-					c.emit(code.OpSetGlobal, aliasSym.Index)
-				} else {
-					c.emit(code.OpSetLocal, aliasSym.Index)
-				}
+				c.emit(code.OpSetLocal, aliasSym.Index)
 			}
 		}
 

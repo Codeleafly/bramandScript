@@ -1,0 +1,177 @@
+// BramandScript Standard Library :: TUI Borders & Box Drawing (std/tui/border)
+// Multi-style borders, titles, content padding, and responsive box layouts.
+
+import "std/tui/color" as color
+import "std/tui/style" as style
+import "std/tui/terminal" as terminal
+
+let BORDER_ROUNDED = {
+    "tl": "╭", "tr": "╮", "bl": "╰", "br": "╯", "h": "─", "v": "│"
+};
+
+let BORDER_SINGLE = {
+    "tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│"
+};
+
+let BORDER_DOUBLE = {
+    "tl": "╔", "tr": "╗", "bl": "╚", "br": "╝", "h": "═", "v": "║"
+};
+
+let BORDER_HEAVY = {
+    "tl": "┏", "tr": "┓", "bl": "┗", "br": "┛", "h": "━", "v": "┃"
+};
+
+let BORDER_ASCII = {
+    "tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|"
+};
+
+let BORDER_GUTTER = {
+    "tl": "│", "tr": "", "bl": "│", "br": "", "h": "", "v": "│"
+};
+
+let get_border = fn(name) {
+    if name == "single" { return BORDER_SINGLE; }
+    if name == "double" { return BORDER_DOUBLE; }
+    if name == "heavy" { return BORDER_HEAVY; }
+    if name == "ascii" { return BORDER_ASCII; }
+    if name == "gutter" { return BORDER_GUTTER; }
+    return BORDER_ROUNDED;
+};
+
+// Render content lines inside a styled box
+let render_box = fn(lines, opts) {
+    if opts == null {
+        opts = {};
+    }
+    if type(lines) == "STRING" {
+        lines = split(lines, "\n");
+    }
+    let border_style = get_border(opts.border);
+    let border_col = "";
+    if opts.border_color != null && opts.border_color != "" {
+        border_col = opts.border_color;
+    }
+
+    // Determine available terminal width dynamically
+    let term_w = terminal.width();
+    if term_w == null || term_w <= 0 {
+        term_w = 80;
+    }
+    // Content width cannot exceed terminal width minus 4 (left border, space, space, right border)
+    let max_avail = term_w - 4;
+    if max_avail < 12 {
+        max_avail = 12;
+    }
+
+    let max_w = 0;
+    if opts.full_width == true || opts.responsive == true {
+        max_w = max_avail;
+    } else if opts.width != null && opts.width > 0 {
+        max_w = opts.width;
+        if max_w > max_avail {
+            max_w = max_avail;
+        }
+    } else {
+        let i = 0;
+        while i < len(lines) {
+            let l_w = style.visible_len(lines[i]);
+            if l_w > max_w {
+                max_w = l_w;
+            }
+            i = i + 1;
+        }
+        if opts.title != null && opts.title != "" {
+            let t_w = style.visible_len(opts.title) + 4;
+            if t_w > max_w {
+                max_w = t_w;
+            }
+        }
+        if max_w > max_avail {
+            max_w = max_avail;
+        }
+    }
+
+    if opts.min_width != null && max_w < opts.min_width {
+        max_w = opts.min_width;
+    }
+    if opts.max_width != null && max_w > opts.max_width {
+        max_w = opts.max_width;
+    }
+    // Safety clamp to max_avail to prevent wrapping
+    if max_w > max_avail {
+        max_w = max_avail;
+    }
+    if max_w < 12 {
+        max_w = 12;
+    }
+
+    let out = [];
+
+    // Top border
+    let top = border_style.tl;
+    if opts.title != null && opts.title != "" {
+        let title_text = opts.title;
+        let max_title_w = max_w - 2;
+        if max_title_w < 3 { max_title_w = 3; }
+        if style.visible_len(title_text) > max_title_w {
+            title_text = style.truncate(title_text, max_title_w, "…");
+        }
+        let title_str = " " + title_text + " ";
+        // Total interior is max_w + 2. We use 1 h on left, then title_str.
+        let remaining = (max_w + 2) - 1 - style.visible_len(title_str);
+        if remaining < 0 { remaining = 0; }
+        let h_bar = "";
+        let i = 0;
+        while i < remaining {
+            h_bar = h_bar + border_style.h;
+            i = i + 1;
+        }
+        top = top + border_style.h + title_str + h_bar + border_style.tr;
+    } else {
+        let h_bar = "";
+        let i = 0;
+        while i < max_w + 2 {
+            h_bar = h_bar + border_style.h;
+            i = i + 1;
+        }
+        top = top + h_bar + border_style.tr;
+    }
+
+    if border_col != "" {
+        top = border_col + top + color.RESET;
+    }
+    push(out, top);
+
+    // Body lines: truncate to max_w so lines never wrap and break the right border
+    let line_idx = 0;
+    while line_idx < len(lines) {
+        let line = lines[line_idx];
+        if style.visible_len(line) > max_w {
+            line = style.truncate(line, max_w, "…");
+        }
+        let padded = style.pad_right(line, max_w);
+        let row = "";
+        if border_col != "" {
+            row = border_col + border_style.v + color.RESET + " " + padded + " " + border_col + border_style.v + color.RESET;
+        } else {
+            row = border_style.v + " " + padded + " " + border_style.v;
+        }
+        push(out, row);
+        line_idx = line_idx + 1;
+    }
+
+    // Bottom border
+    let bot_bar = "";
+    let b_i = 0;
+    while b_i < max_w + 2 {
+        bot_bar = bot_bar + border_style.h;
+        b_i = b_i + 1;
+    }
+    let bot = border_style.bl + bot_bar + border_style.br;
+    if border_col != "" {
+        bot = border_col + bot + color.RESET;
+    }
+    push(out, bot);
+
+    return join(out, "\n");
+};

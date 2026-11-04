@@ -1,0 +1,147 @@
+// BramandScript Standard Library :: TUI Styling (std/tui/style)
+// Text decoration, visual width calculation, and alignment.
+
+import "std/tui/color" as color
+
+let bold = fn(text) {
+    return color.BOLD + text + "\033[22m";
+};
+
+let dim = fn(text) {
+    return color.DIM + text + "\033[22m";
+};
+
+let italic = fn(text) {
+    return color.ITALIC + text + "\033[23m";
+};
+
+let underline = fn(text) {
+    return color.UNDERLINE + text + "\033[24m";
+};
+
+let reverse = fn(text) {
+    return color.REVERSE + text + "\033[27m";
+};
+
+let strikethrough = fn(text) {
+    return "\033[9m" + text + "\033[29m";
+};
+
+// Strips ANSI escape sequences to compute raw visible cell count
+let strip_ansi = fn(text) {
+    let out = "";
+    let in_escape = false;
+    let i = 0;
+    let l = len(text);
+    while i < l {
+        let ch = text[i];
+        if ch == "\033" {
+            in_escape = true;
+            i = i + 1;
+            continue;
+        }
+        if in_escape {
+            let is_lower = ch >= "a" && ch <= "z";
+            let is_upper = ch >= "A" && ch <= "Z";
+            if is_lower || is_upper {
+                in_escape = false;
+            }
+            i = i + 1;
+            continue;
+        }
+        out = out + ch;
+        i = i + 1;
+    }
+    return out;
+};
+
+// Calculate visible cell width without ANSI formatting
+let visible_len = fn(text) {
+    let clean = strip_ansi(text);
+    return len(clean);
+};
+
+// Pad right with spaces (left-aligned)
+let pad_right = fn(text, width) {
+    let vlen = visible_len(text);
+    if vlen >= width {
+        return text;
+    }
+    let spaces = "";
+    let i = 0;
+    let needed = width - vlen;
+    while i < needed {
+        spaces = spaces + " ";
+        i = i + 1;
+    }
+    return text + spaces;
+};
+
+// Pad left with spaces (right-aligned)
+let pad_left = fn(text, width) {
+    let vlen = visible_len(text);
+    if vlen >= width {
+        return text;
+    }
+    let spaces = "";
+    let i = 0;
+    let needed = width - vlen;
+    while i < needed {
+        spaces = spaces + " ";
+        i = i + 1;
+    }
+    return spaces + text;
+};
+
+// Center align text within target width
+let pad_center = fn(text, width) {
+    let vlen = visible_len(text);
+    if vlen >= width {
+        return text;
+    }
+    let total = width - vlen;
+    let left = total / 2;
+    let right = total - left;
+    let left_sp = "";
+    let i = 0;
+    while i < left {
+        left_sp = left_sp + " ";
+        i = i + 1;
+    }
+    let right_sp = "";
+    i = 0;
+    while i < right {
+        right_sp = right_sp + " ";
+        i = i + 1;
+    }
+    return left_sp + text + right_sp;
+};
+
+// Truncate visible text to max length with ellipsis
+let truncate = fn(text, max_len, suffix) {
+    if suffix == null {
+        suffix = "...";
+    }
+    let clean = strip_ansi(text);
+    if len(clean) <= max_len {
+        return text;
+    }
+    let end_idx = max_len - len(suffix);
+    if end_idx <= 0 {
+        return slice(clean, 0, max_len);
+    }
+    return slice(clean, 0, end_idx) + suffix;
+};
+
+// Casing and trimming helpers
+let lower = fn(text) {
+    return to_lower(text);
+};
+
+let upper = fn(text) {
+    return to_upper(text);
+};
+
+let trim_text = fn(text) {
+    return trim(text);
+};
