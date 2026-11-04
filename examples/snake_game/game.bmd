@@ -92,6 +92,9 @@ fn game_step(game, input_dir) {
 }
 
 fn game_run_ai(game, max_ticks, delay_ms) {
+    if delay_ms == null || delay_ms <= 0 {
+        delay_ms = 160;
+    }
     let board = game["board"];
     let snake = game["snake"];
 
@@ -119,7 +122,7 @@ fn game_run_ai(game, max_ticks, delay_ms) {
 
 fn game_run_interactive(game, max_steps, tick_delay) {
     if tick_delay == null || tick_delay <= 0 {
-        tick_delay = 110;
+        tick_delay = 190;
     }
     let board = game["board"];
     let snake = game["snake"];
@@ -128,6 +131,8 @@ fn game_run_interactive(game, max_steps, tick_delay) {
     term_raw(true);
 
     while !game["game_over"] && game["ticks"] < max_steps {
+        let tick_start = time_ms();
+
         clear_screen();
         let status = game["status_message"];
         if paused {
@@ -137,19 +142,74 @@ fn game_run_interactive(game, max_steps, tick_delay) {
         render_board(board, snake, game["food"]);
         render_controls(false);
 
-        let key = to_lower(read_key(tick_delay));
+        let quit_game = false;
+        let restart_game = false;
 
-        if key == "q" || key == "esc" || key == "ctrl_c" {
-            game["status_message"] = color("yellow", "[INFO] Game quit by player.");
-            break;
-        }
-
-        if key == "space" || key == "p" {
-            paused = !paused;
+        if paused {
+            let key = to_lower(read_key(100));
+            if key == "q" || key == "esc" || key == "ctrl_c" {
+                game["status_message"] = color("yellow", "[INFO] Game quit by player.");
+                break;
+            }
+            if key == "space" || key == "p" {
+                paused = false;
+            }
             continue;
         }
 
-        if key == "r" {
+        // Wait for user input within this tick frame interval
+        while true {
+            let elapsed = time_ms() - tick_start;
+            let remaining = tick_delay - elapsed;
+            if remaining <= 0 {
+                break;
+            }
+
+            let key = to_lower(read_key(remaining));
+            if key == "" {
+                break;
+            }
+
+            if key == "q" || key == "esc" || key == "ctrl_c" {
+                game["status_message"] = color("yellow", "[INFO] Game quit by player.");
+                quit_game = true;
+                break;
+            }
+
+            if key == "space" || key == "p" {
+                paused = true;
+                break;
+            }
+
+            if key == "r" {
+                restart_game = true;
+                break;
+            }
+
+            let cur_dir = snake["direction"];
+            let new_dir = null;
+            if key == "up" || key == "w" || key == "k" {
+                new_dir = DIR_UP;
+            } else if key == "down" || key == "s" || key == "j" {
+                new_dir = DIR_DOWN;
+            } else if key == "left" || key == "a" || key == "h" {
+                new_dir = DIR_LEFT;
+            } else if key == "right" || key == "d" || key == "l" {
+                new_dir = DIR_RIGHT;
+            }
+
+            if new_dir != null {
+                if !is_opposite(cur_dir, new_dir) || len(snake["body"]) <= 1 {
+                    snake["direction"] = new_dir;
+                }
+            }
+        }
+
+        if quit_game {
+            break;
+        }
+
+        if restart_game {
             let width = board.width;
             let height = board.height;
             let new_game = create_game(width, height);
@@ -168,24 +228,6 @@ fn game_run_interactive(game, max_steps, tick_delay) {
         }
 
         if !paused {
-            let cur_dir = snake["direction"];
-            let new_dir = null;
-            if key == "up" || key == "w" || key == "k" {
-                new_dir = DIR_UP;
-            } else if key == "down" || key == "s" || key == "j" {
-                new_dir = DIR_DOWN;
-            } else if key == "left" || key == "a" || key == "h" {
-                new_dir = DIR_LEFT;
-            } else if key == "right" || key == "d" || key == "l" {
-                new_dir = DIR_RIGHT;
-            }
-
-            if new_dir != null {
-                if !is_opposite(cur_dir, new_dir) || len(snake["body"]) <= 1 {
-                    snake["direction"] = new_dir;
-                }
-            }
-
             game_step(game, snake["direction"]);
         }
     }

@@ -29,7 +29,17 @@ examples/snake_game/
 ### Play as Human Player (Real-Time Arcade Mode)
 Take direct control of the snake with real-time continuous motion and direct arrow keys (no Enter required!):
 ```bash
+# Default speed (190ms classic Nokia/arcade pace):
 bmd run examples/snake_game/main.bmd
+
+# Relaxed / Beginner pace (260ms per tick):
+bmd run examples/snake_game/main.bmd --slow
+
+# Fast arcade pace (120ms per tick):
+bmd run examples/snake_game/main.bmd --fast
+
+# Custom millisecond speed:
+bmd run examples/snake_game/main.bmd --speed=220
 ```
 
 #### Controls & Shortcuts:

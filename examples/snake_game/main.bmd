@@ -12,19 +12,25 @@ fn print_banner() {
 
 fn print_usage() {
     println("Usage: bmd run examples/snake_game/main.bmd [options]");
-    println("\nOptions:");
-    println("  (default)      Play real-time interactive snake with Arrow keys / WASD");
-    println("  --ai           Run autonomous heuristic AI solver");
-    println("  --demo         Run fast AI simulation (20 ticks, 30ms)");
-    println("  --fast         Run at high speed (60ms tick delay)");
-    println("  --help, -h     Show this help documentation\n");
+    println("\nGame Modes:");
+    println("  (default)          Play real-time arcade snake with Arrow keys / WASD");
+    println("  --ai, --autoplay   Run autonomous heuristic AI solver");
+    println("  --demo             Run fast AI simulation (20 ticks, 30ms)");
+    println("\nSpeed Presets:");
+    println("  --slow, -s         Relaxed pace (260ms per tick)");
+    println("  --normal           Classic Nokia/arcade pace (190ms per tick - default)");
+    println("  --fast, -f         Fast arcade pace (120ms per tick)");
+    println("  --turbo            Extreme arcade speed (75ms per tick)");
+    println("  --speed=<ms>       Custom tick delay in milliseconds (e.g. --speed=220)");
+    println("\nGeneral:");
+    println("  --help, -h         Show this help documentation\n");
 }
 
 fn main() {
     let cli_args = args();
     let is_ai = false;
     let is_demo = false;
-    let delay = 60;
+    let delay = 190;
     let max_ticks = 1000;
     let width = 20;
     let height = 10;
@@ -36,14 +42,30 @@ fn main() {
             return;
         } else if arg == "--ai" || arg == "--autoplay" {
             is_ai = true;
-            max_ticks = 120;
+            max_ticks = 200;
         } else if arg == "--demo" {
             is_ai = true;
             is_demo = true;
             max_ticks = 20;
-            delay = 25;
-        } else if arg == "--fast" {
-            delay = 20;
+            delay = 30;
+        } else if arg == "--slow" || arg == "-s" {
+            delay = 260;
+        } else if arg == "--normal" {
+            delay = 190;
+        } else if arg == "--fast" || arg == "-f" {
+            delay = 120;
+        } else if arg == "--turbo" {
+            delay = 75;
+        } else {
+            let parts = split(arg, "=");
+            if len(parts) == 2 {
+                if parts[0] == "--speed" || parts[0] == "--delay" {
+                    let custom_delay = int(parts[1]);
+                    if custom_delay > 0 {
+                        delay = custom_delay;
+                    }
+                }
+            }
         }
     }
 
