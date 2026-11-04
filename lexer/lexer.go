@@ -129,6 +129,10 @@ func (l *Lexer) NextToken() token.Token {
 			ch := l.ch
 			l.readChar()
 			tok = token.Token{Type: token.LTE, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+		} else if l.peekChar() == '<' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SHIFT_LEFT, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else if l.peekChar() == '-' {
 			ch := l.ch
 			l.readChar()
@@ -141,6 +145,10 @@ func (l *Lexer) NextToken() token.Token {
 			ch := l.ch
 			l.readChar()
 			tok = token.Token{Type: token.GTE, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.SHIFT_RIGHT, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else {
 			tok = newToken(token.GT, l.ch, curLine, curCol)
 		}
@@ -150,7 +158,7 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			tok = token.Token{Type: token.AND, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else {
-			tok = newToken(token.ILLEGAL, l.ch, curLine, curCol)
+			tok = newToken(token.BIT_AND, l.ch, curLine, curCol)
 		}
 	case '|':
 		if l.peekChar() == '|' {
@@ -158,8 +166,12 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			tok = token.Token{Type: token.OR, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else {
-			tok = newToken(token.ILLEGAL, l.ch, curLine, curCol)
+			tok = newToken(token.BIT_OR, l.ch, curLine, curCol)
 		}
+	case '^':
+		tok = newToken(token.BIT_XOR, l.ch, curLine, curCol)
+	case '~':
+		tok = newToken(token.BIT_NOT, l.ch, curLine, curCol)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch, curLine, curCol)
 	case ':':
@@ -273,6 +285,32 @@ func (l *Lexer) readNumber() (string, bool) {
 	startPos := l.position
 	isFloat := false
 
+	if l.ch == '0' {
+		next := l.peekChar()
+		if next == 'x' || next == 'X' {
+			l.readChar() // consume '0'
+			l.readChar() // consume 'x'/'X'
+			for isHexDigit(l.ch) {
+				l.readChar()
+			}
+			return l.input[startPos:l.position], false
+		} else if next == 'b' || next == 'B' {
+			l.readChar() // consume '0'
+			l.readChar() // consume 'b'/'B'
+			for l.ch == '0' || l.ch == '1' {
+				l.readChar()
+			}
+			return l.input[startPos:l.position], false
+		} else if next == 'o' || next == 'O' {
+			l.readChar() // consume '0'
+			l.readChar() // consume 'o'/'O'
+			for l.ch >= '0' && l.ch <= '7' {
+				l.readChar()
+			}
+			return l.input[startPos:l.position], false
+		}
+	}
+
 	for isDigit(l.ch) {
 		l.readChar()
 	}
@@ -317,15 +355,38 @@ func (l *Lexer) readString() (string, bool) {
 				sb.WriteRune(0x1b)
 			case '0':
 				if l.peekChar() == '3' {
-					l.readChar()
-					if l.peekChar() == '3' {
+					secondPos := l.readPosition + 1
+					if secondPos < len(l.input) {
+						rSecond, _ := utf8.DecodeRuneInString(l.input[secondPos:])
+						if rSecond == '3' {
+							l.readChar()
+							l.readChar()
+							sb.WriteRune(0x1b)
+							break
+						}
+					}
+				}
+				sb.WriteRune(0)
+			case 'x':
+				hexStr := ""
+				for i := 0; i < 2; i++ {
+					p := l.peekChar()
+					if (p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F') {
 						l.readChar()
-						sb.WriteRune(0x1b)
+						hexStr += string(l.ch)
 					} else {
-						sb.WriteRune(0)
+						break
+					}
+				}
+				if len(hexStr) == 2 {
+					val, err := strconv.ParseInt(hexStr, 16, 32)
+					if err == nil {
+						sb.WriteRune(rune(val))
+					} else {
+						sb.WriteString("\\x" + hexStr)
 					}
 				} else {
-					sb.WriteRune(0)
+					sb.WriteString("\\x" + hexStr)
 				}
 			case 'u':
 				hexStr := ""
@@ -380,4 +441,8 @@ func isLetter(r rune) bool {
 
 func isDigit(r rune) bool {
 	return '0' <= r && r <= '9'
+}
+
+func isHexDigit(r rune) bool {
+	return ('0' <= r && r <= '9') || ('a' <= r && r <= 'f') || ('A' <= r && r <= 'F')
 }

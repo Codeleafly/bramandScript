@@ -294,7 +294,8 @@ func printHelp(out io.Writer) {
 	fmt.Fprintf(out, "   print(user.name)                %s// Dot property access%s\n\n", diagnostics.ColorDim, diagnostics.ColorReset)
 
 	fmt.Fprintf(out, "%s5. Standard Built-in Functions%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
-	fmt.Fprintf(out, "   print(a, b, ...)   Print values separated by space with newline\n")
+	fmt.Fprintf(out, "   print(a, b, ...)   Print values separated by space without newline\n")
+	fmt.Fprintf(out, "   println(a, b, ...) Print values separated by space with newline\n")
 	fmt.Fprintf(out, "   input(prompt)      Read interactive input from terminal\n")
 	fmt.Fprintf(out, "   len(collection)    Length of string, array, or map\n")
 	fmt.Fprintf(out, "   type(value)        Return type name as string (e.g., 'INTEGER')\n")

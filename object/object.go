@@ -37,6 +37,7 @@ const (
 	HTTP_RESPONSE_WRITER_OBJ = "HTTP_RESPONSE_WRITER"
 	WS_CONN_OBJ              = "WS_CONN"
 	WS_SERVER_OBJ            = "WS_SERVER"
+	BYTES_OBJ                = "BYTES"
 )
 
 type Object interface {
@@ -100,6 +101,37 @@ func (s *String) HashKey() HashKey {
 	h := fnv.New64a()
 	h.Write([]byte(s.Value))
 	return HashKey{Type: s.Type(), Value: h.Sum64()}
+}
+
+// ---------------- Bytes ----------------
+type Bytes struct {
+	Value []byte
+	Mu    sync.RWMutex
+}
+
+func (b *Bytes) Type() ObjectType { return BYTES_OBJ }
+func (b *Bytes) Inspect() string {
+	b.Mu.RLock()
+	defer b.Mu.RUnlock()
+	limit := len(b.Value)
+	if limit > 16 {
+		limit = 16
+	}
+	hexParts := make([]string, limit)
+	for i := 0; i < limit; i++ {
+		hexParts[i] = fmt.Sprintf("%02x", b.Value[i])
+	}
+	if len(b.Value) > 16 {
+		return fmt.Sprintf("bytes([%s, ... %d bytes])", strings.Join(hexParts, " "), len(b.Value))
+	}
+	return fmt.Sprintf("bytes([%s])", strings.Join(hexParts, " "))
+}
+func (b *Bytes) HashKey() HashKey {
+	b.Mu.RLock()
+	defer b.Mu.RUnlock()
+	h := fnv.New64a()
+	h.Write(b.Value)
+	return HashKey{Type: b.Type(), Value: h.Sum64()}
 }
 
 // ---------------- Null ----------------
@@ -217,6 +249,13 @@ func (h *Hash) inspectDepth(depth int) string {
 	}
 	h.Mu.RLock()
 	defer h.Mu.RUnlock()
+
+	if strPair, ok := h.Pairs[(&String{Value: "__str__"}).HashKey()]; ok {
+		if s, ok := strPair.Value.(*String); ok {
+			return s.Value
+		}
+	}
+
 	var out bytes.Buffer
 	var pairs []string
 	for _, pair := range h.Pairs {
@@ -235,6 +274,19 @@ func (h *Hash) inspectDepth(depth int) string {
 	out.WriteString(strings.Join(pairs, ", "))
 	out.WriteString("}")
 	return out.String()
+}
+
+func (h *Hash) HashKey() HashKey {
+	h.Mu.RLock()
+	defer h.Mu.RUnlock()
+	if hashPair, ok := h.Pairs[(&String{Value: "__hash__"}).HashKey()]; ok {
+		if intObj, ok := hashPair.Value.(*Integer); ok {
+			return HashKey{Type: h.Type(), Value: uint64(intObj.Value)}
+		}
+	}
+	hasher := fnv.New64a()
+	hasher.Write([]byte(fmt.Sprintf("%p", h)))
+	return HashKey{Type: h.Type(), Value: hasher.Sum64()}
 }
 
 // ---------------- Channel ----------------

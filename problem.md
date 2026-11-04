@@ -387,6 +387,60 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Root Cause**: Advanced REPL sub-commands were omitted from the CLI reference table.
 - **Status**: `[RESOLVED]`
 
+### P57: Loop Context Isolation in Nested Function Literals
+- **File/Location**: `compiler/compiler.go`
+- **Description**: Compiling `break` or `continue` inside nested anonymous functions mistakenly attempted to jump to enclosing loops in the parent scope, causing out-of-range slice panics during bytecode operand patching.
+- **Root Cause**: `c.loops` was not isolated when entering function literal compilation scopes.
+- **Status**: `[RESOLVED]`
+
+### P58: Premature Program Exit in Quickstart Showcase Example
+- **File/Location**: `examples/01_quickstart.bmd`
+- **Description**: A `return "OK";` statement inside a top-level match block prematurely exited the script before completing the full showcase.
+- **Root Cause**: Unintended `return` keyword in expression context.
+- **Status**: `[RESOLVED]`
+
+### P59: Hexadecimal String Escape Sequences `\xHH` Lexer Support
+- **File/Location**: `lexer/lexer.go`
+- **Description**: Hexadecimal escapes like `\x41` in string literals were unhandled, resulting in raw `\x41` literals instead of decoded ASCII bytes.
+- **Root Cause**: Missing `\x` handler in `readString()` escape scanner.
+- **Status**: `[RESOLVED]`
+
+### P60: Octal String Escape Character Drop in Lexer
+- **File/Location**: `lexer/lexer.go`
+- **Description**: String literals like `\03hello` dropped the second digit `3` because lookahead offset calculation consumed an extra character.
+- **Root Cause**: `readPosition` was already advanced, causing `l.readPosition` lookahead to skip one character.
+- **Status**: `[RESOLVED]`
+
+### P61: Parser Invalid Assignment Target Detection
+- **File/Location**: `parser/statements.go`
+- **Description**: Calling expressions as assignment targets like `foo() = 10` failed to report a syntax error, silently compiling corrupted opcodes.
+- **Root Cause**: Parser did not validate whether expression statement reassignments targeted valid lvalues.
+- **Status**: `[RESOLVED]`
+
+### P62: Parser Struct Statement Body Validation
+- **File/Location**: `parser/statements.go`
+- **Description**: Garbage tokens inside struct declarations were silently consumed without diagnostic error reporting.
+- **Root Cause**: Struct body loop lacked an `else` branch for unexpected tokens.
+- **Status**: `[RESOLVED]`
+
+### P63: Missing Builtin `append` Registration in Compiler
+- **File/Location**: `compiler/builtins.go`
+- **Description**: Calling `append(arr, elem)` failed at compile time because only `push` was indexed in `compiler/builtins.go`.
+- **Root Cause**: Omission in compiler builtin symbol mapping.
+- **Status**: `[RESOLVED]`
+
+### P64: Value-Preserving Short-Circuit Evaluation (`&&`, `||`)
+- **File/Location**: `compiler/compiler.go`, `vm/vm.go`, `code/code.go`
+- **Description**: Logical `&&` and `||` coerced expressions to boolean true/false instead of returning the evaluated truthy/falsey operand value.
+- **Root Cause**: Compiler emitted `OpBang` pairs and boolean constants instead of `OpDup` with conditional jump opcodes.
+- **Status**: `[RESOLVED]`
+
+### P65: Integer Hexadecimal, Binary, and Octal Literals in Lexer
+- **File/Location**: `lexer/lexer.go`
+- **Description**: Integer literals with prefixes `0x`, `0b`, `0o` (e.g. `0xFF`, `0b1010`) were split into separate integer `0` and identifier tokens.
+- **Root Cause**: `readNumber()` in lexer did not inspect radix prefix after leading `'0'`.
+- **Status**: `[RESOLVED]`
+
 ---
 
 ## Verification & Validation Protocol

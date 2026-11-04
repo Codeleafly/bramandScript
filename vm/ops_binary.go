@@ -77,6 +77,22 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 		result = leftVal % rightVal
 	case code.OpPow:
 		result = int64(math.Pow(float64(leftVal), float64(rightVal)))
+	case code.OpBitAnd:
+		result = leftVal & rightVal
+	case code.OpBitOr:
+		result = leftVal | rightVal
+	case code.OpBitXor:
+		result = leftVal ^ rightVal
+	case code.OpShiftLeft:
+		if rightVal < 0 || rightVal >= 64 {
+			return fmt.Errorf("shift count out of range: %d", rightVal)
+		}
+		result = leftVal << uint(rightVal)
+	case code.OpShiftRight:
+		if rightVal < 0 || rightVal >= 64 {
+			return fmt.Errorf("shift count out of range: %d", rightVal)
+		}
+		result = leftVal >> uint(rightVal)
 	default:
 		return fmt.Errorf("unknown integer operator: %d", op)
 	}
@@ -198,6 +214,22 @@ func (vm *VM) executeBinaryBigIntOperation(op code.Opcode, left, right object.Ob
 			return fmt.Errorf("exponent too large for BigInt pow (maximum exponent is 1000000)")
 		}
 		result.Exp(leftVal, rightVal, nil)
+	case code.OpBitAnd:
+		result.And(leftVal, rightVal)
+	case code.OpBitOr:
+		result.Or(leftVal, rightVal)
+	case code.OpBitXor:
+		result.Xor(leftVal, rightVal)
+	case code.OpShiftLeft:
+		if !rightVal.IsInt64() || rightVal.Int64() < 0 {
+			return fmt.Errorf("invalid shift count: %s", rightVal.String())
+		}
+		result.Lsh(leftVal, uint(rightVal.Int64()))
+	case code.OpShiftRight:
+		if !rightVal.IsInt64() || rightVal.Int64() < 0 {
+			return fmt.Errorf("invalid shift count: %s", rightVal.String())
+		}
+		result.Rsh(leftVal, uint(rightVal.Int64()))
 	default:
 		return fmt.Errorf("unknown big int operator: %d", op)
 	}
@@ -417,4 +449,17 @@ func (vm *VM) executeBangOperator() error {
 		return vm.push(False)
 	}
 	return vm.push(True)
+}
+
+func (vm *VM) executeBitNotOperator() error {
+	operand := vm.pop()
+	switch operand := operand.(type) {
+	case *object.Integer:
+		return vm.push(&object.Integer{Value: ^operand.Value})
+	case *object.BigInt:
+		res := new(big.Int).Not(operand.Value)
+		return vm.push(&object.BigInt{Value: res})
+	default:
+		return fmt.Errorf("unsupported type for bitwise NOT: %s", operand.Type())
+	}
 }

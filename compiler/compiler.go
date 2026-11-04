@@ -187,23 +187,17 @@ func (c *Compiler) Compile(node ast.Node) error {
 			if err != nil {
 				return err
 			}
+			c.emit(code.OpDup)
 			jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+			c.emit(code.OpPop)
 
 			err = c.Compile(node.Right)
 			if err != nil {
 				return err
 			}
-			c.emit(code.OpBang)
-			c.emit(code.OpBang)
-
-			jumpToEnd := c.emit(code.OpJump, 9999)
 
 			afterRightPos := len(c.currentInstructions())
 			c.changeOperand(jumpNotTruthyPos, afterRightPos)
-			c.emit(code.OpFalse)
-
-			afterFalsePos := len(c.currentInstructions())
-			c.changeOperand(jumpToEnd, afterFalsePos)
 			return nil
 		}
 
@@ -212,23 +206,17 @@ func (c *Compiler) Compile(node ast.Node) error {
 			if err != nil {
 				return err
 			}
-			jumpIfFalsePos := c.emit(code.OpJumpNotTruthy, 9999)
-
-			c.emit(code.OpTrue)
-			jumpToEnd := c.emit(code.OpJump, 9999)
-
-			afterLeftTruthyPos := len(c.currentInstructions())
-			c.changeOperand(jumpIfFalsePos, afterLeftTruthyPos)
+			c.emit(code.OpDup)
+			jumpTruthyPos := c.emit(code.OpJumpTruthy, 9999)
+			c.emit(code.OpPop)
 
 			err = c.Compile(node.Right)
 			if err != nil {
 				return err
 			}
-			c.emit(code.OpBang)
-			c.emit(code.OpBang)
 
 			afterRightPos := len(c.currentInstructions())
-			c.changeOperand(jumpToEnd, afterRightPos)
+			c.changeOperand(jumpTruthyPos, afterRightPos)
 			return nil
 		}
 
@@ -254,6 +242,16 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpMod)
 		case "**":
 			c.emit(code.OpPow)
+		case "&":
+			c.emit(code.OpBitAnd)
+		case "|":
+			c.emit(code.OpBitOr)
+		case "^":
+			c.emit(code.OpBitXor)
+		case "<<":
+			c.emit(code.OpShiftLeft)
+		case ">>":
+			c.emit(code.OpShiftRight)
 		case ">":
 			c.emit(code.OpGreaterThan)
 		case ">=":
@@ -283,6 +281,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpBang)
 		case "-":
 			c.emit(code.OpMinus)
+		case "~":
+			c.emit(code.OpBitNot)
 		case "<-":
 			c.emit(code.OpReceive)
 		default:
@@ -481,6 +481,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.leaveBlockScope()
 
 	case *ast.FunctionLiteral:
+		outerLoops := c.loops
+		c.loops = []LoopContext{}
+
 		c.enterScope()
 
 		for _, p := range node.Parameters {
@@ -489,6 +492,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		err := c.Compile(node.Body)
 		if err != nil {
+			c.loops = outerLoops
 			return err
 		}
 
@@ -502,6 +506,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
 		instructions, sourceLines := c.leaveScope()
+		c.loops = outerLoops
 
 		for _, s := range freeSymbols {
 			c.loadSymbol(s)

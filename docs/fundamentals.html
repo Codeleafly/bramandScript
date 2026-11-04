@@ -392,52 +392,76 @@
                 <td>1 (Lowest)</td>
                 <td><code class="font-mono">||</code></td>
                 <td>Left-to-Right</td>
-                <td>Logical OR</td>
+                <td>Logical OR (Value-Preserving Short-Circuit)</td>
               </tr>
               <tr>
                 <td>2</td>
                 <td><code class="font-mono">&amp;&amp;</code></td>
                 <td>Left-to-Right</td>
-                <td>Logical AND</td>
+                <td>Logical AND (Value-Preserving Short-Circuit)</td>
               </tr>
               <tr>
                 <td>3</td>
+                <td><code class="font-mono">|</code></td>
+                <td>Left-to-Right</td>
+                <td>Bitwise OR</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td><code class="font-mono">^</code></td>
+                <td>Left-to-Right</td>
+                <td>Bitwise XOR</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td><code class="font-mono">&amp;</code></td>
+                <td>Left-to-Right</td>
+                <td>Bitwise AND</td>
+              </tr>
+              <tr>
+                <td>6</td>
                 <td><code class="font-mono">==</code>, <code class="font-mono">!=</code></td>
                 <td>Left-to-Right</td>
                 <td>Equality and Inequality</td>
               </tr>
               <tr>
-                <td>4</td>
+                <td>7</td>
                 <td><code class="font-mono">&lt;</code>, <code class="font-mono">&gt;</code>, <code class="font-mono">&lt;=</code>, <code class="font-mono">&gt;=</code></td>
                 <td>Left-to-Right</td>
                 <td>Relational Comparisons</td>
               </tr>
               <tr>
-                <td>5</td>
+                <td>8</td>
+                <td><code class="font-mono">&lt;&lt;</code>, <code class="font-mono">&gt;&gt;</code></td>
+                <td>Left-to-Right</td>
+                <td>Bitwise Left and Right Shifts</td>
+              </tr>
+              <tr>
+                <td>9</td>
                 <td><code class="font-mono">+</code>, <code class="font-mono">-</code></td>
                 <td>Left-to-Right</td>
                 <td>Addition, Subtraction, String Concatenation</td>
               </tr>
               <tr>
-                <td>6</td>
+                <td>10</td>
                 <td><code class="font-mono">*</code>, <code class="font-mono">/</code>, <code class="font-mono">%</code></td>
                 <td>Left-to-Right</td>
                 <td>Multiplication, Division, Modulo</td>
               </tr>
               <tr>
-                <td>7</td>
+                <td>11</td>
                 <td><code class="font-mono">**</code></td>
                 <td><strong>Right-to-Left</strong></td>
                 <td>Exponentiation / Power</td>
               </tr>
               <tr>
-                <td>8</td>
-                <td><code class="font-mono">!</code>, <code class="font-mono">-</code> (prefix)</td>
+                <td>12</td>
+                <td><code class="font-mono">!</code>, <code class="font-mono">-</code>, <code class="font-mono">~</code> (prefix)</td>
                 <td>Right-to-Left</td>
-                <td>Unary Bang and Negation</td>
+                <td>Unary Bang, Negation, Bitwise NOT</td>
               </tr>
               <tr>
-                <td>9 (Highest)</td>
+                <td>13 (Highest)</td>
                 <td><code class="font-mono">()</code>, <code class="font-mono">[]</code>, <code class="font-mono">.</code></td>
                 <td>Left-to-Right</td>
                 <td>Function Call, Indexing, Dot Property Access</td>

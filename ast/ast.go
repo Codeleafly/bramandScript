@@ -176,6 +176,7 @@ func (is *ImportStatement) String() string {
 type StructStatement struct {
 	Token   token.Token // token.STRUCT
 	Name    *Identifier
+	Embeds  []*Identifier
 	Fields  []*Identifier
 	Methods []*FunctionLiteral
 }
@@ -196,6 +197,38 @@ func (ss *StructStatement) String() string {
 	for _, m := range ss.Methods {
 		out.WriteString(" ")
 		out.WriteString(m.String())
+	}
+	out.WriteString(" }")
+	return out.String()
+}
+
+type EnumEntry struct {
+	Name  *Identifier
+	Value Expression
+}
+
+type EnumStatement struct {
+	Token   token.Token // token.ENUM
+	Name    *Identifier
+	Entries []*EnumEntry
+}
+
+func (es *EnumStatement) statementNode()       {}
+func (es *EnumStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *EnumStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("enum ")
+	out.WriteString(es.Name.String())
+	out.WriteString(" { ")
+	for i, entry := range es.Entries {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(entry.Name.String())
+		if entry.Value != nil {
+			out.WriteString(" = ")
+			out.WriteString(entry.Value.String())
+		}
 	}
 	out.WriteString(" }")
 	return out.String()

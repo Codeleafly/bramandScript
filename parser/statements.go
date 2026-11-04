@@ -29,6 +29,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseImportStatement()
 	case token.STRUCT:
 		return p.parseStructStatement()
+	case token.ENUM:
+		return p.parseEnumStatement()
 	case token.BREAK:
 		return p.parseBreakStatement()
 	case token.CONTINUE:
@@ -204,6 +206,15 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 				Value:    val,
 			}
 		}
+
+		msg := fmt.Sprintf("invalid assignment target at line %d, col %d", assignToken.Line, assignToken.Col)
+		p.errors = append(p.errors, msg)
+		p.SyntaxErrors = append(p.SyntaxErrors, SyntaxError{
+			Line:    assignToken.Line,
+			Col:     assignToken.Col,
+			Message: "invalid assignment target",
+		})
+		return nil
 	}
 
 	stmt := &ast.ExpressionStatement{Token: firstToken, Expression: expr}
@@ -274,6 +285,7 @@ func (p *Parser) parseImportStatement() *ast.ImportStatement {
 func (p *Parser) parseStructStatement() *ast.StructStatement {
 	stmt := &ast.StructStatement{
 		Token:   p.curToken,
+		Embeds:  []*ast.Identifier{},
 		Fields:  []*ast.Identifier{},
 		Methods: []*ast.FunctionLiteral{},
 	}
@@ -293,7 +305,15 @@ func (p *Parser) parseStructStatement() *ast.StructStatement {
 	seenMethods := make(map[string]bool)
 
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
-		if p.curTokenIs(token.FUNCTION) {
+		if p.curTokenIs(token.EMBED) {
+			if !p.expectPeek(token.IDENT) {
+				return nil
+			}
+			stmt.Embeds = append(stmt.Embeds, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+			if p.peekTokenIs(token.COMMA) {
+				p.nextToken()
+			}
+		} else if p.curTokenIs(token.FUNCTION) {
 			fn := p.parseFunctionLiteral()
 			if fnLit, ok := fn.(*ast.FunctionLiteral); ok {
 				if fnLit.Name != "" && seenMethods[fnLit.Name] {
@@ -312,6 +332,66 @@ func (p *Parser) parseStructStatement() *ast.StructStatement {
 			if p.peekTokenIs(token.COMMA) {
 				p.nextToken()
 			}
+		} else if p.curTokenIs(token.COMMA) || p.curTokenIs(token.SEMICOLON) {
+			// allow separating comma or semicolon
+		} else {
+			p.errors = append(p.errors, fmt.Sprintf("unexpected token '%s' in struct '%s' body at line %d, col %d", p.curToken.Literal, stmt.Name.Value, p.curToken.Line, p.curToken.Col))
+			p.SyntaxErrors = append(p.SyntaxErrors, SyntaxError{
+				Line:    p.curToken.Line,
+				Col:     p.curToken.Col,
+				Message: fmt.Sprintf("unexpected token '%s' in struct definition", p.curToken.Literal),
+			})
+		}
+		p.nextToken()
+	}
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseEnumStatement() *ast.EnumStatement {
+	stmt := &ast.EnumStatement{
+		Token:   p.curToken,
+		Entries: []*ast.EnumEntry{},
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	p.nextToken()
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		if p.curTokenIs(token.IDENT) {
+			entry := &ast.EnumEntry{
+				Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+			}
+			if p.peekTokenIs(token.ASSIGN) {
+				p.nextToken() // consume '='
+				p.nextToken() // move to expression
+				entry.Value = p.parseExpression(LOWEST)
+			}
+			stmt.Entries = append(stmt.Entries, entry)
+			if p.peekTokenIs(token.COMMA) {
+				p.nextToken()
+			}
+		} else if p.curTokenIs(token.COMMA) || p.curTokenIs(token.SEMICOLON) {
+			// allow separating comma or semicolon
+		} else {
+			p.errors = append(p.errors, fmt.Sprintf("unexpected token '%s' in enum '%s' body at line %d, col %d", p.curToken.Literal, stmt.Name.Value, p.curToken.Line, p.curToken.Col))
+			p.SyntaxErrors = append(p.SyntaxErrors, SyntaxError{
+				Line:    p.curToken.Line,
+				Col:     p.curToken.Col,
+				Message: fmt.Sprintf("unexpected token '%s' in enum definition", p.curToken.Literal),
+			})
 		}
 		p.nextToken()
 	}

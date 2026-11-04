@@ -68,6 +68,18 @@ const (
 	OpSpawn
 	OpSend
 	OpReceive
+
+	// Bitwise Operators
+	OpBitAnd
+	OpBitOr
+	OpBitXor
+	OpShiftLeft
+	OpShiftRight
+	OpBitNot
+
+	// Stack & Control Flow
+	OpDup
+	OpJumpTruthy
 )
 
 type Definition struct {
@@ -115,6 +127,14 @@ var definitions = map[Opcode]*Definition{
 	OpSpawn:            {"OpSpawn", []int{1}},
 	OpSend:             {"OpSend", []int{}},
 	OpReceive:          {"OpReceive", []int{}},
+	OpBitAnd:           {"OpBitAnd", []int{}},
+	OpBitOr:            {"OpBitOr", []int{}},
+	OpBitXor:           {"OpBitXor", []int{}},
+	OpShiftLeft:        {"OpShiftLeft", []int{}},
+	OpShiftRight:       {"OpShiftRight", []int{}},
+	OpBitNot:           {"OpBitNot", []int{}},
+	OpDup:              {"OpDup", []int{}},
+	OpJumpTruthy:       {"OpJumpTruthy", []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {

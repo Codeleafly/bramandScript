@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -291,7 +292,8 @@ func (vm *VM) runLoop() error {
 		case code.OpPop:
 			vm.pop()
 
-		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv, code.OpMod, code.OpPow:
+		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv, code.OpMod, code.OpPow,
+			code.OpBitAnd, code.OpBitOr, code.OpBitXor, code.OpShiftLeft, code.OpShiftRight:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
 				return err
@@ -333,6 +335,12 @@ func (vm *VM) runLoop() error {
 				return err
 			}
 
+		case code.OpBitNot:
+			err := vm.executeBitNotOperator()
+			if err != nil {
+				return err
+			}
+
 		case code.OpAnd:
 			right := vm.pop()
 			left := vm.pop()
@@ -354,6 +362,24 @@ func (vm *VM) runLoop() error {
 			condition := vm.pop()
 			if !isTruthy(condition) {
 				vm.currentFrame().ip = pos - 1
+			}
+
+		case code.OpJumpTruthy:
+			pos := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
+
+			condition := vm.pop()
+			if isTruthy(condition) {
+				vm.currentFrame().ip = pos - 1
+			}
+
+		case code.OpDup:
+			if vm.sp == 0 {
+				return fmt.Errorf("stack underflow on dup")
+			}
+			err := vm.push(vm.stack[vm.sp-1])
+			if err != nil {
+				return err
 			}
 
 		case code.OpSetGlobal:
@@ -642,6 +668,16 @@ func objectsEqualDepth(left, right object.Object, depth int) bool {
 		return l.Value.Cmp(right.(*object.BigInt).Value) == 0
 	case *object.BigFloat:
 		return l.Value.Cmp(right.(*object.BigFloat).Value) == 0
+	case *object.Bytes:
+		r := right.(*object.Bytes)
+		if l == r {
+			return true
+		}
+		l.Mu.RLock()
+		r.Mu.RLock()
+		defer l.Mu.RUnlock()
+		defer r.Mu.RUnlock()
+		return bytes.Equal(l.Value, r.Value)
 	case *object.Array:
 		r := right.(*object.Array)
 		if l == r {

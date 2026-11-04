@@ -367,6 +367,88 @@
             In BramandScript v0.1.1+, struct methods and instance properties maintain strict bidirectional synchronization. When a method executes, instance properties are populated into the method closure's free variables, and when the method completes, mutated variables are written back to the instance hash. Mutating fields directly (<code class="font-mono">pt.x = 100</code>) or via method calls (<code class="font-mono">pt.translate(5, -10)</code>) preserves total data integrity.
           </p>
         </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Struct Composition &amp; Field Embedding (<code class="font-mono">embed</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Structs can compose and delegate properties and methods from other structs using the <code class="font-mono">embed</code> keyword. Embedded fields and methods are automatically accessible on the outer instance without manual forwarding.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — struct embedding and composition</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">struct</span> <span class="token-type">Speaker</span> {
+    <span class="token-fn">greeting</span>,
+    <span class="token-kw">fn</span> <span class="token-fn">speak</span>(<span class="token-fn">name</span>) {
+        <span class="token-kw">return</span> <span class="token-fn">greeting</span> <span class="token-op">+</span> <span class="token-str">" "</span> <span class="token-op">+</span> <span class="token-fn">name</span>
+    }
+}
+
+<span class="token-kw">struct</span> <span class="token-type">Bot</span> {
+    <span class="token-kw">embed</span> <span class="token-type">Speaker</span>,
+    <span class="token-fn">id</span>,
+    <span class="token-kw">fn</span> <span class="token-fn">status</span>() {
+        <span class="token-kw">return</span> <span class="token-str">"Bot#"</span> <span class="token-op">+</span> <span class="token-fn">str</span>(<span class="token-fn">id</span>) <span class="token-op">+</span> <span class="token-str">" active"</span>
+    }
+}
+
+<span class="token-kw">let</span> <span class="token-fn">spk</span> <span class="token-op">=</span> <span class="token-type">Speaker</span>(<span class="token-str">"Hello"</span>)
+<span class="token-kw">let</span> <span class="token-fn">bot</span> <span class="token-op">=</span> <span class="token-type">Bot</span>(<span class="token-fn">spk</span>, <span class="token-num">42</span>)
+
+<span class="token-comment">// Delegated field access &amp; method invocation</span>
+<span class="token-fn">print</span>(<span class="token-fn">bot</span>.<span class="token-fn">greeting</span>)              <span class="token-comment">// "Hello"</span>
+<span class="token-fn">print</span>(<span class="token-fn">bot</span>.<span class="token-fn">speak</span>(<span class="token-str">"World"</span>))        <span class="token-comment">// "Hello World"</span>
+<span class="token-fn">print</span>(<span class="token-fn">bot</span>.<span class="token-fn">status</span>())              <span class="token-comment">// "Bot#42 active"</span></code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Callable Struct Instances (<code class="font-mono">__call__</code>) &amp; Magic Methods</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Structs implementing the <code class="font-mono">__call__</code> method become first-class callable objects that can be invoked like regular functions. The <code class="font-mono">__str__</code> property provides custom string formatting, and <code class="font-mono">__hash__</code> customizes map hashing.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — callable struct and dunder methods</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">struct</span> <span class="token-type">Multiplier</span> {
+    <span class="token-fn">factor</span>,
+    <span class="token-kw">fn</span> <span class="token-fn">__call__</span>(<span class="token-fn">x</span>) {
+        <span class="token-kw">return</span> <span class="token-fn">x</span> <span class="token-op">*</span> <span class="token-fn">factor</span>
+    }
+}
+
+<span class="token-kw">let</span> <span class="token-fn">triple</span> <span class="token-op">=</span> <span class="token-type">Multiplier</span>(<span class="token-num">3</span>)
+<span class="token-fn">print</span>(<span class="token-fn">triple</span>(<span class="token-num">10</span>))                 <span class="token-comment">// 30 (invokes __call__)</span>
+
+<span class="token-comment">// Interface checking with implements()</span>
+<span class="token-kw">let</span> <span class="token-fn">hasSpeak</span> <span class="token-op">=</span> <span class="token-fn">implements</span>(<span class="token-fn">bot</span>, [<span class="token-str">"speak"</span>, <span class="token-str">"status"</span>])
+<span class="token-fn">print</span>(<span class="token-str">"Bot implements contract:"</span>, <span class="token-fn">hasSpeak</span>) <span class="token-comment">// true</span></code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Enums &amp; Tagged Constants (<code class="font-mono">enum Status { ... }</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          First-class enums provide readable, type-safe symbolic enumerations with auto-incrementing integer values or explicit custom values.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — enums</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">enum</span> <span class="token-type">TaskStatus</span> {
+    <span class="token-fn">PENDING</span>,
+    <span class="token-fn">ACTIVE</span>,
+    <span class="token-fn">DONE</span> <span class="token-op">=</span> <span class="token-num">100</span>,
+    <span class="token-fn">FAILED</span>
+}
+
+<span class="token-fn">print</span>(<span class="token-type">TaskStatus</span>.<span class="token-fn">PENDING</span>)         <span class="token-comment">// 0</span>
+<span class="token-fn">print</span>(<span class="token-type">TaskStatus</span>.<span class="token-fn">ACTIVE</span>)          <span class="token-comment">// 1</span>
+<span class="token-fn">print</span>(<span class="token-type">TaskStatus</span>.<span class="token-fn">DONE</span>)            <span class="token-comment">// 100</span>
+<span class="token-fn">print</span>(<span class="token-type">TaskStatus</span>.<span class="token-fn">FAILED</span>)          <span class="token-comment">// 101</span></code></pre>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 13 ================= -->

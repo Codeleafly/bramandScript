@@ -154,6 +154,174 @@ func TestIntegerArithmetic(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestBitwiseOperators(t *testing.T) {
+	tests := []vmTestCase{
+		{"5 & 3", 1},
+		{"5 | 3", 7},
+		{"5 ^ 3", 6},
+		{"1 << 4", 16},
+		{"16 >> 2", 4},
+		{"~0", -1},
+		{"~1", -2},
+		{"(255 & 15)", 15},
+		{"1 << 3 | 2", 10},
+		{"10 ^ 10", 0},
+	}
+	runVmTests(t, tests)
+}
+
+func TestBytesAndBinaryIO(t *testing.T) {
+	tests := []vmTestCase{
+		{`let b = bytes(4); b[0] = 65; b[1] = 66; b[0] + b[1]`, 131},
+		{`let b = bytes("hello"); len(b)`, 5},
+		{`let b = bytes([10, 20, 30]); b[1]`, 20},
+		{`let b = bytes(4); b.write_u8(0, 255); b.read_u8(0)`, 255},
+		{`let b = bytes(4); b.write_u16(0, 4660, "be"); b.read_u16(0, "be")`, 4660},
+		{`let b = bytes(4); b.write_u16(0, 4660, "le"); b.read_u16(0, "le")`, 4660},
+		{`let b = bytes(8); b.write_u32(0, 100000); b.read_u32(0)`, 100000},
+		{`let b = bytes("BramandScript"); let s = slice(b, 0, 7); str(s)`, "Bramand"},
+		{`let b = bytes("ABC"); b.to_string()`, "ABC"},
+		{`let b = bytes([222, 173, 190, 239]); b.to_hex()`, "deadbeef"},
+	}
+	runVmTests(t, tests)
+}
+
+func TestUnicodeCodePointAndRunePrimitives(t *testing.T) {
+	tests := []vmTestCase{
+		{`ord("A")`, 65},
+		{`ord("a")`, 97},
+		{`ord("0")`, 48},
+		{`ord("✦")`, 10022},
+		{`chr(65)`, "A"},
+		{`chr(97)`, "a"},
+		{`chr(10022)`, "✦"},
+		{`chr(ord("Z"))`, "Z"},
+	}
+	runVmTests(t, tests)
+}
+
+func TestDynamicCodeEvaluation(t *testing.T) {
+	tests := []vmTestCase{
+		{`eval("10 + 20")`, 30},
+		{`eval("let x = 5; let y = 7; x * y")`, 35},
+		{`eval("str(len([1, 2, 3]))")`, "3"},
+	}
+	runVmTests(t, tests)
+}
+
+func TestInterfaceChecking(t *testing.T) {
+	tests := []vmTestCase{
+		{`let obj = {"name": "test", "run": fn() { return true; }}; implements(obj, "run")`, true},
+		{`let obj = {"name": "test", "run": fn() { return true; }}; implements(obj, ["run", "name"])`, true},
+		{`let obj = {"name": "test"}; implements(obj, "missing")`, false},
+		{`let obj = {"name": "test"}; implements(obj, ["name", "missing"])`, false},
+	}
+	runVmTests(t, tests)
+}
+
+func TestEnumDeclarations(t *testing.T) {
+	tests := []vmTestCase{
+		{`enum Status { PENDING, ACTIVE, DONE }; Status.PENDING`, 0},
+		{`enum Status { PENDING, ACTIVE, DONE }; Status.ACTIVE`, 1},
+		{`enum Status { PENDING, ACTIVE, DONE }; Status.DONE`, 2},
+		{`enum Status { PENDING, ACTIVE, DONE = 100, FAILED }; Status.DONE`, 100},
+		{`enum Status { PENDING, ACTIVE, DONE = 100, FAILED }; Status.FAILED`, 101},
+		{`enum Mode { FAST = "fast", SLOW = "slow" }; Mode.FAST`, "fast"},
+		{`enum Status { A, B }; Status.__enum__`, true},
+		{`enum Status { A, B }; Status.__name__`, "Status"},
+	}
+	runVmTests(t, tests)
+}
+
+func TestStructCompositionAndFieldEmbedding(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+				struct Base {
+					prefix,
+					fn greet(name) {
+						return prefix + " " + name;
+					}
+				}
+				struct App {
+					embed Base,
+					title,
+					fn run() {
+						return title + " ready";
+					}
+				}
+				let b = Base("Hello");
+				let a = App(b, "MyApp");
+				a.prefix + " - " + a.title;
+			`,
+			expected: "Hello - MyApp",
+		},
+		{
+			input: `
+				struct Base {
+					prefix,
+					fn greet(name) {
+						return prefix + " " + name;
+					}
+				}
+				struct App {
+					embed Base,
+					title
+				}
+				let b = Base("Hi");
+				let a = App(b, "Test");
+				a.greet("World");
+			`,
+			expected: "Hi World",
+		},
+	}
+	runVmTests(t, tests)
+}
+
+func TestCallableStructInstancesAndMagicMethods(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+				struct Multiplier {
+					factor,
+					fn __call__(x) {
+						return x * factor;
+					}
+				}
+				let double = Multiplier(2);
+				double(21);
+			`,
+			expected: 42,
+		},
+		{
+			input: `
+				struct Person {
+					name,
+					__str__,
+					fn __call__(greeting) {
+						return greeting + " " + name;
+					}
+				}
+				let p = Person("Alice", "Person(Alice)");
+				p("Hello");
+			`,
+			expected: "Hello Alice",
+		},
+		{
+			input: `
+				struct Item {
+					id,
+					__str__
+				}
+				let item = Item(42, "CustomItem#42");
+				str(item);
+			`,
+			expected: "CustomItem#42",
+		},
+	}
+	runVmTests(t, tests)
+}
+
 func TestFloatArithmetic(t *testing.T) {
 	tests := []vmTestCase{
 		{"3.5 + 2.5", 6.0},
@@ -184,6 +352,10 @@ func TestBooleanExpressions(t *testing.T) {
 		{"true && true", true},
 		{"true && false", false},
 		{"false || true", true},
+		{`null || "fallback"`, "fallback"},
+		{`"hello" || "fallback"`, "hello"},
+		{`42 && "yes"`, "yes"},
+		{`null && "never"`, Null},
 		{`"a" < "b"`, true},
 		{`"apple" > "banana"`, false},
 		{`"hello" <= "hello"`, true},

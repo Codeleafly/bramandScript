@@ -47,9 +47,9 @@ println("  Sum of array:", sum);
 
 let status = 200;
 let msg = match status {
-    case 200 => { return "OK"; }
-    case 404 => { return "Not Found"; }
-    default => { return "Unknown"; }
+    case 200 => { "OK"; }
+    case 404 => { "Not Found"; }
+    default => { "Unknown"; }
 };
 println("  HTTP Status 200 message:", msg);
 

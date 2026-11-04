@@ -16,6 +16,22 @@ func (vm *VM) executeCall(numArgs int) error {
 		return vm.callClosure(callee, numArgs)
 	case *object.Builtin:
 		return vm.callBuiltin(callee, numArgs)
+	case *object.Hash:
+		callee.Mu.RLock()
+		callPair, hasCall := callee.Pairs[(&object.String{Value: "__call__"}).HashKey()]
+		callee.Mu.RUnlock()
+		if hasCall {
+			if cl, isCl := callPair.Value.(*object.Closure); isCl {
+				cl.Instance = callee
+				vm.stack[vm.sp-1-numArgs] = cl
+				return vm.callClosure(cl, numArgs)
+			}
+			if b, isB := callPair.Value.(*object.Builtin); isB {
+				vm.stack[vm.sp-1-numArgs] = b
+				return vm.callBuiltin(b, numArgs)
+			}
+		}
+		return fmt.Errorf("calling non-function and non-builtin: %s", callee.Type())
 	default:
 		return fmt.Errorf("calling non-function and non-builtin: %s", callee.Type())
 	}

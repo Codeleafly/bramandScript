@@ -39,6 +39,14 @@ const (
 	AND  = "&&"
 	OR   = "||"
 
+	// Bitwise Operators
+	BIT_AND     = "&"
+	BIT_OR      = "|"
+	BIT_XOR     = "^"
+	BIT_NOT     = "~"
+	SHIFT_LEFT  = "<<"
+	SHIFT_RIGHT = ">>"
+
 	// Comparison Operators
 	EQ     = "=="
 	NOT_EQ = "!="
@@ -84,6 +92,8 @@ const (
 	STRUCT   = "STRUCT"
 	AS       = "AS"
 	SPAWN    = "SPAWN"
+	ENUM     = "ENUM"
+	EMBED    = "EMBED"
 )
 
 var keywords = map[string]TokenType{
@@ -108,6 +118,8 @@ var keywords = map[string]TokenType{
 	"struct":   STRUCT,
 	"as":       AS,
 	"spawn":    SPAWN,
+	"enum":     ENUM,
+	"embed":    EMBED,
 }
 
 func LookupIdent(ident string) TokenType {

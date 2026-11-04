@@ -533,17 +533,72 @@ t.assert_null(null, "value must be null")</code></pre>
               <tr>
                 <td><code class="font-mono font-bold">print</code></td>
                 <td><code class="font-mono">print(arg1, arg2, ...)</code></td>
-                <td>Prints space-separated representations of arguments followed by a newline. Returns <code class="font-mono">null</code>.</td>
+                <td>Prints space-separated representations of arguments without a trailing newline. Returns <code class="font-mono">null</code>.</td>
               </tr>
               <tr>
                 <td><code class="font-mono font-bold">println</code></td>
                 <td><code class="font-mono">println(arg1, arg2, ...)</code></td>
-                <td>Alias to <code class="font-mono">print</code>.</td>
+                <td>Prints space-separated representations of arguments followed by a newline. Returns <code class="font-mono">null</code>.</td>
               </tr>
               <tr>
                 <td><code class="font-mono font-bold">print_raw</code></td>
                 <td><code class="font-mono">print_raw(arg1, ...)</code></td>
-                <td>Prints arguments without a trailing newline character.</td>
+                <td>Prints raw arguments directly without space separators or a trailing newline.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">bytes</code></td>
+                <td><code class="font-mono">bytes([size | string | array])</code></td>
+                <td>Constructs a high-performance raw byte buffer (<code class="font-mono">BYTES</code>) with thread-safe indexing and binary I/O.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_u8</code></td>
+                <td><code class="font-mono">read_u8(bytes, offset)</code></td>
+                <td>Reads an unsigned 8-bit integer from byte buffer at the given byte offset.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">write_u8</code></td>
+                <td><code class="font-mono">write_u8(bytes, offset, val)</code></td>
+                <td>Writes an unsigned 8-bit integer to byte buffer at the given byte offset.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_u16</code></td>
+                <td><code class="font-mono">read_u16(bytes, offset, [endian])</code></td>
+                <td>Reads an unsigned 16-bit integer (big-endian by default, or <code class="font-mono">"le"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">write_u16</code></td>
+                <td><code class="font-mono">write_u16(bytes, offset, val, [endian])</code></td>
+                <td>Writes an unsigned 16-bit integer (big-endian by default, or <code class="font-mono">"le"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">read_u32</code></td>
+                <td><code class="font-mono">read_u32(bytes, offset, [endian])</code></td>
+                <td>Reads an unsigned 32-bit integer (big-endian by default, or <code class="font-mono">"le"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">write_u32</code></td>
+                <td><code class="font-mono">write_u32(bytes, offset, val, [endian])</code></td>
+                <td>Writes an unsigned 32-bit integer (big-endian by default, or <code class="font-mono">"le"</code>).</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">ord</code></td>
+                <td><code class="font-mono">ord(string)</code></td>
+                <td>Returns the Unicode code point of the first rune in the given string as an <code class="font-mono">INTEGER</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">chr</code></td>
+                <td><code class="font-mono">chr(integer)</code></td>
+                <td>Converts a Unicode code point integer into a single-character UTF-8 <code class="font-mono">STRING</code>.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">eval</code></td>
+                <td><code class="font-mono">eval(code_str)</code></td>
+                <td>Dynamically parses, compiles, and executes a BramandScript source string in an isolated VM sandbox.</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono font-bold">implements</code></td>
+                <td><code class="font-mono">implements(object, required)</code></td>
+                <td>Structural duck typing checker verifying that an object provides all specified method and property names (supports embedded structs).</td>
               </tr>
               <tr>
                 <td><code class="font-mono font-bold">input</code></td>

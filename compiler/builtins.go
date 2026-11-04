@@ -11,6 +11,7 @@ var Builtins = []BuiltinDef{
 	{Name: "print_raw"},
 	{Name: "type"},
 	{Name: "push"},
+	{Name: "append"},
 	{Name: "now"},
 	{Name: "input"},
 	{Name: "int"},
@@ -192,4 +193,17 @@ var Builtins = []BuiltinDef{
 	{Name: "term_raw"},
 	{Name: "read_key"},
 	{Name: "poll_key"},
+
+	// Day 8 & Day 9 Features
+	{Name: "bytes"},
+	{Name: "read_u8"},
+	{Name: "write_u8"},
+	{Name: "read_u16"},
+	{Name: "write_u16"},
+	{Name: "read_u32"},
+	{Name: "write_u32"},
+	{Name: "ord"},
+	{Name: "chr"},
+	{Name: "eval"},
+	{Name: "implements"},
 }

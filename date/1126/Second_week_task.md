@@ -1,16 +1,16 @@
 # BramandScript — Month 1126: Second Week Task (Days 8 to 14)
 
 ## Day 8
-- [ ] Bitwise Operators in Compiler and VM: Bitwise operators (&, |, ^, <<, >>, ~) in lexer, parser, bytecode compiler and VM for binary protocols and low-level algorithms (Includes: token types, Pratt infix parsing, OpBitwise opcodes in code/ and vm/, unit tests)
-- [ ] Raw Byte Buffers and Binary I/O: High-performance binary byte buffers (bytes constructor, read_u8, write_u8, read_u16, write_u16, slice) for binary file formats and bytecode emission (Includes: object.Bytes in object/object.go, builtins bytes/buffer_read/buffer_write in vm/, regression tests)
-- [ ] Unicode Code Point and Rune Primitives: Rune introspection primitives (ord and chr) for language scanners, character encoding, and UTF-8 parsers (Includes: ord(char) returning integer code, chr(code) returning UTF-8 string, compiler and VM integration)
-- [ ] In-Memory Dynamic Code Evaluation: Dynamic in-memory code execution primitive (eval) allowing BramandScript to compile and execute strings dynamically at runtime (Includes: eval(code_str) builtin, isolated VM execution frame, error propagation, security boundary)
+- [x] Bitwise Operators in Compiler and VM: Bitwise operators (&, |, ^, <<, >>, ~) in lexer, parser, bytecode compiler and VM for binary protocols and low-level algorithms (Includes: token types, Pratt infix parsing, OpBitwise opcodes in code/ and vm/, unit tests)
+- [x] Raw Byte Buffers and Binary I/O: High-performance binary byte buffers (bytes constructor, read_u8, write_u8, read_u16, write_u16, slice) for binary file formats and bytecode emission (Includes: object.Bytes in object/object.go, builtins bytes/buffer_read/buffer_write in vm/, regression tests)
+- [x] Unicode Code Point and Rune Primitives: Rune introspection primitives (ord and chr) for language scanners, character encoding, and UTF-8 parsers (Includes: ord(char) returning integer code, chr(code) returning UTF-8 string, compiler and VM integration)
+- [x] In-Memory Dynamic Code Evaluation: Dynamic in-memory code execution primitive (eval) allowing BramandScript to compile and execute strings dynamically at runtime (Includes: eval(code_str) builtin, isolated VM execution frame, error propagation, security boundary)
 ## Day 9
 
-- [ ] Enum Declarations and Tagged Values: First-class enum syntax (enum Name { A, B, C }) for tokens, AST node types, and finite state machines (Includes: ast.EnumStatement, parser enum keyword, compiler symbol definition, runtime enum representation)
-- [ ] Struct Composition and Field Embedding: OOP struct composition and mixins allowing structs to embed and delegate fields and methods from other structs (Includes: embed syntax in struct body, automatic property delegation in compiler and executeHashIndex)
-- [ ] Callable Struct Instances and Magic Methods: Special dunder methods (__call__, __str__, __hash__) allowing struct instances to be invoked directly as functions or custom formatted (Includes: executeCall invocation on struct hash with __call__, __str__ in Inspect(), tests)
-- [ ] Interface Checking and Structural Duck Typing: Contract verification utility (implements) ensuring an object provides required methods and properties (Includes: implements(obj, required_methods) builtin or stdlib validation, error diagnostics)
+- [x] Enum Declarations and Tagged Values: First-class enum syntax (enum Name { A, B, C }) for tokens, AST node types, and finite state machines (Includes: ast.EnumStatement, parser enum keyword, compiler symbol definition, runtime enum representation)
+- [x] Struct Composition and Field Embedding: OOP struct composition and mixins allowing structs to embed and delegate fields and methods from other structs (Includes: embed syntax in struct body, automatic property delegation in compiler and executeHashIndex)
+- [x] Callable Struct Instances and Magic Methods: Special dunder methods (__call__, __str__, __hash__) allowing struct instances to be invoked directly as functions or custom formatted (Includes: executeCall invocation on struct hash with __call__, __str__ in Inspect(), tests)
+- [x] Interface Checking and Structural Duck Typing: Contract verification utility (implements) ensuring an object provides required methods and properties (Includes: implements(obj, required_methods) builtin or stdlib validation, error diagnostics)
 ## Day 10
 
 - [ ] Production HTTP Trie Router: High-performance URL router module (stdlib/net/router.bmd) supporting parameterized paths (:id), wildcards (*path), and route groups (Includes: stdlib/net/router.bmd, param extraction map, nested route grouping (/api/v1), test suite)

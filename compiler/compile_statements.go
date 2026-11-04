@@ -318,6 +318,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		structSym := c.symbolTable.Define(node.Name.Value, false)
 		c.enterScope()
 
+		for _, e := range node.Embeds {
+			c.symbolTable.Define(e.Value, false)
+		}
 		for _, f := range node.Fields {
 			c.symbolTable.Define(f.Value, false)
 		}
@@ -331,10 +334,28 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			c.emit(code.OpSetLocal, fnSym.Index)
 		}
 
-		numPairs := 1 + len(node.Fields) + len(node.Methods)
+		numPairs := 1 + len(node.Fields) + len(node.Methods) + len(node.Embeds)
+		if len(node.Embeds) > 0 {
+			numPairs++ // for __embeds__ array
+		}
 
 		c.emit(code.OpConstant, c.addConstant(&object.String{Value: "__struct__"}))
 		c.emit(code.OpConstant, c.addConstant(&object.String{Value: node.Name.Value}))
+
+		for _, e := range node.Embeds {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: e.Value}))
+			sym, _ := c.symbolTable.Resolve(e.Value)
+			c.loadSymbol(sym)
+		}
+
+		if len(node.Embeds) > 0 {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: "__embeds__"}))
+			for _, e := range node.Embeds {
+				sym, _ := c.symbolTable.Resolve(e.Value)
+				c.loadSymbol(sym)
+			}
+			c.emit(code.OpArray, len(node.Embeds))
+		}
 
 		for _, f := range node.Fields {
 			c.emit(code.OpConstant, c.addConstant(&object.String{Value: f.Value}))
@@ -367,7 +388,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
 			NumLocals:     numLocals,
-			NumParameters: len(node.Fields),
+			NumParameters: len(node.Embeds) + len(node.Fields),
 			SourceMap:     sourceLines,
 			FreeNames:     freeNames,
 		}
@@ -379,6 +400,49 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			c.emit(code.OpSetGlobal, structSym.Index)
 		} else {
 			c.emit(code.OpSetLocal, structSym.Index)
+		}
+
+	case *ast.EnumStatement:
+		c.currentLine = node.Token.Line
+		enumSym := c.symbolTable.Define(node.Name.Value, false)
+
+		currentVal := int64(0)
+		numPairs := 0
+
+		for _, entry := range node.Entries {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: entry.Name.Value}))
+			if entry.Value != nil {
+				if intLit, ok := entry.Value.(*ast.IntegerLiteral); ok {
+					currentVal = intLit.Value
+					c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: currentVal}))
+					currentVal++
+				} else {
+					err := c.Compile(entry.Value)
+					if err != nil {
+						return true, err
+					}
+				}
+			} else {
+				c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: currentVal}))
+				currentVal++
+			}
+			numPairs++
+		}
+
+		c.emit(code.OpConstant, c.addConstant(&object.String{Value: "__enum__"}))
+		c.emit(code.OpTrue)
+		numPairs++
+
+		c.emit(code.OpConstant, c.addConstant(&object.String{Value: "__name__"}))
+		c.emit(code.OpConstant, c.addConstant(&object.String{Value: node.Name.Value}))
+		numPairs++
+
+		c.emit(code.OpHash, numPairs*2)
+
+		if enumSym.Scope == GlobalScope {
+			c.emit(code.OpSetGlobal, enumSym.Index)
+		} else {
+			c.emit(code.OpSetLocal, enumSym.Index)
 		}
 
 	case *ast.ImportStatement:
@@ -439,6 +503,8 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 							exportedNames = append(exportedNames, fnLit.Name)
 						}
 					case *ast.StructStatement:
+						exportedNames = append(exportedNames, s.Name.Value)
+					case *ast.EnumStatement:
 						exportedNames = append(exportedNames, s.Name.Value)
 					}
 					err := c.Compile(stmt)

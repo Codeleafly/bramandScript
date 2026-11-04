@@ -16,8 +16,12 @@ const (
 	SEND        // <-
 	LOGICAL_OR  // ||
 	LOGICAL_AND // &&
+	BIT_OR      // |
+	BIT_XOR     // ^
+	BIT_AND     // &
 	EQUALS      // == or !=
 	LESSGREATER // > or < or >= or <=
+	SHIFT       // << or >>
 	SUM         // + or -
 	PRODUCT     // * or / or %
 	POWER       // **
@@ -27,16 +31,21 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
-	token.SEND_RECV: SEND,
-	token.OR:        LOGICAL_OR,
-	token.AND:       LOGICAL_AND,
-	token.EQ:        EQUALS,
-	token.NOT_EQ:    EQUALS,
-	token.LT:        LESSGREATER,
-	token.GT:        LESSGREATER,
-	token.LTE:       LESSGREATER,
-	token.GTE:       LESSGREATER,
-	token.PLUS:      SUM,
+	token.SEND_RECV:   SEND,
+	token.OR:          LOGICAL_OR,
+	token.AND:         LOGICAL_AND,
+	token.BIT_OR:      BIT_OR,
+	token.BIT_XOR:     BIT_XOR,
+	token.BIT_AND:     BIT_AND,
+	token.EQ:          EQUALS,
+	token.NOT_EQ:      EQUALS,
+	token.LT:          LESSGREATER,
+	token.GT:          LESSGREATER,
+	token.LTE:         LESSGREATER,
+	token.GTE:         LESSGREATER,
+	token.SHIFT_LEFT:  SHIFT,
+	token.SHIFT_RIGHT: SHIFT,
+	token.PLUS:        SUM,
 	token.MINUS:     SUM,
 	token.SLASH:     PRODUCT,
 	token.ASTERISK:  PRODUCT,
@@ -96,6 +105,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.MATCH, p.parseMatchExpression)
 	p.registerPrefix(token.SPAWN, p.parseSpawnExpression)
 	p.registerPrefix(token.SEND_RECV, p.parsePrefixExpression)
+	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -104,6 +114,11 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
 	p.registerInfix(token.MODULO, p.parseInfixExpression)
 	p.registerInfix(token.POWER, p.parseInfixExpression)
+	p.registerInfix(token.BIT_AND, p.parseInfixExpression)
+	p.registerInfix(token.BIT_OR, p.parseInfixExpression)
+	p.registerInfix(token.BIT_XOR, p.parseInfixExpression)
+	p.registerInfix(token.SHIFT_LEFT, p.parseInfixExpression)
+	p.registerInfix(token.SHIFT_RIGHT, p.parseInfixExpression)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
