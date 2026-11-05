@@ -19,15 +19,15 @@ info() {
 }
 
 success() {
-  printf "${COLOR_GREEN}✔ [OK]${COLOR_RESET} %s\n" "$1"
+  printf "${COLOR_GREEN}[OK]${COLOR_RESET} %s\n" "$1"
 }
 
 warn() {
-  printf "${COLOR_YELLOW}▲ [WARN]${COLOR_RESET} %s\n" "$1"
+  printf "${COLOR_YELLOW}[WARN]${COLOR_RESET} %s\n" "$1"
 }
 
 error() {
-  printf "${COLOR_RED}✖ [ERROR]${COLOR_RESET} %s\n" "$1" >&2
+  printf "${COLOR_RED}[ERROR]${COLOR_RESET} %s\n" "$1" >&2
   exit 1
 }
 
@@ -129,7 +129,7 @@ else
   TAG="$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n1 | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)"
 
   if [ -z "$TAG" ]; then
-    TAG="v0.1.1"
+    TAG="v0.1.0"
     warn "Could not determine latest release tag via GitHub API. Falling back to tag ${TAG}."
   fi
 

@@ -2,6 +2,9 @@ package vm
 
 import (
 	"fmt"
+	"math"
+	"math/big"
+	"strconv"
 
 	"bramandscript/object"
 )
@@ -401,6 +404,89 @@ func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.O
 			})
 		default:
 			return true, fmt.Errorf("unknown method '%s' on Matrix", prop)
+		}
+
+	case left.Type() == object.INTEGER_OBJ && index.Type() == object.STRING_OBJ:
+		iv := left.(*object.Integer).Value
+		prop := index.(*object.String).Value
+		switch prop {
+		case "str", "to_str", "to_string":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.String{Value: strconv.FormatInt(iv, 10)}
+				},
+			})
+		case "abs":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if iv < 0 {
+						if iv == math.MinInt64 {
+							return &object.BigInt{Value: new(big.Int).Abs(big.NewInt(iv))}
+						}
+						return &object.Integer{Value: -iv}
+					}
+					return &object.Integer{Value: iv}
+				},
+			})
+		case "cmp":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 1 {
+						return &object.Error{Message: "cmp requires 1 argument"}
+					}
+					r, ok := toBigInt(args[0])
+					if !ok {
+						return &object.Error{Message: "argument to cmp must be integer or big_int"}
+					}
+					return &object.Integer{Value: int64(big.NewInt(iv).Cmp(r))}
+				},
+			})
+		case "to_float":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.Float{Value: float64(iv)}
+				},
+			})
+		case "to_big":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.BigInt{Value: big.NewInt(iv)}
+				},
+			})
+		case "bit_len":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.Integer{Value: int64(big.NewInt(iv).BitLen())}
+				},
+			})
+		default:
+			return true, fmt.Errorf("unknown method '%s' on Integer", prop)
+		}
+
+	case left.Type() == object.FLOAT_OBJ && index.Type() == object.STRING_OBJ:
+		fv := left.(*object.Float).Value
+		prop := index.(*object.String).Value
+		switch prop {
+		case "str", "to_str", "to_string":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.String{Value: strconv.FormatFloat(fv, 'g', -1, 64)}
+				},
+			})
+		case "abs":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.Float{Value: math.Abs(fv)}
+				},
+			})
+		case "to_int":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.Integer{Value: int64(fv)}
+				},
+			})
+		default:
+			return true, fmt.Errorf("unknown method '%s' on Float", prop)
 		}
 
 	case left.Type() == object.BIG_INT_OBJ && index.Type() == object.STRING_OBJ:

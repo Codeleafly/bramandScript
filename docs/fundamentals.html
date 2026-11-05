@@ -48,7 +48,7 @@
         <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
           <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
           <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
         </a>
       </div>
 
@@ -284,6 +284,29 @@
 <span class="token-comment">// MAX_CONNECTIONS = 2048 // error[CompileError]: cannot reassign to constant variable 'MAX_CONNECTIONS'</span></code></pre>
         </div>
 
+        <h3 class="text-xl font-semibold mt-6 mb-3">Pattern Destructuring Bindings</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript supports modern pattern destructuring for Arrays and Hashes directly in <code class="font-mono">let</code> and <code class="font-mono">const</code> declarations, including the rest operator (<code class="font-mono">...</code>):
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bramand — pattern destructuring</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>// Array destructuring with rest operator
+let [x, y, ...tail] = [10, 20, 30, 40, 50]
+println("x:", x, "y:", y) // 10, 20
+println("tail elements:", tail) // [30, 40, 50]
+
+// Hash pattern destructuring
+let point = { "x": 100, "y": 200, "z": 300 }
+let { x, y } = point
+println("Extracted point coordinates:", x, y)
+
+// Immutable destructuring with const
+const { host, port } = { "host": "127.0.0.1", "port": 8080 }</code></pre>
+        </div>
+
         <div class="callout callout-tip">
           <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Lexical Scoping Rules</strong>
           <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
@@ -363,6 +386,29 @@
 <span class="token-fn">print</span>(<span class="token-str">"Type of int:"</span>, <span class="token-fn">type</span>(<span class="token-fn">intVal</span>))     <span class="token-comment">// INTEGER</span>
 <span class="token-fn">print</span>(<span class="token-str">"Type of float:"</span>, <span class="token-fn">type</span>(<span class="token-fn">floatVal</span>)) <span class="token-comment">// FLOAT</span>
 <span class="token-fn">print</span>(<span class="token-str">"Type of text:"</span>, <span class="token-fn">type</span>(<span class="token-fn">text</span>))       <span class="token-comment">// STRING</span></code></pre>
+        </div>
+        <h3 class="text-xl font-semibold mt-6 mb-3">Adaptive Numeric Core &amp; Transparent BigInt Promotion</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript automatically and transparently promotes standard 64-bit integer arithmetic (<code class="font-mono">+</code>, <code class="font-mono">-</code>, <code class="font-mono">*</code>, <code class="font-mono">**</code>) to arbitrary-precision <code class="font-mono">BigInt</code> when results exceed signed 64-bit limits (<code class="font-mono">&gt; 9,223,372,036,854,775,807</code>). This completely eliminates silent integer overflow wrapping bugs, while retaining raw unboxed int64 speed on small numbers!
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — transparent bigint overflow promotion &amp; pow_mod</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let max_int64 = 9223372036854775807
+let promoted = max_int64 + 10
+println("Type:", type(promoted)) // BIG_INT
+println("Value:", promoted)      // 9223372036854775817
+
+// Gargantuan exponentiation without integer overflow
+let huge = 2 ** 70
+println("2^70:", huge)           // 1180591620717411303424
+
+// Fast modular exponentiation builtin (base^exp % mod)
+let pm = pow_mod(7, 560, 561)
+println("Modular exponentiation:", pm) // 1</code></pre>
         </div>
       </section>
 
@@ -489,6 +535,27 @@
 <span class="token-kw">let</span> <span class="token-fn">msg</span> <span class="token-op">=</span> <span class="token-str">"Bramand"</span> <span class="token-op">+</span> <span class="token-str">"Script"</span> <span class="token-op">+</span> <span class="token-str">" "</span> <span class="token-op">+</span> <span class="token-num">2026</span>
 <span class="token-fn">print</span>(<span class="token-fn">msg</span>)                     <span class="token-comment">// BramandScript 2026</span></code></pre>
         </div>
+        <h3 class="text-xl font-semibold mt-6 mb-3">Pipeline Operator (<code class="font-mono">|&gt;</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The pipeline operator (<code class="font-mono">|&gt;</code>) allows data-first, fluent functional chaining without deeply nested parenthesized calls. At compile time, the bytecode compiler lowers pipeline expressions directly into standard nested function calls with zero intermediate stack or allocation overhead:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — pipeline operator chaining</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let inc = fn(x) { return x + 1; };
+let sq = fn(x) { return x * x; };
+let add = fn(x, y) { return x + y; };
+
+// 3 |> inc |> sq is lowered directly to sq(inc(3)) -> 16
+let res = 3 |> inc |> sq
+println("Result:", res) // 16
+
+// Supplying additional arguments to pipelined functions
+let res2 = 5 |> add(10) |> inc // add(5, 10) -> 15 -> inc(15) -> 16
+println("Result 2:", res2) // 16</code></pre>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 8 ================= -->
@@ -601,6 +668,53 @@
           <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
             When a function references identifiers from an enclosing scope, the compiler emits <code class="font-mono">OpClosure &lt;constIndex&gt; &lt;numFree&gt;</code>. Free variables are pushed to the stack and captured into an array of object references inside the closure object. Access and mutation are performed via <code class="font-mono">OpGetFree</code> and <code class="font-mono">OpSetFree</code>.
           </p>
+        </div>
+        <h3 class="text-xl font-semibold mt-6 mb-3">Function Parameter Destructuring</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Function signatures can directly destructure dictionary keys and array elements into scoped parameter bindings:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — parameter destructuring</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>// Destructure object properties directly in parameters
+fn distance({ x, y }) {
+    return sqrt((x * x) + (y * y))
+}
+println("Distance:", distance({ "x": 3.0, "y": 4.0 })) // 5.0
+
+// Destructure array elements with rest parameter
+fn sum_head([a, b, ...rest]) {
+    return a + b
+}
+println("Head sum:", sum_head([10, 20, 30, 40])) // 30</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Generator Functions &amp; <code class="font-mono">yield</code></h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Generators enable stateful, resumable stream computation using lightweight coroutines. In conjunction with <code class="font-mono">std/iter</code>, functions yield successive values lazily without computing the entire dataset into memory:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — generator functions with yield</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/iter" as iter
+
+let fib_gen = iter.generator(fn(yield) {
+    let a = 0
+    let b = 1
+    while true {
+        yield a
+        let next = a + b
+        a = b
+        b = next
+    }
+})
+
+let first_six = iter.take(fib_gen, 6)
+println("First 6 Fibonacci numbers:", first_six) // [0, 1, 1, 2, 3, 5]</code></pre>
         </div>
       </section>
 

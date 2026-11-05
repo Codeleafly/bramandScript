@@ -437,6 +437,31 @@ func init() {
 		},
 	})
 
+	RegisterBuiltin("pow_mod", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Message: fmt.Sprintf("wrong number of arguments to pow_mod. got=%d, want=3", len(args))}
+			}
+			base, ok1 := toBigInt(args[0])
+			exp, ok2 := toBigInt(args[1])
+			mod, ok3 := toBigInt(args[2])
+			if !ok1 || !ok2 || !ok3 {
+				return &object.Error{Message: "arguments to pow_mod must be integers or big_int"}
+			}
+			if mod.Sign() == 0 {
+				return &object.Error{Message: "pow_mod modulus cannot be zero"}
+			}
+			if exp.Sign() < 0 {
+				return &object.Error{Message: "pow_mod negative exponent not supported"}
+			}
+			res := new(big.Int).Exp(base, exp, mod)
+			if res.IsInt64() {
+				return &object.Integer{Value: res.Int64()}
+			}
+			return &object.BigInt{Value: res}
+		},
+	})
+
 	RegisterBuiltin("abs", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {

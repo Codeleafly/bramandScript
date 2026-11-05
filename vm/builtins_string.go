@@ -37,6 +37,8 @@ func init() {
 				if !ok1 || !ok2 {
 					return &object.Error{Message: "arguments to `join` must be (ARRAY, STRING)"}
 				}
+				arr.Mu.RLock()
+				defer arr.Mu.RUnlock()
 				parts := make([]string, len(arr.Elements))
 				for i, el := range arr.Elements {
 					if s, ok := el.(*object.String); ok {

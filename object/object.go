@@ -110,6 +110,10 @@ type Bytes struct {
 	Mu    sync.RWMutex
 }
 
+func NewBytes(data []byte) *Bytes {
+	return &Bytes{Value: data}
+}
+
 func (b *Bytes) Type() ObjectType { return BYTES_OBJ }
 func (b *Bytes) Inspect() string {
 	b.Mu.RLock()

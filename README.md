@@ -46,19 +46,45 @@
   let p = Point(3, 4)
   print(p.dist()) // 5.0
   ```
-- **Pattern Matching**:
+- **Pattern Matching & Destructuring**:
   ```bmd
+  let [first, second, ...rest] = [10, 20, 30, 40]
+  let { name, role } = { "name": "Bramand", "role": "Architect" }
+
   let msg = match statusCode {
       case 200 => { "OK" }
       case 400, 404 => { "Client Error" }
       default => { "Server Error" }
   }
   ```
+- **Pipeline Operator (`|>`)**:
+  Fluent data-first chaining lowered directly to nested call chains at compile time with zero overhead:
+  ```bmd
+  let result = 3 |> inc |> square // square(inc(3)) -> 16
+  ```
+- **Adaptive Numeric Core & Transparent BigInt**:
+  Standard integer arithmetic automatically promotes to arbitrary-precision `BigInt` upon 64-bit overflow (`2 ** 70`), eliminating silent overflow wrapping while maintaining unboxed int64 speed on small integers.
+- **Scientific Computing & Linear Algebra Suite**:
+  - `std/math/decomp`: LU decomposition with row pivoting, QR via Householder reflections, Cholesky factorization, linear solvers (`A * x = b`), and polynomial least-squares regression.
+  - `std/math/eigen`: Spectral analysis, power iteration, and shifted QR eigenvalue algorithms.
+  - `std/math/sparse`: Compressed Sparse Row (CSR) matrix representation and sparse matrix-vector multiplication.
+  - `std/math/calculus` & `std/math/opt` & `std/math/ode`: Numerical differentiation, Simpson/Gauss quadrature integration, Brent-Dekker root finding, scalar minimization, and RK4 ODE integrators.
+  - `std/math/rational` & `std/math/decimal`: Exact fractional arithmetic with automatic GCD reduction and fixed/arbitrary-scale financial decimals.
+  - `std/math/complex` & `std/math/ntheory`: Complex Cartesian/polar numbers, Euler identity verification, deterministic Miller-Rabin primality, Pollard-rho, and modular inverse.
+- **Modern Cryptography & Binary Protocols**:
+  - `std/crypto/advanced`: Authenticated symmetric encryption (AES-256-GCM), Ed25519 digital signatures, and JSON Web Token (JWT) signing and verification.
+  - `std/binary/pack`: Python-style binary struct packing (`>hhi4s`) and MessagePack binary serialization.
+  - `std/compress`: Pure Go stdlib gzip, zlib, and POSIX tar archiving without external CLI tools.
+- **Terminal Visualizations (`std/tui/plot`)**:
+  High-resolution 2x4 Braille dot-matrix mathematical function curves and Unicode box bar charts directly inside the terminal.
+- **AOT Constant Folding & Peephole Optimizer**:
+  Compiler optimization pass (`bmd run -O script.bmd`, `bmd build -O app.bmd`) pre-evaluating constant arithmetic expressions and compacting bytecode opcodes.
 - **Modular Standard Library (`stdlib/`)**:
   - Lean VM core with dedicated high-level standard library modules written in BramandScript:
   - `import "std/math" as math` (constants `PI`, `E`, `clamp`, `gcd`, `lcm`, `min`, `max`)
   - `import "std/strings" as str` (`capitalize`, `pad_left`, `pad_right`, `slugify`, `reverse`)
   - `import "std/collections" as coll` (`map`, `filter`, `reduce`, `find`, `unique`, `chunk`, `group_by`)
+  - `import "std/iter" as iter` (resumable coroutine generators, `yield`, lazy stream evaluation)
   - `import "std/io" as io` (`read_text`, `write_text`, `append_text`, `exists`, `remove`)
   - `import "std/json" as json` (`parse`, `stringify`, `safe_parse`)
   - `import "std/testing" as t` (`assert_true`, `assert_false`, `assert_null`)
@@ -146,7 +172,10 @@ c.inc()
 c.inc()
 print("Counter value:", c.val)
 
-// Pattern matching
+// Pattern matching & Destructuring
+let [head, ...tail] = [10, 20, 30, 40]
+let { name, role } = { "name": "Bramand", "role": "Architect" }
+
 let status = 200
 let response = match status {
     case 200 => { "Success" }
@@ -154,6 +183,12 @@ let response = match status {
     default => { "Unknown" }
 }
 print("Status:", response)
+
+// Pipeline Operator (|>)
+let inc = fn(x) { return x + 1; }
+let sq = fn(x) { return x * x; }
+let res = 3 |> inc |> sq
+print("Pipeline (3 + 1)^2:", res) // 16
 
 // For-in loop
 let fruits = ["Apple", "Mango", "Banana"]

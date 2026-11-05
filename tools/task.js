@@ -191,7 +191,7 @@ function cmdList(rawArgs) {
     }
 
     const statusBadge = t.done 
-      ? `${GREEN}[✔ COMPLETE]${RESET}` 
+      ? `${GREEN}[OK COMPLETE]${RESET}` 
       : `${YELLOW}[· PENDING ]${RESET}`;
     const num = String(t.index).padStart(2, '0');
     console.log(`  ${DIM}${num}.${RESET} ${statusBadge} ${t.done ? DIM + t.text + RESET : t.text}`);
@@ -293,7 +293,7 @@ function cmdView(target) {
 
   console.log(`\n${BOLD}${CYAN}✦ Task Details — #${targetTask.index}${RESET}`);
   console.log(`${BOLD}Day:${RESET}         ${targetTask.day}`);
-  console.log(`${BOLD}Status:${RESET}      ${targetTask.done ? GREEN + '[✔ COMPLETE]' + RESET : YELLOW + '[· PENDING ]' + RESET}`);
+  console.log(`${BOLD}Status:${RESET}      ${targetTask.done ? GREEN + '[OK COMPLETE]' + RESET : YELLOW + '[· PENDING ]' + RESET}`);
   console.log(`${BOLD}Specification:${RESET} ${targetTask.text}\n`);
 }
 

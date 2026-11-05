@@ -48,7 +48,7 @@
         <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
           <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
           <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
         </a>
       </div>
 
@@ -169,6 +169,15 @@
             <li><a href="stdlib.html#ch-dataframe" class="nav-link pl-4 text-xs"><span>·</span> std/dataframe</a></li>
             <li><a href="stdlib.html#ch-ml" class="nav-link pl-4 text-xs"><span>·</span> std/ml (Autograd)</a></li>
             <li><a href="stdlib.html#ch-lang" class="nav-link pl-4 text-xs"><span>·</span> std/lang (Language Engine)</a></li>
+            <li><a href="stdlib.html#ch-rational-decimal" class="nav-link pl-4 text-xs"><span>·</span> std/math/rational &amp; decimal</a></li>
+            <li><a href="stdlib.html#ch-complex-ntheory" class="nav-link pl-4 text-xs"><span>·</span> std/math/complex &amp; ntheory</a></li>
+            <li><a href="stdlib.html#ch-calculus-opt-ode" class="nav-link pl-4 text-xs"><span>·</span> std/math/calculus, opt &amp; ode</a></li>
+            <li><a href="stdlib.html#ch-decomp-eigen-sparse" class="nav-link pl-4 text-xs"><span>·</span> std/math/decomp, eigen &amp; sparse</a></li>
+            <li><a href="stdlib.html#ch-iter" class="nav-link pl-4 text-xs"><span>·</span> std/iter (Generators &amp; Streams)</a></li>
+            <li><a href="stdlib.html#ch-compress" class="nav-link pl-4 text-xs"><span>·</span> std/compress (Gzip, Zlib, Tar)</a></li>
+            <li><a href="stdlib.html#ch-binary-pack" class="nav-link pl-4 text-xs"><span>·</span> std/binary/pack (MsgPack &amp; Struct)</a></li>
+            <li><a href="stdlib.html#ch-crypto-advanced" class="nav-link pl-4 text-xs"><span>·</span> std/crypto/advanced (GCM, Ed25519, JWT)</a></li>
+            <li><a href="stdlib.html#ch-tui-plot" class="nav-link pl-4 text-xs"><span>·</span> std/tui/plot (Braille Plotter)</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -457,7 +466,7 @@ println("Even bucket:", grouped["even"]) // [2, 4, 6, 8]</code></pre>
             </div>
             <pre><code>import "std/json" as json
 
-let data = json.parse("{"node": "cluster-01", "port": 8080}")
+let data = json.parse("{\"node\": \"cluster-01\", \"port\": 8080}")
 println("Node:", data["node"])
 
 // Defensive parsing with fallback
@@ -1308,6 +1317,364 @@ println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></p
       </section>
 
 
+
+      <!-- ================= MODULAR STDLIB: RATIONAL & DECIMAL ================= -->
+      <section id="ch-rational-decimal" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Exact Arithmetic</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Exact Rational Numbers &amp; Arbitrary Decimal Engine (<code class="font-mono">std/math/rational</code> &amp; <code class="font-mono">decimal</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Financial and scientific applications cannot tolerate binary IEEE-754 floating-point rounding errors (e.g. <code class="font-mono">0.1 + 0.2 != 0.3</code>). BramandScript provides two first-class modules: exact fractional arithmetic with automatic GCD reduction (<code class="font-mono">std/math/rational</code>) and arbitrary/fixed-precision decimal arithmetic (<code class="font-mono">std/math/decimal</code>).
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Exact Fractions &amp; Fixed-Scale Decimals</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math/rational" as r
+import "std/math/decimal" as d
+
+// 1. Exact Fractions with Automatic GCD Reduction
+let f1 = r.rational(2, 6)             // Automatically reduced to 1/3
+let f2 = r.rational(1, 6)
+let sum = f1.add(f2)                  // 1/3 + 1/6 = 1/2
+let prod = f1.mul(r.rational(3, 2))   // 1/3 * 3/2 = 1/2
+println("Sum:", sum.to_string())      // "1/2"
+println("Float value:", sum.to_float()) // 0.5
+
+// 2. Exact Financial Decimal Arithmetic (Zero Float Drift)
+let d1 = d.decimal("0.1")
+let d2 = d.decimal("0.2")
+let total = d1.add(d2)
+println("Exact decimal sum:", total.to_string()) // "0.3"</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Module</th><th>Constructors &amp; Methods</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">std/math/rational</code></td><td><code class="font-mono">rational(n, d)</code>, <code class="font-mono">fraction(n, d)</code><br><code class="font-mono">.add(o)</code>, <code class="font-mono">.sub(o)</code>, <code class="font-mono">.mul(o)</code>, <code class="font-mono">.div(o)</code>, <code class="font-mono">.pow(p)</code></td><td>Exact integer rational fractions; automatically simplifies via Euclidean GCD. Returns <code class="font-mono">.to_string()</code> and <code class="font-mono">.to_float()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">std/math/decimal</code></td><td><code class="font-mono">decimal(val, [scale])</code><br><code class="font-mono">.add(o)</code>, <code class="font-mono">.sub(o)</code>, <code class="font-mono">.mul(o)</code>, <code class="font-mono">.div(o)</code></td><td>Fixed/arbitrary-scale decimal arithmetic for currencies, financial ledgers, and exact tax calculations.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: COMPLEX & NUMBER THEORY ================= -->
+      <section id="ch-complex-ntheory" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Mathematics</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Complex Numbers, Number Theory &amp; Constants (<code class="font-mono">std/math/complex</code>, <code class="font-mono">ntheory</code>, <code class="font-mono">constants</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A full-featured mathematical engine supporting Cartesian/polar complex numbers with Euler identity evaluation, cryptographic number theory (Miller-Rabin primality, Pollard-rho, extended GCD, modular inverse), and Chudnovsky-grade constant generation:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Complex Numbers &amp; Cryptographic Number Theory</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math/complex" as c
+import "std/math/ntheory" as nt
+import "std/math/constants" as consts
+
+// Complex Cartesian & Polar Arithmetic
+let z1 = c.complex(3, 4)
+println("|z1| magnitude:", z1.abs())      // 5.0
+println("z1 conjugate:", z1.conj().to_string()) // "3 - 4i"
+
+// Euler Identity Verification: e^(i*pi) + 1 = 0
+let i_pi = c.complex(0, 3.141592653589793)
+let euler = i_pi.exp() // Real part ~ -1.0, Imag ~ 0.0
+
+// Cryptographic Number Theory
+println("Is 7919 prime?", nt.is_prime(7919))            // true
+println("Prime factors of 84:", nt.prime_factors(84))  // [2, 2, 3, 7]
+println("Modular inverse of 7 mod 26:", nt.mod_inv(7, 26)) // 15
+println("Combinations 6C2:", nt.nCr(6, 2))             // 15
+
+// High-Precision Pi, E, and Golden Ratio Phi Digits
+println("Pi (20 digits):", consts.compute_pi_digits(20))
+println("E (20 digits):", consts.compute_e_digits(20))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: CALCULUS, OPT & ODE ================= -->
+      <section id="ch-calculus-opt-ode" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Scientific Computing</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Calculus, Optimization &amp; ODE Solvers (<code class="font-mono">std/math/calculus</code>, <code class="font-mono">opt</code>, <code class="font-mono">ode</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          High-precision numerical differentiation, adaptive Simpson and Gauss-Legendre quadrature integration, root-finding (Newton-Raphson, Bisection, Brent-Dekker), scalar/gradient minimization, and 4th-order Runge-Kutta (RK4) differential equation integrators.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Numerical Derivatives, Quadrature, Root Finding &amp; ODEs</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math/calculus" as calc
+import "std/math/opt" as opt
+import "std/math/ode" as ode
+
+// 1. Numerical Differentiation: f(x) = x^3 at x = 2 -> f'(2) = 12
+let f = fn(x) { return x * x * x; }
+let d1 = calc.diff(f, 2.0)
+let d2 = calc.diff2(f, 2.0)
+println("d/dx x^3 at 2.0:", d1) // ~12.0
+
+// 2. Numerical Integration: Integrate x^2 from 0 to 3 -> (3^3)/3 = 9.0
+let quad = calc.integrate_simpson(fn(x) { return x * x; }, 0.0, 3.0, 50)
+println("Simpson integral:", quad) // 9.0
+
+// 3. Non-Linear Root Finding: x^2 - 4 = 0 -> root = 2.0
+let root = opt.root_brent(fn(x) { return (x * x) - 4.0; }, 0.0, 5.0)
+println("Brent root:", root.root) // 2.0
+
+// 4. 4th-Order Runge-Kutta ODE Solver: dy/dt = -y, y(0) = 1.0 -> y(1.0) = 1/e
+let trajectory = ode.ode_solve_rk4(fn(t, y) { return -y; }, 1.0, 0.0, 1.0, 0.1)
+let final_state = trajectory[len(trajectory) - 1]
+println("y(1.0) via RK4:", final_state[1]) // ~0.367879</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: MATRIX DECOMP, EIGEN & SPARSE ================= -->
+      <section id="ch-decomp-eigen-sparse" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Linear Algebra &amp; Spectral Analysis</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Matrix Decompositions, Spectral Analysis &amp; Sparse CSR (<code class="font-mono">std/math/decomp</code>, <code class="font-mono">eigen</code>, <code class="font-mono">sparse</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Industrial-grade numerical linear algebra factorizations (LU with partial row pivoting, QR via Householder reflections, Cholesky decomposition), linear system solvers, least-squares regression, eigenvalue extraction via shifted QR, and memory-efficient Compressed Sparse Row (CSR) matrices.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — LU/QR/Cholesky Factorization &amp; Eigenvalues</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math/decomp" as decomp
+import "std/math/eigen" as eigen
+import "std/math/sparse" as sparse
+
+// 1. Solve Linear System A * x = b via LU Decomposition
+let A = [
+    [3.0, 2.0, -1.0],
+    [2.0, -2.0, 4.0],
+    [-1.0, 0.5, -1.0]
+]
+let b = [1.0, -2.0, 0.0]
+let x = decomp.solve_linear_system(A, b)
+println("Solution vector x:", x)
+
+// 2. Symmetric Spectral Analysis via QR Eigenvalues
+let sym = [
+    [2.0, 1.0],
+    [1.0, 2.0]
+]
+let spectral = eigen.eigen_qr(sym, 100, 0.0000000001)
+println("Eigenvalues:", spectral.eigenvalues) // [3.0, 1.0]
+println("Spectral radius:", eigen.spectral_radius(sym)) // 3.0
+
+// 3. Compressed Sparse Row (CSR) Matrix Operations
+let dense = [
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, 3.0],
+    [4.0, 0.0, 5.0]
+]
+let csr = sparse.csr_from_dense(dense)
+println("Non-zero entries (nnz):", csr.nnz()) // 4
+let result_v = csr.matmul_vec([2.0, 10.0, 4.0]) // [2.0, 12.0, 28.0]</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: ITER ================= -->
+      <section id="ch-iter" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Iterators &amp; Generators</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Resumable Iterators &amp; Generator Streams (<code class="font-mono">std/iter</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          First-class stateful coroutine generators with <code class="font-mono">yield</code>, plus fluent lazy streaming operations (<code class="font-mono">take</code>, <code class="font-mono">drop</code>, <code class="font-mono">map</code>, <code class="font-mono">filter</code>, <code class="font-mono">cycle</code>, <code class="font-mono">zip</code>, <code class="font-mono">to_array</code>).
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Coroutine Generators &amp; Lazy Streams</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/iter" as iter
+
+// Generator function yielding values on demand
+let gen = iter.generator(fn(yield) {
+    let i = 1
+    while true {
+        yield i * 10
+        i += 1
+    }
+})
+
+// Take first 4 items lazily without evaluating infinite loop
+let first_four = iter.take(gen, 4) // [10, 20, 30, 40]
+println("First four:", first_four)
+
+// Fluent streaming transformations
+let stream = iter.range(1, 10, 2) // [1, 3, 5, 7, 9]
+let doubled = stream.map(fn(x) { return x * 2; }).filter(fn(x) { return x &gt; 5; })
+println("Stream array:", doubled.to_array()) // [6, 10, 14, 18]</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: COMPRESS ================= -->
+      <section id="ch-compress" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Compression</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Native Compression &amp; Archiving (<code class="font-mono">std/compress</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Compress and decompress data streams or package entire file hierarchies into standard POSIX tar archives in pure Go standard library with zero external CLI dependencies.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Gzip, Zlib &amp; Tar Archive Packaging</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/compress/gzip" as gzip
+import "std/compress/zlib" as zlib
+import "std/compress/tar" as tar
+
+// 1. Gzip Compression Round-Trip
+let raw_text = "BramandScript pure standard library offline-first high performance!"
+let gz_bytes = gzip.compress(raw_text)
+let restored = gzip.decompress(gz_bytes)
+println("Gzip verified:", str(restored) == raw_text)
+
+// 2. Tar Multi-File Directory Archiving
+let archive_bytes = tar.pack({
+    "config.bmd": "let port = 8080;",
+    "static/index.html": "&lt;h1&gt;Bramand App&lt;/h1&gt;"
+})
+let extracted_files = tar.unpack(archive_bytes)
+println("Unpacked config:", str(extracted_files["config.bmd"]))</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: BINARY PACK ================= -->
+      <section id="ch-binary-pack" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Binary Protocols</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Binary Struct Packing &amp; MessagePack (<code class="font-mono">std/binary/pack</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Compact wire protocols, telemetry serialization, and network socket framing using Python-style <code class="font-mono">struct.pack / unpack</code> format specifiers (<code class="font-mono">&gt;I</code>, <code class="font-mono">&lt;h</code>, <code class="font-mono">f</code>, <code class="font-mono">d</code>, <code class="font-mono">s</code>) and MessagePack binary encoding.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Struct Packing &amp; MsgPack Serialization</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/binary/pack" as bin
+
+// 1. Python-style binary struct packing (>hhi4s = Big-Endian int16, int16, int32, 4-char string)
+let format = "&gt;hhi4s"
+let packed_bytes = bin.pack(format, [42, -99, 123456, "BMD!"])
+let unpacked_arr = bin.unpack(format, packed_bytes)
+println("Unpacked ID:", unpacked_arr[0], "Magic:", unpacked_arr[3])
+
+// 2. High-Speed MessagePack Encoding
+let data = { "user": "bramand", "id": 101, "scores": [98.5, 95.0] }
+let msgpack_bytes = bin.encode(data)
+let decoded_data = bin.decode(msgpack_bytes)
+println("Decoded user:", decoded_data.user) // "bramand"</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: CRYPTO ADVANCED ================= -->
+      <section id="ch-crypto-advanced" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Modern Cryptography</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Modern Cryptography Suite: AES-256-GCM, Ed25519 &amp; JWT (<code class="font-mono">std/crypto/advanced</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Commercial-grade authenticated symmetric encryption with 128-bit authentication tags (AES-256-GCM), high-speed elliptic curve digital signatures (Ed25519), and secure JSON Web Token (JWT) signing and verification.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — AES-256-GCM, Ed25519 &amp; JWT Signatures</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/crypto/advanced" as crypto
+
+// 1. Authenticated Symmetric Encryption (AES-256-GCM)
+let key = "abcdefghijklmnopqrstuvwxyz123456" // 32-byte key
+let secret_msg = "Ultra confidential transaction payload"
+let enc = crypto.encrypt_gcm(key, secret_msg, null, "aad-data")
+let dec = crypto.decrypt_gcm(key, enc.combined, null, "aad-data")
+println("Decrypted message:", str(dec))
+
+// 2. Ed25519 Digital Signatures
+let kp = crypto.keypair_ed25519()
+let message = "Authorize wire transfer #9842"
+let signature = crypto.sign_ed25519(kp.private_key, message)
+let is_valid = crypto.verify_ed25519(kp.public_key, message, signature)
+println("Ed25519 signature valid?", is_valid) // true
+
+// 3. JSON Web Token (JWT) Verification
+let payload = { "sub": "user_42", "role": "admin", "iat": 1700000000 }
+let secret = "production_secure_jwt_secret_key"
+let token = crypto.sign_jwt(payload, secret, "HS256")
+let result = crypto.verify_jwt(token, secret, "HS256")
+println("JWT verified?", result.valid, "Role:", result.payload.role)</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MODULAR STDLIB: TUI PLOT ================= -->
+      <section id="ch-tui-plot" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Terminal Visualizations</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Terminal Unicode &amp; Braille Plotting Engine (<code class="font-mono">std/tui/plot</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Scientific, financial, and machine learning visualization library rendering high-resolution 2x4 Braille dot-matrix curves, scatter plots, and Unicode box bar charts directly inside any terminal without GUI dependencies.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Braille Function Plotting &amp; Bar Charts</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/tui/plot" as plot
+
+// Plot a mathematical function curve using high-resolution Braille dots
+let parabola = plot.plot_function(fn(x) { return x * x; }, -2.0, 2.0, "Parabola", 40, 10)
+println(parabola)
+
+// Render a clean Unicode horizontal bar chart
+let categories = ["Compiler", "VM Exec", "Stdlib", "Crypto"]
+let timings_ms = [4.2, 12.8, 8.5, 3.1]
+let bar_chart = plot.plot_bar(categories, timings_ms, "Hotspot Profile", 25)
+println(bar_chart)</code></pre>
+        </div>
+      </section>
+
       <section id="ch15" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Chapter 15</span>
@@ -1315,7 +1682,7 @@ println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></p
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standard Builtin Functions Reference</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          All <strong>116 builtin functions</strong> are implemented natively in Go without external dependencies. They are indexed in <code class="font-mono">compiler/builtins.go</code> and executed via opcode <code class="font-mono">OpGetBuiltin</code> with zero overhead. Not a single builtin is omitted from this exhaustive reference:
+          All <strong>180+ builtin functions</strong> are implemented natively in Go without external dependencies. They are indexed in <code class="font-mono">compiler/builtins.go</code> and executed via opcode <code class="font-mono">OpGetBuiltin</code> with zero overhead. Not a single builtin is omitted from this exhaustive reference:
         </p>
 
         <!-- Category 1: Console Output & Standard I/O -->
@@ -1558,6 +1925,7 @@ println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></p
               <tr><td><code class="font-mono font-bold">floor / ceil / round</code></td><td><code class="font-mono">floor(x) / ceil(x) / round(x)</code></td><td><code class="font-mono">INTEGER</code></td><td>Floating-point rounding to integer.</td></tr>
               <tr><td><code class="font-mono font-bold">trunc</code></td><td><code class="font-mono">trunc(x)</code></td><td><code class="font-mono">INTEGER</code></td><td>Truncates decimal portion, returning integer value.</td></tr>
               <tr><td><code class="font-mono font-bold">deg_to_rad / rad_to_deg</code></td><td><code class="font-mono">deg_to_rad(d) / rad_to_deg(r)</code></td><td><code class="font-mono">FLOAT</code></td><td>Converts between degrees and radians.</td></tr>
+              <tr><td><code class="font-mono font-bold">pow_mod</code></td><td><code class="font-mono">pow_mod(b, exp, mod)</code></td><td><code class="font-mono">INTEGER | BIGINT</code></td><td>Fast modular exponentiation (<code class="font-mono">b^exp % mod</code>) for cryptographic and scientific sizes.</td></tr>
               <tr><td><code class="font-mono font-bold">min / max</code></td><td><code class="font-mono">min(...nums) / max(...nums)</code></td><td><code class="font-mono">NUMBER</code></td><td>Finds minimum or maximum number among arguments or array elements.</td></tr>
             </tbody>
           </table>
@@ -1677,6 +2045,60 @@ println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></p
               <tr><td><code class="font-mono font-bold">test</code></td><td><code class="font-mono">test(name, fn)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Executes isolated test block, measuring duration and catching assertion failures.</td></tr>
               <tr><td><code class="font-mono font-bold">describe</code></td><td><code class="font-mono">describe(suite_name, fn)</code></td><td><code class="font-mono">NULL</code></td><td>Groups related tests under a common suite heading with duration aggregation.</td></tr>
               <tr><td><code class="font-mono font-bold">benchmark</code></td><td><code class="font-mono">benchmark(name, fn, [iters])</code></td><td><code class="font-mono">HASH</code></td><td>Runs warmup and iterations loop; returns <code class="font-mono">{"name", "iterations", "total_ms", "ops_per_sec"}</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 20: Compression & Archiving (std/compress) -->
+        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">20. Compression &amp; Archiving Engine (<code class="font-mono text-sm">std/compress</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">gzip_compress</code></td><td><code class="font-mono">gzip_compress(data)</code></td><td><code class="font-mono">BYTES</code></td><td>Compresses bytes or string using pure Go standard library gzip.</td></tr>
+              <tr><td><code class="font-mono font-bold">gzip_decompress</code></td><td><code class="font-mono">gzip_decompress(data)</code></td><td><code class="font-mono">BYTES</code></td><td>Decompresses gzip archive bytes back to raw byte stream.</td></tr>
+              <tr><td><code class="font-mono font-bold">zlib_compress</code></td><td><code class="font-mono">zlib_compress(data)</code></td><td><code class="font-mono">BYTES</code></td><td>Deflates byte payload with RFC 1950 zlib compression.</td></tr>
+              <tr><td><code class="font-mono font-bold">zlib_decompress</code></td><td><code class="font-mono">zlib_decompress(data)</code></td><td><code class="font-mono">BYTES</code></td><td>Inflates zlib compressed byte payload back to original contents.</td></tr>
+              <tr><td><code class="font-mono font-bold">tar_pack</code></td><td><code class="font-mono">tar_pack(files_hash_or_array)</code></td><td><code class="font-mono">BYTES</code></td><td>Packages multi-file directory hierarchy into standard POSIX tar archive.</td></tr>
+              <tr><td><code class="font-mono font-bold">tar_unpack</code></td><td><code class="font-mono">tar_unpack(tar_bytes)</code></td><td><code class="font-mono">HASH</code></td><td>Extracts tar archive into file name to byte payload map.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 21: Binary Struct Packing & MsgPack (std/binary/pack) -->
+        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">21. Binary Serialization &amp; Struct Packing (<code class="font-mono text-sm">std/binary/pack</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">struct_pack</code></td><td><code class="font-mono">struct_pack(fmt, values)</code></td><td><code class="font-mono">BYTES</code></td><td>Python-style binary struct packing (&gt;I, &lt;h, f, d, b, B, s, etc.).</td></tr>
+              <tr><td><code class="font-mono font-bold">struct_unpack</code></td><td><code class="font-mono">struct_unpack(fmt, data)</code></td><td><code class="font-mono">ARRAY</code></td><td>Unpacks binary byte sequence according to format specifier.</td></tr>
+              <tr><td><code class="font-mono font-bold">struct_calcsize</code></td><td><code class="font-mono">struct_calcsize(fmt)</code></td><td><code class="font-mono">INT</code></td><td>Calculates byte length required for specified format string.</td></tr>
+              <tr><td><code class="font-mono font-bold">msgpack_encode</code></td><td><code class="font-mono">msgpack_encode(val)</code></td><td><code class="font-mono">BYTES</code></td><td>High-speed binary MessagePack encoding for primitives, arrays, and hashes.</td></tr>
+              <tr><td><code class="font-mono font-bold">msgpack_decode</code></td><td><code class="font-mono">msgpack_decode(bytes)</code></td><td><code class="font-mono">OBJECT</code></td><td>Decodes MessagePack binary data back into native BramandScript objects.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 22: Modern Cryptography Suite (std/crypto/advanced) -->
+        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">22. Modern Cryptography Suite (<code class="font-mono text-sm">std/crypto/advanced</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">aes_gcm_encrypt</code></td><td><code class="font-mono">aes_gcm_encrypt(key, pt, [nonce], [aad])</code></td><td><code class="font-mono">HASH</code></td><td>AES-256-GCM authenticated symmetric encryption with 128-bit integrity tag.</td></tr>
+              <tr><td><code class="font-mono font-bold">aes_gcm_decrypt</code></td><td><code class="font-mono">aes_gcm_decrypt(key, ct, [nonce], [aad])</code></td><td><code class="font-mono">BYTES</code></td><td>Decrypts and verifies authenticated AES-256-GCM ciphertext payload.</td></tr>
+              <tr><td><code class="font-mono font-bold">ed25519_keypair</code></td><td><code class="font-mono">ed25519_keypair()</code></td><td><code class="font-mono">HASH</code></td><td>Generates cryptographically secure Ed25519 public/private keypair.</td></tr>
+              <tr><td><code class="font-mono font-bold">ed25519_sign</code></td><td><code class="font-mono">ed25519_sign(priv_key, message)</code></td><td><code class="font-mono">BYTES</code></td><td>Generates 64-byte Ed25519 digital signature over message.</td></tr>
+              <tr><td><code class="font-mono font-bold">ed25519_verify</code></td><td><code class="font-mono">ed25519_verify(pub_key, msg, sig)</code></td><td><code class="font-mono">BOOL</code></td><td>Verifies Ed25519 signature validity against public key.</td></tr>
+              <tr><td><code class="font-mono font-bold">jwt_sign</code></td><td><code class="font-mono">jwt_sign(payload, secret, [alg])</code></td><td><code class="font-mono">STRING</code></td><td>Generates signed JSON Web Token (HS256 HMAC or EdDSA Ed25519).</td></tr>
+              <tr><td><code class="font-mono font-bold">jwt_verify</code></td><td><code class="font-mono">jwt_verify(token, secret, [alg])</code></td><td><code class="font-mono">HASH</code></td><td>Validates JWT signature, decoding header and verified payload hash.</td></tr>
             </tbody>
           </table>
         </div>

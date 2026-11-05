@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"sort"
 	"strconv"
@@ -478,8 +479,23 @@ func init() {
 				case *object.Float:
 					return &object.Integer{Value: int64(arg.Value)}
 				case *object.String:
-					v, err := strconv.ParseInt(arg.Value, 0, 64)
+					s := strings.TrimSpace(arg.Value)
+					base := 10
+					clean := s
+					if strings.HasPrefix(clean, "+") || strings.HasPrefix(clean, "-") {
+						clean = clean[1:]
+					}
+					if strings.HasPrefix(clean, "0x") || strings.HasPrefix(clean, "0X") ||
+						strings.HasPrefix(clean, "0b") || strings.HasPrefix(clean, "0B") ||
+						strings.HasPrefix(clean, "0o") || strings.HasPrefix(clean, "0O") {
+						base = 0
+					}
+					v, err := strconv.ParseInt(s, base, 64)
 					if err != nil {
+						bi := new(big.Int)
+						if bi, ok := bi.SetString(s, base); ok {
+							return &object.BigInt{Value: bi}
+						}
 						return &object.Error{Message: fmt.Sprintf("cannot convert %q to integer", arg.Value)}
 					}
 					return &object.Integer{Value: v}
@@ -709,8 +725,10 @@ func init() {
 				}
 				switch coll := args[0].(type) {
 				case *object.Array:
+					coll.Mu.RLock()
+					defer coll.Mu.RUnlock()
 					for _, elem := range coll.Elements {
-						if elem.Inspect() == args[1].Inspect() {
+						if ObjectsEqual(elem, args[1]) {
 							return True
 						}
 					}

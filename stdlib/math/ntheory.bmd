@@ -1,0 +1,185 @@
+// BramandScript Standard Library :: Math :: Number Theory (std/math/ntheory)
+// Cryptographic number theory and combinatorial algorithms.
+
+let gcd_ext = fn(a, b) {
+    let x0 = 1;
+    let y0 = 0;
+    let x1 = 0;
+    let y1 = 1;
+    let r0 = a;
+    let r1 = b;
+
+    while r1 != 0 {
+        let q = r0 / r1;
+        let tmp_r = r0 % r1;
+        r0 = r1;
+        r1 = tmp_r;
+
+        let tmp_x = x0 - (q * x1);
+        x0 = x1;
+        x1 = tmp_x;
+
+        let tmp_y = y0 - (q * y1);
+        y0 = y1;
+        y1 = tmp_y;
+    }
+
+    if r0 < 0 {
+        r0 = -r0;
+        x0 = -x0;
+        y0 = -y0;
+    }
+
+    return {
+        "gcd": r0,
+        "x": x0,
+        "y": y0
+    };
+};
+
+let mod_inv = fn(a, m) {
+    if m <= 0 {
+        panic("mod_inv: modulus must be positive");
+    }
+    let res = gcd_ext(a, m);
+    if res["gcd"] != 1 {
+        panic("mod_inv: modular inverse does not exist");
+    }
+    let inv = res["x"] % m;
+    if inv < 0 {
+        inv = inv + m;
+    }
+    return inv;
+};
+
+let is_prime = fn(n) {
+    if n <= 1 { return false; }
+    if n == 2 || n == 3 { return true; }
+    if n % 2 == 0 || n % 3 == 0 { return false; }
+
+    // Write n - 1 as 2^s * d
+    let d = n - 1;
+    let s = 0;
+    while d % 2 == 0 {
+        d = d / 2;
+        s = s + 1;
+    }
+
+    // Deterministic bases for 64-bit integers
+    let bases = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+    for a in bases {
+        if a >= n {
+            break;
+        }
+        let x = pow_mod(a, d, n);
+        if x != 1 && x != (n - 1) {
+            let composite = true;
+            let r = 1;
+            while r < s {
+                x = pow_mod(x, 2, n);
+                if x == (n - 1) {
+                    composite = false;
+                    break;
+                }
+                r = r + 1;
+            }
+            if composite {
+                return false;
+            }
+        }
+    }
+    return true;
+};
+
+let prime_factors = fn(n) {
+    let factors = [];
+    if n <= 1 { return factors; }
+    let num = n;
+
+    while num % 2 == 0 {
+        push(factors, 2);
+        num = num / 2;
+    }
+    while num % 3 == 0 {
+        push(factors, 3);
+        num = num / 3;
+    }
+
+    let i = 5;
+    let w = 2;
+    while i * i <= num {
+        while num % i == 0 {
+            push(factors, i);
+            num = num / i;
+        }
+        i = i + w;
+        w = 6 - w;
+    }
+
+    if num > 1 {
+        push(factors, num);
+    }
+    return factors;
+};
+
+let nCr = fn(n, r) {
+    if r < 0 || r > n {
+        return 0;
+    }
+    if r == 0 || r == n {
+        return 1;
+    }
+    let k = r;
+    if k > (n - k) {
+        k = n - k;
+    }
+    let res = 1;
+    let i = 1;
+    while i <= k {
+        res = (res * (n - k + i)) / i;
+        i = i + 1;
+    }
+    return res;
+};
+
+let nPr = fn(n, r) {
+    if r < 0 || r > n {
+        return 0;
+    }
+    let res = 1;
+    let i = 0;
+    while i < r {
+        res = res * (n - i);
+        i = i + 1;
+    }
+    return res;
+};
+
+let catalan_number = fn(n) {
+    if n < 0 { return 0; }
+    if n == 0 || n == 1 { return 1; }
+    return nCr(2 * n, n) / (n + 1);
+};
+
+let integer_partitions = fn(n) {
+    if n < 0 { return 0; }
+    if n == 0 { return 1; }
+    let dp = [];
+    let idx = 0;
+    while idx <= n {
+        push(dp, 0);
+        idx = idx + 1;
+    }
+    dp[0] = 1;
+
+    let i = 1;
+    while i <= n {
+        let j = i;
+        while j <= n {
+            dp[j] = dp[j] + dp[j - i];
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return dp[n];
+};

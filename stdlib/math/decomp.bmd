@@ -1,0 +1,443 @@
+// BramandScript Standard Library :: Matrix Factorizations (std/math/decomp)
+// High-performance linear algebra factorizations:
+// - LU Decomposition with partial row pivoting (PA = LU)
+// - QR Decomposition via Householder reflections (A = QR)
+// - Cholesky Decomposition for symmetric positive-definite matrices (A = L L^T)
+// - Linear system solvers and least-squares fits
+
+// Helper: Matrix zeros
+let matrix_zeros = fn(rows, cols) {
+    let m = [];
+    let r = 0;
+    while r < rows {
+        let row = [];
+        let c = 0;
+        while c < cols {
+            row = row + [0.0];
+            c = c + 1;
+        }
+        m = m + [row];
+        r = r + 1;
+    }
+    return m;
+};
+
+// Helper: Matrix identity
+let matrix_eye = fn(n) {
+    let m = [];
+    let r = 0;
+    while r < n {
+        let row = [];
+        let c = 0;
+        while c < n {
+            if r == c {
+                row = row + [1.0];
+            } else {
+                row = row + [0.0];
+            }
+            c = c + 1;
+        }
+        m = m + [row];
+        r = r + 1;
+    }
+    return m;
+};
+
+// Helper: Deep copy 2D array
+let matrix_copy = fn(A) {
+    let m = [];
+    let r = 0;
+    while r < len(A) {
+        let row = [];
+        let c = 0;
+        while c < len(A[r]) {
+            row = row + [A[r][c] * 1.0];
+            c = c + 1;
+        }
+        m = m + [row];
+        r = r + 1;
+    }
+    return m;
+};
+
+// Helper: Matrix transpose
+let matrix_transpose = fn(A) {
+    let rows = len(A);
+    if rows == 0 { return []; }
+    let cols = len(A[0]);
+    let t = [];
+    let c = 0;
+    while c < cols {
+        let row = [];
+        let r = 0;
+        while r < rows {
+            row = row + [A[r][c]];
+            r = r + 1;
+        }
+        t = t + [row];
+        c = c + 1;
+    }
+    return t;
+};
+
+// Helper: Matrix-Matrix multiplication
+let matrix_mult = fn(A, B) {
+    let rowsA = len(A);
+    let colsA = len(A[0]);
+    let rowsB = len(B);
+    let colsB = len(B[0]);
+    if colsA != rowsB {
+        return null;
+    }
+    let res = matrix_zeros(rowsA, colsB);
+    let i = 0;
+    while i < rowsA {
+        let j = 0;
+        while j < colsB {
+            let s = 0.0;
+            let k = 0;
+            while k < colsA {
+                s = s + (A[i][k] * B[k][j]);
+                k = k + 1;
+            }
+            res[i][j] = s;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// Helper: Matrix-Vector multiplication
+let matrix_vec_mult = fn(A, v) {
+    let rows = len(A);
+    let cols = len(A[0]);
+    let res = [];
+    let i = 0;
+    while i < rows {
+        let s = 0.0;
+        let j = 0;
+        while j < cols {
+            s = s + (A[i][j] * v[j]);
+            j = j + 1;
+        }
+        res = res + [s];
+        i = i + 1;
+    }
+    return res;
+};
+
+// LU Decomposition with Partial Pivoting (PA = LU)
+// Returns { "P": P, "L": L, "U": U, "pivots": pivots }
+let lu_decompose = fn(A) {
+    let n = len(A);
+    let U = matrix_copy(A);
+    let L = matrix_zeros(n, n);
+    let P = matrix_eye(n);
+    let pivots = [];
+    let p_idx = 0;
+    while p_idx < n {
+        pivots = pivots + [p_idx];
+        p_idx = p_idx + 1;
+    }
+
+    let k = 0;
+    while k < n {
+        // Find pivot in column k
+        let max_val = abs(U[k][k]);
+        let max_row = k;
+        let r = k + 1;
+        while r < n {
+            let val = abs(U[r][k]);
+            if val > max_val {
+                max_val = val;
+                max_row = r;
+            }
+            r = r + 1;
+        }
+
+        // Swap rows if necessary
+        if max_row != k {
+            // Swap in U
+            let tmpU = U[k];
+            U[k] = U[max_row];
+            U[max_row] = tmpU;
+
+            // Swap in P
+            let tmpP = P[k];
+            P[k] = P[max_row];
+            P[max_row] = tmpP;
+
+            // Swap pivot indices
+            let tmpIdx = pivots[k];
+            pivots[k] = pivots[max_row];
+            pivots[max_row] = tmpIdx;
+
+            // Swap in L up to column k-1
+            let c = 0;
+            while c < k {
+                let tmpL = L[k][c];
+                L[k][c] = L[max_row][c];
+                L[max_row][c] = tmpL;
+                c = c + 1;
+            }
+        }
+
+        L[k][k] = 1.0;
+
+        // Eliminate below pivot
+        let pivot = U[k][k];
+        if abs(pivot) > 0.000000000000001 {
+            let i = k + 1;
+            while i < n {
+                let factor = U[i][k] / pivot;
+                L[i][k] = factor;
+                U[i][k] = 0.0;
+                let j = k + 1;
+                while j < n {
+                    U[i][j] = U[i][j] - (factor * U[k][j]);
+                    j = j + 1;
+                }
+                i = i + 1;
+            }
+        }
+        k = k + 1;
+    }
+
+    return {
+        "P": P,
+        "L": L,
+        "U": U,
+        "pivots": pivots
+    };
+};
+
+// QR Decomposition via Householder Reflections (A = QR)
+// Returns { "Q": Q, "R": R }
+let qr_decompose = fn(A) {
+    let m = len(A);
+    let n = len(A[0]);
+    let Q = matrix_eye(m);
+    let R = matrix_copy(A);
+
+    let k = 0;
+    while k < min(m - 1, n) {
+        // Compute norm of column k from row k to m-1
+        let norm_sq = 0.0;
+        let i = k;
+        while i < m {
+            norm_sq = norm_sq + (R[i][k] * R[i][k]);
+            i = i + 1;
+        }
+        let col_norm = sqrt(norm_sq);
+
+        if col_norm > 0.000000000000001 {
+            let alpha = 0.0;
+            if R[k][k] >= 0.0 {
+                alpha = -col_norm;
+            } else {
+                alpha = col_norm;
+            }
+
+            // Construct Householder vector u
+            let u = [];
+            u = u + [R[k][k] - alpha];
+            let row = k + 1;
+            while row < m {
+                u = u + [R[row][k]];
+                row = row + 1;
+            }
+
+            // Compute norm of u
+            let u_norm_sq = 0.0;
+            let u_idx = 0;
+            while u_idx < len(u) {
+                u_norm_sq = u_norm_sq + (u[u_idx] * u[u_idx]);
+                u_idx = u_idx + 1;
+            }
+            let u_norm = sqrt(u_norm_sq);
+
+            if u_norm > 0.000000000000001 {
+                // Normalize v = u / u_norm
+                let v = [];
+                u_idx = 0;
+                while u_idx < len(u) {
+                    v = v + [u[u_idx] / u_norm];
+                    u_idx = u_idx + 1;
+                }
+
+                // Apply reflection to R: R[k..m-1, k..n-1] = (I - 2*v*v^T) * R[k..m-1, k..n-1]
+                let j = k;
+                while j < n {
+                    let dot_val = 0.0;
+                    let p = 0;
+                    while p < len(v) {
+                        dot_val = dot_val + (v[p] * R[k + p][j]);
+                        p = p + 1;
+                    }
+                    p = 0;
+                    while p < len(v) {
+                        R[k + p][j] = R[k + p][j] - (2.0 * dot_val * v[p]);
+                        p = p + 1;
+                    }
+                    j = j + 1;
+                }
+
+                // Apply reflection to Q: Q[:, k..m-1] = Q[:, k..m-1] * (I - 2*v*v^T)
+                let q_row = 0;
+                while q_row < m {
+                    let dot_q = 0.0;
+                    let p = 0;
+                    while p < len(v) {
+                        dot_q = dot_q + (Q[q_row][k + p] * v[p]);
+                        p = p + 1;
+                    }
+                    p = 0;
+                    while p < len(v) {
+                        Q[q_row][k + p] = Q[q_row][k + p] - (2.0 * dot_q * v[p]);
+                        p = p + 1;
+                    }
+                    q_row = q_row + 1;
+                }
+            }
+        }
+        k = k + 1;
+    }
+
+    return {
+        "Q": Q,
+        "R": R
+    };
+};
+
+// Cholesky Decomposition (A = L L^T) for symmetric positive-definite matrices
+// Returns L (lower triangular matrix) or null if not positive-definite
+let cholesky_decompose = fn(A) {
+    let n = len(A);
+    let L = matrix_zeros(n, n);
+
+    let i = 0;
+    while i < n {
+        let j = 0;
+        while j <= i {
+            let sum_val = 0.0;
+            let k = 0;
+            while k < j {
+                sum_val = sum_val + (L[i][k] * L[j][k]);
+                k = k + 1;
+            }
+
+            if i == j {
+                let diag = A[i][i] - sum_val;
+                if diag <= 0.0 {
+                    return null; // Not positive-definite
+                }
+                L[i][i] = sqrt(diag);
+            } else {
+                L[i][j] = (A[i][j] - sum_val) / L[j][j];
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return L;
+};
+
+// Solve Linear System A * x = b via LU Decomposition with partial pivoting
+// Returns solution vector x
+let solve_linear_system = fn(A, b) {
+    let n = len(A);
+    let lu = lu_decompose(A);
+    let P = lu.P;
+    let L = lu.L;
+    let U = lu.U;
+
+    // Apply permutation to b: Pb = P * b
+    let Pb = matrix_vec_mult(P, b);
+
+    // Forward substitution: L * y = Pb
+    let y = [];
+    let i = 0;
+    while i < n {
+        let sum_val = 0.0;
+        let k = 0;
+        while k < i {
+            sum_val = sum_val + (L[i][k] * y[k]);
+            k = k + 1;
+        }
+        y = y + [(Pb[i] - sum_val) / L[i][i]];
+        i = i + 1;
+    }
+
+    // Back substitution: U * x = y
+    let x = [];
+    let init_idx = 0;
+    while init_idx < n {
+        x = x + [0.0];
+        init_idx = init_idx + 1;
+    }
+
+    let row = n - 1;
+    while row >= 0 {
+        let sum_val = 0.0;
+        let k = row + 1;
+        while k < n {
+            sum_val = sum_val + (U[row][k] * x[k]);
+            k = k + 1;
+        }
+        x[row] = (y[row] - sum_val) / U[row][row];
+        row = row - 1;
+    }
+
+    return x;
+};
+
+// Least-Squares Solver: min ||Ax - b|| via normal equations (A^T A) x = A^T b
+let least_squares_solve = fn(A, b) {
+    let At = matrix_transpose(A);
+    let AtA = matrix_mult(At, A);
+    let Atb = matrix_vec_mult(At, b);
+    return solve_linear_system(AtA, Atb);
+};
+
+// Polynomial Least-Squares Fit: fits y = c0 + c1*x + ... + cd*x^d
+let least_squares_fit = fn(x_points, y_points, degree) {
+    let m = len(x_points);
+    let cols = degree + 1;
+
+    // Vandermonde matrix
+    let V = [];
+    let i = 0;
+    while i < m {
+        let row = [];
+        let p = 0;
+        let x_val = x_points[i];
+        let term = 1.0;
+        while p < cols {
+            row = row + [term];
+            term = term * x_val;
+            p = p + 1;
+        }
+        V = V + [row];
+        i = i + 1;
+    }
+
+    let coeffs = least_squares_solve(V, y_points);
+
+    let predict = fn(x) {
+        let res = 0.0;
+        let term = 1.0;
+        let p = 0;
+        while p < len(coeffs) {
+            res = res + (coeffs[p] * term);
+            term = term * x;
+            p = p + 1;
+        }
+        return res;
+    };
+
+    return {
+        "coeffs": coeffs,
+        "predict": predict
+    };
+};

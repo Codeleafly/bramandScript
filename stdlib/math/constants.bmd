@@ -1,0 +1,135 @@
+// BramandScript Standard Library :: Math :: Constants (std/math/constants)
+// High-precision mathematical constants and series summation algorithms.
+
+let _isqrt = fn(n) {
+    if n <= 0 { return 0; }
+    let x0 = n / 2;
+    if x0 == 0 { x0 = 1; }
+    let x1 = (x0 + (n / x0)) / 2;
+    while x1 < x0 {
+        x0 = x1;
+        x1 = (x0 + (n / x0)) / 2;
+    }
+    return x0;
+};
+
+let compute_e_digits = fn(digits) {
+    if digits <= 0 { return "2"; }
+    let extra = 10;
+    let total_digits = digits + extra;
+    let scale = 10 ** total_digits;
+
+    let total = scale;
+    let term = scale;
+    let k = 1;
+
+    while term > 0 {
+        term = term / k;
+        total = total + term;
+        k = k + 1;
+    }
+
+    let s = str(total);
+    let int_part = substring(s, 0, 1);
+    let frac_part = substring(s, 1, 1 + digits);
+    return int_part + "." + frac_part;
+};
+
+let compute_pi_digits = fn(digits) {
+    if digits <= 0 { return "3"; }
+    let extra = 10;
+    let total_digits = digits + extra;
+    let scale = 10 ** total_digits;
+
+    // Machin's formula: pi/4 = 4*arctan(1/5) - arctan(1/239)
+    // pi = 16*arctan(1/5) - 4*arctan(1/239)
+
+    // Compute 16 * arctan(1/5) * scale
+    let sum5 = 0;
+    let num5 = (16 * scale) / 5;
+    let k = 1;
+    let sign = 1;
+    while num5 > 0 {
+        let term = num5 / k;
+        if sign > 0 {
+            sum5 = sum5 + term;
+        } else {
+            sum5 = sum5 - term;
+        }
+        num5 = num5 / 25;
+        k = k + 2;
+        sign = -sign;
+    }
+
+    // Compute 4 * arctan(1/239) * scale
+    let sum239 = 0;
+    let num239 = (4 * scale) / 239;
+    k = 1;
+    sign = 1;
+    let denom239 = 239 * 239;
+    while num239 > 0 {
+        let term = num239 / k;
+        if sign > 0 {
+            sum239 = sum239 + term;
+        } else {
+            sum239 = sum239 - term;
+        }
+        num239 = num239 / denom239;
+        k = k + 2;
+        sign = -sign;
+    }
+
+    let pi_val = sum5 - sum239;
+    let s = str(pi_val);
+    let int_part = substring(s, 0, 1);
+    let frac_part = substring(s, 1, 1 + digits);
+    return int_part + "." + frac_part;
+};
+
+let compute_phi_digits = fn(digits) {
+    if digits <= 0 { return "1"; }
+    let extra = 10;
+    let total_digits = digits + extra;
+    let scale = 10 ** total_digits;
+
+    // phi = (1 + sqrt(5)) / 2
+    // scale * sqrt(5) = sqrt(5 * scale^2)
+    let five_scale_sq = 5 * (scale ** 2);
+    let sqrt5 = _isqrt(five_scale_sq);
+    let phi_val = (scale + sqrt5) / 2;
+
+    let s = str(phi_val);
+    let int_part = substring(s, 0, 1);
+    let frac_part = substring(s, 1, 1 + digits);
+    return int_part + "." + frac_part;
+};
+
+let series_sum = fn(term_fn, max_terms, tol) {
+    let limit = 1000;
+    if max_terms != null { limit = max_terms; }
+    let tolerance = 0.000000000000001;
+    if tol != null { tolerance = tol; }
+
+    let s = 0.0;
+    let k = 0;
+    let converged = false;
+
+    while k < limit {
+        let t = term_fn(k);
+        s = s + t;
+        let abs_t = t;
+        if abs_t < 0.0 { abs_t = -abs_t; }
+        if abs_t < tolerance {
+            converged = true;
+            k = k + 1;
+            break;
+        }
+        k = k + 1;
+    }
+
+    return {
+        "sum": s,
+        "terms": k,
+        "converged": converged
+    };
+};

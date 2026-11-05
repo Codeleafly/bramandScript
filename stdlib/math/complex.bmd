@@ -1,0 +1,117 @@
+// BramandScript Standard Library :: Math :: Complex (std/math/complex)
+// Native Complex Number System with Cartesian and Polar Operations.
+
+let _exp = exp;
+let _log = log;
+let _sqrt = sqrt;
+let _sin = sin;
+let _cos = cos;
+let _tan = tan;
+
+struct Complex {
+    re,
+    im,
+
+    fn add(other) {
+        return Complex(re + other.re, im + other.im);
+    }
+
+    fn sub(other) {
+        return Complex(re - other.re, im - other.im);
+    }
+
+    fn mul(other) {
+        let new_re = (re * other.re) - (im * other.im);
+        let new_im = (re * other.im) + (im * other.re);
+        return Complex(new_re, new_im);
+    }
+
+    fn div(other) {
+        let denom = (other.re * other.re) + (other.im * other.im);
+        if denom == 0.0 || denom == 0 {
+            panic("Complex: division by zero");
+        }
+        let new_re = ((re * other.re) + (im * other.im)) / denom;
+        let new_im = ((im * other.re) - (re * other.im)) / denom;
+        return Complex(new_re, new_im);
+    }
+
+    fn abs() {
+        return hypot(re, im);
+    }
+
+    fn arg() {
+        return atan2(im, re);
+    }
+
+    fn conj() {
+        return Complex(re, -im);
+    }
+
+    fn exp() {
+        let er = _exp(re);
+        return Complex(er * _cos(im), er * _sin(im));
+    }
+
+    fn log() {
+        let r = hypot(re, im);
+        if r == 0.0 || r == 0 {
+            panic("Complex: logarithm of zero");
+        }
+        return Complex(_log(r), atan2(im, re));
+    }
+
+    fn sqrt() {
+        let r = hypot(re, im);
+        let theta = atan2(im, re);
+        let r_sqrt = _sqrt(r);
+        return Complex(r_sqrt * _cos(theta / 2.0), r_sqrt * _sin(theta / 2.0));
+    }
+
+    fn sin() {
+        return Complex(_sin(re) * cosh(im), _cos(re) * sinh(im));
+    }
+
+    fn cos() {
+        return Complex(_cos(re) * cosh(im), -_sin(re) * sinh(im));
+    }
+
+    fn tan() {
+        let s = sin();
+        let c = cos();
+        return s.div(c);
+    }
+
+    fn to_polar() {
+        return {
+            "r": hypot(re, im),
+            "theta": atan2(im, re)
+        };
+    }
+
+    fn to_string() {
+        if im == 0.0 || im == 0 {
+            return str(re);
+        }
+        if re == 0.0 || re == 0 {
+            return str(im) + "i";
+        }
+        if im < 0 {
+            return str(re) + " - " + str(-im) + "i";
+        }
+        return str(re) + " + " + str(im) + "i";
+    }
+}
+
+let complex = fn(re, im) {
+    let r = re * 1.0;
+    let i = 0.0;
+    if im != null {
+        i = im * 1.0;
+    }
+    return Complex(r, i);
+};
+
+let complex_polar = fn(r, theta) {
+    return Complex(r * _cos(theta), r * _sin(theta));
+};

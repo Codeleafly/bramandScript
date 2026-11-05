@@ -1,0 +1,117 @@
+// BramandScript Standard Library :: Math :: ODE (std/math/ode)
+// Ordinary Differential Equation (ODE) Initial Value Problem solvers.
+
+let _add_state = fn(a, b) {
+    if type(a) == "ARRAY" {
+        let res = [];
+        let i = 0;
+        let n = len(a);
+        while i < n {
+            push(res, a[i] + b[i]);
+            i = i + 1;
+        }
+        return res;
+    }
+    return a + b;
+};
+
+let _scale_state = fn(a, s) {
+    if type(a) == "ARRAY" {
+        let res = [];
+        for x in a {
+            push(res, x * s);
+        }
+        return res;
+    }
+    return a * s;
+};
+
+let ode_solve_euler = fn(f, y0, t0, t1, dt) {
+    let t = t0 * 1.0;
+    let y = y0;
+    let trajectory = [];
+    push(trajectory, [t, y]);
+
+    let step = dt;
+    if step <= 0.0 { step = 0.01; }
+
+    while t < t1 {
+        if t + step > t1 {
+            step = t1 - t;
+        }
+        let dydt = f(t, y);
+        y = _add_state(y, _scale_state(dydt, step));
+        t = t + step;
+        push(trajectory, [t, y]);
+    }
+
+    return trajectory;
+};
+
+let ode_solve_heun = fn(f, y0, t0, t1, dt) {
+    let t = t0 * 1.0;
+    let y = y0;
+    let trajectory = [];
+    push(trajectory, [t, y]);
+
+    let step = dt;
+    if step <= 0.0 { step = 0.01; }
+
+    while t < t1 {
+        if t + step > t1 {
+            step = t1 - t;
+        }
+        let k1 = f(t, y);
+        let y_pred = _add_state(y, _scale_state(k1, step));
+        let k2 = f(t + step, y_pred);
+        let avg_slope = _scale_state(_add_state(k1, k2), 0.5);
+        y = _add_state(y, _scale_state(avg_slope, step));
+        t = t + step;
+        push(trajectory, [t, y]);
+    }
+
+    return trajectory;
+};
+
+let ode_solve_rk4 = fn(f, y0, t0, t1, dt) {
+    let t = t0 * 1.0;
+    let y = y0;
+    let trajectory = [];
+    push(trajectory, [t, y]);
+
+    let step = dt;
+    if step <= 0.0 { step = 0.01; }
+
+    while t < t1 {
+        if t + step > t1 {
+            step = t1 - t;
+        }
+        let half_dt = step * 0.5;
+
+        // k1 = f(t, y)
+        let k1 = f(t, y);
+
+        // k2 = f(t + dt/2, y + dt/2 * k1)
+        let y_k2 = _add_state(y, _scale_state(k1, half_dt));
+        let k2 = f(t + half_dt, y_k2);
+
+        // k3 = f(t + dt/2, y + dt/2 * k2)
+        let y_k3 = _add_state(y, _scale_state(k2, half_dt));
+        let k3 = f(t + half_dt, y_k3);
+
+        // k4 = f(t + dt, y + dt * k3)
+        let y_k4 = _add_state(y, _scale_state(k3, step));
+        let k4 = f(t + step, y_k4);
+
+        // y_next = y + (dt/6) * (k1 + 2*k2 + 2*k3 + k4)
+        let sum_k = _add_state(
+            _add_state(k1, _scale_state(k2, 2.0)),
+            _add_state(_scale_state(k3, 2.0), k4)
+        );
+        y = _add_state(y, _scale_state(sum_k, step / 6.0));
+        t = t + step;
+        push(trajectory, [t, y]);
+    }
+
+    return trajectory;
+};

@@ -470,3 +470,129 @@ let from_array = fn(arr) {
     }
     return tensor(flat, [len(arr)]);
 };
+
+// Broadcast Shapes: Compute NumPy-style broadcasted shape
+let broadcast_shapes = fn(shapeA, shapeB) {
+    let lenA = len(shapeA);
+    let lenB = len(shapeB);
+    let max_len = lenA;
+    if lenB > max_len {
+        max_len = lenB;
+    }
+
+    let out_shape = [];
+    let k = 0;
+    while k < max_len {
+        let idxA = lenA - 1 - k;
+        let dimA = 1;
+        if idxA >= 0 {
+            dimA = shapeA[idxA];
+        }
+
+        let idxB = lenB - 1 - k;
+        let dimB = 1;
+        if idxB >= 0 {
+            dimB = shapeB[idxB];
+        }
+
+        if dimA == dimB {
+            out_shape = [dimA] + out_shape;
+        } else if dimA == 1 {
+            out_shape = [dimB] + out_shape;
+        } else if dimB == 1 {
+            out_shape = [dimA] + out_shape;
+        } else {
+            return null; // Shapes are not broadcast-compatible
+        }
+        k = k + 1;
+    }
+
+    return out_shape;
+};
+
+// Broadcast Tensor to Target Shape
+let tensor_broadcast = fn(t, target_shape) {
+    let L = len(target_shape);
+    let orig_L = len(t.shape);
+    if L < orig_L {
+        return null;
+    }
+
+    let pad_len = L - orig_L;
+    let orig_dims = [];
+    let p = 0;
+    while p < pad_len {
+        orig_dims = orig_dims + [1];
+        p = p + 1;
+    }
+    p = 0;
+    while p < orig_L {
+        orig_dims = orig_dims + [t.shape[p]];
+        p = p + 1;
+    }
+
+    let target_size = compute_tensor_size(target_shape);
+    let target_strides = compute_tensor_strides(target_shape);
+    let new_data = [];
+
+    let idx = 0;
+    while idx < target_size {
+        // Unflatten index to target coordinate
+        let rem = idx;
+        let orig_flat = 0;
+        let d = 0;
+        while d < L {
+            let coord_d = 0;
+            if target_strides[d] > 0 {
+                coord_d = int(rem / target_strides[d]);
+                rem = rem % target_strides[d];
+            }
+            if d >= pad_len {
+                let orig_dim_idx = d - pad_len;
+                let orig_coord = coord_d;
+                if orig_dims[d] == 1 {
+                    orig_coord = 0;
+                }
+                orig_flat = orig_flat + (orig_coord * t.strides[orig_dim_idx]);
+            }
+            d = d + 1;
+        }
+        new_data = new_data + [t.data[orig_flat]];
+        idx = idx + 1;
+    }
+
+    return Tensor(target_shape, target_strides, new_data);
+};
+
+// Element-wise arithmetic with broadcasting
+let broadcast_add = fn(t1, t2) {
+    let target_shape = broadcast_shapes(t1.shape, t2.shape);
+    if target_shape == null { return null; }
+    let b1 = tensor_broadcast(t1, target_shape);
+    let b2 = tensor_broadcast(t2, target_shape);
+    return b1.add(b2);
+};
+
+let broadcast_sub = fn(t1, t2) {
+    let target_shape = broadcast_shapes(t1.shape, t2.shape);
+    if target_shape == null { return null; }
+    let b1 = tensor_broadcast(t1, target_shape);
+    let b2 = tensor_broadcast(t2, target_shape);
+    return b1.sub(b2);
+};
+
+let broadcast_mul = fn(t1, t2) {
+    let target_shape = broadcast_shapes(t1.shape, t2.shape);
+    if target_shape == null { return null; }
+    let b1 = tensor_broadcast(t1, target_shape);
+    let b2 = tensor_broadcast(t2, target_shape);
+    return b1.mul(b2);
+};
+
+let broadcast_div = fn(t1, t2) {
+    let target_shape = broadcast_shapes(t1.shape, t2.shape);
+    if target_shape == null { return null; }
+    let b1 = tensor_broadcast(t1, target_shape);
+    let b2 = tensor_broadcast(t2, target_shape);
+    return b1.div(b2);
+};

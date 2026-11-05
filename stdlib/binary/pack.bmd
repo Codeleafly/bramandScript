@@ -1,0 +1,22 @@
+// BramandScript Standard Library :: Binary Struct Packing & MsgPack (std/binary/pack)
+// Fast Python-style binary struct packing/unpacking and MessagePack serialization.
+
+let pack = fn(format, values) {
+    return struct_pack(format, values);
+};
+
+let unpack = fn(format, data) {
+    return struct_unpack(format, data);
+};
+
+let calcsize = fn(format) {
+    return struct_calcsize(format);
+};
+
+let encode = fn(val) {
+    return msgpack_encode(val);
+};
+
+let decode = fn(data) {
+    return msgpack_decode(data);
+};

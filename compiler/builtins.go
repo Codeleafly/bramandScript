@@ -217,4 +217,31 @@ var Builtins = []BuiltinDef{
 	// Testing Assertions
 	{Name: "assert_true"},
 	{Name: "assert_false"},
+
+	// Day 15 Fast Binary Exponentiation & Modular Arithmetic
+	{Name: "pow_mod"},
+
+	// Day 20 Compression & Archiving
+	{Name: "gzip_compress"},
+	{Name: "gzip_decompress"},
+	{Name: "zlib_compress"},
+	{Name: "zlib_decompress"},
+	{Name: "tar_pack"},
+	{Name: "tar_unpack"},
+
+	// Day 20 Binary Struct Packing & MsgPack
+	{Name: "struct_pack"},
+	{Name: "struct_unpack"},
+	{Name: "struct_calcsize"},
+	{Name: "msgpack_encode"},
+	{Name: "msgpack_decode"},
+
+	// Day 20 Modern Cryptography
+	{Name: "aes_gcm_encrypt"},
+	{Name: "aes_gcm_decrypt"},
+	{Name: "ed25519_keypair"},
+	{Name: "ed25519_sign"},
+	{Name: "ed25519_verify"},
+	{Name: "jwt_sign"},
+	{Name: "jwt_verify"},
 }

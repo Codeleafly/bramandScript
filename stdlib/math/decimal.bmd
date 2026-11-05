@@ -1,0 +1,237 @@
+// BramandScript Standard Library :: Math :: Decimal (std/math/decimal)
+// Arbitrary-precision exact decimal arithmetic for financial and scientific computing.
+
+const ROUND_HALF_UP = 0;
+const ROUND_DOWN = 1;
+const ROUND_UP = 2;
+const ROUND_HALF_EVEN = 3;
+
+let _pow10 = fn(n) {
+    if n <= 0 { return 1; }
+    let res = 1;
+    let i = 0;
+    while i < n {
+        res = res * 10;
+        i = i + 1;
+    }
+    return res;
+};
+
+struct Decimal {
+    value,
+    scale,
+
+    fn rescale(target_scale) {
+        if scale == target_scale {
+            return null;
+        }
+        if scale < target_scale {
+            let factor = _pow10(target_scale - scale);
+            value = value * factor;
+            scale = target_scale;
+        } else {
+            let factor = _pow10(scale - target_scale);
+            value = value / factor;
+            scale = target_scale;
+        }
+        return null;
+    }
+
+    fn add(other) {
+        let max_scale = scale;
+        if other.scale > max_scale {
+            max_scale = other.scale;
+        }
+        let v1 = value * _pow10(max_scale - scale);
+        let v2 = other.value * _pow10(max_scale - other.scale);
+        return Decimal(v1 + v2, max_scale);
+    }
+
+    fn sub(other) {
+        let max_scale = scale;
+        if other.scale > max_scale {
+            max_scale = other.scale;
+        }
+        let v1 = value * _pow10(max_scale - scale);
+        let v2 = other.value * _pow10(max_scale - other.scale);
+        return Decimal(v1 - v2, max_scale);
+    }
+
+    fn mul(other) {
+        return Decimal(value * other.value, scale + other.scale);
+    }
+
+    fn div(other, target_scale, round_mode) {
+        if other.value == 0 {
+            panic("Decimal: division by zero");
+        }
+        let s = target_scale;
+        if s == null {
+            s = scale;
+            if other.scale > s { s = other.scale; }
+            if s < 6 { s = 6; }
+        }
+        let mode = round_mode;
+        if mode == null { mode = ROUND_HALF_UP; }
+
+        let shift = s + other.scale - scale;
+        let num = value;
+        if shift > 0 {
+            num = num * _pow10(shift + 1);
+        } else if shift < 0 {
+            let factor = _pow10(-shift);
+            num = (num * 10) / factor;
+        } else {
+            num = num * 10;
+        }
+
+        let quo = num / other.value;
+        let rem = num % other.value;
+        let last_digit = quo % 10;
+        if last_digit < 0 { last_digit = -last_digit; }
+        let base_val = quo / 10;
+
+        if mode == ROUND_HALF_UP {
+            if last_digit >= 5 {
+                if base_val >= 0 { base_val = base_val + 1; }
+                else { base_val = base_val - 1; }
+            }
+        } else if mode == ROUND_UP {
+            if last_digit > 0 || rem != 0 {
+                if base_val >= 0 { base_val = base_val + 1; }
+                else { base_val = base_val - 1; }
+            }
+        }
+
+        return Decimal(base_val, s);
+    }
+
+    fn pow(exp) {
+        if exp == 0 {
+            return Decimal(1, 0);
+        }
+        if exp < 0 {
+            let one = Decimal(1, 0);
+            let pos = pow(-exp);
+            return one.div(pos, scale * -exp, ROUND_HALF_UP);
+        }
+        let val = value ** exp;
+        return Decimal(val, scale * exp);
+    }
+
+    fn round(target_scale, round_mode) {
+        if scale <= target_scale {
+            return Decimal(value, scale);
+        }
+        let mode = round_mode;
+        if mode == null { mode = ROUND_HALF_UP; }
+        let diff = scale - target_scale;
+        let factor = _pow10(diff);
+        let quo = value / factor;
+        let rem = value % factor;
+        if rem < 0 { rem = -rem; }
+        let half = factor / 2;
+
+        if mode == ROUND_HALF_UP {
+            if rem >= half {
+                if quo >= 0 { quo = quo + 1; }
+                else { quo = quo - 1; }
+            }
+        } else if mode == ROUND_UP {
+            if rem > 0 {
+                if quo >= 0 { quo = quo + 1; }
+                else { quo = quo - 1; }
+            }
+        }
+        return Decimal(quo, target_scale);
+    }
+
+    fn neg() {
+        return Decimal(-value, scale);
+    }
+
+    fn abs() {
+        let v = value;
+        if v < 0 { v = -v; }
+        return Decimal(v, scale);
+    }
+
+    fn cmp(other) {
+        let max_scale = scale;
+        if other.scale > max_scale {
+            max_scale = other.scale;
+        }
+        let v1 = value * _pow10(max_scale - scale);
+        let v2 = other.value * _pow10(max_scale - other.scale);
+        if v1 > v2 { return 1; }
+        if v1 < v2 { return -1; }
+        return 0;
+    }
+
+    fn to_float() {
+        if scale == 0 {
+            return value * 1.0;
+        }
+        return (value * 1.0) / _pow10(scale);
+    }
+
+    fn to_string() {
+        if scale == 0 {
+            return str(value);
+        }
+        let sign = "";
+        let val = value;
+        if val < 0 {
+            sign = "-";
+            val = -val;
+        }
+        let s = str(val);
+        while len(s) <= scale {
+            s = "0" + s;
+        }
+        let split_idx = len(s) - scale;
+        let int_part = substring(s, 0, split_idx);
+        let frac_part = substring(s, split_idx, len(s));
+        return sign + int_part + "." + frac_part;
+    }
+}
+
+let decimal = fn(val, scale) {
+    if type(val) == "STRING" {
+        let s = trim(val);
+        let sign = 1;
+        if substring(s, 0, 1) == "-" {
+            sign = -1;
+            s = substring(s, 1, len(s));
+        } else if substring(s, 0, 1) == "+" {
+            s = substring(s, 1, len(s));
+        }
+        let parts = split(s, ".");
+        if len(parts) == 1 {
+            let parsed_scale = 0;
+            if scale != null { parsed_scale = scale; }
+            return Decimal(sign * int(parts[0]) * _pow10(parsed_scale), parsed_scale);
+        }
+        let int_str = parts[0];
+        let frac_str = parts[1];
+        let frac_len = len(frac_str);
+        let combined = int(int_str + frac_str);
+        let d = Decimal(sign * combined, frac_len);
+        if scale != null {
+            d.rescale(scale);
+        }
+        return d;
+    }
+    if type(val) == "INTEGER" {
+        let sc = 0;
+        if scale != null { sc = scale; }
+        return Decimal(val * _pow10(sc), sc);
+    }
+    if type(val) == "FLOAT" {
+        let sc = 6;
+        if scale != null { sc = scale; }
+        let factor = _pow10(sc);
+        return Decimal(int(round(val * factor)), sc);
+    }
+    panic("decimal: unsupported input type: " + type(val));
+};

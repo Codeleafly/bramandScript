@@ -48,7 +48,7 @@
         <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
           <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
           <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
         </a>
       </div>
 
@@ -188,6 +188,7 @@
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
             <li><a href="tooling.html#ch-disasm-profile" class="nav-link"><span>✦</span> Disassembler &amp; Profiler</a></li>
             <li><a href="tooling.html#ch-registry" class="nav-link"><span>✦</span> Package Registry Server</a></li>
+            <li><a href="tooling.html#ch-optimizer" class="nav-link"><span>✦</span> AOT Optimizer &amp; Benchmarks</a></li>
           </ul>
         </div>
 
@@ -235,7 +236,7 @@
             <span>terminal — modern bmd repl session</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code>✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM
+          <pre><code>✦ BramandScript 0.1.0 (arm64-linux) · High-Performance Bytecode VM
   Type :help for documentation, :editor for multi-line, :exit to quit.
 
 ✦ bmd ❯ let greeting = "Hello, Universe!"
@@ -527,6 +528,42 @@ bramand run tools/registry_server.bmd
 
 # Run test suite for package publishing, searching, and versioning
 bramand test tests/15_day14_registry_test.bmd</code></pre>
+        </div>
+      </section>
+      <!-- ================= AOT OPTIMIZER & BENCHMARKS ================= -->
+      <section id="ch-optimizer" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Compiler Optimization &amp; Verification</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">AOT Compiler Optimizer &amp; Scientific Benchmarks (<code class="font-mono">-O</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript includes an Ahead-of-Time (AOT) optimization pass that pre-evaluates constant expressions in the AST (<code class="font-mono">compiler/optimizer.go</code>) and performs peephole opcode compaction. Pass the <code class="font-mono">-O</code> or <code class="font-mono">--optimize</code> flag to <code class="font-mono">run</code>, <code class="font-mono">build</code>, or <code class="font-mono">disasm</code> to activate compile-time optimization:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — Optimizing Compiler CLI Flags</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Run source file with Ahead-of-Time optimizations enabled
+bramand run -O app.bmd
+
+# Compile standalone native binary with optimized bytecode
+bramand build -O app.bmd -o app_release
+
+# Disassemble optimized bytecode to inspect constant folded opcodes
+bramand disasm -O app.bmd
+
+# Execute the comprehensive scientific benchmark suite
+bramand run benchmarks/math_benchmarks.bmd</code></pre>
+        </div>
+
+        <div class="callout callout-tip">
+          <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Constant Folding &amp; Instruction Reduction</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            Expressions like <code class="font-mono">let x = 2 * 3 + 4 * 5</code> are folded into a single constant <code class="font-mono">26</code> at compile time, reducing instruction count and eliminating runtime stack pushes. Consecutive duplicate/pop operations are eliminated during the peephole stage.
+          </p>
         </div>
       </section>
     </main>

@@ -150,13 +150,13 @@ func init() {
 					res.Error = err.Error()
 					ctx.TotalFailed++
 					if !silent {
-						fmt.Printf("  \033[31m✗ %s (%v)\033[0m\n", nameStr, elapsed)
+						fmt.Printf("  \033[31m[FAIL] %s (%v)\033[0m\n", nameStr, elapsed)
 						fmt.Printf("    \033[31m--> %s\033[0m\n", err.Error())
 					}
 				} else {
 					ctx.TotalPassed++
 					if !silent {
-						fmt.Printf("  \033[32m✓ %s (%v)\033[0m\n", nameStr, elapsed)
+						fmt.Printf("  \033[32m[OK] %s (%v)\033[0m\n", nameStr, elapsed)
 					}
 				}
 

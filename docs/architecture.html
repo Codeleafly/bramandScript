@@ -48,7 +48,7 @@
         <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
           <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
           <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
         </a>
       </div>
 
@@ -522,6 +522,42 @@ Total Instructions: 1310 | Execution Time: 855.69 µs | Speed: 1530.9 KIPS</code
             <pre><code>go test ./... -v</code></pre>
           </div>
         </div>
+      </section>
+
+      <section id="ch19" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Chapter 19</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Ahead-of-Time Optimization & Scientific Engine Pipeline</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript features an advanced AOT compiler optimization pipeline and first-class modern language primitives engineered for zero-overhead scientific execution:
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Compiler Constant Folding & Peephole Optimizer</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The compiler optimizer (<code class="font-mono text-sm">compiler/optimizer.go</code>) operates directly on the Abstract Syntax Tree prior to bytecode emission. Constant arithmetic expressions (e.g. <code class="font-mono">2 * 3 + 4 * 5</code>, <code class="font-mono">2 ** 10</code>, string concatenations, and logical comparisons) are evaluated at compile time into single constants. Subsequent peephole analysis eliminates redundant stack operations such as consecutive <code class="font-mono">OpDup</code> and <code class="font-mono">OpPop</code> pairs.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Pipeline Operator (|&gt;) Zero-Overhead Lowering</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The pipeline operator (<code class="font-mono">|&gt;</code>) provides elegant functional composition: <code class="font-mono">data |&gt; filter(fn) |&gt; map(fn)</code> is lowered at compile time directly into standard nested call chains <code class="font-mono">map(filter(data, fn), fn)</code>, incurring zero intermediate stack overhead or heap variable allocation.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Pattern Destructuring</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Modern pattern destructuring is supported natively in variable declarations and function signatures:
+        </p>
+        <div class="code-block-wrapper my-2">
+          <pre><code>let [head, next, ...rest] = data_series;
+let { host, port, timeout } = server_config;
+fn process_point({ x, y }) { return sqrt(x*x + y*y); }</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Stateful Coroutine Generators & High-Resolution Braille TUI</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Generator functions using <code class="font-mono">yield</code> produce lazy, stateful iterators backed by lightweight coroutine tasks. Scientific plots and function curves are rendered with 8x resolution per terminal cell using pure Unicode Braille matrix patterns (<code class="font-mono">std/tui/plot</code>).
+        </p>
 
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-8">
           Released under the MIT License · Copyright (c) 2026 Codeleafly &lt;ziprecovery2024@gmail.com&gt; (<a href="https://github.com/Codeleafly" class="text-indigo-600 dark:text-indigo-400 hover:underline">Codeleafly</a>).

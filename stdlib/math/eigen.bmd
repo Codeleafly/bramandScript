@@ -1,0 +1,311 @@
+// BramandScript Standard Library :: Spectral Analysis & Eigenvalues (std/math/eigen)
+// Computational spectral solvers:
+// - Power Iteration with deflation for dominant modes
+// - Shifted QR / Jacobi spectral algorithm for real symmetric matrices
+// - Spectral radius and matrix condition number
+
+import "std/math/decomp" as decomp;
+
+let matrix_zeros = decomp.matrix_zeros;
+let matrix_eye = decomp.matrix_eye;
+let matrix_copy = decomp.matrix_copy;
+let matrix_mult = decomp.matrix_mult;
+let matrix_transpose = decomp.matrix_transpose;
+let matrix_vec_mult = decomp.matrix_vec_mult;
+
+// Vector dot product
+let vec_dot = fn(u, v) {
+    let s = 0.0;
+    let i = 0;
+    while i < len(u) && i < len(v) {
+        s = s + (u[i] * v[i]);
+        i = i + 1;
+    }
+    return s;
+};
+
+// Vector Euclidean norm
+let vec_norm = fn(v) {
+    let s = 0.0;
+    let i = 0;
+    while i < len(v) {
+        s = s + (v[i] * v[i]);
+        i = i + 1;
+    }
+    return sqrt(s);
+};
+
+// Vector distance
+let vec_dist = fn(u, v) {
+    let s = 0.0;
+    let i = 0;
+    while i < len(u) && i < len(v) {
+        let diff = u[i] - v[i];
+        s = s + (diff * diff);
+        i = i + 1;
+    }
+    return sqrt(s);
+};
+
+// Normalize vector
+let vec_normalize = fn(v) {
+    let n = vec_norm(v);
+    if n < 0.000000000000001 {
+        return v;
+    }
+    let res = [];
+    let i = 0;
+    while i < len(v) {
+        res = res + [v[i] / n];
+        i = i + 1;
+    }
+    return res;
+};
+
+// Power Iteration: finds dominant eigenvalue & eigenvector
+// Returns { "eigenvalue": lambda, "eigenvector": v, "iterations": iter }
+let power_iteration = fn(A, max_iter, tol) {
+    if max_iter == null { max_iter = 200; }
+    if tol == null { tol = 0.0000000001; }
+
+    let n = len(A);
+    let v = [];
+    let i = 0;
+    while i < n {
+        v = v + [1.0];
+        i = i + 1;
+    }
+    v = vec_normalize(v);
+
+    let lambda = 0.0;
+    let iter = 0;
+    while iter < max_iter {
+        let w = matrix_vec_mult(A, v);
+        let nw = vec_norm(w);
+        if nw < 0.000000000000001 {
+            break;
+        }
+        let v_next = vec_normalize(w);
+
+        // Rayleigh quotient
+        let Av = matrix_vec_mult(A, v_next);
+        let cur_lambda = vec_dot(v_next, Av) / vec_dot(v_next, v_next);
+
+        let d1 = vec_dist(v_next, v);
+        // Also check if vector flipped direction (v_next vs -v)
+        let v_neg = [];
+        let j = 0;
+        while j < len(v) {
+            v_neg = v_neg + [-v[j]];
+            j = j + 1;
+        }
+        let d2 = vec_dist(v_next, v_neg);
+        let d = min(d1, d2);
+
+        v = v_next;
+        lambda = cur_lambda;
+        iter = iter + 1;
+
+        if d < tol {
+            break;
+        }
+    }
+
+    return {
+        "eigenvalue": lambda,
+        "eigenvector": v,
+        "iterations": iter
+    };
+};
+
+// Power iteration with Hotelling deflation for top k eigenvalues
+// Returns [ { "eigenvalue": lambda, "eigenvector": v }, ... ]
+let power_iteration_deflation = fn(A, k, max_iter, tol) {
+    let n = len(A);
+    if k > n { k = n; }
+    let A_curr = matrix_copy(A);
+    let results = [];
+
+    let count = 0;
+    while count < k {
+        let res = power_iteration(A_curr, max_iter, tol);
+        results = results + [res];
+        let val = res.eigenvalue;
+        let vec = res.eigenvector;
+
+        // Deflate: A_next = A_curr - lambda * (vec * vec^T)
+        let r = 0;
+        while r < n {
+            let c = 0;
+            while c < n {
+                A_curr[r][c] = A_curr[r][c] - (val * vec[r] * vec[c]);
+                c = c + 1;
+            }
+            r = r + 1;
+        }
+        count = count + 1;
+    }
+
+    return results;
+};
+
+// Jacobi Eigenvalue Algorithm for Real Symmetric Matrices (Symmetric QR equivalent)
+// Computes all eigenvalues and orthogonal eigenvectors
+// Returns { "eigenvalues": [l1, l2, ...], "eigenvectors": [[v11, v21..], ...] }
+let eigen_qr = fn(A, max_iter, tol) {
+    if max_iter == null { max_iter = 100; }
+    if tol == null { tol = 0.000000000001; }
+
+    let n = len(A);
+    let D = matrix_copy(A);
+    let V = matrix_eye(n);
+
+    let sweep = 0;
+    while sweep < max_iter {
+        let max_off = 0.0;
+        let p = 0;
+        while p < n - 1 {
+            let q = p + 1;
+            while q < n {
+                let off = abs(D[p][q]);
+                if off > max_off {
+                    max_off = off;
+                }
+                if off > tol {
+                    let h = D[q][q] - D[p][p];
+                    let t = 0.0;
+                    if abs(h) > 0.000000000000001 {
+                        let tau = h / (2.0 * D[p][q]);
+                        if tau >= 0.0 {
+                            t = 1.0 / (tau + sqrt(1.0 + (tau * tau)));
+                        } else {
+                            t = -1.0 / (-tau + sqrt(1.0 + (tau * tau)));
+                        }
+                    } else {
+                        t = 1.0;
+                    }
+
+                    let c = 1.0 / sqrt(1.0 + (t * t));
+                    let s = t * c;
+
+                    let Dpp = D[p][p] - (t * D[p][q]);
+                    let Dqq = D[q][q] + (t * D[p][q]);
+                    D[p][p] = Dpp;
+                    D[q][q] = Dqq;
+                    D[p][q] = 0.0;
+                    D[q][p] = 0.0;
+
+                    let k = 0;
+                    while k < n {
+                        if k != p && k != q {
+                            let Dpk = (c * D[p][k]) - (s * D[q][k]);
+                            let Dqk = (s * D[p][k]) + (c * D[q][k]);
+                            D[p][k] = Dpk;
+                            D[k][p] = Dpk;
+                            D[q][k] = Dqk;
+                            D[k][q] = Dqk;
+                        }
+                        // Update eigenvector matrix V
+                        let Vkp = (c * V[k][p]) - (s * V[k][q]);
+                        let Vkq = (s * V[k][p]) + (c * V[k][q]);
+                        V[k][p] = Vkp;
+                        V[k][q] = Vkq;
+                        k = k + 1;
+                    }
+                }
+                q = q + 1;
+            }
+            p = p + 1;
+        }
+
+        sweep = sweep + 1;
+        if max_off < tol {
+            break;
+        }
+    }
+
+    // Extract eigenvalues from diagonal of D
+    let vals = [];
+    let i = 0;
+    while i < n {
+        vals = vals + [D[i][i]];
+        i = i + 1;
+    }
+
+    // Extract eigenvectors as columns of V
+    let vecs = [];
+    i = 0;
+    while i < n {
+        let col = [];
+        let r = 0;
+        while r < n {
+            col = col + [V[r][i]];
+            r = r + 1;
+        }
+        vecs = vecs + [col];
+        i = i + 1;
+    }
+
+    // Sort descending by eigenvalue
+    let idx_order = [];
+    i = 0;
+    while i < n {
+        idx_order = idx_order + [i];
+        i = i + 1;
+    }
+
+    // Simple bubble sort on indices
+    let a_idx = 0;
+    while a_idx < n {
+        let b_idx = a_idx + 1;
+        while b_idx < n {
+            let i1 = idx_order[a_idx];
+            let i2 = idx_order[b_idx];
+            if vals[i1] < vals[i2] {
+                idx_order[a_idx] = i2;
+                idx_order[b_idx] = i1;
+            }
+            b_idx = b_idx + 1;
+        }
+        a_idx = a_idx + 1;
+    }
+
+    let sorted_vals = [];
+    let sorted_vecs = [];
+    i = 0;
+    while i < n {
+        let orig = idx_order[i];
+        sorted_vals = sorted_vals + [vals[orig]];
+        sorted_vecs = sorted_vecs + [vecs[orig]];
+        i = i + 1;
+    }
+
+    return {
+        "eigenvalues": sorted_vals,
+        "eigenvectors": sorted_vecs
+    };
+};
+
+// Spectral Radius: max |lambda_i|
+let spectral_radius = fn(A) {
+    let n = len(A);
+    // For symmetric matrices or general dominant estimation
+    let res = power_iteration(A, 200, 0.0000000001);
+    return abs(res.eigenvalue);
+};
+
+// Condition Number: ratio of max to min singular value (cond = sigma_max / sigma_min)
+// For symmetric positive definite matrices: max_val / min_val
+let condition_number = fn(A) {
+    let At = matrix_transpose(A);
+    let AtA = matrix_mult(At, A);
+    let eig = eigen_qr(AtA, 200, 0.0000000001);
+    let vals = eig.eigenvalues;
+    let max_val = vals[0];
+    let min_val = vals[len(vals) - 1];
+
+    if min_val <= 0.0000000000000001 {
+        return 999999999999.0; // Ill-conditioned or singular
+    }
+    return sqrt(max_val) / sqrt(min_val);
+};

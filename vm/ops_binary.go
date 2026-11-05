@@ -153,19 +153,45 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 
 	switch op {
 	case code.OpAdd:
+		if (rightVal > 0 && leftVal > math.MaxInt64-rightVal) || (rightVal < 0 && leftVal < math.MinInt64-rightVal) {
+			b := new(big.Int).Add(big.NewInt(leftVal), big.NewInt(rightVal))
+			return vm.push(&object.BigInt{Value: b})
+		}
 		result = leftVal + rightVal
+
 	case code.OpSub:
+		if (rightVal < 0 && leftVal > math.MaxInt64+rightVal) || (rightVal > 0 && leftVal < math.MinInt64+rightVal) {
+			b := new(big.Int).Sub(big.NewInt(leftVal), big.NewInt(rightVal))
+			return vm.push(&object.BigInt{Value: b})
+		}
 		result = leftVal - rightVal
+
 	case code.OpMul:
-		result = leftVal * rightVal
+		if leftVal != 0 && rightVal != 0 {
+			if (leftVal == math.MinInt64 && rightVal == -1) || (rightVal == math.MinInt64 && leftVal == -1) {
+				b := new(big.Int).Mul(big.NewInt(leftVal), big.NewInt(rightVal))
+				return vm.push(&object.BigInt{Value: b})
+			}
+			res := leftVal * rightVal
+			if res/leftVal != rightVal {
+				b := new(big.Int).Mul(big.NewInt(leftVal), big.NewInt(rightVal))
+				return vm.push(&object.BigInt{Value: b})
+			}
+			result = res
+		} else {
+			result = 0
+		}
+
 	case code.OpDiv:
 		if rightVal == 0 {
 			return fmt.Errorf("division by zero")
 		}
 		if leftVal == math.MinInt64 && rightVal == -1 {
-			return fmt.Errorf("integer overflow in division")
+			b := new(big.Int).Neg(big.NewInt(math.MinInt64))
+			return vm.push(&object.BigInt{Value: b})
 		}
 		result = leftVal / rightVal
+
 	case code.OpMod:
 		if rightVal == 0 {
 			return fmt.Errorf("modulo by zero")
@@ -175,8 +201,47 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 			break
 		}
 		result = leftVal % rightVal
+
 	case code.OpPow:
-		result = int64(math.Pow(float64(leftVal), float64(rightVal)))
+		if rightVal < 0 {
+			if leftVal == 0 {
+				return fmt.Errorf("division by zero")
+			}
+			if leftVal == 1 {
+				return vm.push(&object.Integer{Value: 1})
+			}
+			if leftVal == -1 {
+				if rightVal%2 == 0 {
+					return vm.push(&object.Integer{Value: 1})
+				}
+				return vm.push(&object.Integer{Value: -1})
+			}
+			return vm.push(&object.Float{Value: math.Pow(float64(leftVal), float64(rightVal))})
+		}
+		if rightVal == 0 {
+			return vm.push(&object.Integer{Value: 1})
+		}
+		if leftVal == 0 {
+			return vm.push(&object.Integer{Value: 0})
+		}
+		if leftVal == 1 {
+			return vm.push(&object.Integer{Value: 1})
+		}
+		if leftVal == -1 {
+			if rightVal%2 == 0 {
+				return vm.push(&object.Integer{Value: 1})
+			}
+			return vm.push(&object.Integer{Value: -1})
+		}
+		if rightVal > 1000000 {
+			return fmt.Errorf("exponent too large for integer pow (maximum exponent is 1000000)")
+		}
+		b := new(big.Int).Exp(big.NewInt(leftVal), big.NewInt(rightVal), nil)
+		if b.IsInt64() {
+			return vm.push(&object.Integer{Value: b.Int64()})
+		}
+		return vm.push(&object.BigInt{Value: b})
+
 	case code.OpBitAnd:
 		result = leftVal & rightVal
 	case code.OpBitOr:
@@ -184,10 +249,15 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.O
 	case code.OpBitXor:
 		result = leftVal ^ rightVal
 	case code.OpShiftLeft:
-		if rightVal < 0 || rightVal >= 64 {
+		if rightVal < 0 {
 			return fmt.Errorf("shift count out of range: %d", rightVal)
 		}
+		if rightVal >= 64 || (leftVal != 0 && (leftVal > (math.MaxInt64>>uint(rightVal)) || leftVal < (math.MinInt64>>uint(rightVal)))) {
+			b := new(big.Int).Lsh(big.NewInt(leftVal), uint(rightVal))
+			return vm.push(&object.BigInt{Value: b})
+		}
 		result = leftVal << uint(rightVal)
+
 	case code.OpShiftRight:
 		if rightVal < 0 || rightVal >= 64 {
 			return fmt.Errorf("shift count out of range: %d", rightVal)
@@ -334,6 +404,9 @@ func (vm *VM) executeBinaryBigIntOperation(op code.Opcode, left, right object.Ob
 		return fmt.Errorf("unknown big int operator: %d", op)
 	}
 
+	if result.IsInt64() {
+		return vm.push(&object.Integer{Value: result.Int64()})
+	}
 	return vm.push(&object.BigInt{Value: result})
 }
 
@@ -531,11 +604,19 @@ func (vm *VM) executeMinusOperator() error {
 
 	switch operand := operand.(type) {
 	case *object.Integer:
+		if operand.Value == math.MinInt64 {
+			b := new(big.Int).Neg(big.NewInt(math.MinInt64))
+			return vm.push(&object.BigInt{Value: b})
+		}
 		return vm.push(&object.Integer{Value: -operand.Value})
 	case *object.Float:
 		return vm.push(&object.Float{Value: -operand.Value})
 	case *object.BigInt:
-		return vm.push(operand.Neg())
+		res := operand.Neg()
+		if res.Value.IsInt64() {
+			return vm.push(&object.Integer{Value: res.Value.Int64()})
+		}
+		return vm.push(res)
 	case *object.BigFloat:
 		return vm.push(operand.Neg())
 	default:

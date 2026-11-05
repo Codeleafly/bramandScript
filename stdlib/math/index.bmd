@@ -106,3 +106,78 @@ let avg = fn(arr) {
     }
     return sum(arr) / len(arr);
 };
+
+// Submodule Exports
+import "std/math/rational" as rational_mod;
+import "std/math/decimal" as decimal_mod;
+import "std/math/complex" as complex_mod;
+import "std/math/ntheory" as ntheory_mod;
+import "std/math/constants" as constants_mod;
+import "std/math/calculus" as calculus_mod;
+import "std/math/opt" as opt_mod;
+import "std/math/ode" as ode_mod;
+
+let rational = rational_mod.rational;
+let fraction = rational_mod.fraction;
+let decimal = decimal_mod.decimal;
+let complex = complex_mod.complex;
+let complex_polar = complex_mod.complex_polar;
+let is_prime = ntheory_mod.is_prime;
+let prime_factors = ntheory_mod.prime_factors;
+let gcd_ext = ntheory_mod.gcd_ext;
+let mod_inv = ntheory_mod.mod_inv;
+let nCr = ntheory_mod.nCr;
+let nPr = ntheory_mod.nPr;
+let catalan_number = ntheory_mod.catalan_number;
+let integer_partitions = ntheory_mod.integer_partitions;
+let compute_pi_digits = constants_mod.compute_pi_digits;
+let compute_e_digits = constants_mod.compute_e_digits;
+let compute_phi_digits = constants_mod.compute_phi_digits;
+let series_sum = constants_mod.series_sum;
+let diff = calculus_mod.diff;
+let diff2 = calculus_mod.diff2;
+let integrate_simpson = calculus_mod.integrate_simpson;
+let integrate_gauss = calculus_mod.integrate_gauss;
+let integrate_adaptive = calculus_mod.integrate_adaptive;
+let root_newton = opt_mod.root_newton;
+let root_bisection = opt_mod.root_bisection;
+let root_secant = opt_mod.root_secant;
+let root_brent = opt_mod.root_brent;
+let minimize_scalar = opt_mod.minimize_scalar;
+let minimize_gradient_descent = opt_mod.minimize_gradient_descent;
+let ode_solve_rk4 = ode_mod.ode_solve_rk4;
+let ode_solve_euler = ode_mod.ode_solve_euler;
+let ode_solve_heun = ode_mod.ode_solve_heun;
+
+import "std/math/decomp" as decomp_mod;
+import "std/math/eigen" as eigen_mod;
+import "std/math/sparse" as sparse_mod;
+import "std/math/tensor" as tensor_mod;
+
+let lu_decompose = decomp_mod.lu_decompose;
+let qr_decompose = decomp_mod.qr_decompose;
+let cholesky_decompose = decomp_mod.cholesky_decompose;
+let solve_linear_system = decomp_mod.solve_linear_system;
+let least_squares_fit = decomp_mod.least_squares_fit;
+let least_squares_solve = decomp_mod.least_squares_solve;
+
+let power_iteration = eigen_mod.power_iteration;
+let power_iteration_deflation = eigen_mod.power_iteration_deflation;
+let eigen_qr = eigen_mod.eigen_qr;
+let spectral_radius = eigen_mod.spectral_radius;
+let condition_number = eigen_mod.condition_number;
+
+let CSRMatrix = sparse_mod.CSRMatrix;
+let csr_from_dense = sparse_mod.csr_from_dense;
+let csr_to_dense = sparse_mod.csr_to_dense;
+let csr_matmul_vec = sparse_mod.csr_matmul_vec;
+let csr_matmul = sparse_mod.csr_matmul;
+let csr_add = sparse_mod.csr_add;
+
+let broadcast_shapes = tensor_mod.broadcast_shapes;
+let tensor_broadcast = tensor_mod.tensor_broadcast;
+let broadcast_add = tensor_mod.broadcast_add;
+let broadcast_sub = tensor_mod.broadcast_sub;
+let broadcast_mul = tensor_mod.broadcast_mul;
+let broadcast_div = tensor_mod.broadcast_div;
+

@@ -1,0 +1,30 @@
+// BramandScript Standard Library :: Modern Cryptography Suite (std/crypto/advanced)
+// Authenticated AES-256-GCM symmetric encryption, Ed25519 digital signatures, and JWT.
+
+let encrypt_gcm = fn(key, plaintext, nonce, additional_data) {
+    return aes_gcm_encrypt(key, plaintext, nonce, additional_data);
+};
+
+let decrypt_gcm = fn(key, ciphertext, nonce, additional_data) {
+    return aes_gcm_decrypt(key, ciphertext, nonce, additional_data);
+};
+
+let keypair_ed25519 = fn() {
+    return ed25519_keypair();
+};
+
+let sign_ed25519 = fn(private_key, message) {
+    return ed25519_sign(private_key, message);
+};
+
+let verify_ed25519 = fn(public_key, message, signature) {
+    return ed25519_verify(public_key, message, signature);
+};
+
+let sign_jwt = fn(payload, secret_or_key, algorithm) {
+    return jwt_sign(payload, secret_or_key, algorithm);
+};
+
+let verify_jwt = fn(token, secret_or_key, algorithm) {
+    return jwt_verify(token, secret_or_key, algorithm);
+};

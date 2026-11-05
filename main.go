@@ -18,10 +18,15 @@ import (
 	"strings"
 )
 
-const VERSION = "0.1.1"
+const VERSION = "0.1.0"
 const DIVIDER = "__________________________________________________________________"
 const StandaloneSignature = "BMD_STANDALONE_1"
 const StandaloneFooterLen = 24
+
+func safeExit(code int) {
+	vm.RestoreTerm()
+	os.Exit(code)
+}
 
 func main() {
 	defer vm.RestoreTerm()
@@ -43,17 +48,27 @@ func main() {
 
 	case "run":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: bramand run <filename.bmd> [args...]")
-			os.Exit(1)
+			fmt.Println("Usage: bramand run [-O] <filename.bmd> [args...]")
+			safeExit(1)
 		}
-		filename := os.Args[2]
-		vm.SetProgramArgs(os.Args[3:])
-		executeFile(filename)
+		optimize := false
+		argIdx := 2
+		if os.Args[argIdx] == "-O" || os.Args[argIdx] == "--optimize" {
+			optimize = true
+			argIdx++
+			if len(os.Args) <= argIdx {
+				fmt.Println("Usage: bramand run [-O] <filename.bmd> [args...]")
+				safeExit(1)
+			}
+		}
+		filename := os.Args[argIdx]
+		vm.SetProgramArgs(os.Args[argIdx+1:])
+		executeFileOpt(filename, optimize)
 
 	case "-e":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: bramand -e <code> [args...]")
-			os.Exit(1)
+			safeExit(1)
 		}
 		vm.SetProgramArgs(os.Args[3:])
 		executeSource(os.Args[2], "<eval>")
@@ -72,7 +87,7 @@ func main() {
 			Paths:   testPaths,
 			Verbose: verbose,
 		})
-		os.Exit(exitCode)
+		safeExit(exitCode)
 
 	case "fmt":
 		var fmtPaths []string
@@ -93,22 +108,22 @@ func main() {
 			Write: !check,
 			Diff:  diff,
 		})
-		os.Exit(exitCode)
+		safeExit(exitCode)
 
 	case "build":
 		handleBuildCommand(os.Args[2:])
 
 	case "disasm":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: bramand disasm <filename.bmd>")
-			os.Exit(1)
+			fmt.Println("Usage: bramand disasm [-O] <filename.bmd>")
+			safeExit(1)
 		}
-		handleDisasmCommand(os.Args[2])
+		handleDisasmCommand(os.Args[2:])
 
 	case "profile":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: bramand profile <filename.bmd> [args...]")
-			os.Exit(1)
+			safeExit(1)
 		}
 		vm.SetProgramArgs(os.Args[3:])
 		handleProfileCommand(os.Args[2])
@@ -133,7 +148,7 @@ func main() {
 		} else {
 			fmt.Printf("Unknown command or file: %s\n", command)
 			printHelp()
-			os.Exit(1)
+			safeExit(1)
 		}
 	}
 }
@@ -183,25 +198,28 @@ func checkEmbeddedStandalone() bool {
 
 func handleBuildCommand(args []string) {
 	if len(args) < 1 {
-		fmt.Println("Usage: bramand build <source.bmd> [-o output_binary]")
-		os.Exit(1)
+		fmt.Println("Usage: bramand build [-O] <source.bmd> [-o output_binary]")
+		safeExit(1)
 	}
 
 	inputFile := ""
 	outputFile := ""
+	optimize := false
 
 	for i := 0; i < len(args); i++ {
 		if args[i] == "-o" && i+1 < len(args) {
 			outputFile = args[i+1]
 			i++
+		} else if args[i] == "-O" || args[i] == "--optimize" {
+			optimize = true
 		} else if inputFile == "" {
 			inputFile = args[i]
 		}
 	}
 
 	if inputFile == "" {
-		fmt.Println("Usage: bramand build <source.bmd> [-o output_binary]")
-		os.Exit(1)
+		fmt.Println("Usage: bramand build [-O] <source.bmd> [-o output_binary]")
+		safeExit(1)
 	}
 
 	if outputFile == "" {
@@ -216,7 +234,7 @@ func handleBuildCommand(args []string) {
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not read source file '%s': %s\n", inputFile, err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	source := string(data)
 
@@ -225,24 +243,29 @@ func handleBuildCommand(args []string) {
 	prog := p.ParseProgram()
 	if len(p.SyntaxErrors) > 0 {
 		fmt.Fprintf(os.Stderr, "[ERROR] Syntax error in '%s': %s (line %d, col %d)\n", inputFile, p.SyntaxErrors[0].Message, p.SyntaxErrors[0].Line, p.SyntaxErrors[0].Col)
-		os.Exit(1)
+		safeExit(1)
 	}
-	comp := compiler.New()
+	var comp *compiler.Compiler
+	if optimize {
+		comp = compiler.NewOptimizingCompiler()
+	} else {
+		comp = compiler.New()
+	}
 	comp.SetBaseDir(filepath.Dir(inputFile))
 	if err := comp.Compile(prog); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Compile error in '%s': %s\n", inputFile, err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	exePath, err := os.Executable()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not locate current executable: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	exeBytes, err := os.ReadFile(exePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not read current executable: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	if len(exeBytes) >= StandaloneFooterLen {
@@ -259,18 +282,18 @@ func handleBuildCommand(args []string) {
 	outF, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not create output file '%s': %s\n", outputFile, err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	defer outF.Close()
 
 	if _, err := outF.Write(exeBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing binary header: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	if _, err := outF.Write(data); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing source payload: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	footer := make([]byte, StandaloneFooterLen)
@@ -279,7 +302,7 @@ func handleBuildCommand(args []string) {
 
 	if _, err := outF.Write(footer); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing binary footer: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	totalSize := int64(len(exeBytes) + len(data) + StandaloneFooterLen)
@@ -294,6 +317,10 @@ func handleBuildCommand(args []string) {
 }
 
 func executeFile(filename string) {
+	executeFileOpt(filename, false)
+}
+
+func executeFileOpt(filename string, optimize bool) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		diag := diagnostics.Diagnostic{
@@ -303,12 +330,16 @@ func executeFile(filename string) {
 			Hint:     "Verify that the file path exists and is readable",
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
-	executeSource(string(data), filename)
+	executeSourceOpt(string(data), filename, optimize)
 }
 
 func executeSource(source, filename string) {
+	executeSourceOpt(source, filename, false)
+}
+
+func executeSourceOpt(source, filename string, optimize bool) {
 	l := lexer.New(source)
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -326,7 +357,7 @@ func executeSource(source, filename string) {
 			}
 			fmt.Fprint(os.Stderr, diag.Format())
 		}
-		os.Exit(1)
+		safeExit(1)
 	} else if len(p.Errors()) > 0 {
 		diag := diagnostics.Diagnostic{
 			Filename: filename,
@@ -338,10 +369,15 @@ func executeSource(source, filename string) {
 			Hint:     diagnostics.GenerateHint(p.Errors()[0]),
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
 
-	comp := compiler.New()
+	var comp *compiler.Compiler
+	if optimize {
+		comp = compiler.NewOptimizingCompiler()
+	} else {
+		comp = compiler.New()
+	}
 	comp.SetBaseDir(filepath.Dir(filename))
 	comp.SetCurrentFile(filename, source)
 	err := comp.Compile(program)
@@ -369,7 +405,7 @@ func executeSource(source, filename string) {
 			diag.Col = 1
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	machine := vm.New(comp.Bytecode())
@@ -392,7 +428,7 @@ func executeSource(source, filename string) {
 			diag.Col = 1
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
 }
 
@@ -402,13 +438,13 @@ func printHelp() {
 	fmt.Println("Usage:")
 	fmt.Println("  bramand                   Start interactive REPL")
 	fmt.Println("  bramand repl              Start interactive REPL")
-	fmt.Println("  bramand run <file.bmd>    Run source file")
+	fmt.Println("  bramand run [-O] <file>   Run source file (optional -O for AOT optimizations)")
 	fmt.Println("  bramand <file.bmd>        Direct execution shortcut")
 	fmt.Println("  bramand test [paths...]   Execute test suites (*_test.bmd)")
 	fmt.Println("  bramand fmt [paths...]    Format source code canonically")
 	fmt.Println("  bramand fmt -c [paths...] Check if files are formatted")
-	fmt.Println("  bramand build <src.bmd>   Compile into standalone native binary")
-	fmt.Println("  bramand disasm <file.bmd> Disassemble source file to bytecode")
+	fmt.Println("  bramand build [-O] <src>  Compile into standalone native binary (-O for optimized bytecode)")
+	fmt.Println("  bramand disasm [-O] <file> Disassemble source file to bytecode (-O for optimized)")
 	fmt.Println("  bramand profile <src.bmd> Profile execution with opcode timing hotspots")
 	fmt.Println("  bramand pkg list          List installed packages in ~/.bramand_libs")
 	fmt.Println("  bramand pkg install <src> Install package to centralized registry")
@@ -429,11 +465,25 @@ func printHelp() {
 	fmt.Printf("%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 }
 
-func handleDisasmCommand(filename string) {
+func handleDisasmCommand(args []string) {
+	optimize := false
+	filename := ""
+	for _, arg := range args {
+		if arg == "-O" || arg == "--optimize" {
+			optimize = true
+		} else if filename == "" {
+			filename = arg
+		}
+	}
+	if filename == "" {
+		fmt.Println("Usage: bramand disasm [-O] <filename.bmd>")
+		safeExit(1)
+	}
+
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	source := string(data)
 	l := lexer.New(source)
@@ -449,14 +499,20 @@ func handleDisasmCommand(filename string) {
 			Message:  p.SyntaxErrors[0].Message,
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
 
-	comp := compiler.New()
+	var comp *compiler.Compiler
+	if optimize {
+		comp = compiler.NewOptimizingCompiler()
+	} else {
+		comp = compiler.New()
+	}
+	comp.SetBaseDir(filepath.Dir(filename))
 	comp.SetCurrentFile(filename, source)
 	if err := comp.Compile(prog); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Compilation failed: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	fmt.Print(compiler.FormatBytecode(comp.Bytecode()))
@@ -466,7 +522,7 @@ func handleProfileCommand(filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	source := string(data)
 	l := lexer.New(source)
@@ -482,21 +538,22 @@ func handleProfileCommand(filename string) {
 			Message:  p.SyntaxErrors[0].Message,
 		}
 		fmt.Fprint(os.Stderr, diag.Format())
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	comp := compiler.New()
+	comp.SetBaseDir(filepath.Dir(filename))
 	comp.SetCurrentFile(filename, source)
 	if err := comp.Compile(prog); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Compilation failed: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	machine := vm.New(comp.Bytecode())
 	report, err := machine.RunProfiled()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Runtime failed: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	fmt.Print(report.String())
@@ -506,12 +563,12 @@ func handlePkgCommand(args []string) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not determine user home directory: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 	libsDir := filepath.Join(homeDir, ".bramand_libs")
 	if err := os.MkdirAll(libsDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not create library directory: %s\n", err)
-		os.Exit(1)
+		safeExit(1)
 	}
 
 	if len(args) < 1 {
@@ -550,7 +607,7 @@ func handlePkgCommand(args []string) {
 		entries, err := os.ReadDir(libsDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] Failed to list packages: %s\n", err)
-			os.Exit(1)
+			safeExit(1)
 		}
 		fmt.Printf("%s✦ BramandScript Centralized Package Registry%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
 		fmt.Printf("Location: %s\n", libsDir)
@@ -577,7 +634,7 @@ func handlePkgCommand(args []string) {
 	case "install", "add":
 		if len(args) < 2 {
 			fmt.Println("Usage: bramand pkg install <source_file_or_dir> [name@version]")
-			os.Exit(1)
+			safeExit(1)
 		}
 		src := args[1]
 		targetName := ""
@@ -592,28 +649,28 @@ func handlePkgCommand(args []string) {
 		srcInfo, err := os.Stat(src)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] Source file or directory '%s' not found\n", src)
-			os.Exit(1)
+			safeExit(1)
 		}
 
 		if srcInfo.IsDir() {
 			if err := copyDir(src, destDir); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Installation failed: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 		} else {
 			if err := os.MkdirAll(destDir, 0755); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Could not create destination directory: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 			destFile := filepath.Join(destDir, "index.bmd")
 			data, err := os.ReadFile(src)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Failed reading source: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 			if err := os.WriteFile(destFile, data, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing destination: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 		}
 		fmt.Printf("[OK] Successfully installed '%s' to %s\n", targetName, destDir)
@@ -621,7 +678,7 @@ func handlePkgCommand(args []string) {
 	case "remove", "rm", "uninstall":
 		if len(args) < 2 {
 			fmt.Println("Usage: bramand pkg remove <name@version>")
-			os.Exit(1)
+			safeExit(1)
 		}
 		pkgName := args[1]
 		targetDir := filepath.Join(libsDir, pkgName)
@@ -651,7 +708,7 @@ func handlePkgCommand(args []string) {
 			targetDir = pkgName
 			if err := os.MkdirAll(targetDir, 0755); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Could not create directory '%s': %s\n", targetDir, err)
-				os.Exit(1)
+				safeExit(1)
 			}
 		} else {
 			if cwd, err := os.Getwd(); err == nil {
@@ -675,7 +732,7 @@ func handlePkgCommand(args []string) {
 `, pkgName)
 			if err := os.WriteFile(pkgJsonPath, []byte(pkgJsonContent), 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing package.json: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 		}
 
@@ -684,7 +741,7 @@ func handlePkgCommand(args []string) {
 			sampleContent := fmt.Sprintf("// BramandScript Package: %s\n\nfn info() {\n    return \"Package %s initialized\";\n}\n", pkgName, pkgName)
 			if err := os.WriteFile(sampleFile, []byte(sampleContent), 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing index.bmd: %s\n", err)
-				os.Exit(1)
+				safeExit(1)
 			}
 		}
 		fmt.Printf("[OK] Initialized package '%s' (package.json, index.bmd)\n", pkgName)

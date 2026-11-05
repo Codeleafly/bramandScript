@@ -44,9 +44,10 @@ func (p *Program) String() string {
 // ---------------- Statements ----------------
 
 type LetStatement struct {
-	Token token.Token // token.LET
-	Name  *Identifier
-	Value Expression
+	Token   token.Token // token.LET
+	Name    *Identifier
+	Pattern Node // Pattern if destructuring (ArrayPattern or HashPattern)
+	Value   Expression
 }
 
 func (ls *LetStatement) statementNode()       {}
@@ -54,7 +55,11 @@ func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
 func (ls *LetStatement) String() string {
 	var out bytes.Buffer
 	out.WriteString(ls.TokenLiteral() + " ")
-	out.WriteString(ls.Name.String())
+	if ls.Name != nil {
+		out.WriteString(ls.Name.String())
+	} else if ls.Pattern != nil {
+		out.WriteString(ls.Pattern.String())
+	}
 	out.WriteString(" = ")
 	if ls.Value != nil {
 		out.WriteString(ls.Value.String())
@@ -64,9 +69,10 @@ func (ls *LetStatement) String() string {
 }
 
 type ConstStatement struct {
-	Token token.Token // token.CONST
-	Name  *Identifier
-	Value Expression
+	Token   token.Token // token.CONST
+	Name    *Identifier
+	Pattern Node // Pattern if destructuring (ArrayPattern or HashPattern)
+	Value   Expression
 }
 
 func (cs *ConstStatement) statementNode()       {}
@@ -74,7 +80,11 @@ func (cs *ConstStatement) TokenLiteral() string { return cs.Token.Literal }
 func (cs *ConstStatement) String() string {
 	var out bytes.Buffer
 	out.WriteString(cs.TokenLiteral() + " ")
-	out.WriteString(cs.Name.String())
+	if cs.Name != nil {
+		out.WriteString(cs.Name.String())
+	} else if cs.Pattern != nil {
+		out.WriteString(cs.Pattern.String())
+	}
 	out.WriteString(" = ")
 	if cs.Value != nil {
 		out.WriteString(cs.Value.String())
@@ -602,4 +612,82 @@ func (se *SpawnExpression) String() string {
 		return "spawn " + se.Call.String()
 	}
 	return "spawn"
+}
+
+type PipeExpression struct {
+	Token token.Token // token.PIPE_OP
+	Left  Expression
+	Right Expression
+}
+
+func (pe *PipeExpression) expressionNode()      {}
+func (pe *PipeExpression) TokenLiteral() string { return pe.Token.Literal }
+func (pe *PipeExpression) String() string {
+	return "(" + pe.Left.String() + " |> " + pe.Right.String() + ")"
+}
+
+type ArrayPattern struct {
+	Token    token.Token // token.LBRACKET
+	Elements []Expression // *Identifier or *RestPattern
+}
+
+func (ap *ArrayPattern) expressionNode()      {}
+func (ap *ArrayPattern) TokenLiteral() string { return ap.Token.Literal }
+func (ap *ArrayPattern) String() string {
+	var out bytes.Buffer
+	var elements []string
+	for _, el := range ap.Elements {
+		elements = append(elements, el.String())
+	}
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+	return out.String()
+}
+
+type RestPattern struct {
+	Token  token.Token // token.ELLIPSIS
+	Target *Identifier
+}
+
+func (rp *RestPattern) expressionNode()      {}
+func (rp *RestPattern) TokenLiteral() string { return rp.Token.Literal }
+func (rp *RestPattern) String() string {
+	if rp.Target != nil {
+		return "..." + rp.Target.String()
+	}
+	return "..."
+}
+
+type HashPattern struct {
+	Token token.Token // token.LBRACE
+	Keys  []*Identifier
+}
+
+func (hp *HashPattern) expressionNode()      {}
+func (hp *HashPattern) TokenLiteral() string { return hp.Token.Literal }
+func (hp *HashPattern) String() string {
+	var out bytes.Buffer
+	var keys []string
+	for _, k := range hp.Keys {
+		keys = append(keys, k.String())
+	}
+	out.WriteString("{ ")
+	out.WriteString(strings.Join(keys, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
+
+type YieldExpression struct {
+	Token token.Token // token.YIELD
+	Value Expression
+}
+
+func (ye *YieldExpression) expressionNode()      {}
+func (ye *YieldExpression) TokenLiteral() string { return ye.Token.Literal }
+func (ye *YieldExpression) String() string {
+	if ye.Value != nil {
+		return "yield " + ye.Value.String()
+	}
+	return "yield"
 }

@@ -1,0 +1,10 @@
+// BramandScript Standard Library :: Zlib Compression (std/compress/zlib)
+// Pure Go standard library zlib deflate compression and decompression.
+
+let compress = fn(data) {
+    return zlib_compress(data);
+};
+
+let decompress = fn(data) {
+    return zlib_decompress(data);
+};

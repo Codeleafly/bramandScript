@@ -104,11 +104,19 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
 
-	if !p.expectPeek(token.IDENT) {
+	if p.peekTokenIs(token.LBRACKET) {
+		p.nextToken()
+		stmt.Pattern = p.parseArrayPattern()
+	} else if p.peekTokenIs(token.LBRACE) {
+		p.nextToken()
+		stmt.Pattern = p.parseHashPattern()
+	} else if p.peekTokenIs(token.IDENT) {
+		p.nextToken()
+		stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	} else {
+		p.peekError(token.IDENT)
 		return nil
 	}
-
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
@@ -127,11 +135,19 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 func (p *Parser) parseConstStatement() *ast.ConstStatement {
 	stmt := &ast.ConstStatement{Token: p.curToken}
 
-	if !p.expectPeek(token.IDENT) {
+	if p.peekTokenIs(token.LBRACKET) {
+		p.nextToken()
+		stmt.Pattern = p.parseArrayPattern()
+	} else if p.peekTokenIs(token.LBRACE) {
+		p.nextToken()
+		stmt.Pattern = p.parseHashPattern()
+	} else if p.peekTokenIs(token.IDENT) {
+		p.nextToken()
+		stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	} else {
+		p.peekError(token.IDENT)
 		return nil
 	}
-
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	if !p.expectPeek(token.ASSIGN) {
 		return nil

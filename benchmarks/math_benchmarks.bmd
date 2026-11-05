@@ -1,0 +1,105 @@
+// BramandScript Scientific & Advanced Engine Benchmarks (benchmarks/math_benchmarks.bmd)
+// Benchmarking high-precision numerics, linear algebra decompositions,
+// cryptography, compression, and serialization throughput.
+
+import "std/math/decomp" as decomp;
+import "std/math/eigen" as eigen;
+import "std/binary/pack" as bin;
+import "std/compress/gzip" as gzip;
+import "std/crypto/advanced" as crypto;
+
+println("✦ BramandScript Week 3 Scientific Benchmark Suite");
+println("───────────────────────────────────────────────────");
+
+// Benchmark 1: Adaptive BigInt Exponentiation
+let t0 = now();
+let bi_res = 2 ** 500;
+let t1 = now();
+println("[BENCH] BigInt 2**500: " + str(t1 - t0) + "ms (Digits: " + str(len(str(bi_res))) + ")");
+
+// Benchmark 2: Matrix LU Factorization & Solve
+let A = [
+    [5.0, 7.0, 6.0, 5.0],
+    [7.0, 10.0, 8.0, 7.0],
+    [6.0, 8.0, 10.0, 9.0],
+    [5.0, 7.0, 9.0, 10.0]
+];
+let b = [23.0, 32.0, 33.0, 31.0];
+
+t0 = now();
+let iter = 0;
+while iter < 100 {
+    let sol = decomp.solve_linear_system(A, b);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 100x LU 4x4 Linear Solves: " + str(t1 - t0) + "ms");
+
+// Benchmark 3: Spectral QR Eigenvalue Decomposition
+t0 = now();
+iter = 0;
+while iter < 50 {
+    let eig = eigen.eigen_qr(A, 50, 0.0000001);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 50x Symmetric Eigen QR (4x4): " + str(t1 - t0) + "ms");
+
+// Benchmark 4: MsgPack vs JSON Serialization
+let test_payload = {
+    "server": "bramand-edge-01",
+    "metrics": [102.4, 204.8, 409.6, 819.2],
+    "tags": ["prod", "us-east", "primary"]
+};
+
+t0 = now();
+iter = 0;
+while iter < 200 {
+    let enc = bin.encode(test_payload);
+    let dec = bin.decode(enc);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 200x MsgPack Round-Trips: " + str(t1 - t0) + "ms");
+
+// Benchmark 5: AES-256-GCM Authenticated Encryption
+let key = "12345678901234567890123456789012";
+let sample_text = "BramandScript high throughput binary payload for edge telemetry and compute.";
+
+t0 = now();
+iter = 0;
+while iter < 200 {
+    let enc = crypto.encrypt_gcm(key, sample_text, null, null);
+    let dec = crypto.decrypt_gcm(key, enc.combined, null, null);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 200x AES-256-GCM Round-Trips: " + str(t1 - t0) + "ms");
+
+// Benchmark 6: Ed25519 Digital Signatures
+let kp = crypto.keypair_ed25519();
+let message = "Transaction payload: 50,000 BMD to vault_0x8F";
+
+t0 = now();
+iter = 0;
+while iter < 100 {
+    let sig = crypto.sign_ed25519(kp.private_key, message);
+    let ok = crypto.verify_ed25519(kp.public_key, message, sig);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 100x Ed25519 Sign & Verify: " + str(t1 - t0) + "ms");
+
+// Benchmark 7: Gzip Deflate Compression
+t0 = now();
+iter = 0;
+while iter < 50 {
+    let gz = gzip.compress(sample_text);
+    let dec = gzip.decompress(gz);
+    iter = iter + 1;
+}
+t1 = now();
+println("[BENCH] 50x Gzip Compress & Decompress: " + str(t1 - t0) + "ms");
+
+println("───────────────────────────────────────────────────");
+println("[OK] Scientific benchmarks completed successfully.");

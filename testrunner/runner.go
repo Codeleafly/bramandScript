@@ -99,7 +99,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("  %s✗ File read error: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
+		fmt.Printf("  %s[FAIL] File read error: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
 		return FileTestResult{Path: filePath, Passed: false, Duration: time.Since(start), Error: err.Error()}
 	}
 
@@ -110,7 +110,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 
 	if len(p.SyntaxErrors) > 0 {
 		for _, se := range p.SyntaxErrors {
-			fmt.Printf("  %s✗ SyntaxError (%s:%d:%d): %s%s\n", diagnostics.ColorRed, filePath, se.Line, se.Col, se.Message, diagnostics.ColorReset)
+			fmt.Printf("  %s[FAIL] SyntaxError (%s:%d:%d): %s%s\n", diagnostics.ColorRed, filePath, se.Line, se.Col, se.Message, diagnostics.ColorReset)
 		}
 		return FileTestResult{Path: filePath, Passed: false, Duration: time.Since(start), Error: "SyntaxError"}
 	}
@@ -118,7 +118,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 	comp := compiler.New()
 	comp.SetBaseDir(filepath.Dir(filePath))
 	if err := comp.Compile(program); err != nil {
-		fmt.Printf("  %s✗ CompileError: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
+		fmt.Printf("  %s[FAIL] CompileError: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
 		return FileTestResult{Path: filePath, Passed: false, Duration: time.Since(start), Error: err.Error()}
 	}
 
@@ -132,7 +132,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 	copy(cases, ctx.Cases)
 
 	if runErr != nil {
-		fmt.Printf("  %s✗ RuntimeError: %s%s\n", diagnostics.ColorRed, runErr.Error(), diagnostics.ColorReset)
+		fmt.Printf("  %s[FAIL] RuntimeError: %s%s\n", diagnostics.ColorRed, runErr.Error(), diagnostics.ColorReset)
 		return FileTestResult{Path: filePath, Passed: false, Duration: fileDuration, Cases: cases, Error: runErr.Error()}
 	}
 
@@ -141,7 +141,7 @@ func runSingleTestFile(filePath string, verbose bool) FileTestResult {
 	}
 
 	if len(cases) == 0 {
-		fmt.Printf("  %s✓ All top-level assertions passed (%v)%s\n", diagnostics.ColorGreen, fileDuration, diagnostics.ColorReset)
+		fmt.Printf("  %s[OK] All top-level assertions passed (%v)%s\n", diagnostics.ColorGreen, fileDuration, diagnostics.ColorReset)
 	}
 
 	return FileTestResult{Path: filePath, Passed: true, Duration: fileDuration, Cases: cases}

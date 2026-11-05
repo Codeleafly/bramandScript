@@ -54,12 +54,14 @@ type Compiler struct {
 	scopeIndex      int
 	loops           []LoopContext
 	iterCount       int
+	destructCount   int
 	currentLine     int
 	importedModules map[string]bool
 	moduleExports   map[string][]string
 	BaseDir         string
 	currentFile     string
 	currentSource   string
+	Optimize        bool
 }
 
 func (c *Compiler) SetBaseDir(dir string) {
@@ -155,6 +157,9 @@ func (c *Compiler) leaveBlockScope() {
 func (c *Compiler) Compile(node ast.Node) error {
 	if node == nil {
 		return fmt.Errorf("compile error: unexpected nil AST node")
+	}
+	if c.Optimize {
+		node = FoldConstants(node)
 	}
 	if handled, err := c.compileStatement(node); handled {
 		return err
@@ -452,6 +457,41 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpConstant, c.addConstant(key))
 		c.emit(code.OpIndex)
 
+	case *ast.PipeExpression:
+		c.currentLine = node.Token.Line
+		var call *ast.CallExpression
+		switch right := node.Right.(type) {
+		case *ast.CallExpression:
+			newArgs := make([]ast.Expression, 0, len(right.Arguments)+1)
+			newArgs = append(newArgs, node.Left)
+			newArgs = append(newArgs, right.Arguments...)
+			call = &ast.CallExpression{
+				Token:     right.Token,
+				Function:  right.Function,
+				Arguments: newArgs,
+			}
+		default:
+			call = &ast.CallExpression{
+				Token:     node.Token,
+				Function:  right,
+				Arguments: []ast.Expression{node.Left},
+			}
+		}
+		return c.Compile(call)
+
+	case *ast.YieldExpression:
+		c.currentLine = node.Token.Line
+		var args []ast.Expression
+		if node.Value != nil {
+			args = []ast.Expression{node.Value}
+		}
+		call := &ast.CallExpression{
+			Token:     node.Token,
+			Function:  &ast.Identifier{Token: node.Token, Value: "yield"},
+			Arguments: args,
+		}
+		return c.Compile(call)
+
 	case *ast.MatchExpression:
 		c.enterBlockScope()
 		c.currentLine = node.Token.Line
@@ -709,9 +749,19 @@ func (c *Compiler) changeOperand(opPos int, operand int) {
 	c.replaceInstruction(opPos, newInstruction)
 }
 
+func NewOptimizingCompiler() *Compiler {
+	c := New()
+	c.Optimize = true
+	return c
+}
+
 func (c *Compiler) Bytecode() *Bytecode {
+	instructions := c.currentInstructions()
+	if c.Optimize {
+		instructions = OptimizeBytecode(instructions)
+	}
 	return &Bytecode{
-		Instructions: c.currentInstructions(),
+		Instructions: instructions,
 		Constants:    c.constants,
 		SourceMap:    c.scopes[c.scopeIndex].sourceLines,
 	}

@@ -1,0 +1,10 @@
+// BramandScript Standard Library :: Tar Archiving (std/compress/tar)
+// Pure Go standard library POSIX tar archive packaging and extraction.
+
+let pack = fn(files) {
+    return tar_pack(files);
+};
+
+let unpack = fn(tar_data) {
+    return tar_unpack(tar_data);
+};

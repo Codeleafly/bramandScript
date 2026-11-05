@@ -1,0 +1,284 @@
+// BramandScript Standard Library :: Terminal Unicode & Braille Plotter (std/tui/plot)
+// High-resolution scientific and financial visualization library rendering
+// 2x4 Braille dot matrix curves, scatter plots, and Unicode box bar charts.
+
+let get_braille_mask = fn(dx, dy) {
+    if dx == 0 && dy == 0 { return 1; }
+    if dx == 0 && dy == 1 { return 2; }
+    if dx == 0 && dy == 2 { return 4; }
+    if dx == 1 && dy == 0 { return 8; }
+    if dx == 1 && dy == 1 { return 16; }
+    if dx == 1 && dy == 2 { return 32; }
+    if dx == 0 && dy == 3 { return 64; }
+    if dx == 1 && dy == 3 { return 128; }
+    return 0;
+};
+
+// Create empty grid of height rows and width columns
+let make_braille_grid = fn(width, height) {
+    let grid = [];
+    let r = 0;
+    while r < height {
+        let row = [];
+        let c = 0;
+        while c < width {
+            row = row + [0];
+            c = c + 1;
+        }
+        grid = grid + [row];
+        r = r + 1;
+    }
+    return grid;
+};
+
+// Set a pixel (px, py) in Braille grid
+let set_pixel = fn(grid, width, height, px, py) {
+    let pixel_w = width * 2;
+    let pixel_h = height * 4;
+    if px < 0 || px >= pixel_w || py < 0 || py >= pixel_h {
+        return null;
+    }
+    let cx = int(px / 2);
+    let cy = int(py / 4);
+    let dx = px % 2;
+    let dy = py % 4;
+    let mask = get_braille_mask(dx, dy);
+    grid[cy][cx] = grid[cy][cx] | mask;
+};
+
+// Render Braille grid to formatted string
+let render_grid = fn(grid, width, height, title, min_y, max_y) {
+    let out = "";
+    if title != null && title != "" {
+        out = out + "✦ " + title + "\n";
+    }
+
+    // Top border
+    let border_top = "┌";
+    let b = 0;
+    while b < width {
+        border_top = border_top + "─";
+        b = b + 1;
+    }
+    border_top = border_top + "┐ " + str(round(max_y * 100.0) / 100.0) + "\n";
+    out = out + border_top;
+
+    // Grid rows
+    let r = 0;
+    while r < height {
+        let line = "│";
+        let c = 0;
+        while c < width {
+            let mask = grid[r][c];
+            if mask == 0 {
+                line = line + " ";
+            } else {
+                line = line + chr(10240 + mask);
+            }
+            c = c + 1;
+        }
+        line = line + "│";
+        if r == int(height / 2) {
+            let mid_y = (min_y + max_y) / 2.0;
+            line = line + " " + str(round(mid_y * 100.0) / 100.0);
+        }
+        out = out + line + "\n";
+        r = r + 1;
+    }
+
+    // Bottom border
+    let border_bottom = "└";
+    b = 0;
+    while b < width {
+        border_bottom = border_bottom + "─";
+        b = b + 1;
+    }
+    border_bottom = border_bottom + "┘ " + str(round(min_y * 100.0) / 100.0) + "\n";
+    out = out + border_bottom;
+
+    return out;
+};
+
+// High-resolution 2D line plot over y_data
+let plot_line = fn(y_data, title, width, height) {
+    if width == null { width = 50; }
+    if height == null { height = 12; }
+    let n = len(y_data);
+    if n == 0 {
+        return "";
+    }
+
+    let min_y = y_data[0] * 1.0;
+    let max_y = y_data[0] * 1.0;
+    let i = 1;
+    while i < n {
+        let val = y_data[i] * 1.0;
+        if val < min_y { min_y = val; }
+        if val > max_y { max_y = val; }
+        i = i + 1;
+    }
+    if max_y == min_y {
+        max_y = min_y + 1.0;
+    }
+
+    let grid = make_braille_grid(width, height);
+    let pixel_w = width * 2;
+    let pixel_h = height * 4;
+
+    let px = 0;
+    let prev_py = -1;
+    while px < pixel_w {
+        // Map px to data index
+        let data_pos = (px * (n - 1) * 1.0) / ((pixel_w - 1) * 1.0);
+        let idx0 = int(data_pos);
+        let idx1 = idx0 + 1;
+        if idx1 >= n { idx1 = n - 1; }
+        let frac = data_pos - idx0;
+        let y_val = (y_data[idx0] * (1.0 - frac)) + (y_data[idx1] * frac);
+
+        let norm_y = (y_val - min_y) / (max_y - min_y);
+        let py = int((pixel_h - 1) * (1.0 - norm_y));
+        if py < 0 { py = 0; }
+        if py >= pixel_h { py = pixel_h - 1; }
+
+        set_pixel(grid, width, height, px, py);
+
+        // Draw vertical connector between consecutive pixels to prevent gaps
+        if prev_py >= 0 {
+            let start_y = min(prev_py, py);
+            let end_y = max(prev_py, py);
+            let y_step = start_y;
+            while y_step <= end_y {
+                set_pixel(grid, width, height, px, y_step);
+                y_step = y_step + 1;
+            }
+        }
+        prev_py = py;
+        px = px + 1;
+    }
+
+    let rendered = render_grid(grid, width, height, title, min_y, max_y);
+    println(rendered);
+    return rendered;
+};
+
+// High-resolution 2D scatter plot
+let plot_scatter = fn(x_data, y_data, title, width, height) {
+    if width == null { width = 50; }
+    if height == null { height = 12; }
+    let n = len(x_data);
+    if n == 0 || len(y_data) == 0 {
+        return "";
+    }
+
+    let min_x = x_data[0] * 1.0;
+    let max_x = x_data[0] * 1.0;
+    let min_y = y_data[0] * 1.0;
+    let max_y = y_data[0] * 1.0;
+
+    let i = 1;
+    while i < n {
+        let x_val = x_data[i] * 1.0;
+        let y_val = y_data[i] * 1.0;
+        if x_val < min_x { min_x = x_val; }
+        if x_val > max_x { max_x = x_val; }
+        if y_val < min_y { min_y = y_val; }
+        if y_val > max_y { max_y = y_val; }
+        i = i + 1;
+    }
+    if max_x == min_x { max_x = min_x + 1.0; }
+    if max_y == min_y { max_y = min_y + 1.0; }
+
+    let grid = make_braille_grid(width, height);
+    let pixel_w = width * 2;
+    let pixel_h = height * 4;
+
+    i = 0;
+    while i < n {
+        let norm_x = (x_data[i] - min_x) / (max_x - min_x);
+        let norm_y = (y_data[i] - min_y) / (max_y - min_y);
+        let px = int(norm_x * (pixel_w - 1));
+        let py = int((pixel_h - 1) * (1.0 - norm_y));
+        set_pixel(grid, width, height, px, py);
+        i = i + 1;
+    }
+
+    let rendered = render_grid(grid, width, height, title, min_y, max_y);
+    println(rendered);
+    return rendered;
+};
+
+// High-resolution mathematical function plotter
+let plot_function = fn(f, x_min, x_max, title, width, height) {
+    if width == null { width = 50; }
+    if height == null { height = 12; }
+    let pixel_w = width * 2;
+    let y_samples = [];
+    let px = 0;
+    while px < pixel_w {
+        let x = x_min + ((px * (x_max - x_min)) / (pixel_w - 1));
+        let y = f(x);
+        y_samples = y_samples + [y];
+        px = px + 1;
+    }
+    return plot_line(y_samples, title, width, height);
+};
+
+// Unicode box bar chart
+let plot_bar = fn(categories, values, title, max_width) {
+    if max_width == null { max_width = 30; }
+    let n = len(values);
+    if n == 0 {
+        return "";
+    }
+
+    let max_v = 0.0;
+    let i = 0;
+    while i < n {
+        if values[i] > max_v {
+            max_v = values[i] * 1.0;
+        }
+        i = i + 1;
+    }
+    if max_v == 0.0 { max_v = 1.0; }
+
+    let max_label_len = 0;
+    i = 0;
+    while i < len(categories) {
+        let l = len(categories[i]);
+        if l > max_label_len { max_label_len = l; }
+        i = i + 1;
+    }
+
+    let out = "";
+    if title != null && title != "" {
+        out = out + "✦ " + title + "\n";
+    }
+
+    i = 0;
+    while i < n {
+        let cat = categories[i];
+        let val = values[i] * 1.0;
+        let pad_count = max_label_len - len(cat);
+        let label = cat;
+        let p = 0;
+        while p < pad_count {
+            label = label + " ";
+            p = p + 1;
+        }
+
+        let bar_len = int((val / max_v) * max_width);
+        let bar = "";
+        let b = 0;
+        while b < bar_len {
+            bar = bar + "█";
+            b = b + 1;
+        }
+
+        out = out + "  " + label + " │ " + bar + " " + str(round(val * 100.0) / 100.0) + "\n";
+        i = i + 1;
+    }
+
+    println(out);
+    return out;
+};

@@ -2,6 +2,9 @@ package vm
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/md5"
 	crand "crypto/rand"
@@ -325,6 +328,387 @@ func init() {
 			uuidStr := fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 				b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 			return &object.String{Value: uuidStr}
+		},
+	})
+
+	// Helper to normalize AES 256-bit key
+	normalizeKey := func(obj object.Object) ([]byte, error) {
+		k, err := getBytesFromObj(obj)
+		if err != nil {
+			return nil, err
+		}
+		if len(k) == 64 {
+			if decoded, err := hex.DecodeString(string(k)); err == nil && len(decoded) == 32 {
+				return decoded, nil
+			}
+		}
+		if len(k) == 32 || len(k) == 16 || len(k) == 24 {
+			return k, nil
+		}
+		// Hash to 32 bytes using SHA-256 for consistent 256-bit key
+		h := sha256.Sum256(k)
+		return h[:], nil
+	}
+
+	RegisterBuiltin("aes_gcm_encrypt", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 4 {
+				return &object.Error{Message: "aes_gcm_encrypt requires 2 to 4 arguments: (key, plaintext, [nonce], [additional_data])"}
+			}
+			keyBytes, err := normalizeKey(args[0])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid key: %v", err)}
+			}
+			plainBytes, err := getBytesFromObj(args[1])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid plaintext: %v", err)}
+			}
+
+			block, err := aes.NewCipher(keyBytes)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("aes cipher error: %v", err)}
+			}
+			gcm, err := cipher.NewGCM(block)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("gcm error: %v", err)}
+			}
+
+			var nonce []byte
+			if len(args) >= 3 && args[2] != Null {
+				nonce, err = getBytesFromObj(args[2])
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid nonce: %v", err)}
+				}
+			} else {
+				nonce = make([]byte, gcm.NonceSize())
+				_, err = crand.Read(nonce)
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("nonce generation error: %v", err)}
+				}
+			}
+
+			var aad []byte
+			if len(args) >= 4 && args[3] != Null {
+				aad, _ = getBytesFromObj(args[3])
+			}
+
+			ciphertext := gcm.Seal(nil, nonce, plainBytes, aad)
+			combined := append(nonce, ciphertext...)
+
+			pairs := make(map[object.HashKey]object.HashPair)
+			setPair := func(k string, v object.Object) {
+				sk := &object.String{Value: k}
+				pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: v}
+			}
+			setPair("ciphertext", object.NewBytes(ciphertext))
+			setPair("nonce", object.NewBytes(nonce))
+			setPair("combined", object.NewBytes(combined))
+			setPair("hex", &object.String{Value: hex.EncodeToString(combined)})
+			setPair("base64", &object.String{Value: base64.StdEncoding.EncodeToString(combined)})
+
+			return &object.Hash{Pairs: pairs}
+		},
+	})
+
+	RegisterBuiltin("aes_gcm_decrypt", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 4 {
+				return &object.Error{Message: "aes_gcm_decrypt requires 2 to 4 arguments: (key, ciphertext, [nonce], [additional_data])"}
+			}
+			keyBytes, err := normalizeKey(args[0])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid key: %v", err)}
+			}
+			cipherBytes, err := getBytesFromObj(args[1])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid ciphertext: %v", err)}
+			}
+
+			block, err := aes.NewCipher(keyBytes)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("aes cipher error: %v", err)}
+			}
+			gcm, err := cipher.NewGCM(block)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("gcm error: %v", err)}
+			}
+
+			var nonce []byte
+			actualCiphertext := cipherBytes
+			if len(args) >= 3 && args[2] != Null {
+				nonce, err = getBytesFromObj(args[2])
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid nonce: %v", err)}
+				}
+			} else {
+				// Nonce prepended in combined ciphertext
+				if len(cipherBytes) < gcm.NonceSize() {
+					return &object.Error{Message: "ciphertext too short to contain nonce"}
+				}
+				nonce = cipherBytes[:gcm.NonceSize()]
+				actualCiphertext = cipherBytes[gcm.NonceSize():]
+			}
+
+			var aad []byte
+			if len(args) >= 4 && args[3] != Null {
+				aad, _ = getBytesFromObj(args[3])
+			}
+
+			plaintext, err := gcm.Open(nil, nonce, actualCiphertext, aad)
+			if err != nil {
+				return &object.Error{Message: "aes_gcm_decrypt authentication failed: invalid key or corrupted ciphertext"}
+			}
+
+			return object.NewBytes(plaintext)
+		},
+	})
+
+	RegisterBuiltin("ed25519_keypair", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			pub, priv, err := ed25519.GenerateKey(crand.Reader)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("ed25519 key generation error: %v", err)}
+			}
+			pairs := make(map[object.HashKey]object.HashPair)
+			setPair := func(k string, v object.Object) {
+				sk := &object.String{Value: k}
+				pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: v}
+			}
+			setPair("public_key", object.NewBytes(pub))
+			setPair("private_key", object.NewBytes(priv))
+			setPair("public_hex", &object.String{Value: hex.EncodeToString(pub)})
+			setPair("private_hex", &object.String{Value: hex.EncodeToString(priv)})
+			return &object.Hash{Pairs: pairs}
+		},
+	})
+
+	RegisterBuiltin("ed25519_sign", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return &object.Error{Message: "ed25519_sign requires 2 arguments: (private_key, message)"}
+			}
+			privBytes, err := getBytesFromObj(args[0])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid private_key: %v", err)}
+			}
+			if len(privBytes) == 128 {
+				if dec, err := hex.DecodeString(string(privBytes)); err == nil && len(dec) == 64 {
+					privBytes = dec
+				}
+			}
+			if len(privBytes) != ed25519.PrivateKeySize {
+				return &object.Error{Message: fmt.Sprintf("ed25519 private key must be %d bytes, got %d", ed25519.PrivateKeySize, len(privBytes))}
+			}
+			msgBytes, err := getBytesFromObj(args[1])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid message: %v", err)}
+			}
+			sig := ed25519.Sign(privBytes, msgBytes)
+			return object.NewBytes(sig)
+		},
+	})
+
+	RegisterBuiltin("ed25519_verify", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return &object.Error{Message: "ed25519_verify requires 3 arguments: (public_key, message, signature)"}
+			}
+			pubBytes, err := getBytesFromObj(args[0])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid public_key: %v", err)}
+			}
+			if len(pubBytes) == 64 {
+				if dec, err := hex.DecodeString(string(pubBytes)); err == nil && len(dec) == 32 {
+					pubBytes = dec
+				}
+			}
+			if len(pubBytes) != ed25519.PublicKeySize {
+				return &object.Error{Message: fmt.Sprintf("ed25519 public key must be %d bytes, got %d", ed25519.PublicKeySize, len(pubBytes))}
+			}
+			msgBytes, err := getBytesFromObj(args[1])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid message: %v", err)}
+			}
+			sigBytes, err := getBytesFromObj(args[2])
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("invalid signature: %v", err)}
+			}
+			if len(sigBytes) == 128 {
+				if dec, err := hex.DecodeString(string(sigBytes)); err == nil && len(dec) == 64 {
+					sigBytes = dec
+				}
+			}
+			if len(sigBytes) != ed25519.SignatureSize {
+				return False
+			}
+			if ed25519.Verify(pubBytes, msgBytes, sigBytes) {
+				return True
+			}
+			return False
+		},
+	})
+
+	RegisterBuiltin("jwt_sign", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Message: "jwt_sign requires 2 or 3 arguments: (payload, secret_or_key, [alg])"}
+			}
+			alg := "HS256"
+			if len(args) == 3 && args[2] != Null {
+				if s, ok := args[2].(*object.String); ok {
+					alg = strings.ToUpper(s.Value)
+				}
+			}
+
+			header := map[string]interface{}{
+				"alg": alg,
+				"typ": "JWT",
+			}
+			hBytes, _ := json.Marshal(header)
+			hB64 := base64.RawURLEncoding.EncodeToString(hBytes)
+
+			nativePayload := bramandObjectToNative(args[0])
+			pBytes, err := json.Marshal(nativePayload)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("jwt payload marshal error: %v", err)}
+			}
+			pB64 := base64.RawURLEncoding.EncodeToString(pBytes)
+
+			signingInput := hB64 + "." + pB64
+
+			var sigB64 string
+			switch alg {
+			case "HS256":
+				secBytes, err := getBytesFromObj(args[1])
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid secret: %v", err)}
+				}
+				mac := hmac.New(sha256.New, secBytes)
+				mac.Write([]byte(signingInput))
+				sigB64 = base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+			case "EDDSA":
+				privBytes, err := getBytesFromObj(args[1])
+				if err != nil {
+					return &object.Error{Message: fmt.Sprintf("invalid private key: %v", err)}
+				}
+				if len(privBytes) == 128 {
+					if dec, err := hex.DecodeString(string(privBytes)); err == nil && len(dec) == 64 {
+						privBytes = dec
+					}
+				}
+				if len(privBytes) != ed25519.PrivateKeySize {
+					return &object.Error{Message: "EdDSA requires 64-byte Ed25519 private key"}
+				}
+				sig := ed25519.Sign(privBytes, []byte(signingInput))
+				sigB64 = base64.RawURLEncoding.EncodeToString(sig)
+			default:
+				return &object.Error{Message: fmt.Sprintf("unsupported jwt algorithm '%s'", alg)}
+			}
+
+			return &object.String{Value: signingInput + "." + sigB64}
+		},
+	})
+
+	RegisterBuiltin("jwt_verify", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 2 || len(args) > 3 {
+				return &object.Error{Message: "jwt_verify requires 2 or 3 arguments: (token, secret_or_key, [alg])"}
+			}
+			tokenStr, ok := args[0].(*object.String)
+			if !ok {
+				return &object.Error{Message: "first argument to jwt_verify must be STRING token"}
+			}
+			parts := strings.Split(tokenStr.Value, ".")
+			if len(parts) != 3 {
+				pairs := make(map[object.HashKey]object.HashPair)
+				setPair := func(k string, v object.Object) {
+					sk := &object.String{Value: k}
+					pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: v}
+				}
+				setPair("valid", False)
+				setPair("error", &object.String{Value: "invalid jwt format"})
+				return &object.Hash{Pairs: pairs}
+			}
+
+			// Decode header
+			hBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+			if err != nil {
+				pairs := make(map[object.HashKey]object.HashPair)
+				sk := &object.String{Value: "valid"}
+				pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: False}
+				return &object.Hash{Pairs: pairs}
+			}
+			var headerMap map[string]interface{}
+			_ = json.Unmarshal(hBytes, &headerMap)
+			alg := "HS256"
+			if a, ok := headerMap["alg"].(string); ok {
+				alg = strings.ToUpper(a)
+			}
+			if len(args) == 3 && args[2] != Null {
+				if s, ok := args[2].(*object.String); ok {
+					alg = strings.ToUpper(s.Value)
+				}
+			}
+
+			signingInput := parts[0] + "." + parts[1]
+			sigBytes, err := base64.RawURLEncoding.DecodeString(parts[2])
+			if err != nil {
+				pairs := make(map[object.HashKey]object.HashPair)
+				sk := &object.String{Value: "valid"}
+				pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: False}
+				return &object.Hash{Pairs: pairs}
+			}
+
+			valid := false
+			switch alg {
+			case "HS256":
+				secBytes, err := getBytesFromObj(args[1])
+				if err == nil {
+					mac := hmac.New(sha256.New, secBytes)
+					mac.Write([]byte(signingInput))
+					expected := mac.Sum(nil)
+					valid = hmac.Equal(sigBytes, expected)
+				}
+			case "EDDSA":
+				pubBytes, err := getBytesFromObj(args[1])
+				if err == nil {
+					if len(pubBytes) == 64 {
+						if dec, err := hex.DecodeString(string(pubBytes)); err == nil && len(dec) == 32 {
+							pubBytes = dec
+						}
+					}
+					if len(pubBytes) == ed25519.PublicKeySize {
+						valid = ed25519.Verify(pubBytes, []byte(signingInput), sigBytes)
+					}
+				}
+			}
+
+			// Decode payload
+			pairs := make(map[object.HashKey]object.HashPair)
+			setPair := func(k string, v object.Object) {
+				sk := &object.String{Value: k}
+				pairs[sk.HashKey()] = object.HashPair{Key: sk, Value: v}
+			}
+			if valid {
+				setPair("valid", True)
+			} else {
+				setPair("valid", False)
+			}
+			setPair("header", nativeToBramandObject(headerMap))
+
+			pBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+			if err == nil {
+				var payloadMap interface{}
+				if err := json.Unmarshal(pBytes, &payloadMap); err == nil {
+					setPair("payload", nativeToBramandObject(payloadMap))
+				} else {
+					setPair("payload", Null)
+				}
+			} else {
+				setPair("payload", Null)
+			}
+
+			return &object.Hash{Pairs: pairs}
 		},
 	})
 }

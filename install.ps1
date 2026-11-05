@@ -22,7 +22,7 @@ try {
     $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
     $Tag = $Release.tag_name
 } catch {
-    $Tag = "v0.1.1"
+    $Tag = "v0.1.0"
 }
 
 $ArchiveName = "bramand-windows-$Arch-$Tag.zip"
@@ -56,7 +56,7 @@ if ($UserPath -notlike "*$InstallDir*") {
     $env:Path = "$InstallDir;$env:Path"
 }
 
-Write-Host "✔ [OK] BramandScript successfully installed to $InstallDir!" -ForegroundColor Green
+Write-Host "[OK] BramandScript successfully installed to $InstallDir!" -ForegroundColor Green
 Write-Host "       Commands: 'bramand', 'bmd'" -ForegroundColor Green
 
 & "$InstallDir\bmd.exe" version

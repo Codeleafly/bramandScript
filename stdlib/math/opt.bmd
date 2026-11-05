@@ -1,0 +1,367 @@
+// BramandScript Standard Library :: Math :: Optimization (std/math/opt)
+// Non-linear equation root finding and function optimization algorithms.
+
+let root_bisection = fn(f, a, b, tol, max_iter) {
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+    let limit = 100;
+    if max_iter != null { limit = max_iter; }
+
+    let fa = f(a);
+    let fb = f(b);
+    if fa * fb > 0.0 {
+        panic("root_bisection: f(a) and f(b) must have opposite signs");
+    }
+
+    let left = a;
+    let right = b;
+    let iter = 0;
+    let mid = (left + right) / 2.0;
+
+    while iter < limit {
+        mid = (left + right) / 2.0;
+        let fmid = f(mid);
+        let abs_fmid = fmid;
+        if abs_fmid < 0 { abs_fmid = -abs_fmid; }
+        let half_width = (right - left) / 2.0;
+        if half_width < 0 { half_width = -half_width; }
+
+        if abs_fmid < tolerance || half_width < tolerance {
+            return {
+                "root": mid,
+                "iterations": iter,
+                "converged": true
+            };
+        }
+
+        if fa * fmid < 0.0 {
+            right = mid;
+            fb = fmid;
+        } else {
+            left = mid;
+            fa = fmid;
+        }
+        iter = iter + 1;
+    }
+
+    return {
+        "root": mid,
+        "iterations": iter,
+        "converged": false
+    };
+};
+
+let root_newton = fn(f, df, x0, tol, max_iter) {
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+    let limit = 100;
+    if max_iter != null { limit = max_iter; }
+
+    let x = x0 * 1.0;
+    let iter = 0;
+
+    while iter < limit {
+        let fx = f(x);
+        let abs_fx = fx;
+        if abs_fx < 0 { abs_fx = -abs_fx; }
+        if abs_fx < tolerance {
+            return {
+                "root": x,
+                "iterations": iter,
+                "converged": true
+            };
+        }
+
+        let dfx = 0.0;
+        if df != null {
+            dfx = df(x);
+        } else {
+            let h = 0.0000001;
+            dfx = (f(x + h) - f(x - h)) / (2.0 * h);
+        }
+
+        if dfx == 0.0 {
+            break;
+        }
+
+        let step = fx / dfx;
+        x = x - step;
+
+        let abs_step = step;
+        if abs_step < 0 { abs_step = -abs_step; }
+        if abs_step < tolerance {
+            return {
+                "root": x,
+                "iterations": iter + 1,
+                "converged": true
+            };
+        }
+        iter = iter + 1;
+    }
+
+    return {
+        "root": x,
+        "iterations": iter,
+        "converged": false
+    };
+};
+
+let root_secant = fn(f, x0, x1, tol, max_iter) {
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+    let limit = 100;
+    if max_iter != null { limit = max_iter; }
+
+    let p0 = x0 * 1.0;
+    let p1 = x1 * 1.0;
+    let q0 = f(p0);
+    let q1 = f(p1);
+    let iter = 0;
+
+    while iter < limit {
+        let denom = q1 - q0;
+        if denom == 0.0 {
+            break;
+        }
+        let p = p1 - (q1 * (p1 - p0) / denom);
+        let q = f(p);
+
+        let abs_q = q;
+        if abs_q < 0 { abs_q = -abs_q; }
+        let diff_p = p - p1;
+        if diff_p < 0 { diff_p = -diff_p; }
+
+        if abs_q < tolerance || diff_p < tolerance {
+            return {
+                "root": p,
+                "iterations": iter + 1,
+                "converged": true
+            };
+        }
+
+        p0 = p1;
+        q0 = q1;
+        p1 = p;
+        q1 = q;
+        iter = iter + 1;
+    }
+
+    return {
+        "root": p1,
+        "iterations": iter,
+        "converged": false
+    };
+};
+
+let root_brent = fn(f, a, b, tol, max_iter) {
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+    let limit = 100;
+    if max_iter != null { limit = max_iter; }
+
+    let left = a * 1.0;
+    let right = b * 1.0;
+    let fa = f(left);
+    let fb = f(right);
+
+    if fa * fb > 0.0 {
+        panic("root_brent: f(a) and f(b) must have opposite signs");
+    }
+
+    let c = left;
+    let fc = fa;
+    let d = right - left;
+    let e = d;
+    let iter = 0;
+
+    while iter < limit {
+        let abs_fb = fb;
+        if abs_fb < 0 { abs_fb = -abs_fb; }
+        if abs_fb < tolerance {
+            return {
+                "root": right,
+                "iterations": iter,
+                "converged": true
+            };
+        }
+
+        let abs_right_left = right - left;
+        if abs_right_left < 0 { abs_right_left = -abs_right_left; }
+        if abs_right_left < tolerance {
+            return {
+                "root": right,
+                "iterations": iter,
+                "converged": true
+            };
+        }
+
+        let m = 0.5 * (c - right);
+        let tol_act = 2.0 * tolerance;
+
+        let abs_m = m;
+        if abs_m < 0 { abs_m = -abs_m; }
+        if abs_m <= tol_act || fb == 0.0 {
+            return {
+                "root": right,
+                "iterations": iter,
+                "converged": true
+            };
+        }
+
+        let p = 0.0;
+        let q = 0.0;
+        let r = 0.0;
+
+        if abs_right_left >= tol_act && abs_fb < abs_m {
+            let s = fb / fa;
+            if left == c {
+                p = 2.0 * m * s;
+                q = 1.0 - s;
+            } else {
+                q = fa / fc;
+                r = fb / fc;
+                p = s * ((2.0 * m * q * (q - r)) - ((right - left) * (r - 1.0)));
+                q = (q - 1.0) * (r - 1.0) * (s - 1.0);
+            }
+            if p > 0.0 { q = -q; } else { p = -p; }
+            if 2.0 * p < (3.0 * m * q) - (tol_act * q) {
+                d = p / q;
+            } else {
+                d = m;
+                e = m;
+            }
+        } else {
+            d = m;
+            e = m;
+        }
+
+        left = right;
+        fa = fb;
+        right = right + d;
+        fb = f(right);
+
+        let swap_bracket = false;
+        if fb > 0.0 {
+            if fc > 0.0 { swap_bracket = true; }
+        } else if fb < 0.0 {
+            if fc < 0.0 { swap_bracket = true; }
+        }
+        if swap_bracket {
+            c = left;
+            fc = fa;
+            d = right - left;
+            e = d;
+        }
+        iter = iter + 1;
+    }
+
+    return {
+        "root": right,
+        "iterations": iter,
+        "converged": false
+    };
+};
+
+let minimize_scalar = fn(f, a, b, tol) {
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+    let phi = 0.6180339887498949;
+    let resphi = 1.0 - phi;
+
+    let x1 = a + (resphi * (b - a));
+    let x2 = a + (phi * (b - a));
+    let f1 = f(x1);
+    let f2 = f(x2);
+    let iter = 0;
+
+    let diff = b - a;
+    if diff < 0 { diff = -diff; }
+
+    while diff > tolerance && iter < 100 {
+        if f1 < f2 {
+            b = x2;
+            x2 = x1;
+            f2 = f1;
+            x1 = a + (resphi * (b - a));
+            f1 = f(x1);
+        } else {
+            a = x1;
+            x1 = x2;
+            f1 = f2;
+            x2 = a + (phi * (b - a));
+            f2 = f(x2);
+        }
+        diff = b - a;
+        if diff < 0 { diff = -diff; }
+        iter = iter + 1;
+    }
+
+    let min_x = (a + b) / 2.0;
+    return {
+        "min_x": min_x,
+        "min_y": f(min_x),
+        "iterations": iter
+    };
+};
+
+let minimize_gradient_descent = fn(f, grad_f, init_params, lr, max_iter, tol) {
+    let rate = 0.01;
+    if lr != null { rate = lr; }
+    let limit = 200;
+    if max_iter != null { limit = max_iter; }
+    let tolerance = 0.0000001;
+    if tol != null { tolerance = tol; }
+
+    let p = [];
+    for x in init_params {
+        push(p, x * 1.0);
+    }
+    let n = len(p);
+    let iter = 0;
+
+    while iter < limit {
+        let grad = [];
+        if grad_f != null {
+            grad = grad_f(p);
+        } else {
+            // Finite difference gradient
+            let h = 0.0000001;
+            let i = 0;
+            while i < n {
+                let orig = p[i];
+                p[i] = orig + h;
+                let f_plus = f(p);
+                p[i] = orig - h;
+                let f_minus = f(p);
+                p[i] = orig;
+                push(grad, (f_plus - f_minus) / (2.0 * h));
+                i = i + 1;
+            }
+        }
+
+        let grad_norm_sq = 0.0;
+        let i = 0;
+        while i < n {
+            grad_norm_sq = grad_norm_sq + (grad[i] * grad[i]);
+            p[i] = p[i] - (rate * grad[i]);
+            i = i + 1;
+        }
+
+        if grad_norm_sq < (tolerance * tolerance) {
+            return {
+                "params": p,
+                "value": f(p),
+                "iterations": iter + 1,
+                "converged": true
+            };
+        }
+        iter = iter + 1;
+    }
+
+    return {
+        "params": p,
+        "value": f(p),
+        "iterations": iter,
+        "converged": false
+    };
+};

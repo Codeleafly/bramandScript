@@ -1,0 +1,209 @@
+// BramandScript Standard Library :: Resumable Iterators & Generator Streams (std/iter)
+// First-class stateful resumable iterators, generator functions, and lazy sequence evaluations.
+
+struct Iterator {
+    next_fn,
+
+    fn next() {
+        return next_fn();
+    }
+
+    fn to_array() {
+        let arr = [];
+        while true {
+            let item = next_fn();
+            if item.done {
+                break;
+            }
+            arr = arr + [item.value];
+        }
+        return arr;
+    }
+
+    fn take(n) {
+        let count = 0;
+        let self_next = next_fn;
+        let new_next = fn() {
+            if count >= n {
+                return { "value": null, "done": true };
+            }
+            let item = self_next();
+            if item.done {
+                return item;
+            }
+            count = count + 1;
+            return item;
+        };
+        return Iterator(new_next);
+    }
+
+    fn drop(n) {
+        let dropped = false;
+        let self_next = next_fn;
+        let new_next = fn() {
+            if !dropped {
+                let i = 0;
+                while i < n {
+                    let item = self_next();
+                    if item.done {
+                        return item;
+                    }
+                    i = i + 1;
+                }
+                dropped = true;
+            }
+            return self_next();
+        };
+        return Iterator(new_next);
+    }
+
+    fn map(mapper) {
+        let self_next = next_fn;
+        let new_next = fn() {
+            let item = self_next();
+            if item.done {
+                return item;
+            }
+            return { "value": mapper(item.value), "done": false };
+        };
+        return Iterator(new_next);
+    }
+
+    fn filter(pred) {
+        let self_next = next_fn;
+        let new_next = fn() {
+            while true {
+                let item = self_next();
+                if item.done {
+                    return item;
+                }
+                if pred(item.value) {
+                    return item;
+                }
+            }
+        };
+        return Iterator(new_next);
+    }
+}
+
+// Generator: constructs an Iterator backed by a resumable coroutine task
+// worker_fn receives the `yield` callback function
+let generator = fn(worker_fn) {
+    let yield_ch = chan();
+    let resume_ch = chan();
+    let is_done = false;
+
+    let yielder = fn(val) {
+        let _ = <-resume_ch;
+        yield_ch <- { "value": val, "done": false };
+    };
+
+    spawn fn() {
+        worker_fn(yielder);
+        let _ = <-resume_ch;
+        yield_ch <- { "value": null, "done": true };
+    }();
+
+    let next_step = fn() {
+        if is_done {
+            return { "value": null, "done": true };
+        }
+        resume_ch <- null;
+        let res = <-yield_ch;
+        if res.done {
+            is_done = true;
+        }
+        return res;
+    };
+
+    return Iterator(next_step);
+};
+
+// Lazy infinite counter: start, start+step, ...
+let count = fn(start, step) {
+    if start == null { start = 0; }
+    if step == null { step = 1; }
+    let curr = start;
+    let next_fn = fn() {
+        let val = curr;
+        curr = curr + step;
+        return { "value": val, "done": false };
+    };
+    return Iterator(next_fn);
+};
+
+// Range iterator: start to end by step
+let range = fn(start, end, step) {
+    if step == null { step = 1; }
+    let curr = start;
+    let next_fn = fn() {
+        if step > 0 && curr >= end {
+            return { "value": null, "done": true };
+        }
+        if step < 0 && curr <= end {
+            return { "value": null, "done": true };
+        }
+        let val = curr;
+        curr = curr + step;
+        return { "value": val, "done": false };
+    };
+    return Iterator(next_fn);
+};
+
+// Cycle iterator: infinitely cycles over an array
+let cycle = fn(arr) {
+    if len(arr) == 0 {
+        return Iterator(fn() { return { "value": null, "done": true }; });
+    }
+    let idx = 0;
+    let next_fn = fn() {
+        let val = arr[idx];
+        idx = (idx + 1) % len(arr);
+        return { "value": val, "done": false };
+    };
+    return Iterator(next_fn);
+};
+
+// Zip iterator: zips two iterators into pairs [val1, val2]
+let zip = fn(iter1, iter2) {
+    let next_fn = fn() {
+        let item1 = iter1.next();
+        let item2 = iter2.next();
+        if item1.done || item2.done {
+            return { "value": null, "done": true };
+        }
+        return { "value": [item1.value, item2.value], "done": false };
+    };
+    return Iterator(next_fn);
+};
+
+// Standalone stream helpers
+let take = fn(iter, n) {
+    let out = [];
+    let i = 0;
+    while i < n {
+        let item = iter.next();
+        if item.done {
+            break;
+        }
+        out = out + [item.value];
+        i = i + 1;
+    }
+    return out;
+};
+
+let drop = fn(iter, n) {
+    let i = 0;
+    while i < n {
+        let item = iter.next();
+        if item.done {
+            break;
+        }
+        i = i + 1;
+    }
+    return iter;
+};
+
+let to_array = fn(iter) {
+    return iter.to_array();
+};

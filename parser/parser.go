@@ -13,6 +13,7 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	PIPE        // |>
 	SEND        // <-
 	LOGICAL_OR  // ||
 	LOGICAL_AND // &&
@@ -31,6 +32,7 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
+	token.PIPE_OP:     PIPE,
 	token.SEND_RECV:   SEND,
 	token.OR:          LOGICAL_OR,
 	token.AND:         LOGICAL_AND,
@@ -78,6 +80,8 @@ type Parser struct {
 
 	prefixParseFns map[token.TokenType]prefixParseFn
 	infixParseFns  map[token.TokenType]infixParseFn
+
+	destructCounter int
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -106,8 +110,10 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.SPAWN, p.parseSpawnExpression)
 	p.registerPrefix(token.SEND_RECV, p.parsePrefixExpression)
 	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
+	p.registerPrefix(token.YIELD, p.parseYieldExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.PIPE_OP, p.parsePipeExpression)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
@@ -498,48 +504,142 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 		return nil
 	}
 
-	lit.Parameters = p.parseFunctionParameters()
+	params, destructStmts := p.parseFunctionParameters()
+	lit.Parameters = params
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 
 	lit.Body = p.parseBlockStatement()
+	if lit.Body != nil && len(destructStmts) > 0 {
+		lit.Body.Statements = append(destructStmts, lit.Body.Statements...)
+	}
 
 	return lit
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+func (p *Parser) parseArrayPattern() *ast.ArrayPattern {
+	pattern := &ast.ArrayPattern{Token: p.curToken, Elements: []ast.Expression{}}
+
+	if p.peekTokenIs(token.RBRACKET) {
+		p.nextToken()
+		return pattern
+	}
+
+	for !p.curTokenIs(token.RBRACKET) && !p.curTokenIs(token.EOF) {
+		p.nextToken()
+		if p.curTokenIs(token.ELLIPSIS) {
+			ellipsisTok := p.curToken
+			if !p.expectPeek(token.IDENT) {
+				return nil
+			}
+			target := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			pattern.Elements = append(pattern.Elements, &ast.RestPattern{Token: ellipsisTok, Target: target})
+		} else if p.curTokenIs(token.IDENT) {
+			ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			pattern.Elements = append(pattern.Elements, ident)
+		} else if p.curTokenIs(token.RBRACKET) {
+			break
+		}
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.peekTokenIs(token.RBRACKET) {
+			p.nextToken()
+			break
+		}
+	}
+
+	return pattern
+}
+
+func (p *Parser) parseHashPattern() *ast.HashPattern {
+	pattern := &ast.HashPattern{Token: p.curToken, Keys: []*ast.Identifier{}}
+
+	if p.peekTokenIs(token.RBRACE) {
+		p.nextToken()
+		return pattern
+	}
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		p.nextToken()
+		if p.curTokenIs(token.IDENT) {
+			ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			pattern.Keys = append(pattern.Keys, ident)
+		} else if p.curTokenIs(token.RBRACE) {
+			break
+		}
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.peekTokenIs(token.RBRACE) {
+			p.nextToken()
+			break
+		}
+	}
+
+	return pattern
+}
+
+func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, []ast.Statement) {
 	identifiers := []*ast.Identifier{}
+	destructStmts := []ast.Statement{}
 	seen := make(map[string]bool)
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
-		return identifiers
+		return identifiers, destructStmts
 	}
 
-	p.nextToken()
+	parseOneParam := func() {
+		if p.peekTokenIs(token.LBRACE) {
+			p.nextToken()
+			pattern := p.parseHashPattern()
+			p.destructCounter++
+			synthName := fmt.Sprintf("__param_destruct_%d", p.destructCounter)
+			ident := &ast.Identifier{Token: token.Token{Type: token.IDENT, Literal: synthName}, Value: synthName}
+			identifiers = append(identifiers, ident)
+			destructStmts = append(destructStmts, &ast.LetStatement{
+				Token:   token.Token{Type: token.LET, Literal: "let"},
+				Pattern: pattern,
+				Value:   ident,
+			})
+		} else if p.peekTokenIs(token.LBRACKET) {
+			p.nextToken()
+			pattern := p.parseArrayPattern()
+			p.destructCounter++
+			synthName := fmt.Sprintf("__param_destruct_%d", p.destructCounter)
+			ident := &ast.Identifier{Token: token.Token{Type: token.IDENT, Literal: synthName}, Value: synthName}
+			identifiers = append(identifiers, ident)
+			destructStmts = append(destructStmts, &ast.LetStatement{
+				Token:   token.Token{Type: token.LET, Literal: "let"},
+				Pattern: pattern,
+				Value:   ident,
+			})
+		} else {
+			p.nextToken()
+			ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			if seen[ident.Value] {
+				p.errors = append(p.errors, fmt.Sprintf("duplicate parameter '%s' in function definition at line %d, col %d", ident.Value, p.curToken.Line, p.curToken.Col))
+			}
+			seen[ident.Value] = true
+			identifiers = append(identifiers, ident)
+		}
+	}
 
-	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	seen[ident.Value] = true
-	identifiers = append(identifiers, ident)
+	parseOneParam()
 
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
-		p.nextToken()
-		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		if seen[ident.Value] {
-			p.errors = append(p.errors, fmt.Sprintf("duplicate parameter '%s' in function definition at line %d, col %d", ident.Value, p.curToken.Line, p.curToken.Col))
-		}
-		seen[ident.Value] = true
-		identifiers = append(identifiers, ident)
+		parseOneParam()
 	}
 
 	if !p.expectPeek(token.RPAREN) {
-		return nil
+		return nil, nil
 	}
 
-	return identifiers
+	return identifiers, destructStmts
 }
 
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
@@ -699,5 +799,26 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		return nil
 	}
 
+	return exp
+}
+
+func (p *Parser) parsePipeExpression(left ast.Expression) ast.Expression {
+	exp := &ast.PipeExpression{
+		Token: p.curToken,
+		Left:  left,
+	}
+	precedence := p.curPrecedence()
+	p.nextToken()
+	exp.Right = p.parseExpression(precedence)
+	return exp
+}
+
+func (p *Parser) parseYieldExpression() ast.Expression {
+	exp := &ast.YieldExpression{Token: p.curToken}
+	if p.peekTokenIs(token.SEMICOLON) || p.peekTokenIs(token.RBRACE) || p.peekTokenIs(token.COMMA) {
+		return exp
+	}
+	p.nextToken()
+	exp.Value = p.parseExpression(LOWEST)
 	return exp
 }

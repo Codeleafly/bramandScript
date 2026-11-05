@@ -1,0 +1,10 @@
+// BramandScript Standard Library :: Gzip Compression (std/compress/gzip)
+// Pure Go standard library gzip compression and decompression.
+
+let compress = fn(data) {
+    return gzip_compress(data);
+};
+
+let decompress = fn(data) {
+    return gzip_decompress(data);
+};

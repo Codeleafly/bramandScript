@@ -48,7 +48,7 @@
         <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
           <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
           <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.0</span>
         </a>
       </div>
 
@@ -240,7 +240,7 @@
               <span>Modular Standard Library</span>
               <span>→</span>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">std/tui, std/math, std/strings, std/collections, std/io, std/json.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">std/math (LU/QR, calculus, ODE), modern crypto (GCM, Ed25519, JWT), compression, TUI &amp; plot.</p>
           </a>
 
           <a href="concurrency.html" class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-900/50 transition group">
@@ -363,9 +363,14 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
                 <td><code class="font-mono">bmd</code></td>
               </tr>
               <tr>
-                <td><code class="font-mono">bmd run &lt;file.bmd&gt;</code></td>
-                <td>Execute a BramandScript source file</td>
-                <td><code class="font-mono">bmd run app.bmd</code></td>
+                <td><code class="font-mono">bmd run [-O] &lt;file.bmd&gt;</code></td>
+                <td>Execute source file (optional <code class="font-mono">-O</code> for AOT optimizations)</td>
+                <td><code class="font-mono">bmd run -O app.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd build [-O] &lt;src&gt;</code></td>
+                <td>Compile standalone native binary</td>
+                <td><code class="font-mono">bmd build -O app.bmd</code></td>
               </tr>
               <tr>
                 <td><code class="font-mono">bmd &lt;file.bmd&gt;</code></td>
@@ -405,7 +410,7 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
             <span>terminal — bmd repl</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code>✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM
+          <pre><code>✦ BramandScript 0.1.0 (arm64-linux) · High-Performance Bytecode VM
   Type :help for documentation, :editor for multi-line, :exit to quit.
 
 ✦ bmd ❯ let greeting = "Hello, Universe!"

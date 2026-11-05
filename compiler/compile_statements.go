@@ -12,6 +12,7 @@ import (
 	"bramandscript/object"
 	"bramandscript/parser"
 	"bramandscript/stdlib"
+	"bramandscript/token"
 )
 
 func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
@@ -57,6 +58,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.leaveBlockScope()
 
 	case *ast.LetStatement:
+		if node.Pattern != nil {
+			return true, c.compileDestructuring(node.Pattern, node.Value, false, node.Token)
+		}
 		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && existing.IsConst && (existing.File == c.currentFile) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
 		}
@@ -72,6 +76,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ConstStatement:
+		if node.Pattern != nil {
+			return true, c.compileDestructuring(node.Pattern, node.Value, true, node.Token)
+		}
 		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && (existing.File == c.currentFile) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
 		}
@@ -519,9 +526,43 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			for _, stmt := range moduleProgram.Statements {
 				switch s := stmt.(type) {
 				case *ast.LetStatement:
-					exportedNames = append(exportedNames, s.Name.Value)
+					if s.Name != nil {
+						exportedNames = append(exportedNames, s.Name.Value)
+					} else if s.Pattern != nil {
+						switch pat := s.Pattern.(type) {
+						case *ast.ArrayPattern:
+							for _, el := range pat.Elements {
+								if rp, ok := el.(*ast.RestPattern); ok && rp.Target != nil {
+									exportedNames = append(exportedNames, rp.Target.Value)
+								} else if ident, ok := el.(*ast.Identifier); ok {
+									exportedNames = append(exportedNames, ident.Value)
+								}
+							}
+						case *ast.HashPattern:
+							for _, key := range pat.Keys {
+								exportedNames = append(exportedNames, key.Value)
+							}
+						}
+					}
 				case *ast.ConstStatement:
-					exportedNames = append(exportedNames, s.Name.Value)
+					if s.Name != nil {
+						exportedNames = append(exportedNames, s.Name.Value)
+					} else if s.Pattern != nil {
+						switch pat := s.Pattern.(type) {
+						case *ast.ArrayPattern:
+							for _, el := range pat.Elements {
+								if rp, ok := el.(*ast.RestPattern); ok && rp.Target != nil {
+									exportedNames = append(exportedNames, rp.Target.Value)
+								} else if ident, ok := el.(*ast.Identifier); ok {
+									exportedNames = append(exportedNames, ident.Value)
+								}
+							}
+						case *ast.HashPattern:
+							for _, key := range pat.Keys {
+								exportedNames = append(exportedNames, key.Value)
+							}
+						}
+					}
 				case *ast.ExpressionStatement:
 					if fnLit, ok := s.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
 						exportedNames = append(exportedNames, fnLit.Name)
@@ -738,4 +779,73 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 	}
 
 	return "", fmt.Errorf("module '%s' not found locally or in ~/.bramand_libs", importPath)
+}
+
+func (c *Compiler) compileDestructuring(pattern ast.Node, value ast.Expression, isConst bool, tok token.Token) error {
+	c.currentLine = tok.Line
+	err := c.Compile(value)
+	if err != nil {
+		return err
+	}
+
+	c.destructCount++
+	tmpName := fmt.Sprintf("__destruct_tmp_%d", c.destructCount)
+	tmpSym := c.symbolTable.Define(tmpName, false)
+	if tmpSym.Scope == GlobalScope {
+		c.emit(code.OpSetGlobal, tmpSym.Index)
+	} else {
+		c.emit(code.OpSetLocal, tmpSym.Index)
+	}
+
+	switch pat := pattern.(type) {
+	case *ast.ArrayPattern:
+		for i, el := range pat.Elements {
+			if rp, ok := el.(*ast.RestPattern); ok {
+				sliceBuiltin, ok := c.symbolTable.Resolve("slice")
+				if !ok {
+					return fmt.Errorf("undefined builtin 'slice'")
+				}
+				c.loadSymbol(sliceBuiltin)
+				c.loadSymbol(tmpSym)
+				c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+				c.emit(code.OpNull)
+				c.emit(code.OpNull)
+				c.emit(code.OpCall, 4)
+
+				targetSym := c.symbolTable.Define(rp.Target.Value, isConst)
+				if targetSym.Scope == GlobalScope {
+					c.emit(code.OpSetGlobal, targetSym.Index)
+				} else {
+					c.emit(code.OpSetLocal, targetSym.Index)
+				}
+			} else if ident, ok := el.(*ast.Identifier); ok {
+				c.loadSymbol(tmpSym)
+				c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+				c.emit(code.OpIndex)
+
+				sym := c.symbolTable.Define(ident.Value, isConst)
+				if sym.Scope == GlobalScope {
+					c.emit(code.OpSetGlobal, sym.Index)
+				} else {
+					c.emit(code.OpSetLocal, sym.Index)
+				}
+			}
+		}
+
+	case *ast.HashPattern:
+		for _, key := range pat.Keys {
+			c.loadSymbol(tmpSym)
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: key.Value}))
+			c.emit(code.OpIndex)
+
+			sym := c.symbolTable.Define(key.Value, isConst)
+			if sym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, sym.Index)
+			} else {
+				c.emit(code.OpSetLocal, sym.Index)
+			}
+		}
+	}
+
+	return nil
 }

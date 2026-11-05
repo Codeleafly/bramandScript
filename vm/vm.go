@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -64,6 +65,19 @@ type VM struct {
 	framesIndex int
 
 	profiler *Profiler
+
+	MaxSteps  uint64
+	StepCount uint64
+	Timeout   time.Duration
+	StartTime time.Time
+}
+
+func (vm *VM) SetMaxSteps(steps uint64) {
+	vm.MaxSteps = steps
+}
+
+func (vm *VM) SetTimeout(d time.Duration) {
+	vm.Timeout = d
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -267,6 +281,9 @@ func (vm *VM) pop() object.Object {
 
 func (vm *VM) Run() error {
 	SetActiveVM(vm)
+	if vm.Timeout > 0 && vm.StartTime.IsZero() {
+		vm.StartTime = time.Now()
+	}
 	err := vm.runLoop()
 	if err != nil {
 		return vm.wrapError(err)
@@ -289,6 +306,18 @@ func (vm *VM) runLoop() error {
 	var op code.Opcode
 
 	for vm.framesIndex > 0 && vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
+		if vm.MaxSteps > 0 {
+			vm.StepCount++
+			if vm.StepCount >= vm.MaxSteps {
+				return fmt.Errorf("execution step limit exceeded (%d steps)", vm.MaxSteps)
+			}
+		}
+		if vm.Timeout > 0 && (vm.StepCount&1023 == 0) {
+			if time.Since(vm.StartTime) > vm.Timeout {
+				return fmt.Errorf("execution timeout exceeded (%v)", vm.Timeout)
+			}
+		}
+
 		vm.currentFrame().ip++
 
 		ip = vm.currentFrame().ip
@@ -759,6 +788,16 @@ func objectsEqualDepth(left, right object.Object, depth int) bool {
 		return left == right
 	}
 	if left.Type() != right.Type() {
+		if l, ok := left.(*object.Integer); ok {
+			if r, ok := right.(*object.BigInt); ok {
+				return r.Value.Cmp(big.NewInt(l.Value)) == 0
+			}
+		}
+		if l, ok := left.(*object.BigInt); ok {
+			if r, ok := right.(*object.Integer); ok {
+				return l.Value.Cmp(big.NewInt(r.Value)) == 0
+			}
+		}
 		if l, ok := left.(*object.Integer); ok {
 			if r, ok := right.(*object.Float); ok {
 				return float64(l.Value) == r.Value

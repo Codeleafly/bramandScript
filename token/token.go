@@ -62,6 +62,8 @@ const (
 	DOT       = "."
 	ARROW     = "=>"
 	SEND_RECV = "<-"
+	PIPE_OP   = "|>"
+	ELLIPSIS  = "..."
 
 	LPAREN   = "("
 	RPAREN   = ")"
@@ -94,6 +96,7 @@ const (
 	SPAWN    = "SPAWN"
 	ENUM     = "ENUM"
 	EMBED    = "EMBED"
+	YIELD    = "YIELD"
 )
 
 var keywords = map[string]TokenType{
@@ -120,6 +123,7 @@ var keywords = map[string]TokenType{
 	"spawn":    SPAWN,
 	"enum":     ENUM,
 	"embed":    EMBED,
+	"yield":    YIELD,
 }
 
 func LookupIdent(ident string) TokenType {

@@ -1,0 +1,137 @@
+// BramandScript Standard Library :: Math :: Calculus (std/math/calculus)
+// Numerical differentiation, finite differences, and adaptive numerical integration.
+
+let diff = fn(f, x, h) {
+    let step = h;
+    if step == null {
+        let abs_x = x;
+        if abs_x < 0 { abs_x = -abs_x; }
+        if abs_x < 1.0 { abs_x = 1.0; }
+        step = 0.0000001 * abs_x;
+    }
+    return (f(x + step) - f(x - step)) / (2.0 * step);
+};
+
+let diff_forward = fn(f, x, h) {
+    let step = h;
+    if step == null {
+        let abs_x = x;
+        if abs_x < 0 { abs_x = -abs_x; }
+        if abs_x < 1.0 { abs_x = 1.0; }
+        step = 0.0000001 * abs_x;
+    }
+    return (f(x + step) - f(x)) / step;
+};
+
+let diff_backward = fn(f, x, h) {
+    let step = h;
+    if step == null {
+        let abs_x = x;
+        if abs_x < 0 { abs_x = -abs_x; }
+        if abs_x < 1.0 { abs_x = 1.0; }
+        step = 0.0000001 * abs_x;
+    }
+    return (f(x) - f(x - step)) / step;
+};
+
+let diff2 = fn(f, x, h) {
+    let step = h;
+    if step == null {
+        let abs_x = x;
+        if abs_x < 0 { abs_x = -abs_x; }
+        if abs_x < 1.0 { abs_x = 1.0; }
+        step = 0.00001 * abs_x;
+    }
+    return (f(x + step) - (2.0 * f(x)) + f(x - step)) / (step * step);
+};
+
+let integrate_simpson = fn(f, a, b, n) {
+    let intervals = 100;
+    if n != null { intervals = n; }
+    if intervals % 2 != 0 {
+        intervals = intervals + 1;
+    }
+    let h = (b - a) / intervals;
+    let s = f(a) + f(b);
+
+    let i = 1;
+    while i < intervals {
+        let x = a + (i * h);
+        if i % 2 == 0 {
+            s = s + (2.0 * f(x));
+        } else {
+            s = s + (4.0 * f(x));
+        }
+        i = i + 1;
+    }
+    return s * (h / 3.0);
+};
+
+let integrate_trapezoid = fn(f, a, b, n) {
+    let intervals = 100;
+    if n != null { intervals = n; }
+    let h = (b - a) / intervals;
+    let s = (f(a) + f(b)) / 2.0;
+
+    let i = 1;
+    while i < intervals {
+        s = s + f(a + (i * h));
+        i = i + 1;
+    }
+    return s * h;
+};
+
+let integrate_gauss = fn(f, a, b) {
+    // 5-point Gauss-Legendre quadrature
+    let t0 = 0.0;
+    let w0 = 0.5688888888888889;
+
+    let t1 = 0.5384693101056831;
+    let w1 = 0.4786286704993665;
+
+    let t2 = 0.9061798459386640;
+    let w2 = 0.2369268850561891;
+
+    let half_len = (b - a) / 2.0;
+    let mid = (a + b) / 2.0;
+
+    let sum = w0 * f(mid);
+    sum = sum + (w1 * f(mid + (half_len * t1)));
+    sum = sum + (w1 * f(mid - (half_len * t1)));
+    sum = sum + (w2 * f(mid + (half_len * t2)));
+    sum = sum + (w2 * f(mid - (half_len * t2)));
+
+    return sum * half_len;
+};
+
+let _adapt_simpson_step = fn(f, a, b, eps, s0, fa, fb, fc, depth) {
+    let c = (a + b) / 2.0;
+    let d = (a + c) / 2.0;
+    let e = (c + b) / 2.0;
+    let fd = f(d);
+    let fe = f(e);
+    let h = (b - a) / 12.0;
+    let s1 = h * (fa + (4.0 * fd) + fc);
+    let s2 = h * (fc + (4.0 * fe) + fb);
+    let s12 = s1 + s2;
+    let diff_val = s12 - s0;
+    if diff_val < 0 { diff_val = -diff_val; }
+
+    if depth <= 0 || diff_val <= (15.0 * eps) {
+        return s12 + ((s12 - s0) / 15.0);
+    }
+    let left = _adapt_simpson_step(f, a, c, eps / 2.0, s1, fa, fc, fd, depth - 1);
+    let right = _adapt_simpson_step(f, c, b, eps / 2.0, s2, fc, fb, fe, depth - 1);
+    return left + right;
+};
+
+let integrate_adaptive = fn(f, a, b, tol) {
+    let eps = 0.0000001;
+    if tol != null { eps = tol; }
+    let c = (a + b) / 2.0;
+    let fa = f(a);
+    let fb = f(b);
+    let fc = f(c);
+    let s0 = ((b - a) / 6.0) * (fa + (4.0 * fc) + fb);
+    return _adapt_simpson_step(f, a, b, eps, s0, fa, fb, fc, 20);
+};

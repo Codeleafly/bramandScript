@@ -165,6 +165,10 @@ func (l *Lexer) NextToken() token.Token {
 			ch := l.ch
 			l.readChar()
 			tok = token.Token{Type: token.OR, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.PIPE_OP, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
 		} else {
 			tok = newToken(token.BIT_OR, l.ch, curLine, curCol)
 		}
@@ -179,7 +183,18 @@ func (l *Lexer) NextToken() token.Token {
 	case ',':
 		tok = newToken(token.COMMA, l.ch, curLine, curCol)
 	case '.':
-		tok = newToken(token.DOT, l.ch, curLine, curCol)
+		if l.peekChar() == '.' {
+			nextPos := l.readPosition + 1
+			if nextPos < len(l.input) && l.input[nextPos] == '.' {
+				l.readChar()
+				l.readChar()
+				tok = token.Token{Type: token.ELLIPSIS, Literal: "...", Line: curLine, Col: curCol}
+			} else {
+				tok = newToken(token.DOT, l.ch, curLine, curCol)
+			}
+		} else {
+			tok = newToken(token.DOT, l.ch, curLine, curCol)
+		}
 	case '(':
 		tok = newToken(token.LPAREN, l.ch, curLine, curCol)
 	case ')':

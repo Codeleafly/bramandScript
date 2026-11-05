@@ -554,7 +554,7 @@ func RunCLI(opts FormatOptions) int {
 				if err := os.WriteFile(file, []byte(formatted), 0644); err != nil {
 					fmt.Fprintf(os.Stderr, "[ERROR] Failed to write %s: %s\n", file, err)
 				} else {
-					fmt.Printf("  ✓ Formatted %s\n", file)
+					fmt.Printf("  [OK] Formatted %s\n", file)
 					formattedCount++
 				}
 			}
