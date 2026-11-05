@@ -197,6 +197,13 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		return vm.executeBytesIndex(left, index)
 	case left.Type() == object.HASH_OBJ:
 		return vm.executeHashIndex(left, index)
+	case left.Type() == object.ERROR_OBJ && index.Type() == object.STRING_OBJ:
+		errObj := left.(*object.Error)
+		prop := index.(*object.String).Value
+		if prop == "message" || prop == "msg" {
+			return vm.push(&object.String{Value: errObj.Message})
+		}
+		return vm.push(Null)
 	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ || left.Type() == object.BYTES_OBJ) && index.Type() == object.STRING_OBJ:
 		prop := index.(*object.String).Value
 		if prop == "length" || prop == "len" {

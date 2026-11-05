@@ -220,7 +220,7 @@ struct Tensor {
             }
 
             let pivot_val = mat[p * n + p];
-            if pivot_val == 0.0 {
+            if abs(pivot_val) < 0.000000000001 {
                 return 0.0;
             }
 
@@ -293,7 +293,7 @@ struct Tensor {
             aug[pivot_row] = temp_row;
 
             let pivot = aug[p][p];
-            if pivot == 0.0 {
+            if abs(pivot) < 0.000000000001 {
                 return null; // Singular matrix
             }
 

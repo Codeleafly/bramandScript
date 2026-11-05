@@ -31,7 +31,7 @@ println("      Model constructed with " + len(model.parameters()) + " trainable 
 
 // Training Loop: Forward Pass -> Loss -> Backward Pass -> Optimizer Step
 println("\n· [2] Training Neural Network over 40 Epochs with Gradient Descent...");
-let learning_rate = 0.5;
+let learning_rate = 0.05;
 let epoch = 1;
 
 while epoch <= 40 {

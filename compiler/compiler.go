@@ -69,6 +69,9 @@ func (c *Compiler) SetBaseDir(dir string) {
 func (c *Compiler) SetCurrentFile(file, source string) {
 	c.currentFile = file
 	c.currentSource = source
+	if c.symbolTable != nil {
+		c.symbolTable.CurrentFile = file
+	}
 }
 
 func (c *Compiler) makeError(line, col int, format string, args ...interface{}) *CompilerError {
@@ -417,7 +420,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		} else {
-			c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: 0}))
+			c.emit(code.OpNull)
 		}
 
 		if node.End != nil {
@@ -425,9 +428,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 			if err != nil {
 				return err
 			}
-			c.emit(code.OpCall, 3)
 		} else {
-			c.emit(code.OpCall, 2)
+			c.emit(code.OpNull)
+		}
+
+		if node.Step != nil {
+			err = c.Compile(node.Step)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpCall, 4)
+		} else {
+			c.emit(code.OpCall, 3)
 		}
 
 	case *ast.DotExpression:

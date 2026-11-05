@@ -522,6 +522,7 @@ type SliceExpression struct {
 	Left  Expression
 	Start Expression
 	End   Expression
+	Step  Expression
 }
 
 func (se *SliceExpression) expressionNode()      {}
@@ -537,6 +538,10 @@ func (se *SliceExpression) String() string {
 	out.WriteString(":")
 	if se.End != nil {
 		out.WriteString(se.End.String())
+	}
+	if se.Step != nil {
+		out.WriteString(":")
+		out.WriteString(se.Step.String())
 	}
 	out.WriteString("])")
 	return out.String()

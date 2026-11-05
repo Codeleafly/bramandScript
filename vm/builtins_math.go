@@ -144,16 +144,31 @@ func init() {
 					return &object.Error{Message: "matrix dimensions must be integers"}
 				}
 				m := object.NewMatrix(int(rObj.Value), int(cObj.Value))
-				fill := 0.0
 				if len(args) >= 3 {
+					if arr, ok := args[2].(*object.Array); ok {
+						idx := 0
+						for i := 0; i < m.Rows; i++ {
+							for j := 0; j < m.Cols; j++ {
+								if idx < len(arr.Elements) {
+									if f, ok := toFloat(arr.Elements[idx]); ok {
+										m.Data[i][j] = f
+									}
+									idx++
+								}
+							}
+						}
+						return m
+					}
+					fill := 0.0
 					if f, ok := toFloat(args[2]); ok {
 						fill = f
 					}
-				}
-				for i := 0; i < m.Rows; i++ {
-					for j := 0; j < m.Cols; j++ {
-						m.Data[i][j] = fill
+					for i := 0; i < m.Rows; i++ {
+						for j := 0; j < m.Cols; j++ {
+							m.Data[i][j] = fill
+						}
 					}
+					return m
 				}
 				return m
 			}

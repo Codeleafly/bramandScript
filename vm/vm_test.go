@@ -2040,3 +2040,33 @@ func TestStructMethodWithLocals(t *testing.T) {
 	testExpectedObject(t, "myfile", stackElem)
 }
 
+func TestSliceWithStepAndReverse(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"let a = [10, 20, 30, 40, 50]; a[::]", []int{10, 20, 30, 40, 50}},
+		{"let a = [10, 20, 30, 40, 50]; a[::-1]", []int{50, 40, 30, 20, 10}},
+		{"let a = [10, 20, 30, 40, 50]; a[::2]", []int{10, 30, 50}},
+		{"let a = [10, 20, 30, 40, 50]; a[1:4:2]", []int{20, 40}},
+		{`let s = "hello"; s[::-1]`, "olleh"},
+		{`let s = "abcdef"; s[::2]`, "ace"},
+	}
+
+	for _, tt := range tests {
+		program := parse(tt.input)
+		comp := compiler.New()
+		err := comp.Compile(program)
+		if err != nil {
+			t.Fatalf("[%s] compile error: %s", tt.input, err)
+		}
+		vm := New(comp.Bytecode())
+		err = vm.Run()
+		if err != nil {
+			t.Fatalf("[%s] vm error: %s", tt.input, err)
+		}
+		stackElem := vm.LastPoppedStackElem()
+		testExpectedObject(t, tt.expected, stackElem)
+	}
+}
+

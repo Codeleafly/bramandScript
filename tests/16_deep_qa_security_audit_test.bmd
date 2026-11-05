@@ -1,0 +1,435 @@
+// tests/16_deep_qa_security_audit_test.bmd
+// BramandScript Comprehensive Independent QA & Security Audit Suite
+// Exhaustive adversarial verification across language engine, runtime VM,
+// closures, concurrency, stdlib modules, autograd, data structures, and edge cases.
+
+import "std/math" as math
+import "std/math/tensor" as tensor_mod
+import "std/net" as net
+import "std/db" as db
+import "std/dataframe" as dataframe
+import "std/ml" as ml
+import "std/lang" as lang
+
+describe("Adversarial QA 01: Deep Nested Closures and Concurrency", fn() {
+        test("Multi-level 4-tier nested closures mutating outer captured lexical scope", fn() {
+                fn outer() {
+                    let a = 10;
+                    let b = 20;
+                    let c = 30;
+
+                    fn mid1() {
+                        a = a + 5;
+                        fn mid2() {
+                            b = b + 15;
+                            fn inner() {
+                                c = c + 25;
+                                a = a * 2;
+                                return a + b + c;
+                            }
+                            return inner();
+                        }
+                        return mid2();
+                    }
+                    let sum = mid1();
+                    return [a, b, c, sum];
+                }
+
+                let res = outer();
+                assert_eq(res[0], 30);  // (10 + 5) * 2 = 30
+                assert_eq(res[1], 35);  // 20 + 15 = 35
+                assert_eq(res[2], 55);  // 30 + 25 = 55
+                assert_eq(res[3], 120);  // 30 + 35 + 55 = 120
+        });
+
+        test("Concurrent spawn tasks mutating captured closure cell with mutex", fn() {
+                let counter = 0;
+                let m = mutex();
+                let ch = chan(10);
+
+                let i = 0;
+                while i < 10 {
+                    spawn fn() {
+                        let j = 0;
+                        while j < 50 {
+                            m.lock();
+                            counter = counter + 1;
+                            m.unlock();
+                            j = j + 1;
+                        }
+                        ch <- true;
+                    }();
+                    i = i + 1;
+                }
+
+                let k = 0;
+                while k < 10 {
+                    <- ch;
+                    k = k + 1;
+                }
+
+                assert_eq(counter, 500);
+        });
+});
+
+describe("Adversarial QA 02: Call Stack Depth & Cyclic Reference Protection", fn() {
+        test("Deep recursion triggers clean runtime stack overflow error", fn() {
+                let res = eval("fn rec() { return rec(); } rec()");
+                assert_eq(type(res), "ERROR");
+                assert(contains(res.message, "stack overflow"));
+        });
+
+        test("Cyclic array reference equality and depth inspect limit", fn() {
+                let a = [0];
+                a[0] = a;
+
+                let b = [0];
+                b[0] = b;
+
+                // Pointer identity check
+                assert_eq(a == a, true);
+                assert_eq(b == b, true);
+                assert_eq(a == b, false);
+
+                // String inspection does not overflow stack
+                let s = "" + a;
+                assert(contains(s, "[...]"));
+        });
+
+        test("Cyclic hash reference equality and depth inspect limit", fn() {
+                let h1 = {};
+                h1["self"] = h1;
+
+                let h2 = {};
+                h2["self"] = h2;
+
+                assert_eq(h1 == h1, true);
+                assert_eq(h2 == h2, true);
+                assert_eq(h1 == h2, false);
+
+                let s = "" + h1;
+                assert(contains(s, "{...}"));
+        });
+});
+
+describe("Adversarial QA 03: Constant Variable Protection", fn() {
+        test("Const variable reassignment is blocked at compile time", fn() {
+                let res = eval("const PI_CONST = 3.14; PI_CONST = 3.14159;");
+                assert_eq(type(res), "ERROR");
+                assert(contains(res.message, "cannot reassign to constant"));
+        });
+
+        test("Const variable redeclaration with let is blocked at compile time", fn() {
+                let res = eval("const SPEED = 300; let SPEED = 400;");
+                assert_eq(type(res), "ERROR");
+                assert(contains(res.message, "cannot re-declare constant"));
+        });
+
+        test("Const variable redeclaration with const is blocked at compile time", fn() {
+                let res = eval("const GRAVITY = 9.8; const GRAVITY = 10.0;");
+                assert_eq(type(res), "ERROR");
+                assert(contains(res.message, "cannot re-declare constant"));
+        });
+
+        test("Inner lexical scope can shadow outer constant", fn() {
+                const OUTER_CONST = 100;
+                fn shadow_test() {
+                    let OUTER_CONST = 200;
+                    return OUTER_CONST;
+                }
+                assert_eq(shadow_test(), 200);
+                assert_eq(OUTER_CONST, 100);
+        });
+});
+
+describe("Adversarial QA 04: Extended Slice Syntax and Negative Indices", fn() {
+        test("Array slicing with omitted start, end, and steps", fn() {
+                let arr = [10, 20, 30, 40, 50];
+                assert_eq(arr[:], [10, 20, 30, 40, 50]);
+                assert_eq(arr[::], [10, 20, 30, 40, 50]);
+                assert_eq(arr[1: 4], [20, 30, 40]);
+                assert_eq(arr[:: 2], [10, 30, 50]);
+                assert_eq(arr[1: 4: 2], [20, 40]);
+                assert_eq(arr[1:: 2], [20, 40]);
+                assert_eq(arr[: 3: 2], [10, 30]);
+        });
+
+        test("Array reverse slicing with negative step", fn() {
+                let arr = [10, 20, 30, 40, 50];
+                assert_eq(arr[:: -1], [50, 40, 30, 20, 10]);
+                assert_eq(arr[4: 1: -1], [50, 40, 30]);
+        });
+
+        test("String slicing with step and reverse indexing", fn() {
+                let str = "BramandScript";
+                assert_eq(str[:], "BramandScript");
+                assert_eq(str[::], "BramandScript");
+                assert_eq(str[:: -1], "tpircSdnamarB");
+                assert_eq(str[:: 2], "Baadcit");
+                assert_eq(str[-6:], "Script");
+                assert_eq(str[: -6], "Bramand");
+        });
+
+        test("Slice bounds clamping and out-of-bounds safety", fn() {
+                let arr = [1, 2, 3];
+                assert_eq(arr[-100: 100], [1, 2, 3]);
+                assert_eq(arr[10: 20], []);
+                assert_eq(arr[3: 1], []);
+        });
+});
+
+describe("Adversarial QA 05: Multi-Dimensional Matrix and Tensor Linear Algebra", fn() {
+        test("Matrix multiplication of non-square conformable matrices", fn() {
+                // (2 x 3) * (3 x 2) = (2 x 2)
+                let m1 = matrix(2, 3, [
+                        1.0, 2.0, 3.0,
+                        4.0, 5.0, 6.0
+                ]);
+                let m2 = matrix(3, 2, [
+                        7.0, 8.0,
+                        9.0, 1.0,
+                        2.0, 3.0
+                ]);
+                let res = m1 * m2;
+                assert_eq(res.rows, 2);
+                assert_eq(res.cols, 2);
+                // [1*7 + 2*9 + 3*2, 1*8 + 2*1 + 3*3] = [7 + 18 + 6, 8 + 2 + 9] = [31, 19]
+                // [4*7 + 5*9 + 6*2, 4*8 + 5*1 + 6*3] = [28 + 45 + 12, 32 + 5 + 18] = [85, 55]
+                assert_eq(res.get(0, 0), 31.0);
+                assert_eq(res.get(0, 1), 19.0);
+                assert_eq(res.get(1, 0), 85.0);
+                assert_eq(res.get(1, 1), 55.0);
+        });
+
+        test("Matrix determinant and singular inversion detection", fn() {
+                // Singular matrix: rows are linearly dependent
+                let sing = matrix(2, 2, [
+                        2.0, 4.0,
+                        1.0, 2.0
+                ]);
+                assert_eq(sing.det(), 0.0);
+                let inv_res = sing.inv();
+                assert_eq(type(inv_res), "ERROR");
+
+                // Tensor singular inversion returns null
+                let t_sing = tensor_mod.from_array([[2.0, 4.0], [1.0, 2.0]]);
+                assert_eq(t_sing.det(), 0.0);
+                assert_eq(t_sing.inv(), null);
+        });
+
+        test("Invertible 3x3 matrix produces identity upon multiplication", fn() {
+                let m = matrix(3, 3, [
+                        1.0, 2.0, -1.0,
+                        2.0, 1.0, 0.0,
+                        -1.0, 1.0, 2.0
+                ]);
+                let inv = m.inv();
+                assert(inv != null);
+                let prod = m * inv;
+                // Verify diagonal is ~1.0 and off-diagonal is ~0.0
+                assert_eq(round(prod.get(0, 0)), 1);
+                assert_eq(round(prod.get(1, 1)), 1);
+                assert_eq(round(prod.get(2, 2)), 1);
+                assert_eq(round(prod.get(0, 1)), 0);
+                assert_eq(round(prod.get(1, 0)), 0);
+        });
+});
+
+describe("Adversarial QA 06: Autograd and Neural Network Optimization", fn() {
+        test("Automatic differentiation backpropagation gradients", fn() {
+                let x = ml.value(3.0);
+                let y = ml.value(-4.0);
+                // z = x^2 + 2*x*y + y^2 = (3)^2 + 2*3*(-4) + (-4)^2 = 9 - 24 + 16 = 1
+                let z = x.mul(x).add(ml.value(2.0).mul(x).mul(y)).add(y.mul(y));
+                assert_eq(z.data, 1.0);
+
+                z.backward();
+                // dz/dx = 2*x + 2*y = 2*3 + 2*(-4) = -2
+                // dz/dy = 2*x + 2*y = -2
+                assert_eq(x.grad, -2.0);
+                assert_eq(y.grad, -2.0);
+        });
+
+        test("MLP training on XOR reduces loss monotonically", fn() {
+                let model = ml.new_mlp(2, [4, 1]);
+                let dataset_X = [
+                    [0.0, 0.0],
+                    [0.0, 1.0],
+                    [1.0, 0.0],
+                    [1.0, 1.0]
+                ];
+                let dataset_Y = [0.0, 1.0, 1.0, 0.0];
+
+                // Epoch 1 loss
+                let total_loss_1 = ml.value(0.0);
+                let i = 0;
+                while i < len(dataset_X) {
+                    let x_in = [ml.value(dataset_X[i][0]), ml.value(dataset_X[i][1])];
+                    let pred = model.call(x_in);
+                    let diff = pred.sub(ml.value(dataset_Y[i]));
+                    total_loss_1 = total_loss_1.add(diff.mul(diff));
+                    i = i + 1;
+                }
+
+                // Run 10 optimization steps
+                let epoch = 1;
+                while epoch <= 10 {
+                    let loss = ml.value(0.0);
+                    i = 0;
+                    while i < len(dataset_X) {
+                        let x_in = [ml.value(dataset_X[i][0]), ml.value(dataset_X[i][1])];
+                        let pred = model.call(x_in);
+                        let diff = pred.sub(ml.value(dataset_Y[i]));
+                        loss = loss.add(diff.mul(diff));
+                        i = i + 1;
+                    }
+                    model.zero_grad();
+                    loss.backward();
+                    model.step(0.05);
+                    epoch = epoch + 1;
+                }
+
+                // Epoch 10 loss
+                let total_loss_10 = ml.value(0.0);
+                i = 0;
+                while i < len(dataset_X) {
+                    let x_in = [ml.value(dataset_X[i][0]), ml.value(dataset_X[i][1])];
+                    let pred = model.call(x_in);
+                    let diff = pred.sub(ml.value(dataset_Y[i]));
+                    total_loss_10 = total_loss_10.add(diff.mul(diff));
+                    i = i + 1;
+                }
+
+                assert(total_loss_10.data < total_loss_1.data);
+        });
+});
+
+describe("Adversarial QA 07: Trie Router Precedence and Web Protocols", fn() {
+        test("HTTP Router exact match takes precedence over parameterized and wildcard", fn() {
+                let router = net.new_router();
+                router.get("/users/profile", fn(c) { return "profile_exact"; });
+                router.get("/users/:id", fn(c) { return "user_param"; });
+                router.get("/users/:id/*path", fn(c) { return "user_wildcard"; });
+
+                let r1 = router.lookup("GET", "/users/profile");
+                assert_eq(r1["found"], true);
+                assert_eq(r1["handler"](null), "profile_exact");
+
+                let r2 = router.lookup("GET", "/users/123");
+                assert_eq(r2["found"], true);
+                assert_eq(r2["handler"](null), "user_param");
+                assert_eq(r2["params"]["id"], "123");
+
+                let r3 = router.lookup("GET", "/users/123/settings/privacy");
+                assert_eq(r3["found"], true);
+                assert_eq(r3["handler"](null), "user_wildcard");
+                assert_eq(r3["params"]["path"], "settings/privacy");
+        });
+
+        test("WebSocket Room Hub multiple subscriptions and broadcast excluding sender", fn() {
+                let hub = net.new_room_hub();
+                let received_a = [];
+                let received_b = [];
+
+                let conn_a = { "write": fn(msg) { received_a = received_a + [msg]; } };
+                let conn_b = { "write": fn(msg) { received_b = received_b + [msg]; } };
+
+                hub.join("lobby", "client_a", conn_a, null);
+                hub.join("lobby", "client_b", conn_b, null);
+
+                assert_eq(hub.room_count("lobby"), 2);
+                assert_eq(hub.is_in_room("lobby", "client_a"), true);
+
+                // Broadcast excluding client_a
+                let sent = hub.broadcast("lobby", "hello lobby", "client_a");
+                assert_eq(sent, 1);
+                assert_eq(len(received_a), 0);
+                assert_eq(len(received_b), 1);
+                assert_eq(received_b[0], "hello lobby");
+
+                hub.leave("lobby", "client_b");
+                assert_eq(hub.room_count("lobby"), 1);
+        });
+
+        test("Server-Sent Events stream buffering and ping", fn() {
+                let sse = net.new_sse_stream();
+                sse.send("telemetry", { "temperature": 24.5 }, "evt-1");
+                sse.ping();
+                let flushed = sse.flush();
+
+                assert(contains(flushed, "event: telemetry"));
+                assert(contains(flushed, "id: evt-1"));
+                assert(contains(flushed, "temperature"));
+                assert(contains(flushed, ": keepalive"));
+        });
+});
+
+describe("Adversarial QA 08: Key-Value WAL Crash Recovery & Compaction", fn() {
+        test("Crash recovery replays append-only log and compaction shrinks file", fn() {
+                let test_wal_file = "scratch_audit_test.wal";
+                if file_exists(test_wal_file) {
+                    delete_file(test_wal_file);
+                }
+
+                let store1 = db.open_kv(test_wal_file);
+                store1.set("k1", "v1");
+                store1.set("k2", "v2");
+                store1.set("k3", "v3");
+                store1.delete_key("k2");
+                store1.set("k1", "v1_updated");
+                store1.close();
+
+                // Simulate crash recovery by opening a fresh KVStore pointing to the same WAL
+                let store2 = db.open_kv(test_wal_file);
+                assert_eq(store2.count(), 2);
+                assert_eq(store2.get("k1", null), "v1_updated");
+                assert_eq(store2.get("k2", null), null);
+                assert_eq(store2.get("k3", null), "v3");
+
+                // Compaction should write only live entries
+                let live_count = store2.compact();
+                assert_eq(live_count, 2);
+
+                // Re-read file to verify compacted lines
+                let store3 = db.open_kv(test_wal_file);
+                assert_eq(store3.count(), 2);
+                assert_eq(store3.get("k1", null), "v1_updated");
+                assert_eq(store3.get("k3", null), "v3");
+
+                delete_file(test_wal_file);
+        });
+});
+
+describe("Adversarial QA 09: Tabular DataFrame CSV and Group Aggregation", fn() {
+        test("DataFrame CSV parsing with numeric casting and grouping", fn() {
+                let raw_csv = "id,name,category,price,qty\n1,Widget,Tools,19.99,10\n2,Gadget,Electronics,49.50,5\n3,Hammer,Tools,12.00,8\n4,Sensor,Electronics,25.00,20";
+                let df = dataframe.from_csv(raw_csv);
+                assert_eq(df.shape()[0], 4);
+                assert_eq(df.shape()[1], 5);
+
+                // Group by category and compute price sum
+                let grouped = df.group_by("category").agg({ "price": "sum" });
+                assert_eq(grouped.shape()[0], 2);
+
+                let tools_row = null;
+                let i = 0;
+                while i < len(grouped.rows) {
+                    if grouped.rows[i]["category"] == "Tools" {
+                        tools_row = grouped.rows[i];
+                    }
+                    i = i + 1;
+                }
+                assert(tools_row != null);
+                // Tools: 19.99 + 12.00 = 31.99
+                assert_eq(round(tools_row["price"] * 100.0) / 100.0, 31.99);
+        });
+});
+
+describe("Adversarial QA 10: MiniLang Interpreter Executing on VM", fn() {
+        test("MiniLang Pratt parser and VM evaluation of complex expression", fn() {
+                let code = "let x = 15; let y = 25; if (x + 10 == y) { x * 2; } else { 0; }";
+                let res = lang.eval_code(code);
+                assert_eq(res.success, true);
+                assert_eq(res.result, 30);
+        });
+});

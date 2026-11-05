@@ -57,6 +57,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.leaveBlockScope()
 
 	case *ast.LetStatement:
+		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && existing.IsConst && (existing.File == c.currentFile) {
+			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
+		}
 		symbol := c.symbolTable.Define(node.Name.Value, false)
 		err := c.Compile(node.Value)
 		if err != nil {
@@ -69,10 +72,8 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ConstStatement:
-		if existing, ok := c.symbolTable.Resolve(node.Name.Value); ok {
-			if existing.IsConst {
-				return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
-			}
+		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && (existing.File == c.currentFile) {
+			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
 		}
 		symbol := c.symbolTable.Define(node.Name.Value, true)
 		err := c.Compile(node.Value)
@@ -397,7 +398,16 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		instructions, sourceLines := c.leaveScope()
 
 		for _, s := range freeSymbols {
-			c.loadSymbol(s)
+			switch s.Scope {
+			case LocalScope:
+				c.emit(code.OpGetLocalCell, s.Index)
+			case FreeScope:
+				c.emit(code.OpGetFreeCell, s.Index)
+			case FunctionScope:
+				c.emit(code.OpCurrentClosure)
+			default:
+				c.loadSymbol(s)
+			}
 		}
 
 		freeNames := make([]string, len(freeSymbols))
@@ -498,13 +508,11 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 			prevFile := c.currentFile
 			prevSource := c.currentSource
-			c.currentFile = filePath
-			c.currentSource = string(data)
+			c.SetCurrentFile(filePath, string(data))
 
 			restoreFileCtx := func() {
 				c.BaseDir = prevBaseDir
-				c.currentFile = prevFile
-				c.currentSource = prevSource
+				c.SetCurrentFile(prevFile, prevSource)
 			}
 
 			exportedNames := []string{}

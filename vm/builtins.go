@@ -112,6 +112,94 @@ func getSortedHashKeys(h *object.Hash) []object.Object {
 	return keys
 }
 
+func computeSliceBounds(length int64, startObj, endObj, stepObj object.Object) (int64, int64, int64, error) {
+	step := int64(1)
+	if stepObj != nil && stepObj != Null {
+		sInt, ok := stepObj.(*object.Integer)
+		if !ok {
+			return 0, 0, 0, fmt.Errorf("slice step must be INTEGER, got %s", stepObj.Type())
+		}
+		step = sInt.Value
+		if step == 0 {
+			return 0, 0, 0, fmt.Errorf("slice step cannot be zero")
+		}
+	}
+
+	var s, e int64
+	if step > 0 {
+		if startObj == nil || startObj == Null {
+			s = 0
+		} else {
+			sInt, ok := startObj.(*object.Integer)
+			if !ok {
+				return 0, 0, 0, fmt.Errorf("slice start must be INTEGER, got %s", startObj.Type())
+			}
+			s = sInt.Value
+			if s < 0 {
+				s = length + s
+				if s < 0 {
+					s = 0
+				}
+			} else if s > length {
+				s = length
+			}
+		}
+
+		if endObj == nil || endObj == Null {
+			e = length
+		} else {
+			eInt, ok := endObj.(*object.Integer)
+			if !ok {
+				return 0, 0, 0, fmt.Errorf("slice end must be INTEGER, got %s", endObj.Type())
+			}
+			e = eInt.Value
+			if e < 0 {
+				e = length + e
+				if e < 0 {
+					e = 0
+				}
+			} else if e > length {
+				e = length
+			}
+		}
+	} else {
+		// step < 0 (reverse slicing)
+		if startObj == nil || startObj == Null {
+			s = length - 1
+		} else {
+			sInt, ok := startObj.(*object.Integer)
+			if !ok {
+				return 0, 0, 0, fmt.Errorf("slice start must be INTEGER, got %s", startObj.Type())
+			}
+			s = sInt.Value
+			if s < 0 {
+				s = length + s
+			}
+			if s >= length {
+				s = length - 1
+			}
+		}
+
+		if endObj == nil || endObj == Null {
+			e = -1
+		} else {
+			eInt, ok := endObj.(*object.Integer)
+			if !ok {
+				return 0, 0, 0, fmt.Errorf("slice end must be INTEGER, got %s", endObj.Type())
+			}
+			e = eInt.Value
+			if e < 0 {
+				e = length + e
+			}
+			if e < -1 {
+				e = -1
+			}
+		}
+	}
+
+	return s, e, step, nil
+}
+
 func init() {
 	RegisterBuiltins(map[string]*object.Builtin{
 		"__iter_len": {
@@ -485,129 +573,86 @@ func init() {
 		},
 		"slice": {
 			Fn: func(args ...object.Object) object.Object {
-				if len(args) < 2 || len(args) > 3 {
-					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2 or 3", len(args))}
+				if len(args) < 2 || len(args) > 4 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 2, 3 or 4", len(args))}
 				}
-				start, ok := args[1].(*object.Integer)
-				if !ok {
-					return &object.Error{Message: "second argument to `slice` must be INTEGER"}
+
+				var startObj, endObj, stepObj object.Object
+				if len(args) > 1 {
+					startObj = args[1]
+				}
+				if len(args) > 2 {
+					endObj = args[2]
+				}
+				if len(args) > 3 {
+					stepObj = args[3]
 				}
 
 				switch target := args[0].(type) {
 				case *object.Array:
+					target.Mu.RLock()
+					defer target.Mu.RUnlock()
 					length := int64(len(target.Elements))
-					s := start.Value
-					if s < 0 {
-						s = length + s
-						if s < 0 {
-							s = 0
-						}
+					s, e, step, err := computeSliceBounds(length, startObj, endObj, stepObj)
+					if err != nil {
+						return &object.Error{Message: err.Error()}
 					}
-					if s > length {
-						s = length
-					}
-
-					e := length
-					if len(args) == 3 {
-						end, ok := args[2].(*object.Integer)
-						if !ok {
-							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+					newElements := make([]object.Object, 0)
+					if step > 0 {
+						for i := s; i < e; i += step {
+							newElements = append(newElements, target.Elements[i])
 						}
-						e = end.Value
-						if e < 0 {
-							e = length + e
-							if e < 0 {
-								e = 0
+					} else {
+						for i := s; i > e; i += step {
+							if i >= 0 && i < length {
+								newElements = append(newElements, target.Elements[i])
 							}
 						}
-						if e > length {
-							e = length
-						}
-						if e < s {
-							e = s
-						}
 					}
-
-					newElements := make([]object.Object, e-s)
-					copy(newElements, target.Elements[s:e])
 					return &object.Array{Elements: newElements}
 
 				case *object.String:
 					runes := []rune(target.Value)
 					length := int64(len(runes))
-					s := start.Value
-					if s < 0 {
-						s = length + s
-						if s < 0 {
-							s = 0
-						}
+					s, e, step, err := computeSliceBounds(length, startObj, endObj, stepObj)
+					if err != nil {
+						return &object.Error{Message: err.Error()}
 					}
-					if s > length {
-						s = length
-					}
-
-					e := length
-					if len(args) == 3 {
-						end, ok := args[2].(*object.Integer)
-						if !ok {
-							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+					resRunes := make([]rune, 0)
+					if step > 0 {
+						for i := s; i < e; i += step {
+							resRunes = append(resRunes, runes[i])
 						}
-						e = end.Value
-						if e < 0 {
-							e = length + e
-							if e < 0 {
-								e = 0
+					} else {
+						for i := s; i > e; i += step {
+							if i >= 0 && i < length {
+								resRunes = append(resRunes, runes[i])
 							}
 						}
-						if e > length {
-							e = length
-						}
-						if e < s {
-							e = s
-						}
 					}
-
-					return &object.String{Value: string(runes[s:e])}
+					return &object.String{Value: string(resRunes)}
 
 				case *object.Bytes:
 					target.Mu.RLock()
 					defer target.Mu.RUnlock()
 					length := int64(len(target.Value))
-					s := start.Value
-					if s < 0 {
-						s = length + s
-						if s < 0 {
-							s = 0
-						}
+					s, e, step, err := computeSliceBounds(length, startObj, endObj, stepObj)
+					if err != nil {
+						return &object.Error{Message: err.Error()}
 					}
-					if s > length {
-						s = length
-					}
-
-					e := length
-					if len(args) == 3 {
-						end, ok := args[2].(*object.Integer)
-						if !ok {
-							return &object.Error{Message: "third argument to `slice` must be INTEGER"}
+					resBytes := make([]byte, 0)
+					if step > 0 {
+						for i := s; i < e; i += step {
+							resBytes = append(resBytes, target.Value[i])
 						}
-						e = end.Value
-						if e < 0 {
-							e = length + e
-							if e < 0 {
-								e = 0
+					} else {
+						for i := s; i > e; i += step {
+							if i >= 0 && i < length {
+								resBytes = append(resBytes, target.Value[i])
 							}
 						}
-						if e > length {
-							e = length
-						}
-						if e < s {
-							e = s
-						}
 					}
-
-					sub := make([]byte, e-s)
-					copy(sub, target.Value[s:e])
-					return &object.Bytes{Value: sub}
+					return &object.Bytes{Value: resBytes}
 
 				default:
 					return &object.Error{Message: fmt.Sprintf("first argument to `slice` must be ARRAY, STRING, or BYTES, got %s", args[0].Type())}

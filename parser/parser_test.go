@@ -189,3 +189,48 @@ func TestSpawnParsing(t *testing.T) {
 		t.Fatalf("callExp.Arguments does not contain 1 argument. got=%d", len(callExp.Arguments))
 	}
 }
+
+func TestSliceExpressionsWithStep(t *testing.T) {
+	tests := []struct {
+		input       string
+		hasStart    bool
+		hasEnd      bool
+		hasStep     bool
+	}{
+		{"arr[:]", false, false, false},
+		{"arr[::]", false, false, false},
+		{"arr[::2]", false, false, true},
+		{"arr[1::2]", true, false, true},
+		{"arr[:4:2]", false, true, true},
+		{"arr[1:4:2]", true, true, true},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("[%s] expected 1 statement, got=%d", tt.input, len(program.Statements))
+		}
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("[%s] stmt is not ExpressionStatement", tt.input)
+		}
+		sliceExp, ok := stmt.Expression.(*ast.SliceExpression)
+		if !ok {
+			t.Fatalf("[%s] expr is not SliceExpression", tt.input)
+		}
+
+		if (sliceExp.Start != nil) != tt.hasStart {
+			t.Errorf("[%s] hasStart mismatch: want=%v got=%v", tt.input, tt.hasStart, sliceExp.Start != nil)
+		}
+		if (sliceExp.End != nil) != tt.hasEnd {
+			t.Errorf("[%s] hasEnd mismatch: want=%v got=%v", tt.input, tt.hasEnd, sliceExp.End != nil)
+		}
+		if (sliceExp.Step != nil) != tt.hasStep {
+			t.Errorf("[%s] hasStep mismatch: want=%v got=%v", tt.input, tt.hasStep, sliceExp.Step != nil)
+		}
+	}
+}

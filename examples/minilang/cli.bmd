@@ -28,7 +28,13 @@ let run_minilang_file = fn(filepath) {
 };
 
 // If invoked with a script path argument
+let cli_args = args();
 let script_path = "examples/minilang/scripts/conditionals.mini";
+if len(cli_args) > 0 {
+    script_path = cli_args[0];
+}
 if file_exists(script_path) == true {
     run_minilang_file(script_path);
+} else {
+    println("[ERROR] Script not found: ", script_path);
 }

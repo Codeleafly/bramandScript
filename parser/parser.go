@@ -611,31 +611,85 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	tok := p.curToken // '['
 	p.nextToken()
 
-	// Case 1: [:end] or [:]
+	// Case 1: Start is omitted, starts with ':' (e.g. [:], [::], [::step], [:end], [:end:step])
 	if p.curTokenIs(token.COLON) {
 		sliceExp := &ast.SliceExpression{Token: tok, Left: left, Start: nil}
-		p.nextToken() // consume ':'
-		if !p.curTokenIs(token.RBRACKET) {
-			sliceExp.End = p.parseExpression(LOWEST)
-			if !p.expectPeek(token.RBRACKET) {
-				return nil
+		p.nextToken() // consume first ':'
+
+		// Check if second ':' comes immediately: [::] or [::step]
+		if p.curTokenIs(token.COLON) {
+			p.nextToken() // consume second ':'
+			if !p.curTokenIs(token.RBRACKET) {
+				sliceExp.Step = p.parseExpression(LOWEST)
+				if !p.expectPeek(token.RBRACKET) {
+					return nil
+				}
 			}
+			return sliceExp
+		}
+
+		if p.curTokenIs(token.RBRACKET) {
+			return sliceExp
+		}
+
+		sliceExp.End = p.parseExpression(LOWEST)
+		if p.peekTokenIs(token.COLON) {
+			p.nextToken() // curToken is now ':'
+			p.nextToken() // consume second ':'
+			if !p.curTokenIs(token.RBRACKET) {
+				sliceExp.Step = p.parseExpression(LOWEST)
+				if !p.expectPeek(token.RBRACKET) {
+					return nil
+				}
+			}
+			return sliceExp
+		}
+
+		if !p.expectPeek(token.RBRACKET) {
+			return nil
 		}
 		return sliceExp
 	}
 
 	startOrIndex := p.parseExpression(LOWEST)
 
-	// Case 2: [start:end] or [start:]
+	// Case 2: Start is provided (or it's an IndexExpression)
 	if p.peekTokenIs(token.COLON) {
 		p.nextToken() // curToken is now ':'
 		sliceExp := &ast.SliceExpression{Token: tok, Left: left, Start: startOrIndex}
-		p.nextToken() // consume ':'
-		if !p.curTokenIs(token.RBRACKET) {
-			sliceExp.End = p.parseExpression(LOWEST)
-			if !p.expectPeek(token.RBRACKET) {
-				return nil
+		p.nextToken() // consume first ':'
+
+		// Check if second ':' comes immediately: [start::] or [start::step]
+		if p.curTokenIs(token.COLON) {
+			p.nextToken() // consume second ':'
+			if !p.curTokenIs(token.RBRACKET) {
+				sliceExp.Step = p.parseExpression(LOWEST)
+				if !p.expectPeek(token.RBRACKET) {
+					return nil
+				}
 			}
+			return sliceExp
+		}
+
+		if p.curTokenIs(token.RBRACKET) {
+			return sliceExp
+		}
+
+		sliceExp.End = p.parseExpression(LOWEST)
+		if p.peekTokenIs(token.COLON) {
+			p.nextToken() // curToken is now ':'
+			p.nextToken() // consume second ':'
+			if !p.curTokenIs(token.RBRACKET) {
+				sliceExp.Step = p.parseExpression(LOWEST)
+				if !p.expectPeek(token.RBRACKET) {
+					return nil
+				}
+			}
+			return sliceExp
+		}
+
+		if !p.expectPeek(token.RBRACKET) {
+			return nil
 		}
 		return sliceExp
 	}

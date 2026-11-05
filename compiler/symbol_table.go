@@ -15,11 +15,13 @@ type Symbol struct {
 	Scope   SymbolScope
 	Index   int
 	IsConst bool
+	File    string
 }
 
 type SymbolTable struct {
-	Outer   *SymbolTable
-	isBlock bool
+	Outer       *SymbolTable
+	isBlock     bool
+	CurrentFile string
 
 	store          map[string]Symbol
 	numDefinitions int
@@ -39,6 +41,9 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 	s := NewSymbolTable()
 	s.Outer = outer
 	s.isBlock = false
+	if outer != nil {
+		s.CurrentFile = outer.CurrentFile
+	}
 	return s
 }
 
@@ -46,6 +51,9 @@ func NewEnclosedBlockSymbolTable(outer *SymbolTable) *SymbolTable {
 	s := NewSymbolTable()
 	s.Outer = outer
 	s.isBlock = true
+	if outer != nil {
+		s.CurrentFile = outer.CurrentFile
+	}
 	return s
 }
 
@@ -80,7 +88,7 @@ func (s *SymbolTable) Define(name string, isConst bool) Symbol {
 		fnScope.numDefinitions++
 	}
 
-	symbol := Symbol{Name: name, Scope: scope, Index: index, IsConst: isConst}
+	symbol := Symbol{Name: name, Scope: scope, Index: index, IsConst: isConst, File: s.CurrentFile}
 	s.store[name] = symbol
 	return symbol
 }
@@ -92,7 +100,7 @@ func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol {
 }
 
 func (s *SymbolTable) DefineFunctionName(name string) Symbol {
-	symbol := Symbol{Name: name, Index: 0, Scope: FunctionScope}
+	symbol := Symbol{Name: name, Index: 0, Scope: FunctionScope, File: s.CurrentFile}
 	s.store[name] = symbol
 	return symbol
 }
@@ -132,6 +140,7 @@ func (s *SymbolTable) defineFree(original Symbol) Symbol {
 		Index:   len(s.FreeSymbols) - 1,
 		Scope:   FreeScope,
 		IsConst: original.IsConst,
+		File:    original.File,
 	}
 
 	s.store[original.Name] = symbol

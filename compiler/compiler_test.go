@@ -194,3 +194,38 @@ func TestBlockScopingCompilation(t *testing.T) {
 		t.Fatalf("expected error compiling out-of-scope variable, got nil")
 	}
 }
+
+func TestConstRedeclarationCompilation(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "const re-declared with let",
+			input: `
+			const X = 100;
+			let X = 200;
+			`,
+		},
+		{
+			name: "const re-declared with const",
+			input: `
+			const Y = 100;
+			const Y = 200;
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			prog := p.ParseProgram()
+			c := New()
+			err := c.Compile(prog)
+			if err == nil {
+				t.Fatalf("[%s] expected compile error for const redeclaration, got nil", tt.name)
+			}
+		})
+	}
+}
