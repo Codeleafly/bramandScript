@@ -186,6 +186,8 @@
             <li><a href="tooling.html#ch-testrunner" class="nav-link active"><span>✦</span> Test Runner &amp; Assertions</a></li>
             <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
+            <li><a href="tooling.html#ch-disasm-profile" class="nav-link"><span>✦</span> Disassembler &amp; Profiler</a></li>
+            <li><a href="tooling.html#ch-registry" class="nav-link"><span>✦</span> Package Registry Server</a></li>
           </ul>
         </div>
 
@@ -480,6 +482,53 @@ bramand build app.bmd --standalone
       </section>
 
       <!-- ================= CHAPTER 14 ================= -->
+      <!-- ================= DEVELOPER TOOLING: DISASSEMBLER & PROFILER ================= -->
+      <section id="ch-disasm-profile" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Bytecode &amp; Performance</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Bytecode Disassembler &amp; Execution Profiler</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Inspect generated VM instructions and identify runtime bottlenecks using the built-in disassembler and profiler:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — CLI Disassembler &amp; Profiler</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Disassemble source file to bytecode instructions and constant pool
+bramand disasm app.bmd
+
+# Profile program execution with opcode timing and hotspot analysis
+bramand profile app.bmd</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= DEVELOPER TOOLING: PACKAGE REGISTRY SERVER ================= -->
+      <section id="ch-registry" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Ecosystem Server</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Centralized Package Registry Server (<code class="font-mono">tools/registry_server.bmd</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript includes a full-featured centralized package registry server written in pure BramandScript (<code class="font-mono">tools/registry_server.bmd</code>). It provides publish APIs, tarball artifact storage, semver resolution, and search endpoints:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — Run Registry Server</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Start package registry server on default port 8080
+bramand run tools/registry_server.bmd
+
+# Run test suite for package publishing, searching, and versioning
+bramand test tests/15_day14_registry_test.bmd</code></pre>
+        </div>
+      </section>
     </main>
   </div>
 

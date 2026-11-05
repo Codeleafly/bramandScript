@@ -1,0 +1,334 @@
+// BramandScript Standard Library :: HTTP Trie Router (std/net/router)
+// High-performance Radix-Trie URL router supporting static, parameterized (:id),
+// wildcard (*path) routes, route grouping, and HTTP method dispatch.
+
+// Split URL path into clean segments, stripping query parameters and redundant slashes
+let parse_path_segments = fn(path) {
+    if path == null || len(path) == 0 {
+        return [];
+    }
+    // Strip query string if present
+    let q_idx = -1;
+    let i = 0;
+    while i < len(path) {
+        if path[i] == "?" {
+            q_idx = i;
+            i = len(path);
+        } else {
+            i = i + 1;
+        }
+    }
+    let clean_path = path;
+    if q_idx >= 0 {
+        clean_path = slice(path, 0, q_idx);
+    }
+
+    let raw_parts = split(clean_path, "/");
+    let segments = [];
+    let p = 0;
+    while p < len(raw_parts) {
+        let part = trim(raw_parts[p]);
+        if len(part) > 0 {
+            segments = segments + [part];
+        }
+        p = p + 1;
+    }
+    return segments;
+};
+
+// Trie Node constructor
+let new_trie_node = fn(part) {
+    let is_param = false;
+    let is_wild = false;
+    if len(part) > 0 {
+        if part[0] == ":" {
+            is_param = true;
+        } else if part[0] == "*" {
+            is_wild = true;
+        }
+    }
+    return {
+        "part": part,
+        "children": [],
+        "is_param": is_param,
+        "is_wild": is_wild,
+        "pattern": null,
+        "handlers": {}
+    };
+};
+
+// Find child matching exact part
+let find_child = fn(node, part) {
+    let children = node["children"];
+    let i = 0;
+    while i < len(children) {
+        let c = children[i];
+        if c["part"] == part {
+            return c;
+        }
+        i = i + 1;
+    }
+    return null;
+};
+
+// Insert a route into Trie
+let insert_route = fn(root, method, pattern, handler) {
+    let segments = parse_path_segments(pattern);
+    let curr = root;
+    let i = 0;
+    while i < len(segments) {
+        let part = segments[i];
+        let child = find_child(curr, part);
+        if child == null {
+            child = new_trie_node(part);
+            curr["children"] = curr["children"] + [child];
+        }
+        curr = child;
+        if child["is_wild"] == true {
+            // Wildcard consumes the rest of the path
+            i = len(segments);
+        } else {
+            i = i + 1;
+        }
+    }
+    curr["pattern"] = pattern;
+    curr["handlers"][method] = handler;
+};
+
+// Match route helper (recursive search supporting params and wildcards)
+let match_node = fn(node, segments, seg_idx, params) {
+    if seg_idx == len(segments) {
+        if node["pattern"] != null {
+            return {
+                "matched": true,
+                "node": node,
+                "params": params
+            };
+        }
+        // Check if any child is a wildcard that can match empty remaining segment
+        let children = node["children"];
+        let i = 0;
+        while i < len(children) {
+            let child = children[i];
+            if child["is_wild"] == true && child["pattern"] != null {
+                let wild_key = slice(child["part"], 1, len(child["part"]));
+                params[wild_key] = "";
+                return {
+                    "matched": true,
+                    "node": child,
+                    "params": params
+                };
+            }
+            i = i + 1;
+        }
+        return { "matched": false, "node": null, "params": params };
+    }
+
+    let target_part = segments[seg_idx];
+    let children = node["children"];
+
+    // 1. Try exact match first
+    let i = 0;
+    while i < len(children) {
+        let child = children[i];
+        if child["is_param"] == false && child["is_wild"] == false && child["part"] == target_part {
+            let res = match_node(child, segments, seg_idx + 1, params);
+            if res["matched"] == true {
+                return res;
+            }
+        }
+        i = i + 1;
+    }
+
+    // 2. Try parameterized match (:id)
+    i = 0;
+    while i < len(children) {
+        let child = children[i];
+        if child["is_param"] == true {
+            let param_key = slice(child["part"], 1, len(child["part"]));
+            let prev_val = params[param_key];
+            params[param_key] = target_part;
+            let res = match_node(child, segments, seg_idx + 1, params);
+            if res["matched"] == true {
+                return res;
+            }
+            if prev_val == null {
+                delete(params, param_key);
+            } else {
+                params[param_key] = prev_val;
+            }
+        }
+        i = i + 1;
+    }
+
+    // 3. Try wildcard match (*filepath)
+    i = 0;
+    while i < len(children) {
+        let child = children[i];
+        if child["is_wild"] == true {
+            let wild_key = slice(child["part"], 1, len(child["part"]));
+            let remaining_parts = [];
+            let w = seg_idx;
+            while w < len(segments) {
+                remaining_parts = remaining_parts + [segments[w]];
+                w = w + 1;
+            }
+            params[wild_key] = join(remaining_parts, "/");
+            return {
+                "matched": true,
+                "node": child,
+                "params": params
+            };
+        }
+        i = i + 1;
+    }
+
+    return { "matched": false, "node": null, "params": params };
+};
+
+let join_route_prefix = fn(prefix, path) {
+    let p = path;
+    if len(p) > 0 && p[0] == "/" {
+        p = slice(p, 1, len(p));
+    }
+    if len(prefix) > 0 && prefix[len(prefix) - 1] == "/" {
+        return prefix + p;
+    }
+    return prefix + "/" + p;
+};
+
+// RouteGroup struct for nested route prefixing
+struct RouteGroup {
+    prefix,
+    root,
+
+    fn add_route(method, path, handler) {
+        let full_pattern = join_route_prefix(prefix, path);
+        let upper_method = to_upper(method);
+        insert_route(root, upper_method, full_pattern, handler);
+    }
+
+    fn get(path, handler) {
+        add_route("GET", path, handler);
+    }
+
+    fn post(path, handler) {
+        add_route("POST", path, handler);
+    }
+
+    fn put(path, handler) {
+        add_route("PUT", path, handler);
+    }
+
+    fn delete(path, handler) {
+        add_route("DELETE", path, handler);
+    }
+
+    fn patch(path, handler) {
+        add_route("PATCH", path, handler);
+    }
+
+    fn options(path, handler) {
+        add_route("OPTIONS", path, handler);
+    }
+
+    fn group(subprefix) {
+        return RouteGroup(join_route_prefix(prefix, subprefix), root);
+    }
+}
+
+// Router struct
+struct Router {
+    root,
+    routes,
+
+    fn add_route(method, pattern, handler) {
+        let upper_method = to_upper(method);
+        insert_route(root, upper_method, pattern, handler);
+        routes = routes + [{
+            "method": upper_method,
+            "pattern": pattern
+        }];
+    }
+
+    fn get(pattern, handler) {
+        add_route("GET", pattern, handler);
+    }
+
+    fn post(pattern, handler) {
+        add_route("POST", pattern, handler);
+    }
+
+    fn put(pattern, handler) {
+        add_route("PUT", pattern, handler);
+    }
+
+    fn delete(pattern, handler) {
+        add_route("DELETE", pattern, handler);
+    }
+
+    fn patch(pattern, handler) {
+        add_route("PATCH", pattern, handler);
+    }
+
+    fn options(pattern, handler) {
+        add_route("OPTIONS", pattern, handler);
+    }
+
+    fn head(pattern, handler) {
+        add_route("HEAD", pattern, handler);
+    }
+
+    fn group(prefix) {
+        return RouteGroup(prefix, root);
+    }
+
+    fn lookup(method, path) {
+        let upper_method = to_upper(method);
+        let segments = parse_path_segments(path);
+        let match_result = match_node(root, segments, 0, {});
+
+        if match_result["matched"] == true {
+            let matched_node = match_result["node"];
+            let handler = matched_node["handlers"][upper_method];
+            if handler != null {
+                return {
+                    "found": true,
+                    "handler": handler,
+                    "params": match_result["params"],
+                    "pattern": matched_node["pattern"],
+                    "status": 200
+                };
+            }
+            // Route exists for another method: Method Not Allowed
+            return {
+                "found": false,
+                "handler": null,
+                "params": match_result["params"],
+                "pattern": matched_node["pattern"],
+                "status": 405,
+                "error": "Method Not Allowed"
+            };
+        }
+
+        return {
+            "found": false,
+            "handler": null,
+            "params": {},
+            "pattern": null,
+            "status": 404,
+            "error": "Not Found"
+        };
+    }
+
+    fn resolve(method, path) {
+        return lookup(method, path);
+    }
+}
+
+let new_router = fn() {
+    let root = new_trie_node("");
+    return Router(root, []);
+};
+
+let create_router = new_router;

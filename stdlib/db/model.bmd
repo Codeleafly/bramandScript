@@ -1,0 +1,173 @@
+// BramandScript Standard Library :: Active-Record Model & Schema Validation (std/db/model)
+// Declarative schema definitions, type assertions, constraints validation,
+// and Active-Record relationship mapping.
+
+// Model validator checking field rules
+let validate_record = fn(schema, data) {
+    let errors = [];
+    if data == null {
+        return { "valid": false, "errors": ["Record data cannot be null"] };
+    }
+
+    let schema_fields = keys(schema);
+    let i = 0;
+    while i < len(schema_fields) {
+        let field = schema_fields[i];
+        let rules = schema[field];
+        let val = data[field];
+
+        // 1. Required check
+        if rules["required"] == true {
+            if val == null || (type(val) == "STRING" && len(val) == 0) {
+                errors = errors + ["Field '" + field + "' is required"];
+            }
+        }
+
+        // 2. Type validation
+        if val != null && rules["type"] != null {
+            let expected_type = to_upper(rules["type"]);
+            let actual_type = type(val);
+            if expected_type == "INT" || expected_type == "INTEGER" {
+                if actual_type != "INTEGER" {
+                    errors = errors + ["Field '" + field + "' must be an integer, got " + actual_type];
+                }
+            } else if expected_type == "FLOAT" {
+                if actual_type != "FLOAT" && actual_type != "INTEGER" {
+                    errors = errors + ["Field '" + field + "' must be a number, got " + actual_type];
+                }
+            } else if expected_type == "STRING" {
+                if actual_type != "STRING" {
+                    errors = errors + ["Field '" + field + "' must be a string, got " + actual_type];
+                }
+            } else if expected_type == "BOOL" || expected_type == "BOOLEAN" {
+                if actual_type != "BOOLEAN" {
+                    errors = errors + ["Field '" + field + "' must be a boolean, got " + actual_type];
+                }
+            } else if expected_type == "ARRAY" {
+                if actual_type != "ARRAY" {
+                    errors = errors + ["Field '" + field + "' must be an array, got " + actual_type];
+                }
+            }
+        }
+
+        // 3. String length checks
+        if val != null && type(val) == "STRING" {
+            if rules["min_len"] != null && len(val) < rules["min_len"] {
+                errors = errors + ["Field '" + field + "' must have at least " + rules["min_len"] + " characters"];
+            }
+            if rules["max_len"] != null && len(val) > rules["max_len"] {
+                errors = errors + ["Field '" + field + "' cannot exceed " + rules["max_len"] + " characters"];
+            }
+            if rules["contains"] != null && contains(val, rules["contains"]) != true {
+                errors = errors + ["Field '" + field + "' must contain '" + rules["contains"] + "'"];
+            }
+        }
+
+        // 4. Numeric range checks
+        if val != null && (type(val) == "INTEGER" || type(val) == "FLOAT") {
+            if rules["min"] != null && val < rules["min"] {
+                errors = errors + ["Field '" + field + "' cannot be less than " + rules["min"]];
+            }
+            if rules["max"] != null && val > rules["max"] {
+                errors = errors + ["Field '" + field + "' cannot exceed " + rules["max"]];
+            }
+        }
+
+        // 5. In whitelist check
+        if val != null && rules["in"] != null {
+            let allowed = rules["in"];
+            let found = false;
+            let a = 0;
+            while a < len(allowed) {
+                if allowed[a] == val {
+                    found = true;
+                    a = len(allowed);
+                } else {
+                    a = a + 1;
+                }
+            }
+            if found != true {
+                errors = errors + ["Field '" + field + "' value is not allowed"];
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return {
+        "valid": (len(errors) == 0),
+        "errors": errors
+    };
+};
+
+// Model definition struct
+struct Model {
+    name,
+    schema,
+    relations,
+
+    fn validate(data) {
+        return validate_record(schema, data);
+    }
+
+    fn create(data) {
+        let v_res = validate(data);
+        if v_res.valid != true {
+            return {
+                "valid": false,
+                "errors": v_res.errors,
+                "data": null
+            };
+        }
+
+        // Populate fields with defaults
+        let instance = {};
+        let schema_fields = keys(schema);
+        let i = 0;
+        while i < len(schema_fields) {
+            let f = schema_fields[i];
+            let rules = schema[f];
+            if data != null && data[f] != null {
+                instance[f] = data[f];
+            } else if rules["default"] != null {
+                instance[f] = rules["default"];
+            } else {
+                instance[f] = null;
+            }
+            i = i + 1;
+        }
+
+        return {
+            "valid": true,
+            "errors": [],
+            "data": instance,
+            "model": name
+        };
+    }
+
+    fn has_many(relation_name, target_model, foreign_key) {
+        relations[relation_name] = {
+            "type": "has_many",
+            "model": target_model,
+            "fk": foreign_key
+        };
+    }
+
+    fn belongs_to(relation_name, target_model, foreign_key) {
+        relations[relation_name] = {
+            "type": "belongs_to",
+            "model": target_model,
+            "fk": foreign_key
+        };
+    }
+
+    fn get_relation(relation_name) {
+        return relations[relation_name];
+    }
+}
+
+let define_model = fn(name, schema) {
+    return Model(name, schema, {});
+};
+
+let create_model = define_model;

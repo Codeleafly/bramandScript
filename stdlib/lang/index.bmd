@@ -1,0 +1,22 @@
+// BramandScript Standard Library :: Language Builder Framework (std/lang)
+// Pure BramandScript Lexer, Pratt Parser, Bytecode Compiler, and Stack-based Virtual Machine.
+
+import "std/lang/lexer" as lexer_pkg
+import "std/lang/parser" as parser_pkg
+import "std/lang/vm" as vm_pkg
+
+// --- Module Exports ---
+let Token = lexer_pkg.Token;
+let Lexer = lexer_pkg.Lexer;
+let new_lexer = lexer_pkg.new_lexer;
+let create_lexer = lexer_pkg.create_lexer;
+
+let Parser = parser_pkg.Parser;
+let new_parser = parser_pkg.new_parser;
+let create_parser = parser_pkg.create_parser;
+
+let Compiler = vm_pkg.Compiler;
+let new_compiler = vm_pkg.new_compiler;
+let BytecodeVM = vm_pkg.BytecodeVM;
+let new_vm = vm_pkg.new_vm;
+let eval_code = vm_pkg.eval_code;

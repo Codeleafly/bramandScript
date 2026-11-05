@@ -1,0 +1,114 @@
+// BramandScript Standard Library :: Server-Sent Events (std/net/sse)
+// W3C compliant Server-Sent Events (SSE) stream formatting, comment heartbeats,
+// and parser for real-time live web telemetry and feeds.
+
+// Standard headers required for Server-Sent Events streaming
+let SSE_HEADERS = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no"
+};
+
+// Format a single SSE event message
+let format_sse_event = fn(event_name, data, id, retry) {
+    let out = "";
+    if event_name != null && len(event_name) > 0 {
+        out = out + "event: " + event_name + "\n";
+    }
+    if id != null && len("" + id) > 0 {
+        out = out + "id: " + id + "\n";
+    }
+    if retry != null {
+        out = out + "retry: " + retry + "\n";
+    }
+
+    let payload = "";
+    if data != null {
+        let t = type(data);
+        if t == "HASH" || t == "ARRAY" {
+            payload = json_stringify(data);
+        } else {
+            payload = "" + data;
+        }
+    }
+
+    let lines = split(payload, "\n");
+    let i = 0;
+    while i < len(lines) {
+        out = out + "data: " + lines[i] + "\n";
+        i = i + 1;
+    }
+    out = out + "\n";
+    return out;
+};
+
+// Format an SSE heartbeat / comment line
+let format_sse_comment = fn(comment) {
+    return ": " + comment + "\n\n";
+};
+
+// Parse an incoming SSE event chunk
+let parse_sse_event = fn(raw_chunk) {
+    let result = {
+        "event": "message",
+        "data": "",
+        "id": null,
+        "retry": null
+    };
+    let data_lines = [];
+    let lines = split(raw_chunk, "\n");
+    let i = 0;
+    while i < len(lines) {
+        let line = lines[i];
+        if len(line) > 0 {
+            if line[0] == ":" {
+                // Comment line, ignore
+            } else if len(line) >= 6 && slice(line, 0, 6) == "event:" {
+                result["event"] = trim(slice(line, 6, len(line)));
+            } else if len(line) >= 3 && slice(line, 0, 3) == "id:" {
+                result["id"] = trim(slice(line, 3, len(line)));
+            } else if len(line) >= 6 && slice(line, 0, 6) == "retry:" {
+                result["retry"] = int(trim(slice(line, 6, len(line))));
+            } else if len(line) >= 5 && slice(line, 0, 5) == "data:" {
+                data_lines = data_lines + [trim(slice(line, 5, len(line)))];
+            }
+        }
+        i = i + 1;
+    }
+    result["data"] = join(data_lines, "\n");
+    return result;
+};
+
+// SSEStream struct for streaming responses
+struct SSEStream {
+    buffer,
+
+    fn send(event_name, data, id) {
+        let chunk = format_sse_event(event_name, data, id, null);
+        buffer = buffer + [chunk];
+        return chunk;
+    }
+
+    fn ping() {
+        let chunk = format_sse_comment("keepalive " + time_iso());
+        buffer = buffer + [chunk];
+        return chunk;
+    }
+
+    fn flush() {
+        let content = join(buffer, "");
+        buffer = [];
+        return content;
+    }
+
+    fn headers() {
+        return SSE_HEADERS;
+    }
+}
+
+let new_sse_stream = fn() {
+    return SSEStream([]);
+};
+
+let create_sse_stream = new_sse_stream;

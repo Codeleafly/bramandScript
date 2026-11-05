@@ -1,0 +1,117 @@
+// benchmarks/suite.bmd
+// BramandScript Comprehensive Performance Benchmark Suite
+// Covers Core VM, Scientific Computing, Tabular DataFrame, Autograd ML, and Language Engine.
+
+import "std/math/tensor" as tensor
+import "std/dataframe" as df
+import "std/ml" as ml
+import "std/lang/lexer" as lexer
+import "std/db/kv" as kv
+
+println("✦ BramandScript Comprehensive Performance Benchmark Suite");
+println("────────────────────────────────────────────────────────────────────────────");
+
+// 1. Recursive Fibonacci
+let fib = fn(n) {
+    if n <= 1 {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+};
+
+benchmark("vm_fibonacci_recursive_15", fn() {
+    let r = fib(15);
+}, 100);
+
+// 2. Tight VM Arithmetic Loop
+benchmark("vm_tight_loop_10k_ops", fn() {
+    let sum = 0;
+    let i = 0;
+    while i < 10000 {
+        sum = sum + i;
+        i = i + 1;
+    }
+}, 20);
+
+// 3. Tensor Matrix Multiplication (4x4)
+let tA = tensor.from_array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0]]);
+let tB = tensor.from_array([[2.0, 0.0, 1.0, 3.0], [1.0, 2.0, 0.0, 1.0], [3.0, 1.0, 2.0, 0.0], [0.0, 3.0, 1.0, 2.0]]);
+
+benchmark("tensor_matmul_4x4", fn() {
+    let c = tA.matmul(tB);
+}, 100);
+
+// 4. JSON Serialization & Parsing Roundtrip
+let complex_doc = {
+    "user_id": 42091,
+    "username": "bramand_dev",
+    "roles": ["developer", "maintainer", "admin"],
+    "metrics": {
+        "requests": 14920,
+        "latency_p99": 1.25,
+        "uptime": 99.98
+    },
+    "tags": ["compiler", "vm", "termux", "offline"]
+};
+
+benchmark("json_stringify_and_parse", fn() {
+    let s = json_stringify(complex_doc);
+    let o = json_parse(s);
+}, 200);
+
+// 5. Tabular DataFrame Filter & Aggregate
+let sample_records = [
+    {"dept": "Engineering", "salary": 120000, "age": 29},
+    {"dept": "Product", "salary": 110000, "age": 34},
+    {"dept": "Engineering", "salary": 145000, "age": 38},
+    {"dept": "Design", "salary": 95000, "age": 26},
+    {"dept": "Engineering", "salary": 130000, "age": 31},
+    {"dept": "Product", "salary": 105000, "age": 30}
+];
+
+benchmark("dataframe_filter_and_stats", fn() {
+    let frame = df.from_records(sample_records);
+    let eng = frame.filter(fn(row) {
+        return row["dept"] == "Engineering";
+    });
+    let desc = eng.describe();
+}, 100);
+
+// 6. Neural Network Autograd Forward & Backward Graph
+benchmark("autograd_forward_backward", fn() {
+    let x1 = ml.value(2.0);
+    let x2 = ml.value(0.0);
+    let w1 = ml.value(-3.0);
+    let w2 = ml.value(1.0);
+    let b = ml.value(6.8813735870195432);
+
+    let x1w1 = x1.mul(w1);
+    let x2w2 = x2.mul(w2);
+    let x1w1_x2w2 = x1w1.add(x2w2);
+    let n = x1w1_x2w2.add(b);
+    let out = n.tanh_val();
+
+    out.backward();
+}, 100);
+
+// 7. Language Builder Token Scanner
+let mini_source = "let x = 10 + 20; if x > 25 { print(x); }";
+
+benchmark("lang_lexer_tokenization", fn() {
+    let l = lexer.create_lexer(mini_source);
+    let tokens = l.tokenize();
+}, 100);
+
+// 8. Key-Value Storage WAL Write & Read
+let bench_wal = "tmp_bench_wal.db";
+let store = kv.open_kv(bench_wal);
+
+benchmark("kv_wal_set_and_get", fn() {
+    store.set("active_token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+    let val = store.get("active_token", null);
+}, 50);
+
+exec("rm -f " + bench_wal);
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ All Benchmark Suites Finished Successfully! [OK]");

@@ -1,0 +1,131 @@
+// BramandScript Test Suite :: Day 13 Language Builder & Self-Hosting MiniLang
+// Tests: std/lang (Lexer, Pratt Parser, Bytecode VM) and examples/minilang.
+
+import "std/lang" as lang
+import "std/lang/lexer" as lexer_pkg
+import "std/lang/parser" as parser_pkg
+import "std/lang/vm" as vm_pkg
+
+describe("Pure BramandScript Lexer and Token Scanner", fn() {
+    test("Token scanning of keywords, operators, and literals", fn() {
+        let input = "let total = 50 + 25.5 * 2;\nif (total > 100) { return true; }";
+        let l = lang.create_lexer(input);
+        let tokens = l.tokenize();
+
+        assert_eq(tokens[0].token_type, lexer_pkg.TOKEN_LET);
+        assert_eq(tokens[1].token_type, lexer_pkg.TOKEN_IDENT);
+        assert_eq(tokens[1].literal, "total");
+        assert_eq(tokens[2].token_type, lexer_pkg.TOKEN_ASSIGN);
+        assert_eq(tokens[3].token_type, lexer_pkg.TOKEN_INT);
+        assert_eq(tokens[3].literal, "50");
+        assert_eq(tokens[4].token_type, lexer_pkg.TOKEN_PLUS);
+        assert_eq(tokens[5].token_type, lexer_pkg.TOKEN_FLOAT);
+        assert_eq(tokens[5].literal, "25.5");
+        assert_eq(tokens[6].token_type, lexer_pkg.TOKEN_ASTERISK);
+        assert_eq(tokens[7].token_type, lexer_pkg.TOKEN_INT);
+        assert_eq(tokens[7].literal, "2");
+        assert_eq(tokens[8].token_type, lexer_pkg.TOKEN_SEMICOLON);
+    });
+
+    test("Line and column position tracking", fn() {
+        let input = "let a = 1;\nlet b = 2;";
+        let l = lang.create_lexer(input);
+        let tokens = l.tokenize();
+
+        assert_eq(tokens[0].line, 1);
+        // Second line 'let'
+        let i = 0;
+        let second_let = null;
+        while i < len(tokens) {
+            if tokens[i].token_type == lexer_pkg.TOKEN_LET && tokens[i].line == 2 {
+                second_let = tokens[i];
+            }
+            i = i + 1;
+        }
+        assert_eq(second_let != null, true);
+        assert_eq(second_let.line, 2);
+    });
+});
+
+describe("Pure BramandScript Pratt Parser Engine", fn() {
+    test("Precedence parsing of arithmetic expressions", fn() {
+        let input = "let x = 2 + 3 * 4;";
+        let l = lang.create_lexer(input);
+        let p = lang.create_parser(l);
+        let prog = p.parse_program();
+
+        assert_eq(len(p.errors), 0);
+        assert_eq(len(prog["statements"]), 1);
+
+        let stmt = prog["statements"][0];
+        assert_eq(stmt["type"], "LetStatement");
+        assert_eq(stmt["name"]["value"], "x");
+
+        // value should be (2 + (3 * 4))
+        let val_expr = stmt["value"];
+        assert_eq(val_expr["type"], "InfixExpression");
+        assert_eq(val_expr["operator"], "+");
+        assert_eq(val_expr["left"]["value"], 2);
+        assert_eq(val_expr["right"]["operator"], "*");
+        assert_eq(val_expr["right"]["left"]["value"], 3);
+        assert_eq(val_expr["right"]["right"]["value"], 4);
+    });
+
+    test("Conditional If/Else AST generation", fn() {
+        let input = "if (a < b) { 10 } else { 20 };";
+        let l = lang.create_lexer(input);
+        let p = lang.create_parser(l);
+        let prog = p.parse_program();
+
+        assert_eq(len(p.errors), 0);
+        let if_expr = prog["statements"][0]["expression"];
+        assert_eq(if_expr["type"], "IfExpression");
+        assert_eq(if_expr["condition"]["operator"], "<");
+        assert_eq(len(if_expr["consequence"]["statements"]), 1);
+        assert_eq(len(if_expr["alternative"]["statements"]), 1);
+    });
+});
+
+describe("Pure BramandScript Bytecode VM and Evaluator", fn() {
+    test("Arithmetic and comparison bytecode evaluation", fn() {
+        let out1 = lang.eval_code("10 + 20 * 2 - 5;");
+        assert_eq(out1.success, true);
+        assert_eq(out1.result, 45);
+
+        let out2 = lang.eval_code("(100 / 4) == 25;");
+        assert_eq(out2.success, true);
+        assert_eq(out2.result, true);
+
+        let out3 = lang.eval_code("!true == false;");
+        assert_eq(out3.success, true);
+        assert_eq(out3.result, true);
+    });
+
+    test("Global variable bindings and conditional evaluation", fn() {
+        let script = "let base = 50;\nlet bonus = if (base >= 50) { 100 } else { 0 };\nbase + bonus;";
+        let out = lang.eval_code(script);
+        assert_eq(out.success, true);
+        assert_eq(out.result, 150);
+        assert_eq(out.globals[0], 50);
+        assert_eq(out.globals[1], 100);
+    });
+});
+
+describe("Complete MiniLang Demonstration Language", fn() {
+    test("Execution of sample MiniLang scripts", fn() {
+        let arith_src = read_file("examples/minilang/scripts/arithmetic.mini");
+        let arith_out = lang.eval_code(arith_src);
+        assert_eq(arith_out.success, true);
+        assert_eq(arith_out.result, 70); // (10 * 5) + 25 - 5 = 70
+
+        let cond_src = read_file("examples/minilang/scripts/conditionals.mini");
+        let cond_out = lang.eval_code(cond_src);
+        assert_eq(cond_out.success, true);
+        assert_eq(cond_out.result, 100);
+
+        let logic_src = read_file("examples/minilang/scripts/logic.mini");
+        let logic_out = lang.eval_code(logic_src);
+        assert_eq(logic_out.success, true);
+        assert_eq(logic_out.result, 1);
+    });
+});

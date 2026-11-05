@@ -1,0 +1,286 @@
+// BramandScript Standard Library :: JSON Document Database (std/db/doc)
+// Schema-less document collections with expressive query predicate filtering,
+// bulk mutations, auto-generated IDs, and disk persistence.
+
+// Check if an element is in an array
+let array_contains_val = fn(arr, target) {
+    if arr == null { return false; }
+    let i = 0;
+    while i < len(arr) {
+        if arr[i] == target {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+};
+
+// Evaluate document against query filter predicates
+let evaluate_document_filter = fn(doc, filter) {
+    if filter == null || len(filter) == 0 {
+        return true;
+    }
+    if doc == null {
+        return false;
+    }
+
+    let filter_keys = keys(filter);
+    let i = 0;
+    while i < len(filter_keys) {
+        let field = filter_keys[i];
+        let expected = filter[field];
+        let actual = doc[field];
+
+        if type(expected) == "HASH" {
+            // Operator predicate hash
+            let op_keys = keys(expected);
+            let o = 0;
+            while o < len(op_keys) {
+                let op = op_keys[o];
+                let op_val = expected[op];
+
+                if op == "$eq" {
+                    if actual != op_val { return false; }
+                } else if op == "$ne" {
+                    if actual == op_val { return false; }
+                } else if op == "$gt" {
+                    if actual == null || actual <= op_val { return false; }
+                } else if op == "$gte" {
+                    if actual == null || actual < op_val { return false; }
+                } else if op == "$lt" {
+                    if actual == null || actual >= op_val { return false; }
+                } else if op == "$lte" {
+                    if actual == null || actual > op_val { return false; }
+                } else if op == "$in" {
+                    if array_contains_val(op_val, actual) != true { return false; }
+                } else if op == "$nin" {
+                    if array_contains_val(op_val, actual) == true { return false; }
+                } else if op == "$contains" {
+                    if actual == null || contains("" + actual, "" + op_val) != true { return false; }
+                }
+                o = o + 1;
+            }
+        } else {
+            // Direct equality check
+            if actual != expected {
+                return false;
+            }
+        }
+        i = i + 1;
+    }
+    return true;
+};
+
+// Merge fields from source into target document
+let merge_doc_fields = fn(target, source) {
+    let source_keys = keys(source);
+    let i = 0;
+    while i < len(source_keys) {
+        let k = source_keys[i];
+        if k != "_id" {
+            target[k] = source[k];
+        }
+        i = i + 1;
+    }
+};
+
+let persist_docs_to_disk = fn(filepath, docs) {
+    if filepath != null && len(filepath) > 0 {
+        let content = json_stringify(docs);
+        write_file(filepath, content);
+    }
+};
+
+let load_docs_from_disk = fn(filepath) {
+    if filepath != null && len(filepath) > 0 && file_exists(filepath) == true {
+        let content = read_file(filepath);
+        if content != null && len(content) > 0 {
+            let parsed = json_parse(content);
+            if parsed != null && type(parsed) == "ARRAY" {
+                return parsed;
+            }
+        }
+    }
+    return [];
+};
+
+// Collection struct
+struct Collection {
+    name,
+    filepath,
+    docs,
+    id_counter,
+
+    fn insert(doc) {
+        if doc == null { return null; }
+        let new_doc = {};
+        let d_keys = keys(doc);
+        let k = 0;
+        while k < len(d_keys) {
+            let key_name = d_keys[k];
+            new_doc[key_name] = doc[key_name];
+            k = k + 1;
+        }
+
+        if new_doc["_id"] == null {
+            new_doc["_id"] = name + "_" + id_counter;
+            id_counter = id_counter + 1;
+        }
+
+        docs = docs + [new_doc];
+        persist_docs_to_disk(filepath, docs);
+        return new_doc;
+    }
+
+    fn insert_many(doc_list) {
+        let inserted = [];
+        let i = 0;
+        while i < len(doc_list) {
+            let doc = doc_list[i];
+            let res = insert(doc);
+            inserted = inserted + [res];
+            i = i + 1;
+        }
+        return inserted;
+    }
+
+    fn find(filter) {
+        let results = [];
+        let i = 0;
+        while i < len(docs) {
+            let d = docs[i];
+            if evaluate_document_filter(d, filter) == true {
+                results = results + [d];
+            }
+            i = i + 1;
+        }
+        return results;
+    }
+
+    fn find_one(filter) {
+        let i = 0;
+        while i < len(docs) {
+            let d = docs[i];
+            if evaluate_document_filter(d, filter) == true {
+                return d;
+            }
+            i = i + 1;
+        }
+        return null;
+    }
+
+    fn update(filter, update_doc) {
+        let modified = 0;
+        let update_payload = update_doc;
+        if update_doc != null && update_doc["$set"] != null {
+            update_payload = update_doc["$set"];
+        }
+
+        let i = 0;
+        while i < len(docs) {
+            let d = docs[i];
+            if evaluate_document_filter(d, filter) == true {
+                merge_doc_fields(d, update_payload);
+                modified = modified + 1;
+            }
+            i = i + 1;
+        }
+
+        if modified > 0 {
+            persist_docs_to_disk(filepath, docs);
+        }
+        return modified;
+    }
+
+    fn remove(filter) {
+        let remaining = [];
+        let removed_count = 0;
+        let i = 0;
+        while i < len(docs) {
+            let d = docs[i];
+            if evaluate_document_filter(d, filter) == true {
+                removed_count = removed_count + 1;
+            } else {
+                remaining = remaining + [d];
+            }
+            i = i + 1;
+        }
+        docs = remaining;
+
+        if removed_count > 0 {
+            persist_docs_to_disk(filepath, docs);
+        }
+        return removed_count;
+    }
+
+    fn count(filter) {
+        if filter == null || len(filter) == 0 {
+            return len(docs);
+        }
+        return len(find(filter));
+    }
+
+    fn save() {
+        persist_docs_to_disk(filepath, docs);
+    }
+
+    fn load() {
+        docs = load_docs_from_disk(filepath);
+        id_counter = len(docs) + 1;
+    }
+
+    fn clear() {
+        docs = [];
+        persist_docs_to_disk(filepath, docs);
+    }
+}
+
+let create_collection = fn(name, filepath) {
+    let initial_docs = [];
+    if filepath != null && len(filepath) > 0 && file_exists(filepath) == true {
+        initial_docs = load_docs_from_disk(filepath);
+    }
+    let col = Collection(name, filepath, initial_docs, len(initial_docs) + 1);
+    return col;
+};
+
+// Document Database struct managing multiple collections
+struct DocumentDB {
+    db_dir,
+    collections,
+
+    fn collection(name) {
+        if collections[name] != null {
+            return collections[name];
+        }
+        let col_file = "";
+        if db_dir != null && len(db_dir) > 0 {
+            col_file = db_dir + "/" + name + ".json";
+        }
+        let col = create_collection(name, col_file);
+        collections[name] = col;
+        return col;
+    }
+
+    fn list_collections() {
+        return keys(collections);
+    }
+
+    fn drop_collection(name) {
+        if collections[name] != null {
+            let col = collections[name];
+            if col["filepath"] != null && file_exists(col["filepath"]) == true {
+                delete_file(col["filepath"]);
+            }
+            delete(collections, name);
+            return true;
+        }
+        return false;
+    }
+}
+
+let open_document_db = fn(db_dir) {
+    return DocumentDB(db_dir, {});
+};
+
+let new_doc_db = open_document_db;

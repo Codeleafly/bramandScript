@@ -1,0 +1,27 @@
+// BramandScript Standard Library :: Database Ecosystem (std/db)
+// Key-Value WAL storage, JSON Document Database, SQL Query Builder, and Active-Record Model layer.
+
+import "std/db/kv" as kv_mod
+import "std/db/doc" as doc_mod
+import "std/db/query" as query_mod
+import "std/db/model" as model_mod
+
+// --- Module Exports ---
+let KVStore = kv_mod.KVStore;
+let open_kv = kv_mod.open_kv;
+let new_kv_store = kv_mod.new_kv_store;
+
+let Collection = doc_mod.Collection;
+let create_collection = doc_mod.create_collection;
+let open_collection = doc_mod.create_collection;
+let DocumentDB = doc_mod.DocumentDB;
+let open_document_db = doc_mod.open_document_db;
+let new_doc_db = doc_mod.new_doc_db;
+
+let QueryBuilder = query_mod.QueryBuilder;
+let from_table = query_mod.from_table;
+let query = query_mod.query;
+
+let Model = model_mod.Model;
+let define_model = model_mod.define_model;
+let create_model = model_mod.create_model;

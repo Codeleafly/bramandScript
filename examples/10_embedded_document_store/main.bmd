@@ -1,0 +1,104 @@
+// examples/10_embedded_document_store/main.bmd
+// BramandScript Embedded Document Store and WAL Storage Engine Demo
+// Demonstrates: Document Collections, Query Predicates ($gt, $in), Compaction, and QueryBuilder.
+
+import "std/db" as db
+
+println("✦ BramandScript Embedded Storage & Document Engine Demo");
+println("────────────────────────────────────────────────────────────────────────────");
+
+let db_file = "products_collection.json";
+let coll = db.create_collection("products", db_file);
+coll.clear();
+
+// 1. Insert documents into collection
+println("· [1] Seeding collection with catalog items...");
+let p1 = coll.insert({
+    "name": "Mechanical Keyboard",
+    "category": "peripherals",
+    "price": 129.99,
+    "stock": 45,
+    "rating": 4.8
+});
+
+let p2 = coll.insert({
+    "name": "Wireless Mouse",
+    "category": "peripherals",
+    "price": 59.99,
+    "stock": 120,
+    "rating": 4.5
+});
+
+let p3 = coll.insert({
+    "name": "Ultra-Wide Monitor",
+    "category": "displays",
+    "price": 499.00,
+    "stock": 12,
+    "rating": 4.9
+});
+
+let p4 = coll.insert({
+    "name": "USB-C Hub",
+    "category": "accessories",
+    "price": 34.50,
+    "stock": 80,
+    "rating": 4.2
+});
+
+println("      Inserted 4 items with generated IDs: " + p1["_id"] + ", " + p2["_id"] + "...");
+
+// 2. Query documents with predicates
+println("\n· [2] Querying peripherals priced > $50.00 ($gt predicate)...");
+let high_tier_peripherals = coll.find({
+    "category": "peripherals",
+    "price": { "$gt": 50.0 }
+});
+let i = 0;
+while i < len(high_tier_peripherals) {
+    let item = high_tier_peripherals[i];
+    println("      Found: " + item["name"] + " -> $" + item["price"]);
+    i = i + 1;
+}
+
+// 3. Query documents with $in predicate
+println("\n· [3] Querying items in categories displays OR accessories ($in predicate)...");
+let display_or_acc = coll.find({
+    "category": { "$in": ["displays", "accessories"] }
+});
+let j = 0;
+while j < len(display_or_acc) {
+    let item = display_or_acc[j];
+    println("      Found: " + item["name"] + " (" + item["category"] + ")");
+    j = j + 1;
+}
+
+// 4. Update document using $set
+println("\n· [4] Updating stock for Mechanical Keyboard using $set modifier...");
+coll.update({ "name": "Mechanical Keyboard" }, {
+    "$set": { "stock": 42, "last_restock": time_iso() }
+});
+let updated_p1 = coll.find_one({ "name": "Mechanical Keyboard" });
+println("      Updated stock: " + updated_p1["stock"] + " | Restocked: " + updated_p1["last_restock"]);
+
+// 5. Query Builder: Fluent dataset query and ANSI SQL compilation
+println("\n· [5] Executing in-memory QueryBuilder and generating ANSI SQL...");
+let qb = db.query("products");
+qb.select(["name", "price", "stock"]);
+qb.where_gt("price", 40.0);
+qb.where_eq("category", "peripherals");
+qb.order_by("price", "DESC");
+qb.limit(5);
+
+let sql_str = qb.to_sql();
+println("      Compiled SQL: " + sql_str);
+
+let dataset = coll.find({});
+let qb_results = qb.execute(dataset);
+println("      In-Memory Executed Results Count: " + len(qb_results));
+
+// Clean up test file
+coll.clear();
+exec("rm -f " + db_file);
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ Embedded Document Store Demo Completed Successfully! [OK]");

@@ -1,0 +1,156 @@
+// BramandScript Standard Library :: HTTP Context Wrapper (std/net/context)
+// Encapsulates request inspection, route param binding, query parameter decoding,
+// JSON body parsing, and fluent response generation.
+
+// Parse URL query string into key-value map
+let parse_query_params = fn(url) {
+    let query_map = {};
+    if url == null || len(url) == 0 {
+        return query_map;
+    }
+    let parts = split(url, "?");
+    if len(parts) < 2 {
+        return query_map;
+    }
+    let q_str = parts[1];
+    let pairs = split(q_str, "&");
+    let i = 0;
+    while i < len(pairs) {
+        let pair = pairs[i];
+        if len(pair) > 0 {
+            let kv = split(pair, "=");
+            let key = trim(kv[0]);
+            let val = "";
+            if len(kv) > 1 {
+                val = kv[1];
+            }
+            if len(key) > 0 {
+                query_map[key] = val;
+            }
+        }
+        i = i + 1;
+    }
+    return query_map;
+};
+
+// Find header case-insensitively
+let get_header_ignore_case = fn(headers, name) {
+    if headers == null { return null; }
+    let target = to_lower(name);
+    let all_keys = keys(headers);
+    let i = 0;
+    while i < len(all_keys) {
+        let k = all_keys[i];
+        if to_lower(k) == target {
+            return headers[k];
+        }
+        i = i + 1;
+    }
+    return null;
+};
+
+// Context struct
+struct Context {
+    req,
+    params,
+    query,
+    res_status,
+    res_headers,
+    res_body,
+    is_sent,
+
+    fn param(name, default_val) {
+        if params != null && params[name] != null {
+            return params[name];
+        }
+        return default_val;
+    }
+
+    fn query_param(name, default_val) {
+        if query != null && query[name] != null {
+            return query[name];
+        }
+        return default_val;
+    }
+
+    fn header(name) {
+        if req != null && req["headers"] != null {
+            return get_header_ignore_case(req["headers"], name);
+        }
+        return null;
+    }
+
+    fn set_header(key, val) {
+        res_headers[key] = "" + val;
+    }
+
+    fn status(code) {
+        res_status = code;
+    }
+
+    fn json_body() {
+        if req == null || req["body"] == null || len(req["body"]) == 0 {
+            return null;
+        }
+        return json_parse(req["body"]);
+    }
+
+    fn send_text(text) {
+        res_headers["Content-Type"] = "text/plain; charset=utf-8";
+        res_body = "" + text;
+        is_sent = true;
+        return text;
+    }
+
+    fn send_json(data) {
+        res_headers["Content-Type"] = "application/json; charset=utf-8";
+        res_body = json_stringify(data);
+        is_sent = true;
+        return data;
+    }
+
+    fn send_html(html) {
+        res_headers["Content-Type"] = "text/html; charset=utf-8";
+        res_body = "" + html;
+        is_sent = true;
+        return html;
+    }
+
+    fn redirect(url, status_code) {
+        res_headers["Location"] = url;
+        if status_code != null {
+            res_status = status_code;
+        } else {
+            res_status = 302;
+        }
+        res_body = "Redirecting to " + url;
+        is_sent = true;
+    }
+
+    fn response() {
+        return {
+            "status": res_status,
+            "headers": res_headers,
+            "body": res_body
+        };
+    }
+}
+
+let new_context = fn(req, params) {
+    if params == null { params = {}; }
+    let raw_url = "";
+    if req != null {
+        if req["url"] != null {
+            raw_url = req["url"];
+        } else if req["path"] != null {
+            raw_url = req["path"];
+        }
+    }
+    let query = parse_query_params(raw_url);
+    let default_headers = {
+        "Content-Type": "text/plain; charset=utf-8"
+    };
+    return Context(req, params, query, 200, default_headers, "", false);
+};
+
+let create_context = new_context;

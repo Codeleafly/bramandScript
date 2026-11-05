@@ -1,0 +1,211 @@
+// BramandScript Test Suite :: Day 11 Database & Storage Ecosystem
+// Tests: std/db, Key-Value WAL Store, JSON Document Database, Query Builder, and Model Layer.
+
+import "std/db" as db
+import "std/db/kv" as kv
+import "std/db/doc" as doc
+import "std/db/query" as query
+import "std/db/model" as model
+
+describe("Key-Value WAL Storage Engine", fn() {
+    test("In-memory and persistent Key-Value mutations", fn() {
+        let test_wal_file = "test_temp_wal.db";
+        if file_exists(test_wal_file) == true {
+            delete_file(test_wal_file);
+        }
+
+        let store = db.open_kv(test_wal_file);
+        store.set("app:name", "BramandApp");
+        store.set("app:version", 2);
+        store.set("counter", 100);
+
+        assert_eq(store.get("app:name", ""), "BramandApp");
+        assert_eq(store.get("app:version", 0), 2);
+        assert_eq(store.get("counter", 0), 100);
+        assert_eq(store.get("missing_key", "default_val"), "default_val");
+        assert_eq(store.has("app:name"), true);
+        assert_eq(store.has("missing_key"), false);
+        assert_eq(store.count(), 3);
+
+        // Delete key
+        assert_eq(store.delete_key("counter"), true);
+        assert_eq(store.has("counter"), false);
+        assert_eq(store.count(), 2);
+        store.close();
+
+        // Re-open and verify recovery from append-only log
+        let store2 = db.open_kv(test_wal_file);
+        assert_eq(store2.get("app:name", ""), "BramandApp");
+        assert_eq(store2.get("app:version", 0), 2);
+        assert_eq(store2.has("counter"), false);
+        assert_eq(store2.count(), 2);
+
+        // Compaction: rewrites file with only active live keys
+        store2.set("cache:1", "val1");
+        store2.delete_key("cache:1");
+        let live_count = store2.compact();
+        assert_eq(live_count, 2);
+
+        store2.clear();
+        assert_eq(store2.count(), 0);
+        store2.close();
+
+        if file_exists(test_wal_file) == true {
+            delete_file(test_wal_file);
+        }
+    });
+});
+
+describe("JSON Document Database & Predicate Filtering", fn() {
+    test("Document insertion, auto-ID, and query predicates", fn() {
+        let test_doc_file = "test_temp_users.json";
+        if file_exists(test_doc_file) == true {
+            delete_file(test_doc_file);
+        }
+
+        let users = doc.create_collection("users", test_doc_file);
+        users.insert({ "name": "Alice", "age": 28, "role": "admin", "tags": ["rust", "go"] });
+        users.insert({ "name": "Bob", "age": 22, "role": "user", "tags": ["python"] });
+        users.insert({ "name": "Charlie", "age": 35, "role": "user", "tags": ["javascript"] });
+        users.insert({ "name": "Diana", "age": 19, "role": "guest", "tags": ["html"] });
+
+        assert_eq(users.count(null), 4);
+
+        // Find by exact match
+        let admins = users.find({ "role": "admin" });
+        assert_eq(len(admins), 1);
+        assert_eq(admins[0]["name"], "Alice");
+        assert(contains(admins[0]["_id"], "users_"));
+
+        // Find with $gt predicate
+        let older_than_25 = users.find({ "age": { "$gt": 25 } });
+        assert_eq(len(older_than_25), 2);
+
+        // Find with $in predicate
+        let staff = users.find({ "role": { "$in": ["admin", "user"] } });
+        assert_eq(len(staff), 3);
+
+        // Find with $contains predicate
+        let name_has_li = users.find({ "name": { "$contains": "li" } });
+        assert_eq(len(name_has_li), 2); // Alice, Charlie
+
+        // Find one
+        let bob = users.find_one({ "name": "Bob" });
+        assert_eq(bob["age"], 22);
+
+        // Update
+        let updated_count = users.update({ "name": "Bob" }, { "$set": { "age": 23, "status": "active" } });
+        assert_eq(updated_count, 1);
+        let bob_updated = users.find_one({ "name": "Bob" });
+        assert_eq(bob_updated["age"], 23);
+        assert_eq(bob_updated["status"], "active");
+
+        // Remove
+        let removed_count = users.remove({ "role": "guest" });
+        assert_eq(removed_count, 1);
+        assert_eq(users.count(null), 3);
+
+        // Verify disk reload
+        let users_reloaded = doc.create_collection("users", test_doc_file);
+        assert_eq(users_reloaded.count(null), 3);
+        assert_eq(users_reloaded.find_one({ "name": "Bob" })["age"], 23);
+
+        if file_exists(test_doc_file) == true {
+            delete_file(test_doc_file);
+        }
+    });
+});
+
+describe("Fluent Query Builder & SQL Generator", fn() {
+    test("In-memory dataset filtering, sorting, and pagination", fn() {
+        let dataset = [
+            { "id": 1, "name": "Widget A", "price": 25, "category": "tools" },
+            { "id": 2, "name": "Gadget B", "price": 75, "category": "electronics" },
+            { "id": 3, "name": "Gizmo C", "price": 15, "category": "tools" },
+            { "id": 4, "name": "Device D", "price": 120, "category": "electronics" },
+            { "id": 5, "name": "Appliance E", "price": 90, "category": "home" }
+        ];
+
+        let q = query.from_table("products");
+        q.select(["name", "price"]);
+        q.where_gt("price", 20);
+        q.order_by("price", "DESC");
+        q.limit(2);
+        q.offset(0);
+
+        let results = q.execute(dataset);
+        assert_eq(len(results), 2);
+        assert_eq(results[0]["name"], "Device D");
+        assert_eq(results[0]["price"], 120);
+        assert_eq(results[1]["name"], "Appliance E");
+        assert_eq(results[1]["price"], 90);
+        assert_eq(results[0]["id"], null); // not selected
+    });
+
+    test("ANSI SQL query compilation", fn() {
+        let q = query.from_table("users");
+        q.select(["id", "name", "email"]);
+        q.where_gt("age", 18);
+        q.where_eq("status", "active");
+        q.order_by("id", "ASC");
+        q.limit(10);
+        q.offset(20);
+
+        let sql = q.to_sql();
+        assert(contains(sql, "SELECT id, name, email FROM users"));
+        assert(contains(sql, "WHERE age > 18 AND status = 'active'"));
+        assert(contains(sql, "ORDER BY id ASC"));
+        assert(contains(sql, "LIMIT 10"));
+        assert(contains(sql, "OFFSET 20"));
+    });
+});
+
+describe("Active-Record Model & Schema Validation", fn() {
+    test("Schema constraints and field validation", fn() {
+        let UserModel = model.define_model("User", {
+            "name": { "type": "string", "required": true, "min_len": 2 },
+            "email": { "type": "string", "required": true, "contains": "@" },
+            "age": { "type": "int", "min": 18, "default": 21 },
+            "role": { "type": "string", "in": ["admin", "member", "guest"], "default": "member" }
+        });
+
+        // Test invalid data
+        let invalid_res = UserModel.validate({
+            "name": "A", // too short
+            "email": "invalid_email", // no @
+            "age": 16, // < 18
+            "role": "hacker" // not in whitelist
+        });
+
+        assert_eq(invalid_res.valid, false);
+        assert_eq(len(invalid_res.errors), 4);
+
+        // Test valid creation with defaults
+        let valid_create = UserModel.create({
+            "name": "Sarah Connor",
+            "email": "sarah@resistance.org"
+        });
+
+        assert_eq(valid_create.valid, true);
+        assert_eq(valid_create.data["name"], "Sarah Connor");
+        assert_eq(valid_create.data["email"], "sarah@resistance.org");
+        assert_eq(valid_create.data["age"], 21); // default applied
+        assert_eq(valid_create.data["role"], "member"); // default applied
+    });
+
+    test("Model relationships definition", fn() {
+        let PostModel = model.define_model("Post", { "title": { "type": "string" } });
+        let CommentModel = model.define_model("Comment", { "text": { "type": "string" } });
+
+        PostModel.has_many("comments", CommentModel, "post_id");
+        CommentModel.belongs_to("post", PostModel, "post_id");
+
+        let rel1 = PostModel.get_relation("comments");
+        assert_eq(rel1["type"], "has_many");
+        assert_eq(rel1["fk"], "post_id");
+
+        let rel2 = CommentModel.get_relation("post");
+        assert_eq(rel2["type"], "belongs_to");
+        assert_eq(rel2["fk"], "post_id");
+    });
+});

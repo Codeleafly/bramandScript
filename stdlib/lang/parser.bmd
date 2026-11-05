@@ -1,0 +1,347 @@
+// BramandScript Standard Library :: Pratt Parser Framework (std/lang/parser)
+// Reusable Top-Down Operator Precedence (Pratt) parser engine generating AST nodes
+// with line/column error diagnostics.
+
+import "std/lang/lexer" as lexer_mod
+
+// Operator Precedences
+let PREC_LOWEST      = 1;
+let PREC_EQUALS      = 2; // ==, !=
+let PREC_LESSGREATER = 3; // >, <
+let PREC_SUM         = 4; // +, -
+let PREC_PRODUCT     = 5; // *, /
+let PREC_PREFIX      = 6; // -X or !X
+let PREC_CALL        = 7; // myFunction(X)
+
+let PRECEDENCES = {
+    "==": PREC_EQUALS,
+    "!=": PREC_EQUALS,
+    "<":  PREC_LESSGREATER,
+    ">":  PREC_LESSGREATER,
+    "<=": PREC_LESSGREATER,
+    ">=": PREC_LESSGREATER,
+    "+":  PREC_SUM,
+    "-":  PREC_SUM,
+    "/":  PREC_PRODUCT,
+    "*":  PREC_PRODUCT,
+    "(":  PREC_CALL
+};
+
+// --- AST Node Constructors ---
+
+let ast_program = fn(statements) {
+    return { "type": "Program", "statements": statements };
+};
+
+let ast_let = fn(name, value) {
+    return { "type": "LetStatement", "name": name, "value": value };
+};
+
+let ast_return = fn(value) {
+    return { "type": "ReturnStatement", "value": value };
+};
+
+let ast_expr_stmt = fn(expression) {
+    return { "type": "ExpressionStatement", "expression": expression };
+};
+
+let ast_block = fn(statements) {
+    return { "type": "BlockStatement", "statements": statements };
+};
+
+let ast_identifier = fn(value) {
+    return { "type": "Identifier", "value": value };
+};
+
+let ast_integer = fn(value) {
+    return { "type": "IntegerLiteral", "value": int(value) };
+};
+
+let ast_float = fn(value) {
+    return { "type": "FloatLiteral", "value": float(value) };
+};
+
+let ast_boolean = fn(value) {
+    return { "type": "BooleanLiteral", "value": value };
+};
+
+let ast_string = fn(value) {
+    return { "type": "StringLiteral", "value": value };
+};
+
+let ast_prefix = fn(op, right) {
+    return { "type": "PrefixExpression", "operator": op, "right": right };
+};
+
+let ast_infix = fn(left, op, right) {
+    return { "type": "InfixExpression", "left": left, "operator": op, "right": right };
+};
+
+let ast_if = fn(condition, consequence, alternative) {
+    return {
+        "type": "IfExpression",
+        "condition": condition,
+        "consequence": consequence,
+        "alternative": alternative
+    };
+};
+
+let ast_fn = fn(parameters, body) {
+    return { "type": "FunctionLiteral", "parameters": parameters, "body": body };
+};
+
+let ast_call = fn(function_node, args) {
+    return { "type": "CallExpression", "function": function_node, "arguments": args };
+};
+
+// --- Pratt Parser Execution Functions ---
+
+let advance_token = fn(p) {
+    p["cur_tok"] = p["peek_tok"];
+    p["peek_tok"] = p["lexer"].next_token();
+};
+
+let peek_precedence = fn(p) {
+    let pt = p["peek_tok"].token_type;
+    if PRECEDENCES[pt] != null {
+        return PRECEDENCES[pt];
+    }
+    return PREC_LOWEST;
+};
+
+let cur_precedence = fn(p) {
+    let ct = p["cur_tok"].token_type;
+    if PRECEDENCES[ct] != null {
+        return PRECEDENCES[ct];
+    }
+    return PREC_LOWEST;
+};
+
+let expect_peek = fn(p, tok_type) {
+    if p["peek_tok"].token_type == tok_type {
+        advance_token(p);
+        return true;
+    }
+    let msg = "line " + p["peek_tok"].line + ", col " + p["peek_tok"].col + ": expected next token to be '" + tok_type + "', got '" + p["peek_tok"].token_type + "' instead";
+    p["errors"] = p["errors"] + [msg];
+    return false;
+};
+
+// Forward declaration
+let parse_expr = null;
+let parse_stmt = null;
+let parse_block = null;
+
+let parse_call_args = fn(p, func_node) {
+    let args = [];
+    if p["peek_tok"].token_type == lexer_mod.TOKEN_RPAREN {
+        advance_token(p);
+        return ast_call(func_node, args);
+    }
+
+    advance_token(p);
+    args = args + [parse_expr(p, PREC_LOWEST)];
+
+    while p["peek_tok"].token_type == lexer_mod.TOKEN_COMMA {
+        advance_token(p); // on comma
+        advance_token(p); // on next arg
+        args = args + [parse_expr(p, PREC_LOWEST)];
+    }
+
+    if expect_peek(p, lexer_mod.TOKEN_RPAREN) != true {
+        return null;
+    }
+    return ast_call(func_node, args);
+};
+
+let parse_if = fn(p) {
+    if expect_peek(p, lexer_mod.TOKEN_LPAREN) != true { return null; }
+    advance_token(p);
+    let condition = parse_expr(p, PREC_LOWEST);
+    if expect_peek(p, lexer_mod.TOKEN_RPAREN) != true { return null; }
+
+    if expect_peek(p, lexer_mod.TOKEN_LBRACE) != true { return null; }
+    let consequence = parse_block(p);
+
+    let alternative = null;
+    if p["peek_tok"].token_type == lexer_mod.TOKEN_ELSE {
+        advance_token(p); // on else
+        if expect_peek(p, lexer_mod.TOKEN_LBRACE) != true { return null; }
+        alternative = parse_block(p);
+    }
+
+    return ast_if(condition, consequence, alternative);
+};
+
+let parse_fn = fn(p) {
+    if expect_peek(p, lexer_mod.TOKEN_LPAREN) != true { return null; }
+    let parameters = [];
+
+    if p["peek_tok"].token_type != lexer_mod.TOKEN_RPAREN {
+        advance_token(p);
+        parameters = parameters + [ast_identifier(p["cur_tok"].literal)];
+        while p["peek_tok"].token_type == lexer_mod.TOKEN_COMMA {
+            advance_token(p); // comma
+            advance_token(p); // param
+            parameters = parameters + [ast_identifier(p["cur_tok"].literal)];
+        }
+    }
+
+    if expect_peek(p, lexer_mod.TOKEN_RPAREN) != true { return null; }
+    if expect_peek(p, lexer_mod.TOKEN_LBRACE) != true { return null; }
+    let body = parse_block(p);
+
+    return ast_fn(parameters, body);
+};
+
+parse_expr = fn(p, precedence) {
+    let prefix_expr = null;
+
+    // Prefix parsing
+    let t = p["cur_tok"].token_type;
+    let lit = p["cur_tok"].literal;
+
+    if t == lexer_mod.TOKEN_IDENT {
+        prefix_expr = ast_identifier(lit);
+    } else if t == lexer_mod.TOKEN_INT {
+        prefix_expr = ast_integer(lit);
+    } else if t == lexer_mod.TOKEN_FLOAT {
+        prefix_expr = ast_float(lit);
+    } else if t == lexer_mod.TOKEN_STRING {
+        prefix_expr = ast_string(lit);
+    } else if t == lexer_mod.TOKEN_TRUE {
+        prefix_expr = ast_boolean(true);
+    } else if t == lexer_mod.TOKEN_FALSE {
+        prefix_expr = ast_boolean(false);
+    } else if t == lexer_mod.TOKEN_BANG || t == lexer_mod.TOKEN_MINUS {
+        let op = lit;
+        advance_token(p);
+        let right = parse_expr(p, PREC_PREFIX);
+        prefix_expr = ast_prefix(op, right);
+    } else if t == lexer_mod.TOKEN_LPAREN {
+        advance_token(p);
+        prefix_expr = parse_expr(p, PREC_LOWEST);
+        if expect_peek(p, lexer_mod.TOKEN_RPAREN) != true {
+            return null;
+        }
+    } else if t == lexer_mod.TOKEN_IF {
+        prefix_expr = parse_if(p);
+    } else if t == lexer_mod.TOKEN_FN {
+        prefix_expr = parse_fn(p);
+    } else {
+        p["errors"] = p["errors"] + ["line " + p["cur_tok"].line + ": no prefix parse function for " + t];
+        return null;
+    }
+
+    // Infix parsing loop
+    while p["peek_tok"].token_type != lexer_mod.TOKEN_SEMICOLON && precedence < peek_precedence(p) {
+        let peek_type = p["peek_tok"].token_type;
+        if peek_type == lexer_mod.TOKEN_PLUS ||
+           peek_type == lexer_mod.TOKEN_MINUS ||
+           peek_type == lexer_mod.TOKEN_SLASH ||
+           peek_type == lexer_mod.TOKEN_ASTERISK ||
+           peek_type == lexer_mod.TOKEN_EQ ||
+           peek_type == lexer_mod.TOKEN_NOT_EQ ||
+           peek_type == lexer_mod.TOKEN_LT ||
+           peek_type == lexer_mod.TOKEN_GT ||
+           peek_type == lexer_mod.TOKEN_LTE ||
+           peek_type == lexer_mod.TOKEN_GTE {
+            advance_token(p);
+            let op = p["cur_tok"].literal;
+            let cur_prec = cur_precedence(p);
+            advance_token(p);
+            let right = parse_expr(p, cur_prec);
+            prefix_expr = ast_infix(prefix_expr, op, right);
+        } else if peek_type == lexer_mod.TOKEN_LPAREN {
+            advance_token(p);
+            prefix_expr = parse_call_args(p, prefix_expr);
+        } else {
+            return prefix_expr;
+        }
+    }
+
+    return prefix_expr;
+};
+
+parse_block = fn(p) {
+    let stmts = [];
+    advance_token(p);
+    while p["cur_tok"].token_type != lexer_mod.TOKEN_RBRACE && p["cur_tok"].token_type != lexer_mod.TOKEN_EOF {
+        let s = parse_stmt(p);
+        if s != null {
+            stmts = stmts + [s];
+        }
+        advance_token(p);
+    }
+    return ast_block(stmts);
+};
+
+let parse_let = fn(p) {
+    if expect_peek(p, lexer_mod.TOKEN_IDENT) != true { return null; }
+    let name = ast_identifier(p["cur_tok"].literal);
+
+    if expect_peek(p, lexer_mod.TOKEN_ASSIGN) != true { return null; }
+    advance_token(p);
+    let val_expr = parse_expr(p, PREC_LOWEST);
+
+    if p["peek_tok"].token_type == lexer_mod.TOKEN_SEMICOLON {
+        advance_token(p);
+    }
+    return ast_let(name, val_expr);
+};
+
+let parse_return = fn(p) {
+    advance_token(p);
+    let val_expr = parse_expr(p, PREC_LOWEST);
+    if p["peek_tok"].token_type == lexer_mod.TOKEN_SEMICOLON {
+        advance_token(p);
+    }
+    return ast_return(val_expr);
+};
+
+parse_stmt = fn(p) {
+    if p["cur_tok"].token_type == lexer_mod.TOKEN_LET {
+        return parse_let(p);
+    }
+    if p["cur_tok"].token_type == lexer_mod.TOKEN_RETURN {
+        return parse_return(p);
+    }
+
+    // Expression statement
+    let expr = parse_expr(p, PREC_LOWEST);
+    if p["peek_tok"].token_type == lexer_mod.TOKEN_SEMICOLON {
+        advance_token(p);
+    }
+    return ast_expr_stmt(expr);
+};
+
+let parse_full_program = fn(p) {
+    let statements = [];
+    while p["cur_tok"].token_type != lexer_mod.TOKEN_EOF {
+        let stmt = parse_stmt(p);
+        if stmt != null {
+            statements = statements + [stmt];
+        }
+        advance_token(p);
+    }
+    return ast_program(statements);
+};
+
+// Parser constructor
+let new_parser = fn(lexer) {
+    let p = {
+        "lexer": lexer,
+        "cur_tok": null,
+        "peek_tok": null,
+        "errors": []
+    };
+    advance_token(p);
+    advance_token(p);
+
+    p["parse_program"] = fn() { return parse_full_program(p); };
+    p["parse_statement"] = fn() { return parse_stmt(p); };
+    p["parse_expression"] = fn(prec) { return parse_expr(p, prec); };
+    return p;
+};
+
+let create_parser = new_parser;

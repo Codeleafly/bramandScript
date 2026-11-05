@@ -1,0 +1,34 @@
+// MiniLang :: Demonstration Self-Hosting Language built 100% on BramandScript (examples/minilang/cli.bmd)
+// Demonstrates lexer, Pratt parser, bytecode compiler, and virtual machine pipeline.
+
+import "std/lang" as lang
+
+let run_minilang_file = fn(filepath) {
+    if file_exists(filepath) != true {
+        println("[ERROR] File not found: ", filepath);
+        return false;
+    }
+    let src = read_file(filepath);
+    println("[INFO] Executing MiniLang program: ", filepath);
+    let outcome = lang.eval_code(src);
+
+    if outcome.success != true {
+        println("[FAIL] Syntax / Runtime errors detected:");
+        let i = 0;
+        while i < len(outcome.errors) {
+            println("  - ", outcome.errors[i]);
+            i = i + 1;
+        }
+        return false;
+    }
+
+    println("[OK] Execution succeeded!");
+    println("  Result: ", outcome.result);
+    return true;
+};
+
+// If invoked with a script path argument
+let script_path = "examples/minilang/scripts/conditionals.mini";
+if file_exists(script_path) == true {
+    run_minilang_file(script_path);
+}

@@ -1,0 +1,95 @@
+// examples/12_autograd_neural_classifier/main.bmd
+// BramandScript Machine Learning & Autograd Deep Example
+// Demonstrates: Automatic Differentiation, Scalar Computation Graphs, Neural Network Layers,
+// Loss Functions, and Training a Non-Linear Neural Classifier.
+
+import "std/ml" as ml
+
+println("✦ BramandScript Neural Network & Autograd Engine");
+println("────────────────────────────────────────────────────────────────────────────");
+
+// Problem: Learn a non-linear binary classifier (XOR logic gate)
+// Dataset:
+// [0, 0] -> 0.0
+// [0, 1] -> 1.0
+// [1, 0] -> 1.0
+// [1, 1] -> 0.0
+
+let dataset_X = [
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0]
+];
+
+let dataset_Y = [0.0, 1.0, 1.0, 0.0];
+
+// Initialize Multi-Layer Perceptron: 2 inputs -> 4 hidden neurons -> 1 output neuron
+println("· [1] Constructing Multi-Layer Perceptron (2 -> 4 -> 1 architecture)...");
+let model = ml.new_mlp(2, [4, 1]);
+println("      Model constructed with " + len(model.parameters()) + " trainable scalar parameters.");
+
+// Training Loop: Forward Pass -> Loss -> Backward Pass -> Optimizer Step
+println("\n· [2] Training Neural Network over 40 Epochs with Gradient Descent...");
+let learning_rate = 0.5;
+let epoch = 1;
+
+while epoch <= 40 {
+    let total_loss = ml.value(0.0);
+
+    let i = 0;
+    while i < len(dataset_X) {
+        let x_row = dataset_X[i];
+        let y_true = dataset_Y[i];
+
+        // Wrap inputs as Autograd Values
+        let x_inputs = [ml.value(x_row[0]), ml.value(x_row[1])];
+
+        // Forward pass through MLP
+        let y_pred = model.call(x_inputs);
+
+        // Squared error: (y_pred - y_true)^2
+        let diff = y_pred.sub(ml.value(y_true));
+        let sample_loss = diff.mul(diff);
+
+        total_loss = total_loss.add(sample_loss);
+        i = i + 1;
+    }
+
+    // Zero gradients before backward pass
+    model.zero_grad();
+
+    // Reverse-mode automatic differentiation backpropagation
+    total_loss.backward();
+
+    // Update weights and biases via gradient descent: p.data -= lr * p.grad
+    model.step(learning_rate);
+
+    if epoch == 1 || epoch % 10 == 0 {
+        let loss_formatted = round(total_loss.data * 1000.0) / 1000.0;
+        println("      Epoch " + epoch + " / 40 | Total MSE Loss: " + loss_formatted);
+    }
+
+    epoch = epoch + 1;
+}
+
+// Evaluation / Inference
+println("\n· [3] Evaluating Trained Neural Network on XOR Truth Table...");
+let test_idx = 0;
+while test_idx < len(dataset_X) {
+    let in_vals = dataset_X[test_idx];
+    let expected = dataset_Y[test_idx];
+    let inputs = [ml.value(in_vals[0]), ml.value(in_vals[1])];
+    let pred_val = model.call(inputs).data;
+
+    let rounded_pred = round(pred_val * 1000.0) / 1000.0;
+    let decision = 0;
+    if pred_val >= 0.5 {
+        decision = 1;
+    }
+    println("      Input: [" + in_vals[0] + ", " + in_vals[1] + "] -> Output: " + rounded_pred + " -> Class: " + decision + " (Expected: " + expected + ")");
+    test_idx = test_idx + 1;
+}
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ Neural Network Training Demo Completed Successfully! [OK]");

@@ -1,0 +1,63 @@
+// examples/09_rest_api_service/routes.bmd
+import "std/net" as net
+import "examples/09_rest_api_service/models" as models
+
+let setup_routes = fn(users_db) {
+    let router = net.create_router();
+
+    // Health check
+    router.get("/health", fn(ctx) {
+        return ctx.send_json({ "status": "UP", "service": "Bramand-User-API", "timestamp": time_iso() });
+    });
+
+    // List users
+    router.get("/api/v1/users", fn(ctx) {
+        let role_filter = ctx.query_param("role", null);
+        let results = [];
+        let keys_list = keys(users_db);
+        let i = 0;
+        while i < len(keys_list) {
+            let u = users_db[keys_list[i]];
+            if role_filter == null || u["role"] == role_filter {
+                results = results + [u];
+            }
+            i = i + 1;
+        }
+        return ctx.send_json({ "total": len(results), "users": results });
+    });
+
+    // Get user by ID
+    router.get("/api/v1/users/:id", fn(ctx) {
+        let id = ctx.param("id", "");
+        if users_db[id] != null {
+            return ctx.send_json(users_db[id]);
+        }
+        ctx.status(404);
+        return ctx.send_json({ "error": "User with ID '" + id + "' not found" });
+    });
+
+    // Create user
+    router.post("/api/v1/users", fn(ctx) {
+        let payload = ctx.json_body();
+        if payload == null {
+            ctx.status(400);
+            return ctx.send_json({ "error": "Invalid or missing JSON payload" });
+        }
+
+        let val_res = models.UserModel.validate(payload);
+        if val_res["valid"] != true {
+            ctx.status(422);
+            return ctx.send_json({ "error": "Validation failed", "details": val_res["errors"] });
+        }
+
+        let user_id = "usr_" + time_ms();
+        payload["id"] = user_id;
+        payload["created_at"] = time_iso();
+        users_db[user_id] = payload;
+
+        ctx.status(201);
+        return ctx.send_json(payload);
+    });
+
+    return router;
+};

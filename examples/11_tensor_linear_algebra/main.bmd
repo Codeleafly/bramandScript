@@ -1,0 +1,79 @@
+// examples/11_tensor_linear_algebra/main.bmd
+// BramandScript Scientific Computing & Linear Algebra Deep Example
+// Demonstrates: Multi-Dimensional Tensors, Matrix Multiplication, Inversion, Determinants,
+// and Solving Systems of Linear Equations (A * x = b).
+
+import "std/math/tensor" as tensor
+
+println("✦ BramandScript Scientific Tensor & Linear Algebra Engine");
+println("────────────────────────────────────────────────────────────────────────────");
+
+// 1. Tensor creation and element access
+println("· [1] Creating 3x3 Matrix A...");
+let A = tensor.from_array([
+    [4.0, 7.0, 2.0],
+    [3.0, 6.0, 1.0],
+    [2.0, 5.0, 3.0]
+]);
+
+println("      Shape: [" + A.shape[0] + ", " + A.shape[1] + "] | Strides: [" + A.strides[0] + ", " + A.strides[1] + "]");
+println("      Element A[1, 0]: " + A.get([1, 0]) + " | Element A[0, 1]: " + A.get([0, 1]));
+
+// 2. Transposition
+println("\n· [2] Computing Matrix Transpose (A^T)...");
+let At = A.transpose();
+println("      Original A[0, 1] = " + A.get([0, 1]) + " -> Transposed At[1, 0] = " + At.get([1, 0]));
+
+// 3. Matrix Determinant
+println("\n· [3] Computing Determinant det(A)...");
+let d = A.det();
+println("      det(A) = " + d);
+
+// 4. Matrix Inversion using Gauss-Jordan Elimination
+println("\n· [4] Inverting Matrix A (A^-1)...");
+let A_inv = A.inv();
+println("      A^-1 computed successfully.");
+
+// 5. Verifying Identity: A * A^-1 ~= I (Identity Matrix)
+println("\n· [5] Verifying A * A^-1 = Identity Matrix...");
+let identity_approx = A.matmul(A_inv);
+println("      I[0, 0] = " + round(identity_approx.get([0, 0])));
+println("      I[0, 1] = " + round(identity_approx.get([0, 1])));
+println("      I[1, 1] = " + round(identity_approx.get([1, 1])));
+println("      I[2, 2] = " + round(identity_approx.get([2, 2])));
+
+// 6. Solving Linear System: A * x = b => x = A^-1 * b
+// Equations:
+// 4x + 7y + 2z = 10
+// 3x + 6y + 1z = 8
+// 2x + 5y + 3z = 3
+println("\n· [6] Solving Linear System: A * x = b where b = [10, 8, 3]^T...");
+let b = tensor.from_array([
+    [10.0],
+    [8.0],
+    [3.0]
+]);
+
+let x = A_inv.matmul(b);
+let x_val = round(x.get([0, 0]) * 1000.0) / 1000.0;
+let y_val = round(x.get([1, 0]) * 1000.0) / 1000.0;
+let z_val = round(x.get([2, 0]) * 1000.0) / 1000.0;
+
+println("      Solved Vector x:");
+println("      x = " + x_val);
+println("      y = " + y_val);
+println("      z = " + z_val);
+
+// Verification: 4x + 7y + 2z should equal 10
+let check_eq1 = 4.0 * x_val + 7.0 * y_val + 2.0 * z_val;
+println("      Check Equation 1 (4x + 7y + 2z): " + round(check_eq1) + " (Expected: 10)");
+
+// 7. Statistical Reductions
+println("\n· [7] Matrix Summary Statistics...");
+println("      Sum(A):  " + A.sum());
+println("      Mean(A): " + (round(A.mean() * 100.0) / 100.0));
+println("      Max(A):  " + A.max());
+println("      Min(A):  " + A.min());
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ Scientific Tensor Linear Algebra Demo Completed Successfully! [OK]");

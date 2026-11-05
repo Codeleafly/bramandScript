@@ -1,0 +1,133 @@
+// BramandScript Standard Library :: WebSocket Room Hub (std/net/ws_room)
+// Multi-room pub-sub event broadcaster for WebSocket chatrooms, collaborative editing,
+// live dashboards, and telemetry streaming.
+
+struct RoomHub {
+    rooms,
+    clients,
+
+    fn join(room, client_id, conn, metadata) {
+        if rooms[room] == null {
+            rooms[room] = {};
+        }
+        if clients[client_id] == null {
+            clients[client_id] = {};
+        }
+
+        let meta = metadata;
+        if meta == null {
+            meta = {};
+        }
+        rooms[room][client_id] = {
+            "conn": conn,
+            "metadata": meta,
+            "joined_at": time_now()
+        };
+        clients[client_id][room] = true;
+
+        return len(rooms[room]);
+    }
+
+    fn leave(room, client_id) {
+        if rooms[room] != null {
+            delete(rooms[room], client_id);
+            if len(rooms[room]) == 0 {
+                delete(rooms, room);
+            }
+        }
+        if clients[client_id] != null {
+            delete(clients[client_id], room);
+            if len(clients[client_id]) == 0 {
+                delete(clients, client_id);
+            }
+        }
+    }
+
+    fn leave_all(client_id) {
+        if clients[client_id] != null {
+            let user_rooms = keys(clients[client_id]);
+            let i = 0;
+            while i < len(user_rooms) {
+                let r = user_rooms[i];
+                if rooms[r] != null {
+                    delete(rooms[r], client_id);
+                    if len(rooms[r]) == 0 {
+                        delete(rooms, r);
+                    }
+                }
+                i = i + 1;
+            }
+            delete(clients, client_id);
+        }
+    }
+
+    fn broadcast(room, message, exclude_id) {
+        if rooms[room] == null {
+            return 0;
+        }
+        let room_clients = rooms[room];
+        let client_ids = keys(room_clients);
+        let delivered = 0;
+        let i = 0;
+        while i < len(client_ids) {
+            let cid = client_ids[i];
+            if cid != exclude_id {
+                let entry = room_clients[cid];
+                let conn = entry["conn"];
+                if conn != null {
+                    if conn["write"] != null {
+                        conn.write("" + message);
+                    } else if conn["send"] != null {
+                        conn.send("" + message);
+                    }
+                }
+                delivered = delivered + 1;
+            }
+            i = i + 1;
+        }
+        return delivered;
+    }
+
+    fn broadcast_all(message, exclude_id) {
+        let all_rooms = keys(rooms);
+        let total = 0;
+        let i = 0;
+        while i < len(all_rooms) {
+            total = total + broadcast(all_rooms[i], message, exclude_id);
+            i = i + 1;
+        }
+        return total;
+    }
+
+    fn room_count(room) {
+        if rooms[room] == null {
+            return 0;
+        }
+        return len(rooms[room]);
+    }
+
+    fn list_rooms() {
+        return keys(rooms);
+    }
+
+    fn list_clients(room) {
+        if rooms[room] == null {
+            return [];
+        }
+        return keys(rooms[room]);
+    }
+
+    fn is_in_room(room, client_id) {
+        if rooms[room] == null {
+            return false;
+        }
+        return rooms[room][client_id] != null;
+    }
+}
+
+let new_room_hub = fn() {
+    return RoomHub({}, {});
+};
+
+let create_room_hub = new_room_hub;
+let create_hub = new_room_hub;

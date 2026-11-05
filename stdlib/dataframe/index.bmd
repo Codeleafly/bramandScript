@@ -1,0 +1,400 @@
+// BramandScript Standard Library :: Tabular DataFrame Engine (std/dataframe)
+// High-level tabular data analysis: column filtering, row queries, sorting,
+// grouped aggregation (group_by), summary statistics (describe), and CSV serialization.
+
+// Helper to parse numeric values from strings or numbers
+let to_numeric = fn(val) {
+    if val == null { return null; }
+    let t = type(val);
+    if t == "INTEGER" || t == "FLOAT" {
+        return val * 1.0;
+    }
+    if t == "STRING" {
+        if len(val) == 0 { return null; }
+        let i = 0;
+        let has_digit = false;
+        let dot_count = 0;
+        if val[0] == "-" || val[0] == "+" {
+            i = 1;
+        }
+        while i < len(val) {
+            let ch = val[i];
+            if ch >= "0" && ch <= "9" {
+                has_digit = true;
+            } else if ch == "." {
+                dot_count = dot_count + 1;
+                if dot_count > 1 { return null; }
+            } else {
+                return null;
+            }
+            i = i + 1;
+        }
+        if has_digit == true {
+            return float(val);
+        }
+    }
+    return null;
+};
+
+// Helper to sort records by column
+let sort_dataframe_rows = fn(rows, col_name, ascending) {
+    let n = len(rows);
+    if n <= 1 { return rows; }
+    let sorted = [];
+    let i = 0;
+    while i < n {
+        sorted = sorted + [rows[i]];
+        i = i + 1;
+    }
+
+    let a = 0;
+    while a < n {
+        let b = 0;
+        while b < n - a - 1 {
+            let v1 = sorted[b][col_name];
+            let v2 = sorted[b + 1][col_name];
+            let should_swap = false;
+            if ascending == true {
+                if v1 > v2 { should_swap = true; }
+            } else {
+                if v1 < v2 { should_swap = true; }
+            }
+            if should_swap == true {
+                let temp = sorted[b];
+                sorted[b] = sorted[b + 1];
+                sorted[b + 1] = temp;
+            }
+            b = b + 1;
+        }
+        a = a + 1;
+    }
+    return sorted;
+};
+
+// Forward declaration container for grouped DataFrame constructor
+let make_grouped_df = null;
+
+// DataFrame struct
+struct DataFrame {
+    columns,
+    rows,
+
+    fn shape() {
+        return [len(rows), len(columns)];
+    }
+
+    fn select(col_names) {
+        let new_rows = [];
+        let i = 0;
+        while i < len(rows) {
+            let row = rows[i];
+            let new_row = {};
+            let c = 0;
+            while c < len(col_names) {
+                let name = col_names[c];
+                new_row[name] = row[name];
+                c = c + 1;
+            }
+            new_rows = new_rows + [new_row];
+            i = i + 1;
+        }
+        return DataFrame(col_names, new_rows);
+    }
+
+    fn filter(predicate) {
+        let filtered = [];
+        let i = 0;
+        while i < len(rows) {
+            let r = rows[i];
+            if predicate(r) == true {
+                filtered = filtered + [r];
+            }
+            i = i + 1;
+        }
+        return DataFrame(columns, filtered);
+    }
+
+    fn sort_by(col_name, ascending) {
+        let is_asc = true;
+        if ascending != null {
+            is_asc = ascending;
+        }
+        let sorted = sort_dataframe_rows(rows, col_name, is_asc);
+        return DataFrame(columns, sorted);
+    }
+
+    fn head(n) {
+        let limit = 5;
+        if n != null {
+            limit = n;
+        }
+        let top_rows = [];
+        let i = 0;
+        while i < limit && i < len(rows) {
+            top_rows = top_rows + [rows[i]];
+            i = i + 1;
+        }
+        return DataFrame(columns, top_rows);
+    }
+
+    fn tail(n) {
+        let limit = 5;
+        if n != null {
+            limit = n;
+        }
+        let start = len(rows) - limit;
+        if start < 0 { start = 0; }
+        let bot_rows = [];
+        let i = start;
+        while i < len(rows) {
+            bot_rows = bot_rows + [rows[i]];
+            i = i + 1;
+        }
+        return DataFrame(columns, bot_rows);
+    }
+
+    fn add_column(col_name, values_or_fn) {
+        let new_cols = columns + [col_name];
+        let new_rows = [];
+        let i = 0;
+        let t_val = type(values_or_fn);
+        let is_fn = (t_val == "FUNCTION" || t_val == "CLOSURE");
+        while i < len(rows) {
+            let r = rows[i];
+            let new_r = {};
+            let c = 0;
+            while c < len(columns) {
+                new_r[columns[c]] = r[columns[c]];
+                c = c + 1;
+            }
+            if is_fn == true {
+                new_r[col_name] = values_or_fn(r);
+            } else if i < len(values_or_fn) {
+                new_r[col_name] = values_or_fn[i];
+            } else {
+                new_r[col_name] = null;
+            }
+            new_rows = new_rows + [new_r];
+            i = i + 1;
+        }
+        return DataFrame(new_cols, new_rows);
+    }
+
+    fn drop_column(col_name) {
+        let new_cols = [];
+        let c = 0;
+        while c < len(columns) {
+            if columns[c] != col_name {
+                new_cols = new_cols + [columns[c]];
+            }
+            c = c + 1;
+        }
+        return select(new_cols);
+    }
+
+    fn group_by(col_name) {
+        let groups = {};
+        let i = 0;
+        while i < len(rows) {
+            let r = rows[i];
+            let key_val = "" + r[col_name];
+            if groups[key_val] == null {
+                groups[key_val] = [];
+            }
+            groups[key_val] = groups[key_val] + [r];
+            i = i + 1;
+        }
+        return make_grouped_df(groups, col_name);
+    }
+
+    fn describe() {
+        let summary = {};
+        let c = 0;
+        while c < len(columns) {
+            let col_name = columns[c];
+            let count = 0;
+            let total = 0.0;
+            let min_val = null;
+            let max_val = null;
+            let is_numeric = true;
+
+            let r = 0;
+            while r < len(rows) {
+                let v = rows[r][col_name];
+                if v != null {
+                    let num = to_numeric(v);
+                    if num != null {
+                        count = count + 1;
+                        total = total + num;
+                        if min_val == null || num < min_val { min_val = num; }
+                        if max_val == null || num > max_val { max_val = num; }
+                    } else {
+                        is_numeric = false;
+                        r = len(rows);
+                    }
+                }
+                r = r + 1;
+            }
+
+            if is_numeric == true && count > 0 {
+                summary[col_name] = {
+                    "count": count,
+                    "mean": total / count,
+                    "min": min_val,
+                    "max": max_val
+                };
+            }
+            c = c + 1;
+        }
+        return summary;
+    }
+
+    fn to_records() {
+        return rows;
+    }
+
+    fn to_csv() {
+        let raw_table = [columns];
+        let i = 0;
+        while i < len(rows) {
+            let r = rows[i];
+            let row_cells = [];
+            let c = 0;
+            while c < len(columns) {
+                let val = r[columns[c]];
+                if val == null {
+                    row_cells = row_cells + [""];
+                } else {
+                    row_cells = row_cells + ["" + val];
+                }
+                c = c + 1;
+            }
+            raw_table = raw_table + [row_cells];
+            i = i + 1;
+        }
+        return csv_stringify(raw_table);
+    }
+
+    fn save_csv(filepath) {
+        let content = to_csv();
+        write_file(filepath, content);
+    }
+}
+
+// GroupedDataFrame struct for grouped aggregations
+struct GroupedDataFrame {
+    groups,
+    group_col,
+
+    fn agg(spec) {
+        let agg_fields = keys(spec);
+        let group_keys = keys(groups);
+        let result_rows = [];
+        let i = 0;
+        while i < len(group_keys) {
+            let g_key = group_keys[i];
+            let g_rows = groups[g_key];
+            let summary_row = {};
+            summary_row[group_col] = g_key;
+
+            let f_idx = 0;
+            while f_idx < len(agg_fields) {
+                let f_name = agg_fields[f_idx];
+                let op = spec[f_name];
+
+                let total = 0.0;
+                let count = len(g_rows);
+                let min_val = null;
+                let max_val = null;
+
+                let r = 0;
+                while r < count {
+                    let val = g_rows[r][f_name];
+                    if val != null {
+                        let num = to_numeric(val);
+                        if num != null {
+                            total = total + num;
+                            if min_val == null || num < min_val { min_val = num; }
+                            if max_val == null || num > max_val { max_val = num; }
+                        }
+                    }
+                    r = r + 1;
+                }
+
+                if op == "sum" {
+                    summary_row[f_name] = total;
+                } else if op == "mean" || op == "avg" {
+                    if count > 0 {
+                        summary_row[f_name] = total / count;
+                    } else {
+                        summary_row[f_name] = 0.0;
+                    }
+                } else if op == "count" {
+                    summary_row[f_name] = count;
+                } else if op == "min" {
+                    summary_row[f_name] = min_val;
+                } else if op == "max" {
+                    summary_row[f_name] = max_val;
+                }
+                f_idx = f_idx + 1;
+            }
+            result_rows = result_rows + [summary_row];
+            i = i + 1;
+        }
+
+        let out_cols = [group_col] + agg_fields;
+        return DataFrame(out_cols, result_rows);
+    }
+}
+
+make_grouped_df = fn(groups, col_name) {
+    return GroupedDataFrame(groups, col_name);
+};
+
+let from_records = fn(records) {
+    if records == null || len(records) == 0 {
+        return DataFrame([], []);
+    }
+    let cols = keys(records[0]);
+    return DataFrame(cols, records);
+};
+
+let from_csv = fn(csv_str) {
+    let parsed = csv_parse(csv_str);
+    if parsed == null || len(parsed) == 0 {
+        return DataFrame([], []);
+    }
+    let cols = parsed[0];
+    let rows = [];
+    let r = 1;
+    while r < len(parsed) {
+        let line = parsed[r];
+        let row_hash = {};
+        let c = 0;
+        while c < len(cols) && c < len(line) {
+            let cell = line[c];
+            let num = to_numeric(cell);
+            if num != null {
+                if contains(cell, ".") != true {
+                    row_hash[cols[c]] = int(cell);
+                } else {
+                    row_hash[cols[c]] = num;
+                }
+            } else {
+                row_hash[cols[c]] = cell;
+            }
+            c = c + 1;
+        }
+        rows = rows + [row_hash];
+        r = r + 1;
+    }
+    return DataFrame(cols, rows);
+};
+
+let read_csv = fn(filepath) {
+    if file_exists(filepath) != true {
+        return DataFrame([], []);
+    }
+    let content = read_file(filepath);
+    return from_csv(content);
+};

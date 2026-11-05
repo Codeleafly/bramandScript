@@ -1,0 +1,115 @@
+// BramandScript Day 14: Centralized Package Registry Test Suite
+// tests/15_day14_registry_test.bmd
+
+import "tools/registry_server" as reg
+import "std/net" as net
+
+println("✦ Running Day 14 Package Registry Test Suite...");
+
+let test_storage = "tmp_registry_test_" + time_ms();
+let service = reg.create_registry_service(test_storage);
+
+// Test 1: Publish a new package
+println("· Test 1: Publishing a new package...");
+let pub_res1 = service.publish({
+    "name": "math_extra",
+    "version": "1.0.0",
+    "description": "High performance math algorithms for BramandScript",
+    "files": {
+        "math.bmd": "let add = fn(a, b) { return a + b; };",
+        "README.md": "# Math Extra Package"
+    }
+});
+
+assert_eq(pub_res1["success"], true);
+assert_eq(pub_res1["status"], 201);
+assert_eq(pub_res1["name"], "math_extra");
+assert_eq(pub_res1["version"], "1.0.0");
+println("[PASS] Package math_extra@1.0.0 published successfully");
+
+// Test 2: File storage persistence
+println("· Test 2: Verifying file storage persistence...");
+let stored_file = test_storage + "/math_extra/1.0.0/math.bmd";
+assert_eq(file_exists(stored_file), true);
+let file_content = read_file(stored_file);
+assert_eq(contains(file_content, "let add"), true);
+println("[PASS] Package files written and verified");
+
+// Test 3: Publish new version of existing package
+println("· Test 3: Publishing version 1.1.0 for math_extra...");
+let pub_res2 = service.publish({
+    "name": "math_extra",
+    "version": "1.1.0",
+    "description": "Updated math algorithms",
+    "files": {
+        "math.bmd": "let add = fn(a, b) { return a + b; }; let mul = fn(a, b) { return a * b; };"
+    }
+});
+assert_eq(pub_res2["success"], true);
+assert_eq(pub_res2["status"], 201);
+
+let pkg_meta = service.get_package("math_extra");
+assert_eq(pkg_meta["name"], "math_extra");
+assert_eq(pkg_meta["latest"], "1.1.0");
+assert_eq(pkg_meta["versions"]["1.0.0"] != null, true);
+assert_eq(pkg_meta["versions"]["1.1.0"] != null, true);
+println("[PASS] Multi-version registry tracking verified");
+
+// Test 4: Reject duplicate version publish
+println("· Test 4: Rejecting duplicate version 1.0.0 publish...");
+let pub_dup = service.publish({
+    "name": "math_extra",
+    "version": "1.0.0",
+    "description": "Duplicate"
+});
+assert_eq(pub_dup["success"], false);
+assert_eq(pub_dup["status"], 409);
+println("[PASS] Duplicate version conflict detected (HTTP 409)");
+
+// Test 5: Publish second package and list
+println("· Test 5: Publishing second package and listing...");
+service.publish({
+    "name": "http_router",
+    "version": "0.5.0",
+    "description": "Fast Radix tree HTTP routing framework",
+    "files": {
+        "router.bmd": "// router"
+    }
+});
+
+let all_pkgs = service.list_packages();
+assert_eq(len(all_pkgs), 2);
+println("[PASS] Registry package list verified (count = 2)");
+
+// Test 6: Search registry
+println("· Test 6: Searching package registry...");
+let search_math = service.search("math");
+assert_eq(len(search_math), 1);
+assert_eq(search_math[0]["name"], "math_extra");
+
+let search_router = service.search("router");
+assert_eq(len(search_router), 1);
+assert_eq(search_router[0]["name"], "http_router");
+
+let search_none = service.search("non_existent_pkg");
+assert_eq(len(search_none), 0);
+println("[PASS] Search query matching verified");
+
+// Test 7: Registry Router endpoints
+println("· Test 7: Testing Registry HTTP Router endpoints...");
+let router = reg.create_registry_router(service);
+
+let route_health = router.lookup("GET", "/health");
+assert_eq(route_health != null, true);
+
+let route_pkg = router.lookup("GET", "/packages/math_extra");
+assert_eq(route_pkg != null, true);
+assert_eq(route_pkg["params"]["name"], "math_extra");
+
+let route_publish = router.lookup("POST", "/api/publish");
+assert_eq(route_publish != null, true);
+println("[PASS] Registry HTTP router endpoints verified");
+
+// Cleanup
+exec("rm -rf " + test_storage);
+println("✦ All Day 14 Package Registry Tests Passed Successfully! [OK]");

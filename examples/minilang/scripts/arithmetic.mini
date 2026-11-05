@@ -1,0 +1,4 @@
+let base = 10;
+let mult = 5;
+let total = (base * mult) + 25 - 5;
+total;

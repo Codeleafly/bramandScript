@@ -97,6 +97,21 @@ func main() {
 	case "build":
 		handleBuildCommand(os.Args[2:])
 
+	case "disasm":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand disasm <filename.bmd>")
+			os.Exit(1)
+		}
+		handleDisasmCommand(os.Args[2])
+
+	case "profile":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand profile <filename.bmd> [args...]")
+			os.Exit(1)
+		}
+		vm.SetProgramArgs(os.Args[3:])
+		handleProfileCommand(os.Args[2])
+
 	case "pkg", "lib", "package":
 		handlePkgCommand(os.Args[2:])
 
@@ -392,6 +407,8 @@ func printHelp() {
 	fmt.Println("  bramand fmt [paths...]    Format source code canonically")
 	fmt.Println("  bramand fmt -c [paths...] Check if files are formatted")
 	fmt.Println("  bramand build <src.bmd>   Compile into standalone native binary")
+	fmt.Println("  bramand disasm <file.bmd> Disassemble source file to bytecode")
+	fmt.Println("  bramand profile <src.bmd> Profile execution with opcode timing hotspots")
 	fmt.Println("  bramand pkg list          List installed packages in ~/.bramand_libs")
 	fmt.Println("  bramand pkg install <src> Install package to centralized registry")
 	fmt.Println("  bramand pkg remove <name> Remove package from centralized registry")
@@ -402,11 +419,86 @@ func printHelp() {
 	fmt.Println("REPL Commands:")
 	fmt.Println("  :editor                   Open multi-line editor mode")
 	fmt.Println("  :editor <file.bmd>        Write & save file from REPL")
+	fmt.Println("  :disasm <code>            Disassemble snippet into opcodes")
+	fmt.Println("  :profile <code>           Profile snippet execution hotspots")
 	fmt.Println("  :clear                    Clear screen")
 	fmt.Println("  :reset                    Reset runtime state")
 	fmt.Println("  :help                     Documentation and language reference")
 	fmt.Println("  :exit                     Exit REPL")
 	fmt.Printf("%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
+}
+
+func handleDisasmCommand(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
+		os.Exit(1)
+	}
+	source := string(data)
+	l := lexer.New(source)
+	p := parser.New(l)
+	prog := p.ParseProgram()
+	if len(p.SyntaxErrors) > 0 {
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Line:     p.SyntaxErrors[0].Line,
+			Col:      p.SyntaxErrors[0].Col,
+			Kind:     "SyntaxError",
+			Message:  p.SyntaxErrors[0].Message,
+		}
+		fmt.Fprint(os.Stderr, diag.Format())
+		os.Exit(1)
+	}
+
+	comp := compiler.New()
+	comp.SetCurrentFile(filename, source)
+	if err := comp.Compile(prog); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Compilation failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Print(compiler.FormatBytecode(comp.Bytecode()))
+}
+
+func handleProfileCommand(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
+		os.Exit(1)
+	}
+	source := string(data)
+	l := lexer.New(source)
+	p := parser.New(l)
+	prog := p.ParseProgram()
+	if len(p.SyntaxErrors) > 0 {
+		diag := diagnostics.Diagnostic{
+			Filename: filename,
+			Source:   source,
+			Line:     p.SyntaxErrors[0].Line,
+			Col:      p.SyntaxErrors[0].Col,
+			Kind:     "SyntaxError",
+			Message:  p.SyntaxErrors[0].Message,
+		}
+		fmt.Fprint(os.Stderr, diag.Format())
+		os.Exit(1)
+	}
+
+	comp := compiler.New()
+	comp.SetCurrentFile(filename, source)
+	if err := comp.Compile(prog); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Compilation failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	machine := vm.New(comp.Bytecode())
+	report, err := machine.RunProfiled()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Runtime failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Print(report.String())
 }
 
 func handlePkgCommand(args []string) {

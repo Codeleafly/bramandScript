@@ -163,6 +163,12 @@
             <li><a href="stdlib.html#ch-json" class="nav-link pl-4 text-xs"><span>·</span> std/json</a></li>
             <li><a href="stdlib.html#ch-io" class="nav-link pl-4 text-xs"><span>·</span> std/io</a></li>
             <li><a href="stdlib.html#ch-testing" class="nav-link pl-4 text-xs"><span>·</span> std/testing</a></li>
+            <li><a href="stdlib.html#ch-net" class="nav-link pl-4 text-xs"><span>·</span> std/net (Web &amp; Routing)</a></li>
+            <li><a href="stdlib.html#ch-db" class="nav-link pl-4 text-xs"><span>·</span> std/db (Storage &amp; ORM)</a></li>
+            <li><a href="stdlib.html#ch-tensor" class="nav-link pl-4 text-xs"><span>·</span> std/math/tensor</a></li>
+            <li><a href="stdlib.html#ch-dataframe" class="nav-link pl-4 text-xs"><span>·</span> std/dataframe</a></li>
+            <li><a href="stdlib.html#ch-ml" class="nav-link pl-4 text-xs"><span>·</span> std/ml (Autograd)</a></li>
+            <li><a href="stdlib.html#ch-lang" class="nav-link pl-4 text-xs"><span>·</span> std/lang (Language Engine)</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -1027,6 +1033,281 @@ println("CSPRNG Integer:", rand_val)</code></pre>
 
 
       <!-- ================= CHAPTER 15: COMPLETE BUILTINS DICTIONARY ================= -->
+            <!-- ================= MODULAR STDLIB: STD/NET ================= -->
+      <section id="ch-net" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Web &amp; Networking</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Web, HTTP Routing &amp; Real-Time Hub (<code class="font-mono">std/net</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/net</code> package provides a high-performance web microframework built from scratch in BramandScript. It features a Radix/Trie URL router with parameter extraction, unified HTTP context with JSON body binding, composable onion middleware chaining, W3C Server-Sent Events (SSE), and multi-room WebSocket hubs.
+        </p>
+
+        <!-- Submodule Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 text-xs">
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/net/router</span>
+            <p class="text-slate-500 mt-1">Radix Trie URL router supporting static, parameterized (<code class="font-mono">:id</code>), and wildcard (<code class="font-mono">*path</code>) routes.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/net/context</span>
+            <p class="text-slate-500 mt-1">HTTP request/response wrapper with query string parsing, case-insensitive headers, and JSON binding.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/net/middleware</span>
+            <p class="text-slate-500 mt-1">Composable onion pipeline with built-in <code class="font-mono">cors</code>, <code class="font-mono">logger</code>, <code class="font-mono">rate_limit</code>, and <code class="font-mono">auth_bearer</code>.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/net/sse</span>
+            <p class="text-slate-500 mt-1">W3C Server-Sent Events formatter, ping keepalive heartbeats, and event stream parser.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/net/ws_room</span>
+            <p class="text-slate-500 mt-1">Multi-room WebSocket broadcaster with targeted room dispatch and sender exclusion.</p>
+          </div>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — Web Routing &amp; Context</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/net" as net
+
+let router = net.create_router()
+
+// Route with path parameters and query binding
+router.get("/api/v1/users/:id", fn(ctx) {
+    let user_id = ctx.param("id", "0")
+    let verbose = ctx.query_param("verbose", "false")
+    ctx.status(200)
+    return ctx.send_json({
+        "id": user_id,
+        "name": "Aryan",
+        "verbose": verbose == "true"
+    })
+})
+
+// Route groups
+let v1 = router.group("/api/v1")
+v1.post("/echo", fn(ctx) {
+    let body = ctx.json_body()
+    return ctx.send_json(body)
+})</code></pre>
+        </div>
+      </section>
+
+
+      <!-- ================= MODULAR STDLIB: STD/DB ================= -->
+      <section id="ch-db" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Database &amp; Storage</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Database &amp; Storage Engine (<code class="font-mono">std/db</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/db</code> package delivers embedded persistence capabilities written 100% in BramandScript. It includes an append-only Write-Ahead Log (WAL) Key-Value store with log compaction, a JSON document collection database with MongoDB-style query operators, a fluent ANSI SQL query builder, and an Active-Record schema validation model layer.
+        </p>
+
+        <!-- Submodule Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 text-xs">
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/db/kv</span>
+            <p class="text-slate-500 mt-1">Append-only WAL Key-Value storage engine with crash recovery and log compaction.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/db/doc</span>
+            <p class="text-slate-500 mt-1">JSON document database with auto IDs, <code class="font-mono">$set</code> updates, and predicates (<code class="font-mono">$gt</code>, <code class="font-mono">$in</code>).</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/db/query</span>
+            <p class="text-slate-500 mt-1">Fluent SQL and dataset query builder compiling to ANSI SQL and in-memory execution.</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <span class="font-bold font-mono text-blue-600 dark:text-blue-400">std/db/model</span>
+            <p class="text-slate-500 mt-1">Active-Record schema validation layer (<code class="font-mono">required</code>, <code class="font-mono">min_len</code>, <code class="font-mono">contains</code>, <code class="font-mono">in</code>).</p>
+          </div>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — Document Collections &amp; QueryBuilder</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/db" as db
+
+// 1. JSON Document Collection with Predicate Queries
+let coll = db.create_collection("catalog", "catalog.json")
+coll.insert({ "name": "Mechanical Keyboard", "price": 129.99, "category": "gear" })
+coll.insert({ "name": "4K Monitor", "price": 399.00, "category": "display" })
+
+// Filter documents where price &gt; 100
+let premium = coll.find({ "price": { "$gt": 100.0 } })
+
+// 2. Fluent QueryBuilder to ANSI SQL
+let q = db.query("users")
+q.select(["id", "username", "email"])
+q.where_gt("age", 18)
+q.order_by("created_at", "DESC")
+q.limit(10)
+
+let sql = q.to_sql()
+// SELECT id, username, email FROM users WHERE age &gt; 18 ORDER BY created_at DESC LIMIT 10</code></pre>
+        </div>
+      </section>
+
+
+      <!-- ================= MODULAR STDLIB: STD/MATH/TENSOR ================= -->
+      <section id="ch-tensor" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Scientific Tensors</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Multi-Dimensional Tensor &amp; Linear Algebra (<code class="font-mono">std/math/tensor</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/math/tensor</code> module delivers arbitrary N-dimensional tensor data structures with row-major memory layouts and strided coordinates. It natively computes 2D matrix multiplication (<code class="font-mono">matmul</code>), matrix transposition, determinant calculation, Gauss-Jordan matrix inversion, and solving linear systems (<code class="font-mono">A * x = b</code>).
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — Matrix Inversion &amp; Linear System Solving</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/math/tensor" as tensor
+
+let A = tensor.from_array([
+    [4.0, 7.0, 2.0],
+    [3.0, 6.0, 1.0],
+    [2.0, 5.0, 3.0]
+])
+
+println("det(A):", A.det())           // 9.0
+
+// Invert matrix using Gauss-Jordan elimination
+let A_inv = A.inv()
+
+// Solve linear system: A * x = b where b = [10, 8, 3]^T
+let b = tensor.from_array([[10.0], [8.0], [3.0]])
+let x = A_inv.matmul(b)
+// Solved: x = 3, y = 0, z = -1</code></pre>
+        </div>
+      </section>
+
+
+      <!-- ================= MODULAR STDLIB: STD/DATAFRAME ================= -->
+      <section id="ch-dataframe" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Data Science &amp; Analytics</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Tabular DataFrame Engine (<code class="font-mono">std/dataframe</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/dataframe</code> module provides a Pandas-style tabular data analysis engine for BramandScript. It supports automated type-inferred CSV parsing, functional row filtering, column selection, sorting, grouped aggregations (<code class="font-mono">group_by</code>), and automated summary statistics (<code class="font-mono">describe</code>).
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — DataFrame Loading, GroupBy &amp; Aggregations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/dataframe" as df
+
+let raw_csv = read_file("employees.csv")
+let frame = df.from_csv(raw_csv)
+
+// Filter senior staff with salary &gt;= 120,000
+let seniors = frame.filter(fn(row) {
+    return int(row["salary"]) &gt;= 120000
+})
+
+// Group by department with multiple aggregation metrics
+let summary = frame.group_by("department").agg({
+    "salary": "mean",
+    "sales": "sum",
+    "id": "count"
+})
+
+// Export aggregated results directly to CSV
+summary.save_csv("dept_summary.csv")</code></pre>
+        </div>
+      </section>
+
+
+      <!-- ================= MODULAR STDLIB: STD/ML ================= -->
+      <section id="ch-ml" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Machine Learning</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Neural Networks &amp; Autograd Engine (<code class="font-mono">std/ml</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/ml</code> module is a pure BramandScript reverse-mode automatic differentiation (Autograd) and deep learning library inspired by Micrograd. It manages scalar computation graphs, reverse topological sort backpropagation, neural network layers, Multi-Layer Perceptrons (MLP), loss functions, and gradient descent optimization.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — Multi-Layer Perceptron (MLP) Training Loop</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/ml" as ml
+
+// Construct 2 -> 4 -> 1 MLP
+let model = ml.new_mlp(2, [4, 1])
+
+// Training iteration:
+let x = [ml.val(0.5), ml.val(0.8)]
+let y_target = ml.val(1.0)
+
+// 1. Forward pass
+let y_pred = model.call(x)
+let loss = ml.mse_loss([y_pred], [y_target])
+
+// 2. Backward pass (reverse-mode automatic differentiation)
+model.zero_grad()
+loss.backward()
+
+// 3. Optimizer step
+model.step(0.05)</code></pre>
+        </div>
+      </section>
+
+
+      <!-- ================= MODULAR STDLIB: STD/LANG ================= -->
+      <section id="ch-lang" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Language Engineering</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Language Builder &amp; Self-Hosting VM (<code class="font-mono">std/lang</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/lang</code> package provides a modular framework for creating custom programming languages, domain-specific languages (DSLs), and interpreters in pure BramandScript. It contains a full Lexer scanner, a Pratt operator precedence parser, and an in-memory stack-based Virtual Machine engine.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bmd — Scanning, Parsing &amp; Evaluating Source Code</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/lang" as lang
+
+let source = "let a = 15; let b = 25; a + b"
+
+// 1. Lexical Tokenization
+let l = lang.create_lexer(source)
+let tokens = l.tokenize()
+
+// 2. Pratt Parsing to AST
+let p = lang.create_parser(source)
+let program = p.parse_program()
+
+// 3. Bytecode Compilation and Evaluation
+let result = lang.eval_code(source)
+println("MiniLang Result:", result) // 40</code></pre>
+        </div>
+      </section>
+
+
       <section id="ch15" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Chapter 15</span>

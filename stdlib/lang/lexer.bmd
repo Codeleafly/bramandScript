@@ -1,0 +1,277 @@
+// BramandScript Standard Library :: Language Lexer Framework (std/lang/lexer)
+// Reusable token scanner, position tracker, and lexical analyzer written in BramandScript.
+
+// Token Types
+let TOKEN_ILLEGAL   = "ILLEGAL";
+let TOKEN_EOF       = "EOF";
+let TOKEN_IDENT     = "IDENT";
+let TOKEN_INT       = "INT";
+let TOKEN_FLOAT     = "FLOAT";
+let TOKEN_STRING    = "STRING";
+let TOKEN_ASSIGN    = "=";
+let TOKEN_PLUS      = "+";
+let TOKEN_MINUS     = "-";
+let TOKEN_ASTERISK  = "*";
+let TOKEN_SLASH     = "/";
+let TOKEN_BANG      = "!";
+let TOKEN_EQ        = "==";
+let TOKEN_NOT_EQ    = "!=";
+let TOKEN_LT        = "<";
+let TOKEN_GT        = ">";
+let TOKEN_LTE       = "<=";
+let TOKEN_GTE       = ">=";
+let TOKEN_COMMA     = ",";
+let TOKEN_SEMICOLON = ";";
+let TOKEN_LPAREN    = "(";
+let TOKEN_RPAREN    = ")";
+let TOKEN_LBRACE    = "{";
+let TOKEN_RBRACE    = "}";
+let TOKEN_LBRACKET  = "[";
+let TOKEN_RBRACKET  = "]";
+let TOKEN_LET       = "LET";
+let TOKEN_FN        = "FN";
+let TOKEN_TRUE      = "TRUE";
+let TOKEN_FALSE     = "FALSE";
+let TOKEN_IF        = "IF";
+let TOKEN_ELSE      = "ELSE";
+let TOKEN_RETURN    = "RETURN";
+
+let KEYWORDS = {
+    "let": TOKEN_LET,
+    "fn": TOKEN_FN,
+    "true": TOKEN_TRUE,
+    "false": TOKEN_FALSE,
+    "if": TOKEN_IF,
+    "else": TOKEN_ELSE,
+    "return": TOKEN_RETURN
+};
+
+let lookup_ident = fn(ident) {
+    if KEYWORDS[ident] != null {
+        return KEYWORDS[ident];
+    }
+    return TOKEN_IDENT;
+};
+
+let is_letter = fn(ch) {
+    if ch == null || len(ch) == 0 { return false; }
+    let o = ord(ch);
+    return (o >= 65 && o <= 90) || (o >= 97 && o <= 122) || (o == 95);
+};
+
+let is_digit = fn(ch) {
+    if ch == null || len(ch) == 0 { return false; }
+    let o = ord(ch);
+    return (o >= 48 && o <= 57);
+};
+
+// Token struct
+struct Token {
+    token_type,
+    literal,
+    line,
+    col
+}
+
+let new_token = fn(t_type, lit, l, c) {
+    return Token(t_type, lit, l, c);
+};
+
+// --- Functional Lexer Core ---
+
+let lex_read_char = fn(l) {
+    let r_pos = l["read_position"];
+    let inp = l["input"];
+    if r_pos >= len(inp) {
+        l["ch"] = "";
+    } else {
+        l["ch"] = inp[r_pos];
+    }
+    l["position"] = r_pos;
+    l["read_position"] = r_pos + 1;
+    l["col"] = l["col"] + 1;
+};
+
+let lex_peek_char = fn(l) {
+    let r_pos = l["read_position"];
+    let inp = l["input"];
+    if r_pos >= len(inp) {
+        return "";
+    }
+    return inp[r_pos];
+};
+
+let lex_skip_whitespace = fn(l) {
+    while l["ch"] == " " || l["ch"] == "\t" || l["ch"] == "\n" || l["ch"] == "\r" {
+        if l["ch"] == "\n" {
+            l["line"] = l["line"] + 1;
+            l["col"] = 0;
+        }
+        lex_read_char(l);
+    }
+};
+
+let lex_skip_comment = fn(l) {
+    if l["ch"] == "/" && lex_peek_char(l) == "/" {
+        while l["ch"] != "\n" && l["ch"] != "" {
+            lex_read_char(l);
+        }
+        lex_skip_whitespace(l);
+    }
+};
+
+let lex_read_identifier = fn(l) {
+    let start_pos = l["position"];
+    let inp = l["input"];
+    while is_letter(l["ch"]) == true || is_digit(l["ch"]) == true {
+        lex_read_char(l);
+    }
+    return slice(inp, start_pos, l["position"]);
+};
+
+let lex_read_number = fn(l) {
+    let start_pos = l["position"];
+    let inp = l["input"];
+    let is_float = false;
+    while is_digit(l["ch"]) == true || (l["ch"] == "." && is_float == false) {
+        if l["ch"] == "." {
+            is_float = true;
+        }
+        lex_read_char(l);
+    }
+    return slice(inp, start_pos, l["position"]);
+};
+
+let lex_read_string = fn(l) {
+    let inp = l["input"];
+    let start_pos = l["position"] + 1;
+    lex_read_char(l); // skip opening quote
+    while l["ch"] != "\"" && l["ch"] != "" {
+        lex_read_char(l);
+    }
+    let str_val = slice(inp, start_pos, l["position"]);
+    lex_read_char(l); // skip closing quote
+    return str_val;
+};
+
+let lex_next_token = fn(l) {
+    lex_skip_whitespace(l);
+    lex_skip_comment(l);
+
+    let tok_line = l["line"];
+    let tok_col = l["col"];
+    let ch = l["ch"];
+    let tok = null;
+
+    if ch == "=" {
+        if lex_peek_char(l) == "=" {
+            let start_ch = ch;
+            lex_read_char(l);
+            tok = new_token(TOKEN_EQ, start_ch + l["ch"], tok_line, tok_col);
+        } else {
+            tok = new_token(TOKEN_ASSIGN, ch, tok_line, tok_col);
+        }
+    } else if ch == "+" {
+        tok = new_token(TOKEN_PLUS, ch, tok_line, tok_col);
+    } else if ch == "-" {
+        tok = new_token(TOKEN_MINUS, ch, tok_line, tok_col);
+    } else if ch == "!" {
+        if lex_peek_char(l) == "=" {
+            let start_ch = ch;
+            lex_read_char(l);
+            tok = new_token(TOKEN_NOT_EQ, start_ch + l["ch"], tok_line, tok_col);
+        } else {
+            tok = new_token(TOKEN_BANG, ch, tok_line, tok_col);
+        }
+    } else if ch == "*" {
+        tok = new_token(TOKEN_ASTERISK, ch, tok_line, tok_col);
+    } else if ch == "/" {
+        tok = new_token(TOKEN_SLASH, ch, tok_line, tok_col);
+    } else if ch == "<" {
+        if lex_peek_char(l) == "=" {
+            let start_ch = ch;
+            lex_read_char(l);
+            tok = new_token(TOKEN_LTE, start_ch + l["ch"], tok_line, tok_col);
+        } else {
+            tok = new_token(TOKEN_LT, ch, tok_line, tok_col);
+        }
+    } else if ch == ">" {
+        if lex_peek_char(l) == "=" {
+            let start_ch = ch;
+            lex_read_char(l);
+            tok = new_token(TOKEN_GTE, start_ch + l["ch"], tok_line, tok_col);
+        } else {
+            tok = new_token(TOKEN_GT, ch, tok_line, tok_col);
+        }
+    } else if ch == ";" {
+        tok = new_token(TOKEN_SEMICOLON, ch, tok_line, tok_col);
+    } else if ch == "," {
+        tok = new_token(TOKEN_COMMA, ch, tok_line, tok_col);
+    } else if ch == "(" {
+        tok = new_token(TOKEN_LPAREN, ch, tok_line, tok_col);
+    } else if ch == ")" {
+        tok = new_token(TOKEN_RPAREN, ch, tok_line, tok_col);
+    } else if ch == "{" {
+        tok = new_token(TOKEN_LBRACE, ch, tok_line, tok_col);
+    } else if ch == "}" {
+        tok = new_token(TOKEN_RBRACE, ch, tok_line, tok_col);
+    } else if ch == "[" {
+        tok = new_token(TOKEN_LBRACKET, ch, tok_line, tok_col);
+    } else if ch == "]" {
+        tok = new_token(TOKEN_RBRACKET, ch, tok_line, tok_col);
+    } else if ch == "\"" {
+        let s_val = lex_read_string(l);
+        return new_token(TOKEN_STRING, s_val, tok_line, tok_col);
+    } else if ch == "" {
+        tok = new_token(TOKEN_EOF, "", tok_line, tok_col);
+    } else {
+        if is_letter(ch) == true {
+            let ident = lex_read_identifier(l);
+            let t_type = lookup_ident(ident);
+            return new_token(t_type, ident, tok_line, tok_col);
+        } else if is_digit(ch) == true {
+            let num_str = lex_read_number(l);
+            let t_type = TOKEN_INT;
+            if contains(num_str, ".") {
+                t_type = TOKEN_FLOAT;
+            }
+            return new_token(t_type, num_str, tok_line, tok_col);
+        } else {
+            tok = new_token(TOKEN_ILLEGAL, ch, tok_line, tok_col);
+        }
+    }
+
+    lex_read_char(l);
+    return tok;
+};
+
+let lex_tokenize = fn(l) {
+    let tokens = [];
+    let tok = lex_next_token(l);
+    while tok.token_type != TOKEN_EOF {
+        tokens = tokens + [tok];
+        tok = lex_next_token(l);
+    }
+    tokens = tokens + [tok]; // Append EOF
+    return tokens;
+};
+
+// Lexer constructor
+let new_lexer = fn(input) {
+    let l = {
+        "input": input,
+        "position": 0,
+        "read_position": 0,
+        "ch": "",
+        "line": 1,
+        "col": 0
+    };
+    lex_read_char(l);
+
+    l["next_token"] = fn() { return lex_next_token(l); };
+    l["tokenize"] = fn() { return lex_tokenize(l); };
+    return l;
+};
+
+let create_lexer = new_lexer;
+let Lexer = new_lexer;

@@ -1,0 +1,91 @@
+// examples/14_realtime_chat_hub/main.bmd
+// BramandScript Real-Time Chat Room Hub & SSE Telemetry Demo
+// Demonstrates: Multi-Room Pub/Sub Broadcaster, Sender Exclusion, and Server-Sent Events.
+
+import "std/net/ws_room" as ws_room
+import "std/net/sse" as sse
+
+println("✦ BramandScript Real-Time Chat & Telemetry Hub");
+println("────────────────────────────────────────────────────────────────────────────");
+
+// 1. Initialize WebSocket Multi-Room Hub
+println("· [1] Initializing Multi-Room Pub/Sub Hub...");
+let hub = ws_room.create_hub();
+
+let alice_box = { "msgs": [] };
+let client_alice = {
+    "id": "c_01",
+    "name": "Alice",
+    "send": fn(m) { alice_box["msgs"] = alice_box["msgs"] + [m]; }
+};
+
+let bob_box = { "msgs": [] };
+let client_bob = {
+    "id": "c_02",
+    "name": "Bob",
+    "send": fn(m) { bob_box["msgs"] = bob_box["msgs"] + [m]; }
+};
+
+let carol_box = { "msgs": [] };
+let client_carol = {
+    "id": "c_03",
+    "name": "Carol",
+    "send": fn(m) { carol_box["msgs"] = carol_box["msgs"] + [m]; }
+};
+
+// 2. Joining rooms
+println("\n· [2] Subscribing clients to rooms: #general and #dev ...");
+hub.join("general", client_alice["id"], client_alice, {});
+hub.join("general", client_bob["id"], client_bob, {});
+hub.join("general", client_carol["id"], client_carol, {});
+
+hub.join("dev", client_alice["id"], client_alice, {});
+hub.join("dev", client_carol["id"], client_carol, {});
+
+println("      #general members count: " + hub.room_count("general") + " (Alice, Bob, Carol)");
+println("      #dev members count:     " + hub.room_count("dev") + " (Alice, Carol)");
+
+// 3. Broadcasting messages with sender exclusion
+println("\n· [3] Broadcasting message from Alice to #general (excluding Alice)...");
+let chat_msg1 = json_stringify({
+    "sender": "Alice",
+    "room": "general",
+    "content": "Hello everyone! Welcome to BramandScript real-time chat.",
+    "time": time_iso()
+});
+hub.broadcast("general", chat_msg1, client_alice["id"]);
+
+println("      Alice inbox count (sender): " + len(alice_box["msgs"]) + " (excluded)");
+println("      Bob inbox count (receiver): " + len(bob_box["msgs"]));
+println("      Carol inbox count (receiver): " + len(carol_box["msgs"]));
+println("      Bob received message: " + bob_box["msgs"][0]);
+
+// 4. Broadcasting to dev channel
+println("\n· [4] Broadcasting commit alert to #dev channel...");
+let chat_msg2 = json_stringify({
+    "sender": "Carol",
+    "room": "dev",
+    "content": "Release v1.0.0 tagged and benchmarks passing!",
+    "time": time_iso()
+});
+hub.broadcast("dev", chat_msg2, client_carol["id"]);
+
+println("      Alice inbox count now: " + len(alice_box["msgs"]));
+println("      Bob inbox count now:   " + len(bob_box["msgs"]) + " (not in #dev)");
+
+// 5. Server-Sent Events (SSE) telemetry stream formatting
+println("\n· [5] Formatting W3C Server-Sent Events (SSE) live telemetry stream...");
+let sse_stream = sse.new_sse_stream();
+sse_stream.send("cpu_metric", json_stringify({ "usage_percent": 14.2, "cores": 8 }), "evt_101");
+sse_stream.send("memory_metric", json_stringify({ "used_mb": 42.8, "heap_mb": 18.5 }), "evt_102");
+sse_stream.ping();
+
+let raw_sse = sse_stream.flush();
+println("      Formatted SSE Stream Output:\n" + raw_sse);
+
+// Parse back SSE chunks to verify standard conformance
+let parsed_event = sse.parse_sse_event(raw_sse);
+println("      Parsed first SSE event name: '" + parsed_event["event"] + "' | ID: '" + parsed_event["id"] + "'");
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ Real-Time Chat Hub & SSE Demo Completed Successfully! [OK]");

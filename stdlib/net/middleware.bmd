@@ -1,0 +1,178 @@
+// BramandScript Standard Library :: HTTP Middleware Pipeline (std/net/middleware)
+// Composable request-response interceptors: logger, cors, rate_limit, auth_bearer, and error recovery.
+
+// Pipeline struct managing sequential and onion-layered middleware execution
+struct MiddlewarePipeline {
+    middlewares,
+
+    fn use(mw) {
+        middlewares = middlewares + [mw];
+    }
+
+    fn run(ctx, target_handler) {
+        let handler = target_handler;
+        if handler == null {
+            handler = fn(c) { return null; };
+        }
+        let i = len(middlewares) - 1;
+        while i >= 0 {
+            let curr_mw = middlewares[i];
+            let next_fn = handler;
+            handler = fn(c) {
+                return curr_mw(c, fn() {
+                    return next_fn(c);
+                });
+            };
+            i = i - 1;
+        }
+        return handler(ctx);
+    }
+}
+
+let new_pipeline = fn() {
+    return MiddlewarePipeline([]);
+};
+
+// Logger middleware: records request method, path, HTTP status, and elapsed duration
+let logger = fn(custom_logger) {
+    return fn(ctx, next) {
+        let start = time_ms();
+        let method = "GET";
+        let path = "/";
+        if ctx.req != null {
+            if ctx.req["method"] != null { method = ctx.req["method"]; }
+            if ctx.req["url"] != null { path = ctx.req["url"]; }
+            else if ctx.req["path"] != null { path = ctx.req["path"]; }
+        }
+        let res = next();
+        let duration = time_ms() - start;
+        let status = ctx.res_status;
+        let log_line = "[" + time_iso() + "] " + method + " " + path + " " + status + " (" + duration + "ms)";
+        if custom_logger != null {
+            custom_logger(log_line);
+        } else {
+            println(log_line);
+        }
+        return res;
+    };
+};
+
+// CORS middleware: configures Access-Control headers and handles OPTIONS preflight
+let cors = fn(options) {
+    if options == null { options = {}; }
+    let origin = "*";
+    if options["origin"] != null { origin = options["origin"]; }
+    let methods = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+    if options["methods"] != null { methods = options["methods"]; }
+    let allowed_headers = "Content-Type, Authorization, X-Requested-With";
+    if options["headers"] != null { allowed_headers = options["headers"]; }
+    let max_age = "86400";
+    if options["max_age"] != null { max_age = "" + options["max_age"]; }
+
+    return fn(ctx, next) {
+        ctx.set_header("Access-Control-Allow-Origin", origin);
+        ctx.set_header("Access-Control-Allow-Methods", methods);
+        ctx.set_header("Access-Control-Allow-Headers", allowed_headers);
+        ctx.set_header("Access-Control-Max-Age", max_age);
+
+        if ctx.req != null && ctx.req["method"] == "OPTIONS" {
+            ctx.status(204);
+            ctx.send_text("");
+            return null;
+        }
+        return next();
+    };
+};
+
+// Rate limiter middleware: enforces client IP request quotas across a time window
+let rate_limit = fn(max_requests, window_secs) {
+    let clients = {};
+    return fn(ctx, next) {
+        let ip = "127.0.0.1";
+        if ctx.req != null {
+            let forwarded = ctx.header("x-forwarded-for");
+            if forwarded != null && len(forwarded) > 0 {
+                ip = trim(split(forwarded, ",")[0]);
+            } else if ctx.req["remote_addr"] != null {
+                ip = ctx.req["remote_addr"];
+            }
+        }
+        let now_sec = time_now();
+        let record = clients[ip];
+        if record == null || now_sec > record["reset_at"] {
+            record = {
+                "count": 1,
+                "reset_at": now_sec + window_secs
+            };
+            clients[ip] = record;
+        } else {
+            record["count"] = record["count"] + 1;
+        }
+
+        ctx.set_header("X-RateLimit-Limit", "" + max_requests);
+        let remaining = max_requests - record["count"];
+        if remaining < 0 { remaining = 0; }
+        ctx.set_header("X-RateLimit-Remaining", "" + remaining);
+        ctx.set_header("X-RateLimit-Reset", "" + record["reset_at"]);
+
+        if record["count"] > max_requests {
+            ctx.status(429);
+            ctx.send_json({
+                "error": "Too Many Requests",
+                "message": "Rate limit exceeded. Try again in " + (record["reset_at"] - now_sec) + "s."
+            });
+            return null;
+        }
+        return next();
+    };
+};
+
+// Auth bearer middleware: validates Authorization: Bearer <token>
+let auth_bearer = fn(validator_or_token) {
+    return fn(ctx, next) {
+        let auth_hdr = ctx.header("Authorization");
+        if auth_hdr == null {
+            ctx.status(401);
+            ctx.set_header("WWW-Authenticate", "Bearer");
+            ctx.send_json({ "error": "Unauthorized", "message": "Missing Authorization header" });
+            return null;
+        }
+        let parts = split(auth_hdr, " ");
+        if len(parts) < 2 || to_lower(parts[0]) != "bearer" {
+            ctx.status(401);
+            ctx.set_header("WWW-Authenticate", "Bearer");
+            ctx.send_json({ "error": "Unauthorized", "message": "Invalid token format. Expected Bearer <token>" });
+            return null;
+        }
+        let token = parts[1];
+        let is_valid = false;
+        if type(validator_or_token) == "FUNCTION" {
+            is_valid = validator_or_token(token, ctx);
+        } else if validator_or_token == token {
+            is_valid = true;
+        }
+        if is_valid != true {
+            ctx.status(401);
+            ctx.set_header("WWW-Authenticate", "Bearer");
+            ctx.send_json({ "error": "Unauthorized", "message": "Invalid or expired token" });
+            return null;
+        }
+        return next();
+    };
+};
+
+// Recover middleware: catches error returns and formats safe 500 response
+let recover = fn(error_handler) {
+    return fn(ctx, next) {
+        let res = next();
+        if res != null && type(res) == "ERROR" {
+            ctx.status(500);
+            if error_handler != null {
+                return error_handler(ctx, res);
+            }
+            ctx.send_json({ "error": "Internal Server Error", "message": "" + res });
+            return null;
+        }
+        return res;
+    };
+};

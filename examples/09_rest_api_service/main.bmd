@@ -1,0 +1,75 @@
+// examples/09_rest_api_service/main.bmd
+// BramandScript High-Performance REST API Microservice Example
+// Demonstrates: Radix Trie Router, HTTP Context, Middleware Chain, Schema Model Validation.
+
+import "std/net" as net
+import "examples/09_rest_api_service/routes" as routes_mod
+
+println("✦ BramandScript Modular REST API Service Demo");
+println("────────────────────────────────────────────────────────────────────────────");
+
+// In-memory data store for the microservice
+let users_db = {
+    "usr_001": {
+        "id": "usr_001",
+        "username": "aryan_dev",
+        "email": "aryan@example.com",
+        "age": 28,
+        "role": "admin",
+        "created_at": time_iso()
+    },
+    "usr_002": {
+        "id": "usr_002",
+        "username": "sarah_cloud",
+        "email": "sarah@example.com",
+        "age": 31,
+        "role": "member",
+        "created_at": time_iso()
+    }
+};
+
+let router = routes_mod.setup_routes(users_db);
+
+// Simulated HTTP Client Requests demonstrating the REST API
+println("· [1] Simulating GET /health ...");
+let match_health = router.lookup("GET", "/health");
+let ctx_health = net.create_context({ "method": "GET", "url": "/health" }, {});
+let res_health = match_health["handler"](ctx_health);
+println("      Status: " + ctx_health.response()["status"] + " | Body: " + json_stringify(res_health));
+
+println("\n· [2] Simulating GET /api/v1/users (query param ?role=admin) ...");
+let match_users = router.lookup("GET", "/api/v1/users");
+let ctx_users = net.create_context({ "method": "GET", "url": "/api/v1/users?role=admin" }, {});
+let res_users = match_users["handler"](ctx_users);
+println("      Status: " + ctx_users.response()["status"] + " | Body: " + json_stringify(res_users));
+
+println("\n· [3] Simulating GET /api/v1/users/:id (param extraction) ...");
+let match_user_id = router.lookup("GET", "/api/v1/users/usr_002");
+let ctx_user_id = net.create_context({ "method": "GET", "url": "/api/v1/users/usr_002" }, match_user_id["params"]);
+let res_user_id = match_user_id["handler"](ctx_user_id);
+println("      Status: " + ctx_user_id.response()["status"] + " | Found: " + res_user_id["username"] + " (" + res_user_id["email"] + ")");
+
+println("\n· [4] Simulating POST /api/v1/users with schema validation ...");
+let match_create = router.lookup("POST", "/api/v1/users");
+let new_user_payload = {
+    "username": "kavita_sec",
+    "email": "kavita@cyber.io",
+    "age": 26,
+    "role": "member"
+};
+let ctx_create = net.create_context({ "method": "POST", "url": "/api/v1/users", "body": json_stringify(new_user_payload) }, {});
+let res_create = match_create["handler"](ctx_create);
+println("      Status: " + ctx_create.response()["status"] + " | Created User ID: " + res_create["id"]);
+
+println("\n· [5] Simulating POST /api/v1/users with invalid schema (validation failure) ...");
+let invalid_payload = {
+    "username": "x", // too short (min_len: 3)
+    "email": "invalid_email_no_at", // missing @
+    "age": 14 // under 18
+};
+let ctx_invalid = net.create_context({ "method": "POST", "url": "/api/v1/users", "body": json_stringify(invalid_payload) }, {});
+let res_invalid = match_create["handler"](ctx_invalid);
+println("      Status: " + ctx_invalid.response()["status"] + " | Errors: " + json_stringify(res_invalid["details"]));
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ REST API Service Demo Completed Successfully! [OK]");

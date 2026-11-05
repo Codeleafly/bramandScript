@@ -82,6 +82,24 @@ func Start(in io.Reader, out io.Writer) {
 				runEditorMode(scanner, out, symbolTable, &constants, globals, trimmed)
 				continue
 			}
+			if strings.HasPrefix(trimmed, ":disasm") {
+				codeArg := strings.TrimSpace(strings.TrimPrefix(trimmed, ":disasm"))
+				if codeArg == "" {
+					fmt.Fprintf(out, "%sUsage: :disasm <expression or code>%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
+					continue
+				}
+				runDisasm(codeArg, out, symbolTable, constants)
+				continue
+			}
+			if strings.HasPrefix(trimmed, ":profile") {
+				codeArg := strings.TrimSpace(strings.TrimPrefix(trimmed, ":profile"))
+				if codeArg == "" {
+					fmt.Fprintf(out, "%sUsage: :profile <expression or code>%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
+					continue
+				}
+				runProfile(codeArg, out, symbolTable, &constants, globals)
+				continue
+			}
 		}
 
 		if trimmed == "" && depth == 0 {
@@ -311,9 +329,88 @@ func printHelp(out io.Writer) {
 	fmt.Fprintf(out, "%s6. REPL Commands%s\n", diagnostics.ColorCyan, diagnostics.ColorReset)
 	fmt.Fprintf(out, "   :editor            Multi-line code editor mode\n")
 	fmt.Fprintf(out, "   :editor <file.bmd> Multi-line editor and save to file\n")
+	fmt.Fprintf(out, "   :disasm <code>     Disassemble code into bytecode instructions\n")
+	fmt.Fprintf(out, "   :profile <code>    Profile code execution with opcode hotspot analysis\n")
 	fmt.Fprintf(out, "   :clear             Clear terminal screen\n")
 	fmt.Fprintf(out, "   :reset             Reset runtime state and variables\n")
 	fmt.Fprintf(out, "   :help              Show this guide\n")
 	fmt.Fprintf(out, "   :exit              Quit REPL\n")
 	fmt.Fprintf(out, "%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
+}
+
+func runDisasm(source string, out io.Writer, symbolTable *compiler.SymbolTable, constants []object.Object) {
+	l := lexer.New(source)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.SyntaxErrors) > 0 {
+		firstErr := p.SyntaxErrors[0]
+		diag := diagnostics.Diagnostic{
+			Filename: "<repl:disasm>",
+			Source:   source,
+			Line:     firstErr.Line,
+			Col:      firstErr.Col,
+			Kind:     "SyntaxError",
+			Message:  firstErr.Message,
+			Hint:     diagnostics.GenerateHint(firstErr.Message),
+		}
+		fmt.Fprint(out, diag.Format())
+		return
+	}
+
+	comp := compiler.NewWithState(symbolTable, constants)
+	comp.SetCurrentFile("<repl:disasm>", source)
+	err := comp.Compile(program)
+	if err != nil {
+		fmt.Fprintf(out, "%s[CompileError] %s%s\n", diagnostics.ColorRed, err.Error(), diagnostics.ColorReset)
+		return
+	}
+
+	fmt.Fprint(out, compiler.FormatBytecode(comp.Bytecode()))
+}
+
+func runProfile(source string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
+	l := lexer.New(source)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.SyntaxErrors) > 0 {
+		firstErr := p.SyntaxErrors[0]
+		diag := diagnostics.Diagnostic{
+			Filename: "<repl:profile>",
+			Source:   source,
+			Line:     firstErr.Line,
+			Col:      firstErr.Col,
+			Kind:     "SyntaxError",
+			Message:  firstErr.Message,
+			Hint:     diagnostics.GenerateHint(firstErr.Message),
+		}
+		fmt.Fprint(out, diag.Format())
+		return
+	}
+
+	comp := compiler.NewWithState(symbolTable, *constants)
+	comp.SetCurrentFile("<repl:profile>", source)
+	err := comp.Compile(program)
+	if err != nil {
+		fmt.Fprintf(out, "%s[CompileError] %s%s\n", diagnostics.ColorRed, err.Error(), diagnostics.ColorReset)
+		return
+	}
+
+	code := comp.Bytecode()
+	*constants = code.Constants
+
+	machine := vm.NewWithGlobalsStore(code, globals)
+	report, err := machine.RunProfiled()
+	if err != nil {
+		fmt.Fprintf(out, "%s[RuntimeError] %s%s\n", diagnostics.ColorRed, err.Error(), diagnostics.ColorReset)
+		return
+	}
+
+	lastPopped := machine.LastPoppedStackElem()
+	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
+		fmt.Fprintf(out, "%sResult: %s%s\n", diagnostics.ColorCyan, lastPopped.Inspect(), diagnostics.ColorReset)
+	}
+
+	fmt.Fprint(out, report.String())
 }

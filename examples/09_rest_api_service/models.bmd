@@ -1,0 +1,11 @@
+// examples/09_rest_api_service/models.bmd
+import "std/db" as db
+
+let UserSchema = {
+    "username": { "type": "STRING", "required": true, "min_len": 3, "max_len": 20 },
+    "email": { "type": "STRING", "required": true, "contains": "@" },
+    "age": { "type": "INTEGER", "min": 18, "max": 120 },
+    "role": { "type": "STRING", "in": ["admin", "member", "guest"], "default": "member" }
+};
+
+let UserModel = db.create_model("User", UserSchema);

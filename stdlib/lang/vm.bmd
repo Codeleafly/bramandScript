@@ -1,0 +1,319 @@
+// BramandScript Standard Library :: Stack-Based Virtual Machine Engine (std/lang/vm)
+// Complete bytecode compiler, opcode encoder/decoder, and stack-based execution VM
+// written 100% in pure BramandScript.
+
+import "std/lang/lexer" as lexer_mod
+import "std/lang/parser" as parser_mod
+
+// Bytecode Opcodes
+let OP_CONSTANT      = 1;
+let OP_ADD           = 2;
+let OP_SUB           = 3;
+let OP_MUL           = 4;
+let OP_DIV           = 5;
+let OP_POP           = 6;
+let OP_TRUE          = 7;
+let OP_FALSE         = 8;
+let OP_EQUAL         = 9;
+let OP_NOT_EQUAL     = 10;
+let OP_GREATER_THAN  = 11;
+let OP_MINUS         = 12;
+let OP_BANG          = 13;
+let OP_JUMP          = 14;
+let OP_JUMP_IF_FALSE = 15;
+let OP_SET_GLOBAL    = 16;
+let OP_GET_GLOBAL    = 17;
+let OP_GTE           = 18;
+let OP_LTE           = 19;
+let OP_HALT          = 20;
+
+// Forward declare compiler function
+let compile_ast_node = null;
+
+let compiler_add_constant = fn(c, val) {
+    c["constants"] = c["constants"] + [val];
+    return len(c["constants"]) - 1;
+};
+
+let compiler_emit = fn(c, op, arg) {
+    let pos = len(c["instructions"]);
+    c["instructions"] = c["instructions"] + [op];
+    if arg != null {
+        c["instructions"] = c["instructions"] + [arg];
+    }
+    return pos;
+};
+
+let compiler_change_operand = fn(c, op_pos, operand) {
+    c["instructions"][op_pos + 1] = operand;
+};
+
+compile_ast_node = fn(c, node) {
+    if node == null { return null; }
+    let node_type = node["type"];
+
+    if node_type == "Program" {
+        let stmts = node["statements"];
+        let i = 0;
+        while i < len(stmts) {
+            compile_ast_node(c, stmts[i]);
+            i = i + 1;
+        }
+    } else if node_type == "ExpressionStatement" {
+        compile_ast_node(c, node["expression"]);
+    } else if node_type == "IntegerLiteral" {
+        let idx = compiler_add_constant(c, node["value"]);
+        compiler_emit(c, OP_CONSTANT, idx);
+    } else if node_type == "FloatLiteral" {
+        let idx = compiler_add_constant(c, node["value"]);
+        compiler_emit(c, OP_CONSTANT, idx);
+    } else if node_type == "StringLiteral" {
+        let idx = compiler_add_constant(c, node["value"]);
+        compiler_emit(c, OP_CONSTANT, idx);
+    } else if node_type == "BooleanLiteral" {
+        if node["value"] == true {
+            compiler_emit(c, OP_TRUE, null);
+        } else {
+            compiler_emit(c, OP_FALSE, null);
+        }
+    } else if node_type == "PrefixExpression" {
+        compile_ast_node(c, node["right"]);
+        let op = node["operator"];
+        if op == "!" {
+            compiler_emit(c, OP_BANG, null);
+        } else if op == "-" {
+            compiler_emit(c, OP_MINUS, null);
+        }
+    } else if node_type == "InfixExpression" {
+        let op = node["operator"];
+        if op == "<" {
+            compile_ast_node(c, node["right"]);
+            compile_ast_node(c, node["left"]);
+            compiler_emit(c, OP_GREATER_THAN, null);
+        } else {
+            compile_ast_node(c, node["left"]);
+            compile_ast_node(c, node["right"]);
+            if op == "+" { compiler_emit(c, OP_ADD, null); }
+            else if op == "-" { compiler_emit(c, OP_SUB, null); }
+            else if op == "*" { compiler_emit(c, OP_MUL, null); }
+            else if op == "/" { compiler_emit(c, OP_DIV, null); }
+            else if op == "==" { compiler_emit(c, OP_EQUAL, null); }
+            else if op == "!=" { compiler_emit(c, OP_NOT_EQUAL, null); }
+            else if op == ">" { compiler_emit(c, OP_GREATER_THAN, null); }
+            else if op == ">=" { compiler_emit(c, OP_GTE, null); }
+            else if op == "<=" { compiler_emit(c, OP_LTE, null); }
+        }
+    } else if node_type == "LetStatement" {
+        let var_name = node["name"]["value"];
+        let sym_idx = len(c["symbol_table"]);
+        if c["symbol_table"][var_name] != null {
+            sym_idx = c["symbol_table"][var_name];
+        } else {
+            c["symbol_table"][var_name] = sym_idx;
+        }
+        compile_ast_node(c, node["value"]);
+        compiler_emit(c, OP_SET_GLOBAL, sym_idx);
+    } else if node_type == "Identifier" {
+        let var_name = node["value"];
+        let sym_idx = c["symbol_table"][var_name];
+        if sym_idx != null {
+            compiler_emit(c, OP_GET_GLOBAL, sym_idx);
+        }
+    } else if node_type == "IfExpression" {
+        compile_ast_node(c, node["condition"]);
+        let jump_false_pos = compiler_emit(c, OP_JUMP_IF_FALSE, 9999);
+        compile_ast_node(c, node["consequence"]);
+
+        let jump_end_pos = compiler_emit(c, OP_JUMP, 9999);
+        let after_consequence = len(c["instructions"]);
+        compiler_change_operand(c, jump_false_pos, after_consequence);
+
+        if node["alternative"] != null {
+            compile_ast_node(c, node["alternative"]);
+        }
+        let after_alternative = len(c["instructions"]);
+        compiler_change_operand(c, jump_end_pos, after_alternative);
+    } else if node_type == "BlockStatement" {
+        let stmts = node["statements"];
+        let i = 0;
+        while i < len(stmts) {
+            compile_ast_node(c, stmts[i]);
+            i = i + 1;
+        }
+    }
+};
+
+let new_compiler = fn() {
+    let c = {
+        "instructions": [],
+        "constants": [],
+        "symbol_table": {}
+    };
+    c["compile"] = fn(node) { return compile_ast_node(c, node); };
+    return c;
+};
+
+// Bytecode Virtual Machine (Stack-based Execution Engine)
+struct BytecodeVM {
+    instructions,
+    constants,
+    globals,
+    stack,
+    sp,
+    ip,
+
+    fn push(obj) {
+        stack = stack + [obj];
+        sp = sp + 1;
+    }
+
+    fn pop() {
+        if len(stack) == 0 {
+            return null;
+        }
+        let top = stack[len(stack) - 1];
+        stack = slice(stack, 0, len(stack) - 1);
+        sp = sp - 1;
+        return top;
+    }
+
+    fn last_popped() {
+        if len(stack) == 0 { return null; }
+        return stack[len(stack) - 1];
+    }
+
+    fn run() {
+        ip = 0;
+        let ins_len = len(instructions);
+
+        while ip < ins_len {
+            let op = instructions[ip];
+
+            if op == OP_CONSTANT {
+                let const_idx = instructions[ip + 1];
+                push(constants[const_idx]);
+                ip = ip + 2;
+            } else if op == OP_ADD {
+                let r = pop();
+                let l = pop();
+                push(l + r);
+                ip = ip + 1;
+            } else if op == OP_SUB {
+                let r = pop();
+                let l = pop();
+                push(l - r);
+                ip = ip + 1;
+            } else if op == OP_MUL {
+                let r = pop();
+                let l = pop();
+                push(l * r);
+                ip = ip + 1;
+            } else if op == OP_DIV {
+                let r = pop();
+                let l = pop();
+                push(l / r);
+                ip = ip + 1;
+            } else if op == OP_TRUE {
+                push(true);
+                ip = ip + 1;
+            } else if op == OP_FALSE {
+                push(false);
+                ip = ip + 1;
+            } else if op == OP_EQUAL {
+                let r = pop();
+                let l = pop();
+                push(l == r);
+                ip = ip + 1;
+            } else if op == OP_NOT_EQUAL {
+                let r = pop();
+                let l = pop();
+                push(l != r);
+                ip = ip + 1;
+            } else if op == OP_GREATER_THAN {
+                let r = pop();
+                let l = pop();
+                push(l > r);
+                ip = ip + 1;
+            } else if op == OP_GTE {
+                let r = pop();
+                let l = pop();
+                push(l >= r);
+                ip = ip + 1;
+            } else if op == OP_LTE {
+                let r = pop();
+                let l = pop();
+                push(l <= r);
+                ip = ip + 1;
+            } else if op == OP_BANG {
+                let v = pop();
+                push(!v);
+                ip = ip + 1;
+            } else if op == OP_MINUS {
+                let v = pop();
+                push(-v);
+                ip = ip + 1;
+            } else if op == OP_POP {
+                pop();
+                ip = ip + 1;
+            } else if op == OP_SET_GLOBAL {
+                let g_idx = instructions[ip + 1];
+                let val = pop();
+                globals[g_idx] = val;
+                ip = ip + 2;
+            } else if op == OP_GET_GLOBAL {
+                let g_idx = instructions[ip + 1];
+                push(globals[g_idx]);
+                ip = ip + 2;
+            } else if op == OP_JUMP {
+                let target_pos = instructions[ip + 1];
+                ip = target_pos;
+            } else if op == OP_JUMP_IF_FALSE {
+                let target_pos = instructions[ip + 1];
+                let cond = pop();
+                if cond == false || cond == null || cond == 0 {
+                    ip = target_pos;
+                } else {
+                    ip = ip + 2;
+                }
+            } else if op == OP_HALT {
+                ip = ins_len;
+            } else {
+                ip = ip + 1;
+            }
+        }
+        return last_popped();
+    }
+}
+
+let new_vm = fn(instructions, constants) {
+    let globals = {};
+    return BytecodeVM(instructions, constants, globals, [], 0, 0);
+};
+
+// High-level in-memory execution pipeline
+let eval_code = fn(source_code) {
+    let lex = lexer_mod.create_lexer(source_code);
+    let parser = parser_mod.create_parser(lex);
+    let ast = parser.parse_program();
+
+    if len(parser.errors) > 0 {
+        return {
+            "success": false,
+            "errors": parser.errors,
+            "result": null
+        };
+    }
+
+    let comp = new_compiler();
+    comp.compile(ast);
+
+    let vm_inst = new_vm(comp["instructions"], comp["constants"]);
+    let res = vm_inst.run();
+
+    return {
+        "success": true,
+        "errors": [],
+        "result": res,
+        "globals": vm_inst.globals
+    };
+};

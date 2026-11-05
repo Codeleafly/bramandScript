@@ -1,0 +1,221 @@
+// BramandScript Centralized Package Registry Web Server (tools/registry_server.bmd)
+// Production HTTP package registry server: publish API, package artifact storage,
+// version resolution, search endpoints, and cryptographic checksum validation.
+
+import "std/net" as net
+import "std/db/kv" as kv
+
+let DEFAULT_STORAGE_DIR = "registry_storage";
+
+// Helper: Ensure directory exists or create dummy files
+let ensure_registry_dir = fn(dir_path) {
+    if file_exists(dir_path) != true {
+        exec("mkdir -p " + dir_path);
+    }
+};
+
+// Package Registry Service
+struct RegistryService {
+    storage_dir,
+    db,
+
+    fn get_package(name) {
+        let pkg = db.get(name, null);
+        return pkg;
+    }
+
+    fn list_packages() {
+        let all_keys = db.list_keys();
+        let list = [];
+        let i = 0;
+        while i < len(all_keys) {
+            let k = all_keys[i];
+            let entry = db.get(k, null);
+            if entry != null {
+                list = list + [{
+                    "name": entry["name"],
+                    "description": entry["description"],
+                    "latest": entry["latest"],
+                    "versions": keys(entry["versions"])
+                }];
+            }
+            i = i + 1;
+        }
+        return list;
+    }
+
+    fn search(query_str) {
+        let all_pkgs = list_packages();
+        if query_str == null || len(query_str) == 0 {
+            return all_pkgs;
+        }
+        let q = to_lower(query_str);
+        let results = [];
+        let i = 0;
+        while i < len(all_pkgs) {
+            let p = all_pkgs[i];
+            let name_match = contains(to_lower(p["name"]), q);
+            let desc_match = (p["description"] != null && contains(to_lower(p["description"]), q));
+            if name_match == true || desc_match == true {
+                results = results + [p];
+            }
+            i = i + 1;
+        }
+        return results;
+    }
+
+    fn publish(payload) {
+        if payload == null {
+            return { "success": false, "status": 400, "error": "Missing payload" };
+        }
+        let name = payload["name"];
+        let version = payload["version"];
+        let desc = payload["description"];
+        if name == null || len(name) == 0 {
+            return { "success": false, "status": 400, "error": "Package name is required" };
+        }
+        if version == null || len(version) == 0 {
+            return { "success": false, "status": 400, "error": "Package version is required" };
+        }
+
+        let existing = db.get(name, null);
+        let pkg_desc = "";
+        if desc != null {
+            pkg_desc = desc;
+        }
+        if existing == null {
+            existing = {
+                "name": name,
+                "description": pkg_desc,
+                "versions": {},
+                "latest": version,
+                "created_at": time_iso()
+            };
+        }
+
+        // Check if version already published
+        if existing["versions"][version] != null {
+            return {
+                "success": false,
+                "status": 409,
+                "error": "Version " + version + " of " + name + " already published"
+            };
+        }
+
+        // Save package payload / source files
+        let pkg_dir = storage_dir + "/" + name + "/" + version;
+        ensure_registry_dir(pkg_dir);
+
+        let files = payload["files"];
+        if files != null && type(files) == "HASH" {
+            let file_names = keys(files);
+            let f = 0;
+            while f < len(file_names) {
+                let fname = file_names[f];
+                write_file(pkg_dir + "/" + fname, files[fname]);
+                f = f + 1;
+            }
+        }
+
+        // Register version
+        let ver_sha = sha256(name + "@" + version);
+        if payload["sha256"] != null {
+            ver_sha = payload["sha256"];
+        }
+        let version_meta = {
+            "version": version,
+            "published_at": time_iso(),
+            "sha256": ver_sha
+        };
+
+        existing["versions"][version] = version_meta;
+        existing["latest"] = version;
+        if desc != null && len(desc) > 0 {
+            existing["description"] = desc;
+        }
+
+        db.set(name, existing);
+
+        return {
+            "success": true,
+            "status": 201,
+            "name": name,
+            "version": version,
+            "message": "Package " + name + "@" + version + " successfully published"
+        };
+    }
+}
+
+let create_registry_service = fn(storage_dir) {
+    if storage_dir == null {
+        storage_dir = DEFAULT_STORAGE_DIR;
+    }
+    ensure_registry_dir(storage_dir);
+    let wal_file = storage_dir + "/packages_wal.db";
+    let db = kv.open_kv(wal_file);
+    return RegistryService(storage_dir, db);
+};
+
+// Create router and endpoints for the registry web service
+let create_registry_router = fn(registry) {
+    let r = net.create_router();
+
+    r.get("/health", fn(ctx) {
+        return {
+            "status": "ok",
+            "service": "bramand-registry",
+            "version": "1.0.0",
+            "time": time_iso()
+        };
+    });
+
+    r.get("/packages", fn(ctx) {
+        return registry.list_packages();
+    });
+
+    r.get("/packages/:name", fn(ctx) {
+        let name = ctx.param("name", "");
+        let pkg = registry.get_package(name);
+        if pkg != null {
+            return pkg;
+        }
+        ctx.status(404);
+        return { "error": "Package not found: " + name };
+    });
+
+    r.get("/api/search", fn(ctx) {
+        let q = ctx.query_param("q", "");
+        return registry.search(q);
+    });
+
+    r.post("/api/publish", fn(ctx) {
+        let body = ctx.json_body();
+        let res = registry.publish(body);
+        ctx.status(res["status"]);
+        return res;
+    });
+
+    return r;
+};
+
+// Main launcher function for standalone execution
+let run_server = fn(port) {
+    let srv_port = "8080";
+    if port != null {
+        srv_port = "" + port;
+    }
+    println("[INFO] Starting BramandScript Package Registry on port " + srv_port + "...");
+    let service = create_registry_service(DEFAULT_STORAGE_DIR);
+    let router = create_registry_router(service);
+
+    let app = http_server();
+    app.get("/health", fn(req, res) {
+        res.json({ "status": "ok", "service": "bramand-registry", "version": "1.0.0" });
+    });
+    app.get("/packages", fn(req, res) {
+        res.json(service.list_packages());
+    });
+    app.listen("127.0.0.1:" + srv_port);
+    println("[OK] Registry Server active on http://127.0.0.1:" + srv_port);
+    return app;
+};

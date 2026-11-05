@@ -1,0 +1,5 @@
+let a = 15;
+let b = 25;
+let is_greater = a < b;
+let verified = if (is_greater) { 1 } else { 0 };
+verified;

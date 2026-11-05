@@ -1,0 +1,175 @@
+// BramandScript Standard Library :: Key-Value Storage Engine (std/db/kv)
+// Embedded persistent, append-only Write-Ahead Log (WAL) Key-Value database
+// with in-memory hash indexing, compaction, and crash recovery.
+
+// Format an operation entry for the append-only log
+let serialize_wal_entry = fn(op, key, val) {
+    let entry = {
+        "op": op,
+        "k": "" + key
+    };
+    if op == "SET" {
+        entry["v"] = val;
+    }
+    return json_stringify(entry);
+};
+
+// Replay WAL log file to rebuild in-memory index
+let replay_wal_log = fn(filepath) {
+    let index = {};
+    if filepath == null || len(filepath) == 0 {
+        return index;
+    }
+    if file_exists(filepath) != true {
+        return index;
+    }
+
+    let content = read_file(filepath);
+    if content == null || len(content) == 0 {
+        return index;
+    }
+
+    let lines = split(content, "\n");
+    let i = 0;
+    while i < len(lines) {
+        let line = trim(lines[i]);
+        if len(line) > 0 {
+            let record = json_parse(line);
+            if record != null && record["op"] != null {
+                let op = record["op"];
+                let k = record["k"];
+                if op == "SET" {
+                    index[k] = record["v"];
+                } else if op == "DEL" {
+                    delete(index, k);
+                }
+            }
+        }
+        i = i + 1;
+    }
+    return index;
+};
+
+// KVStore struct
+struct KVStore {
+    filepath,
+    index,
+    is_open,
+
+    fn get(key, default_val) {
+        let skey = "" + key;
+        if index[skey] != null {
+            return index[skey];
+        }
+        return default_val;
+    }
+
+    fn set(key, value) {
+        let skey = "" + key;
+        index[skey] = value;
+        if filepath != null && len(filepath) > 0 {
+            let line = serialize_wal_entry("SET", skey, value) + "\n";
+            append_file(filepath, line);
+        }
+        return value;
+    }
+
+    fn delete_key(key) {
+        let skey = "" + key;
+        if index[skey] != null {
+            delete(index, skey);
+            if filepath != null && len(filepath) > 0 {
+                let line = serialize_wal_entry("DEL", skey, null) + "\n";
+                append_file(filepath, line);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    fn has(key) {
+        let skey = "" + key;
+        return index[skey] != null;
+    }
+
+    fn list_keys() {
+        return keys(index);
+    }
+
+    fn list_values() {
+        let k_list = keys(index);
+        let vals = [];
+        let i = 0;
+        while i < len(k_list) {
+            vals = vals + [index[k_list[i]]];
+            i = i + 1;
+        }
+        return vals;
+    }
+
+    fn entries() {
+        let k_list = keys(index);
+        let pairs = [];
+        let i = 0;
+        while i < len(k_list) {
+            let k = k_list[i];
+            pairs = pairs + [[k, index[k]]];
+            i = i + 1;
+        }
+        return pairs;
+    }
+
+    fn count() {
+        return len(index);
+    }
+
+    fn compact() {
+        if filepath == null || len(filepath) == 0 {
+            return 0;
+        }
+        let k_list = keys(index);
+        let compacted_lines = [];
+        let i = 0;
+        while i < len(k_list) {
+            let k = k_list[i];
+            let line = serialize_wal_entry("SET", k, index[k]);
+            compacted_lines = compacted_lines + [line];
+            i = i + 1;
+        }
+        let new_content = "";
+        if len(compacted_lines) > 0 {
+            new_content = join(compacted_lines, "\n") + "\n";
+        }
+        write_file(filepath, new_content);
+        return len(compacted_lines);
+    }
+
+    fn recover() {
+        if filepath != null && len(filepath) > 0 {
+            index = replay_wal_log(filepath);
+        }
+        return len(index);
+    }
+
+    fn clear() {
+        index = {};
+        if filepath != null && len(filepath) > 0 {
+            write_file(filepath, "");
+        }
+    }
+
+    fn close() {
+        is_open = false;
+    }
+}
+
+let open = fn(filepath) {
+    let initial_index = {};
+    if filepath != null && len(filepath) > 0 {
+        initial_index = replay_wal_log(filepath);
+    }
+    return KVStore(filepath, initial_index, true);
+};
+
+let open_kv = open;
+let new_kv_store = open;

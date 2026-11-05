@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
+	"time"
 
 	"bramandscript/code"
 	"bramandscript/compiler"
@@ -61,6 +62,8 @@ type VM struct {
 
 	frames      []*Frame
 	framesIndex int
+
+	profiler *Profiler
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -140,6 +143,7 @@ func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
 		globalsStore: vm.globalsStore,
 		frames:       childFrames,
 		framesIndex:  1,
+		profiler:     vm.profiler,
 	}
 }
 
@@ -168,9 +172,11 @@ func ExecuteCallable(callable object.Object, args ...object.Object) (object.Obje
 		vm := GetActiveVM()
 		var constants []object.Object
 		var globalsStore *GlobalsStore
+		var profiler *Profiler
 		if vm != nil {
 			constants = vm.constants
 			globalsStore = vm.globalsStore
+			profiler = vm.profiler
 		}
 
 		childFrames := make([]*Frame, MaxFrames)
@@ -194,6 +200,7 @@ func ExecuteCallable(callable object.Object, args ...object.Object) (object.Obje
 			globalsStore: globalsStore,
 			frames:       childFrames,
 			framesIndex:  1,
+			profiler:     profiler,
 		}
 		oldVM := vm
 		SetActiveVM(childVM)
@@ -267,6 +274,15 @@ func (vm *VM) Run() error {
 	return nil
 }
 
+func (vm *VM) RunProfiled() (*ProfileReport, error) {
+	vm.profiler = NewProfiler()
+	vm.profiler.StartTime = time.Now()
+	err := vm.Run()
+	vm.profiler.EndTime = time.Now()
+	report := vm.profiler.GenerateReport()
+	return report, err
+}
+
 func (vm *VM) runLoop() error {
 	var ip int
 	var ins code.Instructions
@@ -278,6 +294,11 @@ func (vm *VM) runLoop() error {
 		ip = vm.currentFrame().ip
 		ins = vm.currentFrame().Instructions()
 		op = code.Opcode(ins[ip])
+
+		var t0 time.Time
+		if vm.profiler != nil {
+			t0 = time.Now()
+		}
 
 		switch op {
 		case code.OpConstant:
@@ -620,6 +641,10 @@ func (vm *VM) runLoop() error {
 
 			currentClosure := vm.currentFrame().cl
 			currentClosure.Free[freeIndex] = vm.pop()
+		}
+
+		if vm.profiler != nil {
+			vm.profiler.RecordOpcode(op, time.Since(t0))
 		}
 	}
 

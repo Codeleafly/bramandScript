@@ -1,0 +1,39 @@
+// BramandScript Standard Library :: Networking & Web Ecosystem (std/net)
+// Trie router, context, middleware pipeline, SSE streaming, and WebSocket room hub.
+
+import "std/net/router" as router
+import "std/net/context" as context
+import "std/net/middleware" as middleware
+import "std/net/sse" as sse
+import "std/net/ws_room" as ws_room
+
+// --- Module Exports ---
+let Router = router.Router;
+let RouteGroup = router.RouteGroup;
+let new_router = router.new_router;
+let create_router = router.create_router;
+
+let Context = context.Context;
+let new_context = context.new_context;
+let create_context = context.create_context;
+let parse_query_params = context.parse_query_params;
+
+let MiddlewarePipeline = middleware.MiddlewarePipeline;
+let new_pipeline = middleware.new_pipeline;
+let logger = middleware.logger;
+let cors = middleware.cors;
+let rate_limit = middleware.rate_limit;
+let auth_bearer = middleware.auth_bearer;
+let recover = middleware.recover;
+
+let SSEStream = sse.SSEStream;
+let new_sse_stream = sse.new_sse_stream;
+let create_sse_stream = sse.create_sse_stream;
+let format_sse_event = sse.format_sse_event;
+let format_sse_comment = sse.format_sse_comment;
+let parse_sse_event = sse.parse_sse_event;
+let SSE_HEADERS = sse.SSE_HEADERS;
+
+let RoomHub = ws_room.RoomHub;
+let new_room_hub = ws_room.new_room_hub;
+let create_room_hub = ws_room.create_room_hub;

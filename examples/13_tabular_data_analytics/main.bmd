@@ -1,0 +1,82 @@
+// examples/13_tabular_data_analytics/main.bmd
+// BramandScript Tabular Data Analytics with DataFrames
+// Demonstrates: CSV parsing, Column Selection, Filtering, GroupBy Aggregations, and Summary Statistics.
+
+import "std/dataframe" as df
+
+println("✦ BramandScript Tabular Data Analysis & DataFrame Engine");
+println("────────────────────────────────────────────────────────────────────────────");
+
+let csv_path = "examples/13_tabular_data_analytics/company_sales.csv";
+println("· [1] Loading dataset from: " + csv_path + " ...");
+let raw_csv = read_file(csv_path);
+let frame = df.from_csv(raw_csv);
+
+println("      Loaded shape: [" + frame.shape()[0] + " rows, " + frame.shape()[1] + " columns]");
+println("      Columns: " + join(frame.columns, ", "));
+
+// 2. Head and Tail
+println("\n· [2] Inspecting top 3 records (head)...");
+let top3 = frame.head(3);
+let top_records = top3.to_records();
+let i = 0;
+while i < len(top_records) {
+    let r = top_records[i];
+    println("      [" + r["id"] + "] " + r["name"] + " | " + r["department"] + " | Salary: $" + r["salary"]);
+    i = i + 1;
+}
+
+// 3. Filtering: Engineering employees with salary >= 130000
+println("\n· [3] Filtering senior engineers (salary >= 130000)...");
+let senior_eng = frame.filter(fn(row) {
+    return row["department"] == "Engineering" && int(row["salary"]) >= 130000;
+});
+let eng_records = senior_eng.to_records();
+let j = 0;
+while j < len(eng_records) {
+    let r = eng_records[j];
+    println("      Engineer: " + r["name"] + " -> $" + r["salary"] + " (" + r["experience"] + " yrs exp)");
+    j = j + 1;
+}
+
+// 4. Grouped Aggregations: Total Sales and Average Salary by Department
+println("\n· [4] Grouping by Department with Aggregations (mean salary, sum sales)...");
+let grouped = frame.group_by("department");
+let dept_summary = grouped.agg({
+    "salary": "mean",
+    "sales": "sum",
+    "id": "count"
+});
+
+let summary_rows = dept_summary.to_records();
+let k = 0;
+while k < len(summary_rows) {
+    let s = summary_rows[k];
+    let avg_sal = round(s["salary"]);
+    println("      Dept: " + s["department"] + " -> Employees: " + s["id"] + " | Avg Salary: $" + avg_sal + " | Total Sales: " + s["sales"]);
+    k = k + 1;
+}
+
+// 5. Overall Dataset Summary Statistics
+println("\n· [5] Computing descriptive statistics on numeric columns...");
+let stats = frame.describe();
+let numeric_cols = keys(stats);
+let c = 0;
+while c < len(numeric_cols) {
+    let col = numeric_cols[c];
+    let col_stat = stats[col];
+    println("      Column '" + col + "': Mean=" + round(col_stat["mean"]) + ", Min=" + col_stat["min"] + ", Max=" + col_stat["max"]);
+    c = c + 1;
+}
+
+// 6. Export Aggregations to CSV
+let export_file = "examples/13_tabular_data_analytics/dept_summary.csv";
+dept_summary.save_csv(export_file);
+println("\n· [6] Exported aggregated summary to: " + export_file);
+let exported_content = read_file(export_file);
+println("      Export Preview:\n" + exported_content);
+
+exec("rm -f " + export_file);
+
+println("────────────────────────────────────────────────────────────────────────────");
+println("✦ Tabular Data Analytics Demo Completed Successfully! [OK]");

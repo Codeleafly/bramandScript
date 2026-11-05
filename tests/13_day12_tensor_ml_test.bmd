@@ -1,0 +1,248 @@
+// BramandScript Test Suite :: Day 12 Scientific & Machine Learning Ecosystem
+// Tests: std/math/tensor, std/dataframe, std/ml (Autograd, MLP, Gradient Descent).
+
+import "std/math/tensor" as tensor_mod
+import "std/dataframe" as df_mod
+import "std/ml" as ml
+
+describe("Multi-Dimensional Tensor and Linear Algebra Engine", fn() {
+    test("Tensor creation, shapes, and strides", fn() {
+        let t = tensor_mod.zeros([2, 3]);
+        assert_eq(t.shape[0], 2);
+        assert_eq(t.shape[1], 3);
+        assert_eq(t.strides[0], 3);
+        assert_eq(t.strides[1], 1);
+        assert_eq(len(t.data), 6);
+
+        t.set([0, 1], 4.5);
+        t.set([1, 2], 9.0);
+        assert_eq(t.get([0, 1]), 4.5);
+        assert_eq(t.get([1, 2]), 9.0);
+        assert_eq(t.sum(), 13.5);
+    });
+
+    test("Matrix transposition and matrix multiplication (matmul)", fn() {
+        // A = [[1, 2], [3, 4]] (2x2)
+        let a = tensor_mod.from_array([
+            [1.0, 2.0],
+            [3.0, 4.0]
+        ]);
+
+        // Transpose of A = [[1, 3], [2, 4]]
+        let a_t = a.transpose();
+        assert_eq(a_t.shape[0], 2);
+        assert_eq(a_t.shape[1], 2);
+        assert_eq(a_t.get([0, 1]), 3.0);
+        assert_eq(a_t.get([1, 0]), 2.0);
+
+        // B = [[5, 6], [7, 8]] (2x2)
+        let b = tensor_mod.from_array([
+            [5.0, 6.0],
+            [7.0, 8.0]
+        ]);
+
+        // A x B = [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]] = [[19, 22], [43, 50]]
+        let c = a.matmul(b);
+        assert_eq(c.shape[0], 2);
+        assert_eq(c.shape[1], 2);
+        assert_eq(c.get([0, 0]), 19.0);
+        assert_eq(c.get([0, 1]), 22.0);
+        assert_eq(c.get([1, 0]), 43.0);
+        assert_eq(c.get([1, 1]), 50.0);
+    });
+
+    test("Matrix determinant and inversion", fn() {
+        // A = [[4, 7], [2, 6]]
+        // det(A) = 4*6 - 7*2 = 24 - 14 = 10
+        let a = tensor_mod.from_array([
+            [4.0, 7.0],
+            [2.0, 6.0]
+        ]);
+        assert_eq(a.det(), 10.0);
+
+        // Inverse of A: A^-1 = [[0.6, -0.7], [-0.2, 0.4]]
+        let inv_a = a.inv();
+        assert_eq(inv_a != null, true);
+
+        // Multiply A * A^-1 should equal Identity [[1, 0], [0, 1]]
+        let ident = a.matmul(inv_a);
+        assert(abs(ident.get([0, 0]) - 1.0) < 0.0001);
+        assert(abs(ident.get([0, 1]) - 0.0) < 0.0001);
+        assert(abs(ident.get([1, 0]) - 0.0) < 0.0001);
+        assert(abs(ident.get([1, 1]) - 1.0) < 0.0001);
+    });
+
+    test("Identity matrix and reduction statistics", fn() {
+        let eye3 = tensor_mod.eye(3);
+        assert_eq(eye3.get([0, 0]), 1.0);
+        assert_eq(eye3.get([1, 1]), 1.0);
+        assert_eq(eye3.get([0, 1]), 0.0);
+        assert_eq(eye3.det(), 1.0);
+
+        let t = tensor_mod.from_array([10.0, 20.0, 30.0, 40.0]);
+        assert_eq(t.sum(), 100.0);
+        assert_eq(t.mean(), 25.0);
+        assert_eq(t.max(), 40.0);
+        assert_eq(t.min(), 10.0);
+    });
+});
+
+describe("Tabular DataFrame Module", fn() {
+    test("DataFrame queries, filtering, sorting, and projection", fn() {
+        let employees = [
+            { "name": "Alice", "dept": "Engineering", "salary": 95000, "years": 5 },
+            { "name": "Bob", "dept": "Sales", "salary": 65000, "years": 2 },
+            { "name": "Charlie", "dept": "Engineering", "salary": 110000, "years": 8 },
+            { "name": "Diana", "dept": "Design", "salary": 80000, "years": 4 },
+            { "name": "Evan", "dept": "Sales", "salary": 72000, "years": 3 }
+        ];
+
+        let df = df_mod.from_records(employees);
+        let s = df.shape();
+        assert_eq(s[0], 5); // 5 rows
+        assert_eq(s[1], 4); // 4 columns
+
+        // Filter: salary >= 80000
+        let high_earners = df.filter(fn(r) { return r["salary"] >= 80000; });
+        assert_eq(high_earners.shape()[0], 3);
+
+        // Sort by salary descending
+        let sorted = df.sort_by("salary", false);
+        assert_eq(sorted.rows[0]["name"], "Charlie");
+        assert_eq(sorted.rows[0]["salary"], 110000);
+        assert_eq(sorted.rows[4]["name"], "Bob");
+
+        // Select specific columns
+        let selected = df.select(["name", "salary"]);
+        assert_eq(selected.shape()[1], 2);
+        assert_eq(selected.rows[0]["dept"], null);
+
+        // Add calculated column: bonus = salary * 0.1
+        let with_bonus = df.add_column("bonus", fn(r) { return r["salary"] * 0.1; });
+        assert_eq(with_bonus.shape()[1], 5);
+        assert_eq(with_bonus.rows[0]["bonus"], 9500.0);
+    });
+
+    test("Grouped aggregations and summary statistics", fn() {
+        let sales_data = [
+            { "rep": "A", "region": "North", "amount": 100 },
+            { "rep": "B", "region": "North", "amount": 200 },
+            { "rep": "C", "region": "South", "amount": 150 },
+            { "rep": "D", "region": "South", "amount": 250 },
+            { "rep": "E", "region": "North", "amount": 300 }
+        ];
+
+        let df = df_mod.from_records(sales_data);
+
+        // Group by region and aggregate amount sum and mean
+        let grouped = df.group_by("region").agg({ "amount": "sum" });
+        assert_eq(grouped.shape()[0], 2); // 2 regions: North, South
+
+        let north_row = null;
+        let i = 0;
+        while i < len(grouped.rows) {
+            if grouped.rows[i]["region"] == "North" {
+                north_row = grouped.rows[i];
+            }
+            i = i + 1;
+        }
+        assert_eq(north_row["amount"], 600.0); // 100 + 200 + 300
+
+        // Describe numeric columns
+        let stats = df.describe();
+        assert_eq(stats["amount"]["count"], 5);
+        assert_eq(stats["amount"]["mean"], 200.0);
+        assert_eq(stats["amount"]["min"], 100.0);
+        assert_eq(stats["amount"]["max"], 300.0);
+    });
+
+    test("CSV serialization and deserialization", fn() {
+        let records = [
+            { "city": "Tokyo", "pop": 14000000 },
+            { "city": "Delhi", "pop": 32000000 },
+            { "city": "Paris", "pop": 2100000 }
+        ];
+        let df = df_mod.from_records(records);
+        let csv_text = df.to_csv();
+
+        assert(contains(csv_text, "city"));
+        assert(contains(csv_text, "pop"));
+        assert(contains(csv_text, "Tokyo"));
+
+        let df_parsed = df_mod.from_csv(csv_text);
+        assert_eq(df_parsed.shape()[0], 3);
+        assert_eq(df_parsed.rows[0]["city"], "Tokyo");
+    });
+});
+
+describe("Neural Network Autograd Engine", fn() {
+    test("Scalar computation graph and reverse-mode automatic differentiation", fn() {
+        // Forward:
+        // x = 2.0, y = -3.0
+        // z = x * y = -6.0
+        // q = z + 10.0 = 4.0
+        let x = ml.val(2.0);
+        let y = ml.val(-3.0);
+        let z = x.mul(y);
+        let q = z.add(10.0);
+
+        assert_eq(q.data, 4.0);
+
+        // Backward:
+        // dq/dq = 1.0
+        // dq/dz = 1.0
+        // dq/dx = dz/dx * dq/dz = y * 1.0 = -3.0
+        // dq/dy = dz/dy * dq/dz = x * 1.0 = 2.0
+        q.backward();
+
+        assert_eq(q.grad, 1.0);
+        assert_eq(z.grad, 1.0);
+        assert_eq(x.grad, -3.0);
+        assert_eq(y.grad, 2.0);
+    });
+
+    test("Non-linear activations: ReLU and Tanh backward pass", fn() {
+        // ReLU for positive and negative values
+        let a = ml.val(3.0);
+        let r_pos = a.relu();
+        r_pos.backward();
+        assert_eq(r_pos.data, 3.0);
+        assert_eq(a.grad, 1.0);
+
+        let b = ml.val(-4.0);
+        let r_neg = b.relu();
+        r_neg.backward();
+        assert_eq(r_neg.data, 0.0);
+        assert_eq(b.grad, 0.0);
+    });
+
+    test("Neuron, Layer, and MLP forward and gradient descent optimization", fn() {
+        let model_mlp = ml.new_mlp(2, [3, 1]); // 2 inputs -> 3 hidden -> 1 output
+        let params = model_mlp.parameters();
+        assert(len(params) > 0);
+
+        // Training step: target output 1.0 for input [0.5, 0.8]
+        let x_input = [0.5, 0.8];
+        let target = 1.0;
+
+        let initial_pred = model_mlp.call(x_input);
+        let initial_loss = ml.mse_loss([initial_pred], [target]);
+
+        // Run 5 optimization steps
+        let step = 0;
+        while step < 5 {
+            model_mlp.zero_grad();
+            let pred = model_mlp.call(x_input);
+            let loss = ml.mse_loss([pred], [target]);
+            loss.backward();
+            model_mlp.step(0.05); // learning rate 0.05
+            step = step + 1;
+        }
+
+        let final_pred = model_mlp.call(x_input);
+        let final_loss = ml.mse_loss([final_pred], [target]);
+
+        // Verify loss decreased after gradient descent steps
+        assert(final_loss.data <= initial_loss.data);
+    });
+});
