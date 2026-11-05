@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # BramandScript Smart Universal Installer
 # Compatible with Android (Termux), Linux, macOS, and WSL/MSYS
-# Usage: curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
 
 set -e
 

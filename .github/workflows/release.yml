@@ -153,7 +153,7 @@ jobs:
 
           ### Smart One-Liner Install:
           \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
           \`\`\`
 
           Verify checksums via \`checksums.txt\`."

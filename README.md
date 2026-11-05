@@ -77,13 +77,13 @@
 ### Option 1: Smart Universal One-Liner (Linux, macOS, Android Termux)
 Auto-detects your platform (Linux, macOS Darwin, Android Termux) and CPU architecture (`amd64`, `arm64`, `armv7`), pulls the latest release, installs the standalone binary, and links `bramand` and `bmd`:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
 ```
 
 ### Option 2: Windows PowerShell One-Liner
 Open PowerShell and run:
 ```powershell
-irm https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.ps1 | iex
+irm https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.ps1 | iex
 ```
 
 ### Option 3: Compile from Source (Offline / Local Toolchain)

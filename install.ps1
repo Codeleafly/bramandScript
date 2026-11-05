@@ -1,5 +1,5 @@
 # BramandScript Windows PowerShell Installer
-# Usage: irm https://raw.githubusercontent.com/Codeleafly/bramandScript/master/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
 $Repo = "Codeleafly/bramandScript"
