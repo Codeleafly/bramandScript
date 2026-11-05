@@ -183,16 +183,42 @@ struct Neuron {
     fn parameters() {
         return weights + [bias];
     }
+
+    fn zero_grad() {
+        let params = parameters();
+        let i = 0;
+        while i < len(params) {
+            params[i]["grad"] = 0.0;
+            i = i + 1;
+        }
+    }
+
+    fn step(learning_rate) {
+        let params = parameters();
+        let i = 0;
+        while i < len(params) {
+            params[i]["data"] = params[i]["data"] - (learning_rate * params[i]["grad"]);
+            i = i + 1;
+        }
+    }
 }
+
+let ml_rng_seed = 123456789;
+let ml_rand = fn() {
+    ml_rng_seed = (ml_rng_seed * 1103515245 + 12345) % 2147483648;
+    if ml_rng_seed < 0 {
+        ml_rng_seed = 0 - ml_rng_seed;
+    }
+    return ((ml_rng_seed % 1000) / 1000.0) - 0.5;
+};
 
 let new_neuron = fn(nin, nonlin) {
     let w = [];
     let i = 0;
     while i < nin {
-        // Deterministic pseudo-random initial weights between -0.5 and 0.5
-        let init_val = ((i % 5) - 2.0) * 0.2;
-        if init_val == 0.0 { init_val = 0.1; }
-        w = w + [val(init_val)];
+        let r = ml_rand();
+        if r == 0.0 { r = 0.05; }
+        w = w + [val(r)];
         i = i + 1;
     }
     let b = val(0.0);
@@ -224,6 +250,24 @@ struct Layer {
             i = i + 1;
         }
         return params;
+    }
+
+    fn zero_grad() {
+        let params = parameters();
+        let i = 0;
+        while i < len(params) {
+            params[i]["grad"] = 0.0;
+            i = i + 1;
+        }
+    }
+
+    fn step(learning_rate) {
+        let params = parameters();
+        let i = 0;
+        while i < len(params) {
+            params[i]["data"] = params[i]["data"] - (learning_rate * params[i]["grad"]);
+            i = i + 1;
+        }
     }
 }
 

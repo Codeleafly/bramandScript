@@ -232,3 +232,28 @@ func TestUnicodeColumnTracking(t *testing.T) {
 		t.Fatalf("tok4 '42' expected line 1, col 13, got line %d, col %d", tok4.Line, tok4.Col)
 	}
 }
+
+func TestScientificNotation(t *testing.T) {
+	input := `1.5e3 1e-5 2.5e+2 5.08e-06 1E6`
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.FLOAT, "1.5e3"},
+		{token.FLOAT, "1e-5"},
+		{token.FLOAT, "2.5e+2"},
+		{token.FLOAT, "5.08e-06"},
+		{token.FLOAT, "1E6"},
+	}
+
+	l := New(input)
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType {
+			t.Fatalf("test[%d] - wrong type. expected=%q, got=%q", i, tt.expectedType, tok.Type)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("test[%d] - wrong literal. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}

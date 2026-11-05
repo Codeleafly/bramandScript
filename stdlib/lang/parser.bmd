@@ -328,9 +328,13 @@ let parse_full_program = fn(p) {
 };
 
 // Parser constructor
-let new_parser = fn(lexer) {
+let new_parser = fn(input_or_lexer) {
+    let lex = input_or_lexer;
+    if type(input_or_lexer) == "STRING" {
+        lex = lexer_mod.create_lexer(input_or_lexer);
+    }
     let p = {
-        "lexer": lexer,
+        "lexer": lex,
         "cur_tok": null,
         "peek_tok": null,
         "errors": []

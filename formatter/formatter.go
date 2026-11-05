@@ -278,6 +278,8 @@ func formatCodeTokens(code string) string {
 		break
 	}
 
+	res = cleanParenBracketSpacing(res)
+
 	// Keyword spacing
 	if strings.Contains(res, "}else") {
 		res = strings.ReplaceAll(res, "}else", "} else")
@@ -444,6 +446,80 @@ func cleanDuplicateSpacesOutsideStrings(input string) string {
 		buf.WriteByte(ch)
 	}
 	return buf.String()
+}
+
+func cleanParenBracketSpacing(input string) string {
+	var buf bytes.Buffer
+	inStr := false
+	var q byte
+
+	for i := 0; i < len(input); {
+		ch := input[i]
+		if (ch == '"' || ch == '`') && (i == 0 || input[i-1] != '\\') {
+			if !inStr {
+				inStr = true
+				q = ch
+			} else if q == ch {
+				inStr = false
+			}
+			buf.WriteByte(ch)
+			i++
+			continue
+		}
+		if inStr {
+			buf.WriteByte(ch)
+			i++
+			continue
+		}
+
+		if ch == '(' || ch == '[' {
+			if ch == '(' {
+				s := buf.String()
+				if len(s) > 0 && s[len(s)-1] == ' ' {
+					trimmedBefore := strings.TrimRight(s, " \t")
+					lastWord := getLastWord(trimmedBefore)
+					keywordsWithSpace := map[string]bool{
+						"if": true, "while": true, "for": true, "match": true,
+						"in": true, "case": true, "and": true, "or": true, "not": true,
+						"return": true,
+					}
+					if !keywordsWithSpace[lastWord] && lastWord != "" {
+						buf.Truncate(len(trimmedBefore))
+					}
+				}
+			}
+			buf.WriteByte(ch)
+			i++
+			for i < len(input) && input[i] == ' ' {
+				i++
+			}
+			continue
+		}
+
+		if ch == ')' || ch == ']' {
+			s := buf.String()
+			for len(s) > 0 && s[len(s)-1] == ' ' {
+				buf.Truncate(buf.Len() - 1)
+				s = buf.String()
+			}
+			buf.WriteByte(ch)
+			i++
+			continue
+		}
+
+		buf.WriteByte(ch)
+		i++
+	}
+
+	return buf.String()
+}
+
+func getLastWord(s string) string {
+	i := len(s) - 1
+	for i >= 0 && ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= '0' && s[i] <= '9') || s[i] == '_') {
+		i--
+	}
+	return s[i+1:]
 }
 
 // RunCLI handles the `bramand fmt` CLI sub-command.

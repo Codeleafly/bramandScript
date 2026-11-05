@@ -263,7 +263,9 @@
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">HTTP/HTTPS Client & Built-in Web Server</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          A modern web framework with intuitive Express/Flask-style routing, JSON serialization, query parameter extraction, middleware pipelines, static file hosting, and a high-performance HTTP client.
+          BramandScript provides two layers of HTTP routing:
+          <br><strong>1. Low-level Engine (<code class="font-mono">http_server()</code>)</strong>: A lightweight built-in server for static endpoints, asset serving, and basic REST endpoints.
+          <br><strong>2. Advanced Radix Trie Router (<code class="font-mono">std/net</code>)</strong>: A modular web framework with parameterized dynamic URL matching (<code class="font-mono">:id</code>), wildcard routes (<code class="font-mono">*filepath</code>), Route Groups (<code class="font-mono">/api/v1</code>), and middleware chains (<code class="font-mono">cors</code>, <code class="font-mono">rate_limit</code>).
         </p>
 
         <div class="code-block-wrapper">
@@ -293,6 +295,35 @@
 <span class="token-comment">// HTTP Client calls</span>
 <span class="token-kw">let</span> <span class="token-fn">resp</span> <span class="token-op">=</span> <span class="token-fn">http_get</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>)
 <span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())</code></pre>
+        </div>
+
+        <div class="code-block-wrapper mt-6">
+          <div class="code-block-header">
+            <span>bramand — High-Level std/net Trie Router (:id and *path)</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/net"</span> <span class="token-kw">as</span> <span class="token-fn">net</span>
+
+<span class="token-kw">let</span> <span class="token-fn">router</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">new_router</span>()
+
+<span class="token-comment">// Parameterized route: :id</span>
+<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/users/:id"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">user_id</span> <span class="token-op">=</span> <span class="token-fn">ctx</span>.<span class="token-fn">param</span>(<span class="token-str">"id"</span>)
+    <span class="token-fn">ctx</span>.<span class="token-fn">json</span>(<span class="token-num">200</span>, {<span class="token-str">"user_id"</span>: <span class="token-fn">user_id</span>})
+})
+
+<span class="token-comment">// Wildcard route: *filepath</span>
+<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/static/*filepath"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">file</span> <span class="token-op">=</span> <span class="token-fn">ctx</span>.<span class="token-fn">param</span>(<span class="token-str">"filepath"</span>)
+    <span class="token-fn">ctx</span>.<span class="token-fn">text</span>(<span class="token-num">200</span>, <span class="token-str">"Serving: "</span> <span class="token-op">+</span> <span class="token-fn">file</span>)
+})
+
+<span class="token-comment">// Route Groups &amp; Middleware</span>
+<span class="token-kw">let</span> <span class="token-fn">api</span> <span class="token-op">=</span> <span class="token-fn">router</span>.<span class="token-fn">group</span>(<span class="token-str">"/api/v1"</span>)
+<span class="token-fn">api</span>.<span class="token-fn">use</span>(<span class="token-fn">net</span>.<span class="token-fn">cors</span>(<span class="token-str">"*"</span>))
+<span class="token-fn">api</span>.<span class="token-fn">get</span>(<span class="token-str">"/metrics"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
+    <span class="token-fn">ctx</span>.<span class="token-fn">json</span>(<span class="token-num">200</span>, {<span class="token-str">"uptime"</span>: <span class="token-num">3600</span>})
+})</code></pre>
         </div>
       </section>
 

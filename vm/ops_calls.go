@@ -38,9 +38,16 @@ func (vm *VM) executeCall(numArgs int) error {
 }
 
 func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
-	if numArgs != cl.Fn.NumParameters {
+	if numArgs > cl.Fn.NumParameters {
 		return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
 			cl.Fn.NumParameters, numArgs)
+	}
+
+	for numArgs < cl.Fn.NumParameters {
+		if err := vm.push(Null); err != nil {
+			return err
+		}
+		numArgs++
 	}
 
 	if cl.Instance == nil && vm.framesIndex > 0 {
@@ -56,7 +63,13 @@ func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 			if i < len(cl.Free) {
 				k := (&object.String{Value: name}).HashKey()
 				if p, ok := cl.Instance.Pairs[k]; ok {
-					cl.Free[i] = p.Value
+					if cell, isCell := cl.Free[i].(*object.Cell); isCell {
+						cell.Mu.Lock()
+						cell.Value = p.Value
+						cell.Mu.Unlock()
+					} else {
+						cl.Free[i] = p.Value
+					}
 				}
 			}
 		}
@@ -68,6 +81,9 @@ func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 		return err
 	}
 
+	for i := numArgs; i < cl.Fn.NumLocals; i++ {
+		vm.stack[frame.basePointer+i] = nil
+	}
 	vm.sp = frame.basePointer + cl.Fn.NumLocals
 	return nil
 }

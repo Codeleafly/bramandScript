@@ -608,10 +608,39 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 }
 
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
-	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
+	tok := p.curToken // '['
 	p.nextToken()
-	exp.Index = p.parseExpression(LOWEST)
 
+	// Case 1: [:end] or [:]
+	if p.curTokenIs(token.COLON) {
+		sliceExp := &ast.SliceExpression{Token: tok, Left: left, Start: nil}
+		p.nextToken() // consume ':'
+		if !p.curTokenIs(token.RBRACKET) {
+			sliceExp.End = p.parseExpression(LOWEST)
+			if !p.expectPeek(token.RBRACKET) {
+				return nil
+			}
+		}
+		return sliceExp
+	}
+
+	startOrIndex := p.parseExpression(LOWEST)
+
+	// Case 2: [start:end] or [start:]
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // curToken is now ':'
+		sliceExp := &ast.SliceExpression{Token: tok, Left: left, Start: startOrIndex}
+		p.nextToken() // consume ':'
+		if !p.curTokenIs(token.RBRACKET) {
+			sliceExp.End = p.parseExpression(LOWEST)
+			if !p.expectPeek(token.RBRACKET) {
+				return nil
+			}
+		}
+		return sliceExp
+	}
+
+	exp := &ast.IndexExpression{Token: tok, Left: left, Index: startOrIndex}
 	if !p.expectPeek(token.RBRACKET) {
 		return nil
 	}

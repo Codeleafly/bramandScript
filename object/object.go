@@ -38,6 +38,7 @@ const (
 	WS_CONN_OBJ              = "WS_CONN"
 	WS_SERVER_OBJ            = "WS_SERVER"
 	BYTES_OBJ                = "BYTES"
+	CELL_OBJ                 = "CELL"
 )
 
 type Object interface {
@@ -181,6 +182,22 @@ type Closure struct {
 func (c *Closure) Type() ObjectType { return CLOSURE_OBJ }
 func (c *Closure) Inspect() string {
 	return fmt.Sprintf("Closure[%p]", c)
+}
+
+// ---------------- Cell ----------------
+type Cell struct {
+	Mu    sync.RWMutex
+	Value Object
+}
+
+func (c *Cell) Type() ObjectType { return CELL_OBJ }
+func (c *Cell) Inspect() string {
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	if c.Value == nil {
+		return "cell(null)"
+	}
+	return fmt.Sprintf("cell(%s)", c.Value.Inspect())
 }
 
 // ---------------- Builtin ----------------

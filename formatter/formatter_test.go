@@ -51,3 +51,15 @@ return false;
 		t.Errorf("Expected comments preserved, got:\n%s", formatted)
 	}
 }
+
+func TestFormatParenBracketSpaces(t *testing.T) {
+	input := `println( add( x, y ) )`
+	expected := `println(add(x, y))`
+	formatted, err := Format(input)
+	if err != nil {
+		t.Fatalf("Format error: %s", err)
+	}
+	if strings.TrimSpace(formatted) != strings.TrimSpace(expected) {
+		t.Errorf("Format mismatch. Got %q, want %q", formatted, expected)
+	}
+}

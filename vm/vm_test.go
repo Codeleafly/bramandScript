@@ -328,6 +328,9 @@ func TestFloatArithmetic(t *testing.T) {
 		{"10.0 - 4.5", 5.5},
 		{"2.0 * 3.5", 7.0},
 		{"7.0 / 2.0", 3.5},
+		{"1.5e3", 1500.0},
+		{"1e-3", 0.001},
+		{"2.5e+2", 250.0},
 	}
 	runVmTests(t, tests)
 }
@@ -447,6 +450,19 @@ func TestIndexExpressions(t *testing.T) {
 		{"let arr = [1, 2, 3]; arr[0] + arr[1] + arr[2]", 6},
 		{`{"name": "Brahmand"}["name"]`, "Brahmand"},
 		{`{1: 10, 2: 20}[2]`, 20},
+	}
+	runVmTests(t, tests)
+}
+
+func TestSliceExpressions(t *testing.T) {
+	tests := []vmTestCase{
+		{"[10, 20, 30, 40, 50][1:3]", []int{20, 30}},
+		{"[10, 20, 30, 40, 50][:2]", []int{10, 20}},
+		{"[10, 20, 30, 40, 50][3:]", []int{40, 50}},
+		{"[10, 20, 30][:]", []int{10, 20, 30}},
+		{`"hello world"[0:5]`, "hello"},
+		{`"hello world"[6:]`, "world"},
+		{`"hello"[:3]`, "hel"},
 	}
 	runVmTests(t, tests)
 }
@@ -1275,6 +1291,48 @@ func TestVectorsAndMatrices(t *testing.T) {
 		},
 		{
 			input: `
+			let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let m2 = matrix([[2.0, 0.0], [1.0, 2.0]]);
+			let m3 = m1 * m2;
+			m3.get(0, 0) == 4.0 && m3.get(0, 1) == 4.0 && m3.get(1, 0) == 10.0 && m3.get(1, 1) == 8.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let scaled = m * 2;
+			scaled.get(0, 0) == 2.0 && scaled.get(1, 1) == 8.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let scaled = 3.0 * m;
+			scaled.get(0, 0) == 3.0 && scaled.get(1, 1) == 12.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let m1 = matrix([[1.0, 2.0], [3.0, 4.0]]);
+			let m2 = matrix([[2.0, 1.0], [1.0, 2.0]]);
+			let sum = m1 + m2;
+			sum.get(0, 0) == 3.0 && sum.get(1, 1) == 6.0;
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let v1 = vec([1.0, 0.0, 0.0]);
+			let v2 = vec([0.0, 1.0, 0.0]);
+			v1.cross(v2) == [0.0, 0.0, 1.0];
+			`,
+			expected: true,
+		},
+		{
+			input: `
 			let m = matrix([[1.0, 2.0], [3.0, 4.0]]);
 			let v = vec([2.0, 1.0]);
 			let res = m.mul_vec(v);
@@ -1948,3 +2006,37 @@ func TestAllCompilerBuiltinsRegisteredInVM(t *testing.T) {
 		}
 	}
 }
+
+func TestStructMethodWithLocals(t *testing.T) {
+	input := `
+	struct Store {
+		filepath,
+		index,
+		fn set(key, val) {
+			let skey = "" + key
+			index[skey] = val
+			if filepath != null {
+				let line = "entry"
+			}
+			return val
+		}
+	}
+	let s = Store("myfile", {})
+	s.set("foo", "bar")
+	s.filepath
+	`
+	program := parse(input)
+	comp := compiler.New()
+	err := comp.Compile(program)
+	if err != nil {
+		t.Fatalf("compile error: %s", err)
+	}
+	vm := New(comp.Bytecode())
+	err = vm.Run()
+	if err != nil {
+		t.Fatalf("vm error: %s", err)
+	}
+	stackElem := vm.LastPoppedStackElem()
+	testExpectedObject(t, "myfile", stackElem)
+}
+

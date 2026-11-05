@@ -171,6 +171,11 @@ else
     chmod +x "${INSTALL_DIR}/${BINARY_NAME}.new"
     mv -f "${INSTALL_DIR}/${BINARY_NAME}.new" "${INSTALL_DIR}/${BINARY_NAME}"
     ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/bmd"
+
+    if [ -d "${TMP_DIR}/extracted/stdlib" ]; then
+      mkdir -p "${HOME}/.bramand/stdlib"
+      cp -r "${TMP_DIR}/extracted/stdlib/"* "${HOME}/.bramand/stdlib/" 2>/dev/null || true
+    fi
   fi
 fi
 

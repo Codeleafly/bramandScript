@@ -39,10 +39,110 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 			return vm.executeArrayConcatenation(left, right)
 		}
 		return fmt.Errorf("unsupported operator %d for arrays", op)
+	case leftType == object.MATRIX_OBJ || rightType == object.MATRIX_OBJ:
+		return vm.executeBinaryMatrixOperation(op, left, right)
+	case leftType == object.VECTOR_OBJ || rightType == object.VECTOR_OBJ:
+		return vm.executeBinaryVectorOperation(op, left, right)
 	default:
 		return fmt.Errorf("unsupported types for binary operation: %s %d %s",
 			leftType, op, rightType)
 	}
+}
+
+func (vm *VM) executeBinaryMatrixOperation(op code.Opcode, left, right object.Object) error {
+	if leftM, ok := left.(*object.Matrix); ok {
+		if rightM, ok := right.(*object.Matrix); ok {
+			switch op {
+			case code.OpMul:
+				res, err := leftM.Mul(rightM)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			case code.OpAdd:
+				res, err := leftM.Add(rightM)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			case code.OpSub:
+				res, err := leftM.Sub(rightM)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			default:
+				return fmt.Errorf("unsupported operator %d for Matrix * Matrix", op)
+			}
+		}
+		if rightV, ok := right.(*object.Vector); ok {
+			if op == code.OpMul {
+				res, err := leftM.MulVec(rightV)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			}
+			return fmt.Errorf("unsupported operator %d for Matrix and Vector", op)
+		}
+		if s, ok := toFloat(right); ok {
+			if op == code.OpMul {
+				return vm.push(leftM.Scale(s))
+			}
+			return fmt.Errorf("unsupported operator %d for Matrix and scalar", op)
+		}
+	} else if rightM, ok := right.(*object.Matrix); ok {
+		if s, ok := toFloat(left); ok {
+			if op == code.OpMul {
+				return vm.push(rightM.Scale(s))
+			}
+			return fmt.Errorf("unsupported operator %d for scalar and Matrix", op)
+		}
+	}
+	return fmt.Errorf("unsupported types for matrix operation: %s %d %s", left.Type(), op, right.Type())
+}
+
+func (vm *VM) executeBinaryVectorOperation(op code.Opcode, left, right object.Object) error {
+	if leftV, ok := left.(*object.Vector); ok {
+		if rightV, ok := right.(*object.Vector); ok {
+			switch op {
+			case code.OpAdd:
+				res, err := leftV.Add(rightV)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			case code.OpSub:
+				res, err := leftV.Sub(rightV)
+				if err != nil {
+					return err
+				}
+				return vm.push(res)
+			case code.OpMul:
+				d, err := leftV.Dot(rightV)
+				if err != nil {
+					return err
+				}
+				return vm.push(&object.Float{Value: d})
+			default:
+				return fmt.Errorf("unsupported operator %d for Vector and Vector", op)
+			}
+		}
+		if s, ok := toFloat(right); ok {
+			if op == code.OpMul {
+				return vm.push(leftV.Scale(s))
+			}
+			return fmt.Errorf("unsupported operator %d for Vector and scalar", op)
+		}
+	} else if rightV, ok := right.(*object.Vector); ok {
+		if s, ok := toFloat(left); ok {
+			if op == code.OpMul {
+				return vm.push(rightV.Scale(s))
+			}
+			return fmt.Errorf("unsupported operator %d for scalar and Vector", op)
+		}
+	}
+	return fmt.Errorf("unsupported types for vector operation: %s %d %s", left.Type(), op, right.Type())
 }
 
 func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.Object) error {

@@ -80,6 +80,9 @@ const (
 	// Stack & Control Flow
 	OpDup
 	OpJumpTruthy
+	OpCurrentClosure
+	OpGetLocalCell
+	OpGetFreeCell
 )
 
 type Definition struct {
@@ -135,6 +138,9 @@ var definitions = map[Opcode]*Definition{
 	OpBitNot:           {"OpBitNot", []int{}},
 	OpDup:              {"OpDup", []int{}},
 	OpJumpTruthy:       {"OpJumpTruthy", []int{2}},
+	OpCurrentClosure:   {"OpCurrentClosure", []int{}},
+	OpGetLocalCell:     {"OpGetLocalCell", []int{2}},
+	OpGetFreeCell:      {"OpGetFreeCell", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {

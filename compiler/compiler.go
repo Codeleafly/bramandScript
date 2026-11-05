@@ -399,6 +399,37 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		c.emit(code.OpIndex)
 
+	case *ast.SliceExpression:
+		sliceBuiltin, ok := c.symbolTable.Resolve("slice")
+		if !ok {
+			return fmt.Errorf("undefined builtin 'slice'")
+		}
+		c.loadSymbol(sliceBuiltin)
+
+		err := c.Compile(node.Left)
+		if err != nil {
+			return err
+		}
+
+		if node.Start != nil {
+			err = c.Compile(node.Start)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: 0}))
+		}
+
+		if node.End != nil {
+			err = c.Compile(node.End)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpCall, 3)
+		} else {
+			c.emit(code.OpCall, 2)
+		}
+
 	case *ast.DotExpression:
 		c.currentLine = node.Token.Line
 		err := c.Compile(node.Left)
@@ -488,6 +519,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.enterScope()
 
+		if node.Name != "" {
+			c.symbolTable.DefineFunctionName(node.Name)
+		}
+
 		for _, p := range node.Parameters {
 			c.symbolTable.Define(p.Value, false)
 		}
@@ -511,7 +546,16 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.loops = outerLoops
 
 		for _, s := range freeSymbols {
-			c.loadSymbol(s)
+			switch s.Scope {
+			case LocalScope:
+				c.emit(code.OpGetLocalCell, s.Index)
+			case FreeScope:
+				c.emit(code.OpGetFreeCell, s.Index)
+			case FunctionScope:
+				c.emit(code.OpCurrentClosure)
+			default:
+				c.loadSymbol(s)
+			}
 		}
 
 		freeNames := make([]string, len(freeSymbols))
@@ -580,6 +624,8 @@ func (c *Compiler) loadSymbol(s Symbol) {
 		c.emit(code.OpGetBuiltin, s.Index)
 	case FreeScope:
 		c.emit(code.OpGetFree, s.Index)
+	case FunctionScope:
+		c.emit(code.OpCurrentClosure)
 	}
 }
 

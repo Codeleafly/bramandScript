@@ -323,6 +323,31 @@ func (l *Lexer) readNumber() (string, bool) {
 		}
 	}
 
+	if l.ch == 'e' || l.ch == 'E' {
+		next := l.peekChar()
+		hasExp := false
+		if isDigit(next) {
+			hasExp = true
+		} else if next == '+' || next == '-' {
+			if l.readPosition+1 < len(l.input) {
+				afterSign, _ := utf8.DecodeRuneInString(l.input[l.readPosition+1:])
+				if isDigit(afterSign) {
+					hasExp = true
+				}
+			}
+		}
+		if hasExp {
+			isFloat = true
+			l.readChar() // consume 'e' or 'E'
+			if l.ch == '+' || l.ch == '-' {
+				l.readChar() // consume '+' or '-'
+			}
+			for isDigit(l.ch) {
+				l.readChar()
+			}
+		}
+	}
+
 	return l.input[startPos:l.position], isFloat
 }
 

@@ -11,6 +11,7 @@ import (
 	"bramandscript/lexer"
 	"bramandscript/object"
 	"bramandscript/parser"
+	"bramandscript/stdlib"
 )
 
 func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
@@ -241,13 +242,13 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			userIdxSym = c.symbolTable.Define(node.Index.Value, false)
 		}
 
-		// 4. Loop start condition: len(iter) > idx
+		// 4. Loop start condition: __iter_len(iter) > idx
 		loopStart := len(c.currentInstructions())
 		c.loops = append(c.loops, LoopContext{continuePos: -1, breakJumps: []int{}, continueJumps: []int{}})
 
-		lenSym, ok := c.symbolTable.Resolve("len")
+		lenSym, ok := c.symbolTable.Resolve("__iter_len")
 		if !ok {
-			return true, c.makeError(node.Token.Line, node.Token.Col, "builtin 'len' not found for loop iteration")
+			return true, c.makeError(node.Token.Line, node.Token.Col, "builtin '__iter_len' not found for loop iteration")
 		}
 		c.loadSymbol(lenSym)
 		c.loadSymbol(iterSym)
@@ -258,22 +259,41 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
 
-		// 5. Fetch item: iter[idx]
-		c.loadSymbol(iterSym)
-		c.loadSymbol(idxSym)
-		c.emit(code.OpIndex)
-		if itemSym.Scope == GlobalScope {
-			c.emit(code.OpSetGlobal, itemSym.Index)
-		} else {
-			c.emit(code.OpSetLocal, itemSym.Index)
-		}
-
+		// 5. Fetch loop variables
 		if node.Index != nil {
+			// 2 variables: for k, v in iter
+			keySym, _ := c.symbolTable.Resolve("__iter_key")
+			c.loadSymbol(keySym)
+			c.loadSymbol(iterSym)
 			c.loadSymbol(idxSym)
+			c.emit(code.OpCall, 2)
 			if userIdxSym.Scope == GlobalScope {
 				c.emit(code.OpSetGlobal, userIdxSym.Index)
 			} else {
 				c.emit(code.OpSetLocal, userIdxSym.Index)
+			}
+
+			valSym, _ := c.symbolTable.Resolve("__iter_val")
+			c.loadSymbol(valSym)
+			c.loadSymbol(iterSym)
+			c.loadSymbol(idxSym)
+			c.emit(code.OpCall, 2)
+			if itemSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, itemSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, itemSym.Index)
+			}
+		} else {
+			// 1 variable: for x in iter
+			itemFnSym, _ := c.symbolTable.Resolve("__iter_item")
+			c.loadSymbol(itemFnSym)
+			c.loadSymbol(iterSym)
+			c.loadSymbol(idxSym)
+			c.emit(code.OpCall, 2)
+			if itemSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, itemSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, itemSym.Index)
 			}
 		}
 
@@ -455,7 +475,13 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		if !c.importedModules[filePath] {
 			c.importedModules[filePath] = true
 
-			data, err := os.ReadFile(filePath)
+			var data []byte
+			var err error
+			if strings.HasPrefix(filePath, "embed:stdlib/") {
+				data, err = stdlib.ReadFile(filePath)
+			} else {
+				data, err = os.ReadFile(filePath)
+			}
 			if err != nil {
 				return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
 			}
@@ -640,6 +666,20 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 					return cand, nil
 				}
 			}
+		}
+
+		// Fallback to embedded standard library bundled in the binary
+		if embeddedPath, ok := stdlib.ResolveEmbeddedPath(stdSubpath); ok {
+			return "embed:stdlib/" + embeddedPath, nil
+		}
+	}
+
+	// If current module being compiled is an embedded stdlib module, resolve relative imports
+	if strings.HasPrefix(c.BaseDir, "embed:stdlib/") {
+		base := strings.TrimPrefix(c.BaseDir, "embed:stdlib/")
+		rel := filepath.Clean(filepath.Join(base, importPath))
+		if embeddedPath, ok := stdlib.ResolveEmbeddedPath(rel); ok {
+			return "embed:stdlib/" + embeddedPath, nil
 		}
 	}
 

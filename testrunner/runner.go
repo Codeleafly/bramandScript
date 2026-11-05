@@ -28,6 +28,9 @@ type RunnerOptions struct {
 }
 
 func Run(opts RunnerOptions) int {
+	vm.SetTestRunnerActive(true)
+	defer vm.SetTestRunnerActive(false)
+
 	files := discoverTestFiles(opts.Paths)
 	if len(files) == 0 {
 		fmt.Printf("%s[WARN] No test files found matching '*_test.bmd' or 'test_*.bmd'%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)

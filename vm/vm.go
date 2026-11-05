@@ -426,14 +426,48 @@ func (vm *VM) runLoop() error {
 			vm.currentFrame().ip += 2
 
 			frame := vm.currentFrame()
-			vm.stack[frame.basePointer+localIndex] = vm.pop()
+			slot := frame.basePointer + localIndex
+			val := vm.pop()
+			if cell, ok := vm.stack[slot].(*object.Cell); ok {
+				cell.Mu.Lock()
+				cell.Value = val
+				cell.Mu.Unlock()
+			} else {
+				vm.stack[slot] = val
+			}
 
 		case code.OpGetLocal:
 			localIndex := int(binary.BigEndian.Uint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
 
 			frame := vm.currentFrame()
-			err := vm.push(vm.stack[frame.basePointer+localIndex])
+			val := vm.stack[frame.basePointer+localIndex]
+			if cell, ok := val.(*object.Cell); ok {
+				cell.Mu.RLock()
+				val = cell.Value
+				cell.Mu.RUnlock()
+			}
+			err := vm.push(val)
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetLocalCell:
+			localIndex := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
+
+			frame := vm.currentFrame()
+			slot := frame.basePointer + localIndex
+			val := vm.stack[slot]
+			cell, isCell := val.(*object.Cell)
+			if !isCell {
+				if val == nil {
+					val = Null
+				}
+				cell = &object.Cell{Value: val}
+				vm.stack[slot] = cell
+			}
+			err := vm.push(cell)
 			if err != nil {
 				return err
 			}
@@ -495,6 +529,11 @@ func (vm *VM) runLoop() error {
 
 		case code.OpReturnValue:
 			returnValue := vm.pop()
+			if cell, ok := returnValue.(*object.Cell); ok {
+				cell.Mu.RLock()
+				returnValue = cell.Value
+				cell.Mu.RUnlock()
+			}
 
 			frame := vm.popFrame()
 			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
@@ -502,13 +541,25 @@ func (vm *VM) runLoop() error {
 				for i, name := range frame.cl.Fn.FreeNames {
 					if i < len(frame.cl.Free) {
 						strObj := &object.String{Value: name}
-						frame.cl.Instance.Pairs[strObj.HashKey()] = object.HashPair{Key: strObj, Value: frame.cl.Free[i]}
+						hk := strObj.HashKey()
+						if _, exists := frame.cl.Instance.Pairs[hk]; exists {
+							freeVal := frame.cl.Free[i]
+							if cell, ok := freeVal.(*object.Cell); ok {
+								cell.Mu.RLock()
+								freeVal = cell.Value
+								cell.Mu.RUnlock()
+							}
+							frame.cl.Instance.Pairs[hk] = object.HashPair{Key: strObj, Value: freeVal}
+						}
 					}
 				}
 				frame.cl.Instance.Mu.Unlock()
 			}
 			if vm.framesIndex == 0 {
 				return nil
+			}
+			for i := frame.basePointer; i < vm.sp; i++ {
+				vm.stack[i] = nil
 			}
 			vm.sp = frame.basePointer - 1
 
@@ -524,13 +575,25 @@ func (vm *VM) runLoop() error {
 				for i, name := range frame.cl.Fn.FreeNames {
 					if i < len(frame.cl.Free) {
 						strObj := &object.String{Value: name}
-						frame.cl.Instance.Pairs[strObj.HashKey()] = object.HashPair{Key: strObj, Value: frame.cl.Free[i]}
+						hk := strObj.HashKey()
+						if _, exists := frame.cl.Instance.Pairs[hk]; exists {
+							freeVal := frame.cl.Free[i]
+							if cell, ok := freeVal.(*object.Cell); ok {
+								cell.Mu.RLock()
+								freeVal = cell.Value
+								cell.Mu.RUnlock()
+							}
+							frame.cl.Instance.Pairs[hk] = object.HashPair{Key: strObj, Value: freeVal}
+						}
 					}
 				}
 				frame.cl.Instance.Mu.Unlock()
 			}
 			if vm.framesIndex == 0 {
 				return nil
+			}
+			for i := frame.basePointer; i < vm.sp; i++ {
+				vm.stack[i] = nil
 			}
 			vm.sp = frame.basePointer - 1
 
@@ -630,7 +693,13 @@ func (vm *VM) runLoop() error {
 			vm.currentFrame().ip += 1
 
 			currentClosure := vm.currentFrame().cl
-			err := vm.push(currentClosure.Free[freeIndex])
+			val := currentClosure.Free[freeIndex]
+			if cell, ok := val.(*object.Cell); ok {
+				cell.Mu.RLock()
+				val = cell.Value
+				cell.Mu.RUnlock()
+			}
+			err := vm.push(val)
 			if err != nil {
 				return err
 			}
@@ -640,7 +709,31 @@ func (vm *VM) runLoop() error {
 			vm.currentFrame().ip += 1
 
 			currentClosure := vm.currentFrame().cl
-			currentClosure.Free[freeIndex] = vm.pop()
+			val := vm.pop()
+			if cell, ok := currentClosure.Free[freeIndex].(*object.Cell); ok {
+				cell.Mu.Lock()
+				cell.Value = val
+				cell.Mu.Unlock()
+			} else {
+				currentClosure.Free[freeIndex] = val
+			}
+
+		case code.OpGetFreeCell:
+			freeIndex := int(ins[ip+1])
+			vm.currentFrame().ip += 1
+
+			currentClosure := vm.currentFrame().cl
+			err := vm.push(currentClosure.Free[freeIndex])
+			if err != nil {
+				return err
+			}
+
+		case code.OpCurrentClosure:
+			currentClosure := vm.currentFrame().cl
+			err := vm.push(currentClosure)
+			if err != nil {
+				return err
+			}
 		}
 
 		if vm.profiler != nil {
@@ -676,9 +769,59 @@ func objectsEqualDepth(left, right object.Object, depth int) bool {
 				return l.Value == float64(r.Value)
 			}
 		}
+		if l, ok := left.(*object.Vector); ok {
+			if r, ok := right.(*object.Array); ok {
+				if len(l.Elements) != len(r.Elements) {
+					return false
+				}
+				for i := range l.Elements {
+					if !objectsEqualDepth(&object.Float{Value: l.Elements[i]}, r.Elements[i], depth+1) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+		if l, ok := left.(*object.Array); ok {
+			if r, ok := right.(*object.Vector); ok {
+				if len(l.Elements) != len(r.Elements) {
+					return false
+				}
+				for i := range l.Elements {
+					if !objectsEqualDepth(l.Elements[i], &object.Float{Value: r.Elements[i]}, depth+1) {
+						return false
+					}
+				}
+				return true
+			}
+		}
 		return false
 	}
 	switch l := left.(type) {
+	case *object.Vector:
+		r := right.(*object.Vector)
+		if len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if l.Elements[i] != r.Elements[i] {
+				return false
+			}
+		}
+		return true
+	case *object.Matrix:
+		r := right.(*object.Matrix)
+		if l.Rows != r.Rows || l.Cols != r.Cols {
+			return false
+		}
+		for i := 0; i < l.Rows; i++ {
+			for j := 0; j < l.Cols; j++ {
+				if l.Data[i][j] != r.Data[i][j] {
+					return false
+				}
+			}
+		}
+		return true
 	case *object.Integer:
 		return l.Value == right.(*object.Integer).Value
 	case *object.Float:

@@ -245,4 +245,47 @@ describe("Neural Network Autograd Engine", fn() {
         // Verify loss decreased after gradient descent steps
         assert(final_loss.data <= initial_loss.data);
     });
+
+    test("Linear regression training y = 3x + 1 with step()", fn() {
+        let n = ml.new_neuron(1, "linear");
+        let xs = [[1.0], [2.0], [3.0], [4.0]];
+        let ys = [4.0, 7.0, 10.0, 13.0];
+
+        let epoch = 0;
+        let initial_loss = 0.0;
+        while epoch < 35 {
+            let preds = [];
+            let i = 0;
+            while i < len(xs) {
+                preds = preds + [n.call(xs[i])];
+                i = i + 1;
+            }
+            let loss = ml.mse_loss(preds, ys);
+            if epoch == 0 {
+                initial_loss = loss.data;
+            }
+            n.zero_grad();
+            loss.backward();
+            n.step(0.02);
+            epoch = epoch + 1;
+        }
+
+        let preds = [];
+        let i = 0;
+        while i < len(xs) {
+            preds = preds + [n.call(xs[i])];
+            i = i + 1;
+        }
+        let final_loss = ml.mse_loss(preds, ys);
+        assert(final_loss.data < initial_loss);
+        assert(final_loss.data < 0.1);
+    });
+
+    test("Weight symmetry broken across neurons in layer", fn() {
+        let l = ml.new_layer(3, 2, "tanh");
+        let n1_weights = l.neurons[0].weights;
+        let n2_weights = l.neurons[1].weights;
+        // Verify weights are not identical
+        assert(n1_weights[0].data != n2_weights[0].data);
+    });
 });

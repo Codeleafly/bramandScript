@@ -300,7 +300,8 @@ let eval_code = fn(source_code) {
         return {
             "success": false,
             "errors": parser.errors,
-            "result": null
+            "result": null,
+            "globals": []
         };
     }
 

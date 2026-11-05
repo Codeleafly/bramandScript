@@ -99,8 +99,162 @@ func ResetStdin() {
 	stdinReader = bufio.NewReader(os.Stdin)
 }
 
+func getSortedHashKeys(h *object.Hash) []object.Object {
+	h.Mu.RLock()
+	defer h.Mu.RUnlock()
+	keys := make([]object.Object, 0, len(h.Pairs))
+	for _, pair := range h.Pairs {
+		keys = append(keys, pair.Key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Inspect() < keys[j].Inspect()
+	})
+	return keys
+}
+
 func init() {
 	RegisterBuiltins(map[string]*object.Builtin{
+		"__iter_len": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Integer{Value: 0}
+				}
+				switch iter := args[0].(type) {
+				case *object.Array:
+					iter.Mu.RLock()
+					count := int64(len(iter.Elements))
+					iter.Mu.RUnlock()
+					return &object.Integer{Value: count}
+				case *object.Hash:
+					iter.Mu.RLock()
+					count := int64(len(iter.Pairs))
+					iter.Mu.RUnlock()
+					return &object.Integer{Value: count}
+				case *object.String:
+					return &object.Integer{Value: int64(len([]rune(iter.Value)))}
+				case *object.Bytes:
+					iter.Mu.RLock()
+					count := int64(len(iter.Value))
+					iter.Mu.RUnlock()
+					return &object.Integer{Value: count}
+				default:
+					return &object.Integer{Value: 0}
+				}
+			},
+		},
+		"__iter_key": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return Null
+				}
+				idxObj, ok := args[1].(*object.Integer)
+				if !ok {
+					return Null
+				}
+				idx := int(idxObj.Value)
+				switch iter := args[0].(type) {
+				case *object.Hash:
+					keys := getSortedHashKeys(iter)
+					if idx >= 0 && idx < len(keys) {
+						return keys[idx]
+					}
+					return Null
+				default:
+					return &object.Integer{Value: int64(idx)}
+				}
+			},
+		},
+		"__iter_val": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return Null
+				}
+				idxObj, ok := args[1].(*object.Integer)
+				if !ok {
+					return Null
+				}
+				idx := int(idxObj.Value)
+				switch iter := args[0].(type) {
+				case *object.Hash:
+					keys := getSortedHashKeys(iter)
+					if idx >= 0 && idx < len(keys) {
+						iter.Mu.RLock()
+						defer iter.Mu.RUnlock()
+						key := keys[idx]
+						if hashable, ok := key.(object.Hashable); ok {
+							if pair, ok := iter.Pairs[hashable.HashKey()]; ok {
+								return pair.Value
+							}
+						}
+					}
+					return Null
+				case *object.Array:
+					iter.Mu.RLock()
+					defer iter.Mu.RUnlock()
+					if idx >= 0 && idx < len(iter.Elements) {
+						return iter.Elements[idx]
+					}
+					return Null
+				case *object.String:
+					runes := []rune(iter.Value)
+					if idx >= 0 && idx < len(runes) {
+						return &object.String{Value: string(runes[idx])}
+					}
+					return Null
+				case *object.Bytes:
+					iter.Mu.RLock()
+					defer iter.Mu.RUnlock()
+					if idx >= 0 && idx < len(iter.Value) {
+						return &object.Integer{Value: int64(iter.Value[idx])}
+					}
+					return Null
+				default:
+					return Null
+				}
+			},
+		},
+		"__iter_item": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return Null
+				}
+				idxObj, ok := args[1].(*object.Integer)
+				if !ok {
+					return Null
+				}
+				idx := int(idxObj.Value)
+				switch iter := args[0].(type) {
+				case *object.Hash:
+					keys := getSortedHashKeys(iter)
+					if idx >= 0 && idx < len(keys) {
+						return keys[idx]
+					}
+					return Null
+				case *object.Array:
+					iter.Mu.RLock()
+					defer iter.Mu.RUnlock()
+					if idx >= 0 && idx < len(iter.Elements) {
+						return iter.Elements[idx]
+					}
+					return Null
+				case *object.String:
+					runes := []rune(iter.Value)
+					if idx >= 0 && idx < len(runes) {
+						return &object.String{Value: string(runes[idx])}
+					}
+					return Null
+				case *object.Bytes:
+					iter.Mu.RLock()
+					defer iter.Mu.RUnlock()
+					if idx >= 0 && idx < len(iter.Value) {
+						return &object.Integer{Value: int64(iter.Value[idx])}
+					}
+					return Null
+				default:
+					return Null
+				}
+			},
+		},
 		"len": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) != 1 {
@@ -561,6 +715,12 @@ func init() {
 					if intObj, ok := args[0].(*object.Integer); ok {
 						code = int(intObj.Value)
 					}
+				}
+				if IsTestRunnerActive() {
+					if code != 0 {
+						return &object.Error{Message: fmt.Sprintf("exit called with code %d during test run", code)}
+					}
+					return Null
 				}
 				os.Exit(code)
 				return Null

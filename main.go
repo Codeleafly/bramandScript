@@ -10,6 +10,7 @@ import (
 	"bramandscript/testrunner"
 	"bramandscript/vm"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -524,6 +525,28 @@ func handlePkgCommand(args []string) {
 		fmt.Println(libsDir)
 
 	case "list", "ls":
+		if data, err := os.ReadFile("package.json"); err == nil {
+			fmt.Printf("%s✦ Local Project Dependencies (package.json)%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+			var pkgInfo struct {
+				Name         string            `json:"name"`
+				Version      string            `json:"version"`
+				Dependencies map[string]string `json:"dependencies"`
+			}
+			if err := json.Unmarshal(data, &pkgInfo); err == nil {
+				fmt.Printf("Project: %s (v%s)\n", pkgInfo.Name, pkgInfo.Version)
+				if len(pkgInfo.Dependencies) > 0 {
+					for dep, ver := range pkgInfo.Dependencies {
+						fmt.Printf("  ❯ %s: %s\n", dep, ver)
+					}
+				} else {
+					fmt.Println("  (no dependencies declared in package.json)")
+				}
+			} else {
+				fmt.Println("  (package.json found)")
+			}
+			fmt.Println("──────────────────────────────────────────────────")
+		}
+
 		entries, err := os.ReadDir(libsDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] Failed to list packages: %s\n", err)
@@ -621,22 +644,50 @@ func handlePkgCommand(args []string) {
 		}
 
 	case "init":
-		if len(args) < 2 {
-			fmt.Println("Usage: bramand pkg init <name@version>")
-			os.Exit(1)
+		pkgName := "my-package"
+		targetDir := "."
+		if len(args) >= 2 && args[1] != "" && args[1] != "." {
+			pkgName = args[1]
+			targetDir = pkgName
+			if err := os.MkdirAll(targetDir, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] Could not create directory '%s': %s\n", targetDir, err)
+				os.Exit(1)
+			}
+		} else {
+			if cwd, err := os.Getwd(); err == nil {
+				base := filepath.Base(cwd)
+				if base != "" && base != "/" && base != "." {
+					pkgName = base
+				}
+			}
 		}
-		pkgName := args[1]
-		if err := os.MkdirAll(pkgName, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Could not create directory '%s': %s\n", pkgName, err)
-			os.Exit(1)
+
+		pkgJsonPath := filepath.Join(targetDir, "package.json")
+		if _, err := os.Stat(pkgJsonPath); os.IsNotExist(err) {
+			pkgJsonContent := fmt.Sprintf(`{
+  "name": "%s",
+  "version": "1.0.0",
+  "description": "BramandScript package",
+  "main": "index.bmd",
+  "license": "MIT",
+  "dependencies": {}
+}
+`, pkgName)
+			if err := os.WriteFile(pkgJsonPath, []byte(pkgJsonContent), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing package.json: %s\n", err)
+				os.Exit(1)
+			}
 		}
-		sampleFile := filepath.Join(pkgName, "index.bmd")
-		sampleContent := fmt.Sprintf("// BramandScript Package: %s\n\nfn info() {\n    return \"Package %s initialized\";\n}\n", pkgName, pkgName)
-		if err := os.WriteFile(sampleFile, []byte(sampleContent), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Failed writing index.bmd: %s\n", err)
-			os.Exit(1)
+
+		sampleFile := filepath.Join(targetDir, "index.bmd")
+		if _, err := os.Stat(sampleFile); os.IsNotExist(err) {
+			sampleContent := fmt.Sprintf("// BramandScript Package: %s\n\nfn info() {\n    return \"Package %s initialized\";\n}\n", pkgName, pkgName)
+			if err := os.WriteFile(sampleFile, []byte(sampleContent), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing index.bmd: %s\n", err)
+				os.Exit(1)
+			}
 		}
-		fmt.Printf("[OK] Initialized package directory '%s' with index.bmd\n", pkgName)
+		fmt.Printf("[OK] Initialized package '%s' (package.json, index.bmd)\n", pkgName)
 
 	default:
 		printPkgHelp()

@@ -90,13 +90,17 @@ jobs:
             TAG="${{ inputs.tag_name || 'v0.1.1' }}"
           fi
 
+          cp -r stdlib build_output/
+          cp README.md build_output/
+          if [ -f LICENSE ]; then cp LICENSE build_output/; fi
+
           cd build_output
           if [ "${{ matrix.archive_format }}" = "tar.gz" ]; then
             ARCHIVE_NAME="${{ matrix.artifact_name }}-${TAG}.tar.gz"
             tar -czvf "../dist/${ARCHIVE_NAME}" *
           else
             ARCHIVE_NAME="${{ matrix.artifact_name }}-${TAG}.zip"
-            zip "../dist/${ARCHIVE_NAME}" *
+            zip -r "../dist/${ARCHIVE_NAME}" *
           fi
           cd ..
 

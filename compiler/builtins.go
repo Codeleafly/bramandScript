@@ -207,4 +207,14 @@ var Builtins = []BuiltinDef{
 	{Name: "chr"},
 	{Name: "eval"},
 	{Name: "implements"},
+
+	// Iteration Helpers
+	{Name: "__iter_len"},
+	{Name: "__iter_key"},
+	{Name: "__iter_val"},
+	{Name: "__iter_item"},
+
+	// Testing Assertions
+	{Name: "assert_true"},
+	{Name: "assert_false"},
 }

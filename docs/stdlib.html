@@ -1297,13 +1297,13 @@ let source = "let a = 15; let b = 25; a + b"
 let l = lang.create_lexer(source)
 let tokens = l.tokenize()
 
-// 2. Pratt Parsing to AST
+// 2. Pratt Parsing to AST (accepts source string or lexer)
 let p = lang.create_parser(source)
 let program = p.parse_program()
 
-// 3. Bytecode Compilation and Evaluation
-let result = lang.eval_code(source)
-println("MiniLang Result:", result) // 40</code></pre>
+// 3. Bytecode Compilation and Evaluation (returns { success, errors, result, globals })
+let out = lang.eval_code(source)
+println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></pre>
         </div>
       </section>
 
@@ -1635,7 +1635,7 @@ println("MiniLang Result:", result) // 40</code></pre>
               <tr><td><code class="font-mono font-bold">http_put</code></td><td><code class="font-mono">http_put(url, body, [hdrs])</code></td><td><code class="font-mono">HASH</code></td><td>Executes HTTP PUT request.</td></tr>
               <tr><td><code class="font-mono font-bold">http_delete</code></td><td><code class="font-mono">http_delete(url, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Executes HTTP DELETE request.</td></tr>
               <tr><td><code class="font-mono font-bold">http_request</code></td><td><code class="font-mono">http_request(opts_hash)</code></td><td><code class="font-mono">HASH</code></td><td>Unified client API accepting method, url, body, headers, and timeout.</td></tr>
-              <tr><td><code class="font-mono font-bold">http_server</code></td><td><code class="font-mono">http_server()</code></td><td><code class="font-mono">HttpServer</code></td><td>Instantiates built-in HTTP server with routing, middleware, and static files.</td></tr>
+              <tr><td><code class="font-mono font-bold">http_server</code></td><td><code class="font-mono">http_server()</code></td><td><code class="font-mono">HttpServer</code></td><td>Instantiates built-in low-level HTTP server engine (<code class="font-mono">.get()</code>, <code class="font-mono">.post()</code>, <code class="font-mono">.static()</code>, <code class="font-mono">.listen()</code>). For advanced radix-trie routing with parameterized (<code class="font-mono">:id</code>) or wildcard (<code class="font-mono">*path</code>) routes and middleware, use <code class="font-mono">import "std/net"</code>.</td></tr>
               <tr><td><code class="font-mono font-bold">ws_connect</code></td><td><code class="font-mono">ws_connect(url)</code></td><td><code class="font-mono">WsConn</code></td><td>Connects to RFC 6455 WebSocket (<code class="font-mono">ws://</code> or <code class="font-mono">wss://</code> with strict TLS).</td></tr>
               <tr><td><code class="font-mono font-bold">ws_server</code></td><td><code class="font-mono">ws_server(addr, [path])</code></td><td><code class="font-mono">WsServer</code></td><td>Binds WebSocket server listener with <code class="font-mono">.accept()</code>.</td></tr>
             </tbody>

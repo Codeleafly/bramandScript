@@ -10,22 +10,19 @@ struct MiddlewarePipeline {
     }
 
     fn run(ctx, target_handler) {
-        let handler = target_handler;
-        if handler == null {
-            handler = fn(c) { return null; };
-        }
-        let i = len(middlewares) - 1;
-        while i >= 0 {
-            let curr_mw = middlewares[i];
-            let next_fn = handler;
-            handler = fn(c) {
-                return curr_mw(c, fn() {
-                    return next_fn(c);
+        let dispatch = fn(idx) {
+            if idx < len(middlewares) {
+                let mw = middlewares[idx];
+                return mw(ctx, fn() {
+                    return dispatch(idx + 1);
                 });
-            };
-            i = i - 1;
-        }
-        return handler(ctx);
+            }
+            if target_handler != null {
+                return target_handler(ctx);
+            }
+            return null;
+        };
+        return dispatch(0);
     }
 }
 

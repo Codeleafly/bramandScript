@@ -27,6 +27,42 @@ func init() {
 				return Null
 			},
 		},
+		"assert_true": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments to assert_true. got=%d, want 1 or 2", len(args)), Fatal: true}
+				}
+				if !isTruthy(args[0]) {
+					msg := "assertion failed"
+					if len(args) == 2 {
+						msg = args[1].Inspect()
+						if s, ok := args[1].(*object.String); ok {
+							msg = s.Value
+						}
+					}
+					return &object.Error{Message: fmt.Sprintf("AssertionError: %s", msg), Fatal: true}
+				}
+				return Null
+			},
+		},
+		"assert_false": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments to assert_false. got=%d, want 1 or 2", len(args)), Fatal: true}
+				}
+				if isTruthy(args[0]) {
+					msg := "assertion failed"
+					if len(args) == 2 {
+						msg = args[1].Inspect()
+						if s, ok := args[1].(*object.String); ok {
+							msg = s.Value
+						}
+					}
+					return &object.Error{Message: fmt.Sprintf("AssertionError: %s", msg), Fatal: true}
+				}
+				return Null
+			},
+		},
 		"assert_eq": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) < 2 || len(args) > 3 {
