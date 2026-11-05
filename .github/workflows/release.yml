@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag Name (e.g. v0.1.0)'
+        description: 'Release Tag Name (e.g. v0.1.1)'
         required: true
-        default: 'v0.1.0'
+        default: 'v0.1.1'
 
 permissions:
   contents: write
@@ -87,7 +87,7 @@ jobs:
           mkdir -p dist
           TAG="${{ github.ref_name }}"
           if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
-            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+            TAG="${{ inputs.tag_name || 'v0.1.1' }}"
           fi
 
           cd build_output
@@ -137,7 +137,7 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
-            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+            TAG="${{ inputs.tag_name || 'v0.1.1' }}"
           fi
 
           # Create release notes
