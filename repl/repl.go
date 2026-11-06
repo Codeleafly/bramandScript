@@ -12,12 +12,17 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 )
 
 const DIVIDER = "__________________________________________________________________"
 
 func Start(in io.Reader, out io.Writer) {
+	vm.SetStdout(out)
+	defer vm.SetStdout(nil)
+
 	scanner := bufio.NewScanner(in)
 
 	fmt.Fprintf(out, "%s✦ %sBramandScript 0.1.0%s %s(%s-%s) · High-Performance Bytecode VM%s\n",
@@ -196,6 +201,8 @@ func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.
 }
 
 func executeCode(source, filename string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
+	defer vm.EnsureStdoutNewline()
+
 	l := lexer.New(source)
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -212,6 +219,7 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 			Hint:     diagnostics.GenerateHint(firstErr.Message),
 		}
 		fmt.Fprint(out, diag.Format())
+		vm.EnsureStdoutNewline()
 		return
 	} else if len(p.Errors()) > 0 {
 		diag := diagnostics.Diagnostic{
@@ -224,6 +232,7 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 			Hint:     diagnostics.GenerateHint(p.Errors()[0]),
 		}
 		fmt.Fprint(out, diag.Format())
+		vm.EnsureStdoutNewline()
 		return
 	}
 
@@ -256,6 +265,7 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 		}
 
 		fmt.Fprint(out, diag.Format())
+		vm.EnsureStdoutNewline()
 		return
 	}
 
@@ -264,6 +274,7 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 
 	machine := vm.NewWithGlobalsStore(code, globals)
 	err = machine.Run()
+	vm.EnsureStdoutNewline()
 	if err != nil {
 		diag := diagnostics.Diagnostic{
 			Filename: filename,
@@ -275,12 +286,124 @@ func executeCode(source, filename string, out io.Writer, symbolTable *compiler.S
 			Hint:     diagnostics.GenerateHint(err.Error()),
 		}
 		fmt.Fprint(out, diag.Format())
+		vm.EnsureStdoutNewline()
 		return
 	}
 
 	lastPopped := machine.LastPoppedStackElem()
 	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
-		fmt.Fprintf(out, "%s\n", lastPopped.Inspect())
+		fmt.Fprintf(out, "%s\n", FormatReplValue(lastPopped))
+		vm.ResetStdoutNewlineState()
+	}
+}
+
+// FormatReplValue renders runtime objects with syntax highlighting for REPL sessions.
+func FormatReplValue(obj object.Object) string {
+	return formatReplValueDepth(obj, 0)
+}
+
+func formatReplValueDepth(obj object.Object, depth int) string {
+	if obj == nil {
+		return diagnostics.ColorDim + "null" + diagnostics.ColorReset
+	}
+	if depth >= 16 {
+		return diagnostics.ColorDim + "..." + diagnostics.ColorReset
+	}
+
+	switch o := obj.(type) {
+	case *object.Integer:
+		return fmt.Sprintf("%s%d%s", diagnostics.ColorYellow, o.Value, diagnostics.ColorReset)
+	case *object.Float:
+		s := strconv.FormatFloat(o.Value, 'f', -1, 64)
+		if !strings.Contains(s, ".") {
+			s += ".0"
+		}
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorYellow, s, diagnostics.ColorReset)
+	case *object.BigInt:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorYellow, o.Inspect(), diagnostics.ColorReset)
+	case *object.BigFloat:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorYellow, o.Inspect(), diagnostics.ColorReset)
+	case *object.String:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorGreen, strconv.Quote(o.Value), diagnostics.ColorReset)
+	case *object.Bytes:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorGreen, o.Inspect(), diagnostics.ColorReset)
+	case *object.Boolean:
+		return fmt.Sprintf("%s%t%s", diagnostics.ColorMagenta, o.Value, diagnostics.ColorReset)
+	case *object.Null:
+		return diagnostics.ColorDim + "null" + diagnostics.ColorReset
+	case *object.CompiledFunction, *object.Closure:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorCyan, o.Inspect(), diagnostics.ColorReset)
+	case *object.Builtin:
+		return fmt.Sprintf("%s<builtin %s>%s", diagnostics.ColorCyan, o.Inspect(), diagnostics.ColorReset)
+	case *object.Error:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorRed, o.Inspect(), diagnostics.ColorReset)
+	case *object.Vector:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorYellow, o.Inspect(), diagnostics.ColorReset)
+	case *object.Matrix:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorYellow, o.Inspect(), diagnostics.ColorReset)
+	case *object.Channel:
+		return fmt.Sprintf("%s%s%s", diagnostics.ColorCyan, o.Inspect(), diagnostics.ColorReset)
+	case *object.Array:
+		o.Mu.RLock()
+		defer o.Mu.RUnlock()
+		if len(o.Elements) == 0 {
+			return "[]"
+		}
+		var elems []string
+		for _, el := range o.Elements {
+			elems = append(elems, formatReplValueDepth(el, depth+1))
+		}
+		return fmt.Sprintf("[%s]", strings.Join(elems, ", "))
+	case *object.Hash:
+		o.Mu.RLock()
+		defer o.Mu.RUnlock()
+
+		// Check if it's a struct instance
+		structNameKey := (&object.String{Value: "__struct__"}).HashKey()
+		if structPair, isStruct := o.Pairs[structNameKey]; isStruct {
+			structName := ""
+			if strObj, ok := structPair.Value.(*object.String); ok {
+				structName = strObj.Value
+			}
+			var fields []string
+			for _, pair := range o.Pairs {
+				keyStr := ""
+				if sKey, ok := pair.Key.(*object.String); ok {
+					keyStr = sKey.Value
+				} else {
+					keyStr = pair.Key.Inspect()
+				}
+				if strings.HasPrefix(keyStr, "__") {
+					continue
+				}
+				if _, isClosure := pair.Value.(*object.Closure); isClosure {
+					continue
+				}
+				valStr := formatReplValueDepth(pair.Value, depth+1)
+				fields = append(fields, fmt.Sprintf("%s%s%s: %s", diagnostics.ColorCyan, keyStr, diagnostics.ColorReset, valStr))
+			}
+			sort.Strings(fields)
+			if structName != "" {
+				if len(fields) == 0 {
+					return fmt.Sprintf("%s%s%s {}", diagnostics.ColorBold, structName, diagnostics.ColorReset)
+				}
+				return fmt.Sprintf("%s%s%s { %s }", diagnostics.ColorBold, structName, diagnostics.ColorReset, strings.Join(fields, ", "))
+			}
+		}
+
+		if len(o.Pairs) == 0 {
+			return "{}"
+		}
+		var pairs []string
+		for _, pair := range o.Pairs {
+			keyStr := formatReplValueDepth(pair.Key, depth+1)
+			valStr := formatReplValueDepth(pair.Value, depth+1)
+			pairs = append(pairs, fmt.Sprintf("%s: %s", keyStr, valStr))
+		}
+		sort.Strings(pairs)
+		return fmt.Sprintf("{ %s }", strings.Join(pairs, ", "))
+	default:
+		return o.Inspect()
 	}
 }
 
@@ -409,7 +532,7 @@ func runProfile(source string, out io.Writer, symbolTable *compiler.SymbolTable,
 
 	lastPopped := machine.LastPoppedStackElem()
 	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
-		fmt.Fprintf(out, "%sResult: %s%s\n", diagnostics.ColorCyan, lastPopped.Inspect(), diagnostics.ColorReset)
+		fmt.Fprintf(out, "%sResult:%s %s\n", diagnostics.ColorCyan, diagnostics.ColorReset, FormatReplValue(lastPopped))
 	}
 
 	fmt.Fprint(out, report.String())

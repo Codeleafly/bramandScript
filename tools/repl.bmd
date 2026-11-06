@@ -3,4 +3,7 @@
 
 import "std/tooling/repl" as repl_pkg
 
+let start_repl = repl_pkg.start_repl;
+let format_repl_value = repl_pkg.format_repl_value;
+
 repl_pkg.start_repl();

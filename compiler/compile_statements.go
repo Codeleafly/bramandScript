@@ -519,7 +519,11 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			}
 
 			prevBaseDir := c.BaseDir
-			c.BaseDir = filepath.Dir(filePath)
+			if strings.HasPrefix(filePath, "embed:stdlib/") {
+				c.BaseDir = filepath.ToSlash(filepath.Dir(filePath))
+			} else {
+				c.BaseDir = filepath.Dir(filePath)
+			}
 
 			prevFile := c.currentFile
 			prevSource := c.currentSource
@@ -736,9 +740,10 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 	}
 
 	// If current module being compiled is an embedded stdlib module, resolve relative imports
-	if strings.HasPrefix(c.BaseDir, "embed:stdlib/") {
-		base := strings.TrimPrefix(c.BaseDir, "embed:stdlib/")
-		rel := filepath.Clean(filepath.Join(base, importPath))
+	normBaseDir := filepath.ToSlash(c.BaseDir)
+	if strings.HasPrefix(normBaseDir, "embed:stdlib/") {
+		base := strings.TrimPrefix(normBaseDir, "embed:stdlib/")
+		rel := filepath.ToSlash(filepath.Clean(filepath.Join(base, importPath)))
 		if embeddedPath, ok := stdlib.ResolveEmbeddedPath(rel); ok {
 			return "embed:stdlib/" + embeddedPath, nil
 		}

@@ -42,6 +42,90 @@ let count_delimiter_depth = fn(line) {
     return depth;
 };
 
+let format_repl_value_depth = fn(val, depth) {
+    if depth >= 16 {
+        return c_dim("...");
+    }
+    if val == null {
+        return c_dim("null");
+    }
+    let t = type(val);
+    if t == "NULL" {
+        return c_dim("null");
+    }
+    if t == "INTEGER" || t == "FLOAT" || t == "BIG_INT" || t == "BIG_FLOAT" {
+        return c_yellow(str(val));
+    }
+    if t == "STRING" {
+        return c_green("\"" + str(val) + "\"");
+    }
+    if t == "BOOLEAN" {
+        return c_magenta(str(val));
+    }
+    if t == "COMPILED_FUNCTION" || t == "CLOSURE" || t == "BUILTIN" || t == "FUNCTION" {
+        return c_cyan(str(val));
+    }
+    if t == "ERROR" {
+        return c_red(str(val));
+    }
+    if t == "ARRAY" {
+        if len(val) == 0 {
+            return "[]";
+        }
+        let items = [];
+        let i = 0;
+        let n = len(val);
+        while i < n {
+            items = append(items, format_repl_value_depth(val[i], depth + 1));
+            i = i + 1;
+        }
+        return "[" + join(items, ", ") + "]";
+    }
+    if t == "HASH" {
+        if contains(val, "__struct__") {
+            let sname = val["__struct__"];
+            let ks = keys(val);
+            let fields = [];
+            let k_idx = 0;
+            while k_idx < len(ks) {
+                let k = ks[k_idx];
+                if !str_pkg.starts_with(k, "__") {
+                    let field_val = val[k];
+                    let field_type = type(field_val);
+                    if field_type != "CLOSURE" && field_type != "COMPILED_FUNCTION" {
+                        let f_val_str = format_repl_value_depth(field_val, depth + 1);
+                        fields = append(fields, c_cyan(k) + ": " + f_val_str);
+                    }
+                }
+                k_idx = k_idx + 1;
+            }
+            if len(fields) == 0 {
+                return c_bold(str(sname)) + " {}";
+            }
+            return c_bold(str(sname)) + " { " + join(fields, ", ") + " }";
+        }
+        let ks = keys(val);
+        if len(ks) == 0 {
+            return "{}";
+        }
+        let pairs = [];
+        let k_idx = 0;
+        while k_idx < len(ks) {
+            let k = ks[k_idx];
+            let v_str = format_repl_value_depth(val[k], depth + 1);
+            let k_str = c_green("\"" + str(k) + "\"");
+            pairs = append(pairs, k_str + ": " + v_str);
+            k_idx = k_idx + 1;
+        }
+        return "{ " + join(pairs, ", ") + " }";
+    }
+    return str(val);
+};
+
+let format_repl_value = fn(val) {
+    return format_repl_value_depth(val, 0);
+};
+
 let print_repl_help = fn() {
     println(c_cyan("✦ BramandScript REPL Commands:"));
     println(c_dim("────────────────────────────────────────────────────────────────────────────"));
@@ -82,15 +166,17 @@ let run_editor_mode = fn(sess) {
     let t0 = time_ms();
     let res = eval(buffer, sess);
     let elapsed = time_ms() - t0;
+    ensure_newline();
 
     if type(res) == "ERROR" {
         println(c_red("✦ Runtime Error: ") + str(res));
     } else {
         if res != null {
-            println(c_cyan("❯ ") + c_green(str(res)));
+            println(format_repl_value(res));
         }
         println(c_dim("  · executed in " + str(elapsed) + "ms"));
     }
+    ensure_newline();
 };
 
 let start_repl = fn() {
@@ -182,14 +268,16 @@ let start_repl = fn() {
                 let t0 = time_ms();
                 let res = eval(expr, sess);
                 let elapsed = time_ms() - t0;
+                ensure_newline();
                 if type(res) == "ERROR" {
                     println(c_red("✦ Error: ") + str(res));
                 } else {
                     if res != null {
-                        println(c_cyan("❯ ") + c_green(str(res)));
+                        println(format_repl_value(res));
                     }
                     println(c_dim("  · execution duration: " + str(elapsed) + "ms"));
                 }
+                ensure_newline();
                 continue;
             }
         }
@@ -212,21 +300,13 @@ let start_repl = fn() {
             buffer = "";
 
             let res = eval(to_eval, sess);
+            ensure_newline();
             if type(res) == "ERROR" {
                 println(c_red("✦ Runtime Error: ") + str(res));
             } else if res != null {
-                // Pretty-print result based on type
-                let t = type(res);
-                if t == "STRING" {
-                    println(c_cyan("❯ ") + c_green("\"" + res + "\""));
-                } else if t == "INTEGER" || t == "FLOAT" || t == "BIG_INT" {
-                    println(c_cyan("❯ ") + c_yellow(str(res)));
-                } else if t == "BOOLEAN" {
-                    println(c_cyan("❯ ") + c_magenta(str(res)));
-                } else {
-                    println(c_cyan("❯ ") + str(res));
-                }
+                println(format_repl_value(res));
             }
+            ensure_newline();
         }
     }
 };

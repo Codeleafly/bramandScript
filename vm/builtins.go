@@ -72,9 +72,9 @@ func GetProgramArgs() []string {
 func readLineFromStdin(args []object.Object) object.Object {
 	if len(args) > 0 {
 		if s, ok := args[0].(*object.String); ok {
-			fmt.Print(s.Value)
+			StdoutWrite(s.Value)
 		} else {
-			fmt.Print(args[0].Inspect())
+			StdoutWrite(args[0].Inspect())
 		}
 	}
 	if IsTermReaderActive() {
@@ -127,13 +127,13 @@ func init() {
 			Fn: func(args ...object.Object) object.Object {
 				for i, arg := range args {
 					if i > 0 {
-						fmt.Print(" ")
+						StdoutWrite(" ")
 					}
 					if s, ok := arg.(*object.String); ok {
-						fmt.Print(s.Value)
+						StdoutWrite(s.Value)
 						continue
 					}
-					fmt.Print(arg.Inspect())
+					StdoutWrite(arg.Inspect())
 				}
 				return Null
 			},
@@ -142,15 +142,15 @@ func init() {
 			Fn: func(args ...object.Object) object.Object {
 				for i, arg := range args {
 					if i > 0 {
-						fmt.Print(" ")
+						StdoutWrite(" ")
 					}
 					if s, ok := arg.(*object.String); ok {
-						fmt.Print(s.Value)
+						StdoutWrite(s.Value)
 						continue
 					}
-					fmt.Print(arg.Inspect())
+					StdoutWrite(arg.Inspect())
 				}
-				fmt.Println()
+				StdoutWrite("\n")
 				return Null
 			},
 		},
@@ -158,12 +158,20 @@ func init() {
 			Fn: func(args ...object.Object) object.Object {
 				for _, arg := range args {
 					if s, ok := arg.(*object.String); ok {
-						fmt.Print(s.Value)
+						StdoutWrite(s.Value)
 						continue
 					}
-					fmt.Print(arg.Inspect())
+					StdoutWrite(arg.Inspect())
 				}
 				return Null
+			},
+		},
+		"ensure_newline": {
+			Fn: func(args ...object.Object) object.Object {
+				if EnsureStdoutNewline() {
+					return True
+				}
+				return False
 			},
 		},
 		"exit": {

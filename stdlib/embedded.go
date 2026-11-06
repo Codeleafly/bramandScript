@@ -54,6 +54,7 @@ func Exists(path string) bool {
 }
 
 func normalizePath(path string) string {
+	path = strings.ReplaceAll(path, "\\", "/")
 	path = strings.TrimPrefix(path, "embed:stdlib/")
 	path = strings.TrimPrefix(path, "embed:")
 	path = strings.TrimPrefix(path, "std/")
