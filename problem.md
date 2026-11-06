@@ -3,7 +3,7 @@
 > **Audit Date**: November 2026  
 > **Auditor**: Autonomous Codebase Auditor, Documentation Specialist & Senior Systems Engineer  
 > **Repository**: [BramandScript](https://github.com/Codeleafly/bramandScript)  
-> **Version Under Audit**: v0.1.1  
+> **Version Under Audit**: v0.1.0  
 > **Standards Compliance**: Zero Third-Party Dependencies (`0 external packages`), Pure Go Stdlib, Offline-First, No Emojis Policy.
 
 ---
@@ -468,7 +468,7 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **File/Location**: `repl/repl.go`
 - **Description**: The REPL printed verbose banner dividers, ASCII-only prompts (`bmd > `, `.... `), and lacked execution timing for evaluated statements.
 - **Root Cause**: Early prototype REPL formatting not updated to modern language design standards.
-- **Fix**: Modernized REPL with sleek minimal branding (`✦ BramandScript 0.1.1 (arm64-linux) · High-Performance Bytecode VM`), crisp Unicode prompts (`✦ bmd ❯ `, continuation `· ··· `), timing diagnostics, multi-line editor integration, and adherence to the No-Emojis Policy.
+- **Fix**: Modernized REPL with sleek minimal branding (`✦ BramandScript 0.1.0 (arm64-linux) · High-Performance Bytecode VM`), crisp Unicode prompts (`✦ bmd ❯ `, continuation `· ··· `), timing diagnostics, multi-line editor integration, and adherence to the No-Emojis Policy.
 - **Status**: `[RESOLVED]`
 
 ### P69: Absence of Native Terminal UI (TUI) and CLI Standard Library Framework

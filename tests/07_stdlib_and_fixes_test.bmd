@@ -1,5 +1,5 @@
 // BramandScript Regression & Standard Library Test Suite
-// Verifies v0.1.1 engine fixes and modular stdlib packages
+// Verifies v0.1.0 engine fixes and modular stdlib packages
 
 describe("Struct State Synchronization", fn() {
         test("Method invocation mutates instance field in hash", fn() {
