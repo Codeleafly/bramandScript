@@ -63,3 +63,15 @@ func TestFormatParenBracketSpaces(t *testing.T) {
 		t.Errorf("Format mismatch. Got %q, want %q", formatted, expected)
 	}
 }
+
+func TestFormatCompoundAndBitwiseOperators(t *testing.T) {
+	input := "let a = 1<<3;\nlet b = 16>>2;\nlet c = 2**8;\nlet d = [1, 2]|>sum();\nlet e = a&b|c^d;"
+	expected := "let a = 1 << 3;\nlet b = 16 >> 2;\nlet c = 2 ** 8;\nlet d = [1, 2] |> sum();\nlet e = a & b | c ^ d;"
+	formatted, err := Format(input)
+	if err != nil {
+		t.Fatalf("Format error: %s", err)
+	}
+	if strings.TrimSpace(formatted) != strings.TrimSpace(expected) {
+		t.Errorf("Format mismatch.\nGot:\n%s\nWant:\n%s", formatted, expected)
+	}
+}

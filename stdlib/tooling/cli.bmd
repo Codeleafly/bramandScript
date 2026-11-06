@@ -1,0 +1,179 @@
+// BramandScript Standard Library :: Unified CLI Framework (std/tooling/cli)
+// 100% Native BramandScript command-line dispatcher and developer toolchain.
+
+import "std/tooling/repl" as repl_pkg
+import "std/tooling/test_runner" as test_pkg
+import "std/tooling/pkg" as pkg_pkg
+import "std/tooling/disasm" as disasm_pkg
+import "std/tooling/fmt" as fmt_pkg
+import "std/strings" as str_pkg
+import "std/tui/color" as color
+
+let c_cyan = fn(t) { return color.CYAN + str(t) + color.RESET; };
+let c_green = fn(t) { return color.GREEN + str(t) + color.RESET; };
+let c_yellow = fn(t) { return color.YELLOW + str(t) + color.RESET; };
+let c_red = fn(t) { return color.RED + str(t) + color.RESET; };
+let c_dim = fn(t) { return color.DIM + str(t) + color.RESET; };
+let c_bold = fn(t) { return color.BOLD + str(t) + color.RESET; };
+
+let print_version = fn() {
+    println(c_cyan("✦ ") + c_bold("BramandScript 0.1.0") + c_dim(" (pure Go runtime & native .bmd toolchain)"));
+    println("Standard Library: 16 core modules (math, net, db, ml, tui, json, crypto, etc.)");
+    println("Zero External Dependencies · 100% Offline Capable");
+};
+
+let print_cli_help = fn() {
+    println(c_cyan("✦ ") + c_bold("BramandScript — High-Performance Bytecode VM & Toolchain"));
+    println(c_dim("────────────────────────────────────────────────────────────────────────────"));
+    println("Usage: " + c_bold("bmd <command> [arguments...]"));
+    println("\n" + c_bold("Core Commands:"));
+    println("  " + c_bold("run") + " <file.bmd> [args...]     Execute a BramandScript source file");
+    println("  " + c_bold("repl") + "                         Start interactive developer REPL");
+    println("  " + c_bold("test") + " [paths...]               Run automated test runner and reporter");
+    println("  " + c_bold("fmt") + " [--check] [paths...]      Format source files to canonical style");
+    println("  " + c_bold("pkg") + " <subcmd> [args...]        Manage packages and centralized registry");
+    println("  " + c_bold("disasm") + " <file | 'expr'>        Disassemble source into VM bytecodes");
+    println("  " + c_bold("bench") + " [file.bmd]              Execute benchmarks and record metrics");
+    println("  " + c_bold("info, version") + "                 Display language and runtime specifications");
+    println("  " + c_bold("help") + "                          Show this command manual");
+    println(c_dim("────────────────────────────────────────────────────────────────────────────"));
+    println("For package management commands, run: " + c_bold("bmd pkg help"));
+    println("For interactive REPL help, run " + c_bold("bmd repl") + " and type " + c_bold(":help"));
+};
+
+let execute_file = fn(filepath, user_args) {
+    if filepath == "" || filepath == null {
+        println(c_yellow("Usage: bmd run <filename.bmd> [arguments...]"));
+        return 1;
+    }
+
+    if !file_exists(filepath) {
+        println(c_red("[ERROR] File not found: " + filepath));
+        return 1;
+    }
+
+    // Delegate to native execution engine
+    let cmd = "./bramand run " + filepath;
+    let i = 0;
+    while i < len(user_args) {
+        cmd = cmd + " " + user_args[i];
+        i = i + 1;
+    }
+    let res = exec(cmd);
+    if res["stdout"] != "" {
+        print(res["stdout"]);
+    }
+    if res["stderr"] != "" {
+        print(res["stderr"]);
+    }
+    return res["exit_code"];
+};
+
+let execute_bench = fn(bench_file) {
+    if bench_file == "" || bench_file == null {
+        bench_file = "benchmarks/benchmark.bmd";
+    }
+    if !file_exists(bench_file) {
+        println(c_red("[ERROR] Benchmark file not found: " + bench_file));
+        return 1;
+    }
+
+    println(c_cyan("✦ Running Benchmark: ") + c_bold(bench_file));
+    let t0 = time_ms();
+    let res = exec("./bramand run " + bench_file);
+    let elapsed = time_ms() - t0;
+
+    if res["stdout"] != "" {
+        print(res["stdout"]);
+    }
+    if res["stderr"] != "" {
+        print(res["stderr"]);
+    }
+    println(c_dim("\nTotal benchmark wall-clock time: " + str(elapsed) + "ms"));
+    return res["exit_code"];
+};
+
+let run_cli_main = fn(all_args) {
+    if len(all_args) == 0 {
+        // No command provided: default to interactive REPL (Node.js style!)
+        repl_pkg.start_repl();
+        return 0;
+    }
+
+    let command = all_args[0];
+    let rest_args = [];
+    let i = 1;
+    while i < len(all_args) {
+        rest_args = rest_args + [all_args[i]];
+        i = i + 1;
+    }
+
+    if command == "repl" {
+        repl_pkg.start_repl();
+        return 0;
+    } else if command == "run" {
+        if len(rest_args) == 0 {
+            println(c_yellow("Usage: bmd run <filename.bmd> [args...]"));
+            return 1;
+        }
+        let target_file = rest_args[0];
+        let script_args = [];
+        let j = 1;
+        while j < len(rest_args) {
+            script_args = script_args + [rest_args[j]];
+            j = j + 1;
+        }
+        return execute_file(target_file, script_args);
+    } else if command == "test" {
+        return test_pkg.run_test_suites(rest_args);
+    } else if command == "fmt" {
+        let check_only = false;
+        let paths = [];
+        let k = 0;
+        while k < len(rest_args) {
+            let arg = rest_args[k];
+            if arg == "--check" || arg == "-c" {
+                check_only = true;
+            } else {
+                paths = paths + [arg];
+            }
+            k = k + 1;
+        }
+        return fmt_pkg.run_fmt_cli(paths, check_only);
+    } else if command == "pkg" {
+        return pkg_pkg.run_pkg_cli(rest_args);
+    } else if command == "disasm" {
+        if len(rest_args) == 0 {
+            println(c_yellow("Usage: bmd disasm <file.bmd | 'code'>"));
+            return 1;
+        }
+        return disasm_pkg.disassemble_target(rest_args[0]);
+    } else if command == "bench" {
+        let bfile = "";
+        if len(rest_args) > 0 {
+            bfile = rest_args[0];
+        }
+        return execute_bench(bfile);
+    } else if command == "version" || command == "-v" || command == "--version" {
+        print_version();
+        return 0;
+    } else if command == "info" {
+        print_version();
+        println("\nRuntime Builtins: 119 verified Go builtins");
+        println("Bytecode VM: Stack-based with frame execution");
+        println("Pratt Parser: Top-down operator precedence with AST");
+        return 0;
+    } else if command == "help" || command == "-h" || command == "--help" {
+        print_cli_help();
+        return 0;
+    } else {
+        // If argument is an existing .bmd file, execute it directly! (Node.js style: `node script.js`)
+        if file_exists(command) && str_pkg.ends_with(command, ".bmd") {
+            return execute_file(command, rest_args);
+        }
+
+        println(c_red("[ERROR] Unknown command: " + command));
+        println("Run " + c_bold("bmd help") + " for a list of valid commands.");
+        return 1;
+    }
+};

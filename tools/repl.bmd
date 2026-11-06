@@ -1,0 +1,6 @@
+// BramandScript Tooling :: Interactive REPL Entrypoint (tools/repl.bmd)
+// Run with: ./bramand run tools/repl.bmd
+
+import "std/tooling/repl" as repl_pkg
+
+repl_pkg.start_repl();

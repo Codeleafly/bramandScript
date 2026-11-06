@@ -1,0 +1,31 @@
+// BramandScript Standard Library :: Bytecode Disassembler (std/tooling/disasm)
+// 100% Native BramandScript bytecode disassembler and AST inspection.
+
+import "std/strings" as str_pkg
+import "std/tui/color" as color
+
+let c_cyan = fn(t) { return color.CYAN + str(t) + color.RESET; };
+let c_yellow = fn(t) { return color.YELLOW + str(t) + color.RESET; };
+let c_red = fn(t) { return color.RED + str(t) + color.RESET; };
+let c_bold = fn(t) { return color.BOLD + str(t) + color.RESET; };
+
+let disassemble_target = fn(target) {
+    if target == "" || target == null {
+        println(c_yellow("Usage: bmd disasm <file.bmd | 'code_expression'>"));
+        return 1;
+    }
+
+    let code_to_disasm = target;
+    if file_exists(target) {
+        code_to_disasm = read_file(target);
+    }
+
+    let res = disasm(code_to_disasm);
+    if type(res) == "ERROR" {
+        println(c_red("[ERROR] Disassembly failed: " + str(res)));
+        return 1;
+    }
+
+    println(res);
+    return 0;
+};

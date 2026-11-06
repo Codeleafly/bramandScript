@@ -83,7 +83,8 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **File/Location**: `parser/parser.go` (lines 414–419), `parser/statements.go` (lines 71–76)
 - **Description**: When `if` or `while` conditions contain an opening parenthesis without a closing parenthesis (e.g. `if (x > 1 { ... }`), `expectPeek(token.RPAREN)` fails and immediately returns `nil`, aborting statement parsing without synchronizing to the block brace.
 - **Root Cause**: Absence of error-recovery synchronization to skip tokens up to `LBRACE` when condition delimiters are mismatched.
-- **Status**: `[PENDING]`
+- **Fix**: Synchronized token consumption upon missing RPAREN up to LBRACE and consumed the consequence/body block, preventing cascading parser failures.
+- **Status**: `[RESOLVED]`
 
 ### P10: Lexer Incomplete Multi-Line Comment EOF Detection
 - **File/Location**: `lexer/lexer.go` (lines 233–250)
@@ -96,46 +97,48 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 ## 2. Compiler Bytecode & Symbol Scoping Issues
 
 ### P11: Dead Infix Opcodes `OpAnd` and `OpOr` in Compiler Switch
-- **File/Location**: `compiler/compiler.go` (lines 243–246)
-- **Description**: `case "&&": c.emit(code.OpAnd)` and `case "||": c.emit(code.OpOr)` in the main infix operator switch statement are completely unreachable dead code.
-- **Root Cause**: Short-circuit compilation for `&&` and `||` was implemented earlier in lines 163–211, returning `nil` directly and rendering the switch cases dead.
-- **Status**: `[PENDING]`
+- **File/Location**: `compiler/compiler.go`
+- **Description**: `case "&&": c.emit(code.OpAnd)` and `case "||": c.emit(code.OpOr)` in the main infix operator switch statement were completely unreachable dead code.
+- **Root Cause**: Short-circuit compilation for `&&` and `||` was implemented earlier in lines 195–231, returning `nil` directly.
+- **Fix**: Removed dead switch branches from infix compiler dispatch.
+- **Status**: `[RESOLVED]`
 
-### P12: Logical Short-Circuit Evaluation Eagerly Coerces Operands to Boolean
-- **File/Location**: `compiler/compiler.go` (lines 174–175, 205–206)
-- **Description**: The bytecode compiler emits `OpBang` twice to coerce right-hand operands in `&&` and `||` into boolean `true`/`false`. In idiom-rich programming, expressions like `let name = user_input || "default"` evaluate to `true` instead of returning `"default"`.
-- **Root Cause**: Double-bang emission on operand jump targets forces boolean values rather than preserving raw operand values on the stack.
-- **Status**: `[PENDING]`
+### P12: Logical Short-Circuit Evaluation Value Preservation
+- **File/Location**: `compiler/compiler.go`
+- **Description**: The bytecode compiler emitted `OpBang` pairs that coerced right-hand operands into boolean true/false rather than preserving raw evaluated values.
+- **Root Cause**: Boolean coercion instead of stack duplication.
+- **Fix**: Implemented value-preserving short circuiting using `OpDup`, `OpJumpNotTruthy`, and `OpPop`.
+- **Status**: `[RESOLVED]`
 
-### P13: Constant Pool 16-Bit Operand Overflow Without Error Diagnostic
-- **File/Location**: `compiler/compiler.go` (line 557), `code/code.go` (line 79)
-- **Description**: `OpConstant` encodes constants with a 2-byte operand (`uint16`). In large generated programs or files with > 65,535 literals, `addConstant` returns indices exceeding `65535`, causing integer truncation in `Make()` and corrupting bytecode execution.
-- **Root Cause**: Lack of compiler check for `len(c.constants) > 65535`.
-- **Status**: `[PENDING]`
+### P13: Constant Pool 16-Bit Operand Overflow Protection
+- **File/Location**: `compiler/compiler.go`, `code/code.go`
+- **Description**: `OpConstant` encodes constants with a 2-byte operand (`uint16`). Large generated programs with > 65,535 literals caused integer truncation in `Make()` and corrupted bytecode execution.
+- **Fix**: Added explicit guard in `addConstant()` and opcode operand validation in `emit()` raising a clean compiler error when limit exceeds 65535.
+- **Status**: `[RESOLVED]`
 
 ### P14: Array and Hash Literal Size 16-Bit Operand Overflow
-- **File/Location**: `compiler/compiler.go` (lines 352, 365), `code/code.go` (lines 104–105)
-- **Description**: Array and Hash literal construction emits `OpArray` and `OpHash` with 2-byte operand widths. Compiling data structures exceeding 65,535 entries silently overflows operand encoding.
-- **Root Cause**: No validation that element count fits within `math.MaxUint16`.
-- **Status**: `[PENDING]`
+- **File/Location**: `compiler/compiler.go`, `code/code.go`
+- **Description**: Array and Hash literal construction emits `OpArray` and `OpHash` with 2-byte operand widths. Compiling data structures exceeding 65,535 entries silently overflowed operand encoding.
+- **Fix**: Added size validations on `ArrayLiteral` (<= 65535) and `HashLiteral` (<= 32767 pairs) in compiler.
+- **Status**: `[RESOLVED]`
 
-### P15: Local Variable Index 16-Bit Overflow Without Compiler Validation
-- **File/Location**: `compiler/compiler.go` (line 549), `compile_statements.go` (line 67)
-- **Description**: Local variable symbols are indexed via 2-byte operands in `OpGetLocal` and `OpSetLocal`. If a single function scope defines more than 65,535 local variables, indices wrap around.
-- **Root Cause**: `SymbolTable.Define` does not guard against `fnScope.numDefinitions > 65535`.
-- **Status**: `[PENDING]`
+### P15: Local Variable Index 16-Bit Overflow Compiler Validation
+- **File/Location**: `compiler/compiler.go`, `compiler/symbol_table.go`
+- **Description**: Local variable symbols are indexed via 2-byte operands in `OpGetLocal` and `OpSetLocal`. Single function scopes defining more than 65,535 local variables wrapped around.
+- **Fix**: Added bounds check in `FunctionLiteral` verifying `numLocals <= 65535` and opcode operand limits in `emit()`.
+- **Status**: `[RESOLVED]`
 
 ### P16: Circular Module Imports Silently Omit Symbols
-- **File/Location**: `compiler/compile_statements.go` (lines 385–450)
-- **Description**: Module imports track visited paths in `c.importedModules[filePath] = true` before compiling the AST statements. If Module A imports Module B, and Module B imports Module A, Module A is deemed already imported, resulting in zero exported symbols.
-- **Root Cause**: Setting import completion flag before statement compilation completes.
-- **Status**: `[PENDING]`
+- **File/Location**: `compiler/compile_statements.go`
+- **Description**: Module imports tracked visited paths before compiling AST statements. Mutual circular imports resulted in empty exported symbols.
+- **Fix**: Implemented `importingModules` map detecting recursive cycles and reporting clean compile error.
+- **Status**: `[RESOLVED]`
 
-### P17: Module Alias Import Excludes Re-Exported Imported Symbols
-- **File/Location**: `compiler/compile_statements.go` (lines 414–434)
-- **Description**: When compiling `import "foo" as f`, the compiler iterates `moduleProgram.Statements` looking for `LetStatement`, `ConstStatement`, named `FunctionLiteral`, and `StructStatement`. Any nested `ImportStatement` within the module is not included in the exported hash.
-- **Root Cause**: Export collector does not inspect or re-export declarations introduced via nested module imports.
-- **Status**: `[PENDING]`
+### P17: Module Alias Import Re-Exporting Nested Imported Symbols
+- **File/Location**: `compiler/compile_statements.go`
+- **Description**: Aliased module imports (`import "foo" as f`) omitted nested module alias imports (`import "bar" as b`) from the exported symbol hash.
+- **Fix**: Added `case *ast.ImportStatement:` with alias collection in module export processor.
+- **Status**: `[RESOLVED]`
 
 ### P18: Loop Jump Context Stack Left Dirty on Compilation Errors
 - **File/Location**: `compiler/compile_statements.go` (lines 299–308, 473–477)
@@ -144,10 +147,11 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Status**: `[RESOLVED]`
 
 ### P19: Break and Continue Inside Nested Function Literals Target Outer Loops
-- **File/Location**: `compiler/compile_statements.go` (lines 479–495)
+- **File/Location**: `compiler/compiler.go`
 - **Description**: A `break` or `continue` statement inside an anonymous function defined within a loop (e.g. `while true { fn() { break; } }`) resolves against the outer loop's context.
 - **Root Cause**: `enterScope()` for function literals does not reset or shadow the active loop stack.
-- **Status**: `[PENDING]`
+- **Fix**: Isolated `c.loops` stack upon entering `FunctionLiteral` scopes and restored upon exit.
+- **Status**: `[RESOLVED]`
 
 ### P20: Global Constant Re-Declaration Overwrites Without Compile-Time Error
 - **File/Location**: `compiler/compile_statements.go` (lines 70–81)
@@ -214,10 +218,11 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Status**: `[RESOLVED]`
 
 ### P30: Matrix Determinant Degenerates on Near-Singular Pivots
-- **File/Location**: `object/math.go` (lines 377–380)
-- **Description**: In Gaussian elimination for matrix determinant, a pivot check threshold of `math.Abs(pivot) < 1e-12` treats near-singular matrices as exactly 0 without indicating ill-conditioned numerical scaling.
+- **File/Location**: `object/math.go`
+- **Description**: In Gaussian elimination for matrix determinant, a hardcoded pivot check threshold of `math.Abs(pivot) < 1e-12` treated near-singular matrices as exactly 0 without indicating ill-conditioned numerical scaling.
 - **Root Cause**: Hardcoded epsilon without relative scale factor based on matrix norm.
-- **Status**: `[PENDING]`
+- **Fix**: Implemented dynamic epsilon scaling `eps = 1e-15 * maxElem` based on matrix maximum entry magnitude across `Det()` and `Inv()`.
+- **Status**: `[RESOLVED]`
 
 ---
 
@@ -259,11 +264,12 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Root Cause**: Missing negative index resolution `start = length + start`.
 - **Status**: `[RESOLVED]`
 
-### P37: Builtin `sort` on Incomparable Object Types Fall Back to Lexicographical String Sorting
-- **File/Location**: `vm/builtins.go` (lines 510–512)
-- **Description**: When sorting an array containing heterogeneous types (e.g., `[true, 10, null, "abc"]`), the comparator falls back to comparing `Inspect()` strings, producing unintuitive sorting order.
+### P37: Builtin `sort` on Incomparable Object Types Type Precedence
+- **File/Location**: `vm/builtins.go`
+- **Description**: Sorting an array containing heterogeneous types fell back to comparing `Inspect()` strings, producing unintuitive sorting order.
 - **Root Cause**: Lack of a formal type precedence hierarchy in array sort.
-- **Status**: `[PENDING]`
+- **Fix**: Implemented a canonical type precedence ranking function in `sort` builtin (Null < Boolean < Numbers < String < Array < Hash) ensuring deterministic, intuitive sorting.
+- **Status**: `[RESOLVED]`
 
 ### P38: `std/testing/index.bmd` Assertions Print Failure Messages Without Newlines
 - **File/Location**: `stdlib/testing/index.bmd` (lines 6, 14, 22, 30)
@@ -305,17 +311,19 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Root Cause**: Missing `o.Mu.RLock() / defer o.Mu.RUnlock()`.
 - **Status**: `[RESOLVED]`
 
-### P44: HTTP Server Middleware Pipeline Executes Without Re-entrant Frame Isolation
-- **File/Location**: `vm/ops_methods_net.go` (lines 454–463)
-- **Description**: HTTP middleware handler execution delegates to `ExecuteCallable(mw, ...)`. If a middleware modifies global variables or executes in parallel, VM state is desynchronized.
-- **Root Cause**: Shared globals store across server request threads without per-request isolation.
-- **Status**: `[PENDING]`
+### P44: HTTP Server Middleware Pipeline Re-entrant Frame Isolation
+- **File/Location**: `vm/ops_methods_net.go`, `vm/vm.go`
+- **Description**: HTTP middleware handler execution delegated to `ExecuteCallable(mw, ...)`. State isolation across parallel requests was needed.
+- **Root Cause**: Re-entrant call frames needed isolated stacks.
+- **Fix**: Re-entrant `ExecuteCallable` allocates independent child stacks and frames per request with `GlobalsStore.mu` protection.
+- **Status**: `[RESOLVED]`
 
-### P45: Channel Send on Full Channel Blocks Indefinitely Without Timeout
-- **File/Location**: `object/object.go` (lines 250–267), `vm/vm.go` (lines 530–546)
-- **Description**: Sending to an unbuffered or full channel via `OpSend` blocks the VM worker thread permanently if no receiver is active, with no mechanism for timeout or non-blocking send.
-- **Root Cause**: Unconditional Go channel send `ch <- val` without `select` or timeout options.
-- **Status**: `[PENDING]`
+### P45: Channel Send on Full Channel Timeout and Non-Blocking Operations
+- **File/Location**: `object/object.go`, `vm/ops_methods_math.go`
+- **Description**: Sending to an unbuffered or full channel via `OpSend` blocked VM worker threads permanently without timeout or non-blocking send.
+- **Root Cause**: Unconditional Go channel send without select options.
+- **Fix**: Added `SendTimeout(val, timeout)`, `TrySend(val)`, `RecvTimeout(timeout)`, and `TryRecv()` on `object.Channel` and exposed `ch.send(val, [timeout_ms])`, `ch.try_send(val)`, `ch.recv([timeout_ms])`, and `ch.try_recv()`.
+- **Status**: `[RESOLVED]`
 
 ### P46: WaitGroup Counter Underflow Causes Unrecoverable Go Panic
 - **File/Location**: `object/object.go` (line 321), `vm/ops_methods_math.go` (lines 56–62)
@@ -341,11 +349,12 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
 - **Root Cause**: Early pointer identity check `if l == r { return true }` was inside the array branch but could be optimized at entry.
 - **Status**: `[RESOLVED]`
 
-### P50: TCP Socket Read Operations Lack Default Timeout Protection
-- **File/Location**: `object/net.go` (lines 94–107)
-- **Description**: `c.Read()` and `c.ReadLine()` block indefinitely on dead TCP connections if the remote host disconnects without sending a FIN/RST packet.
-- **Root Cause**: Absence of a default non-zero socket deadline.
-- **Status**: `[PENDING]`
+### P50: TCP Socket Operations Timeout Protection
+- **File/Location**: `object/net.go`
+- **Description**: `c.Read()` and `c.ReadLine()` blocked indefinitely on dead TCP connections.
+- **Root Cause**: Fixed absolute deadline instead of per-operation timeout semantics.
+- **Fix**: Added `Timeout time.Duration` on `TcpConn` refreshed dynamically before each `Write`, `Read`, and `ReadLine` invocation.
+- **Status**: `[RESOLVED]`
 
 ---
 
@@ -501,6 +510,24 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
   4. Updated `vm/builtins_term.go`: `term_size` respects explicit `COLUMNS` and `LINES` environment overrides.
   5. Refactored `examples/tui_showcase/dashboard.bmd`: removed hardcoded 70-column clamp, implemented responsive compact/full layout modes adapting cleanly from narrow mobile screens (36-40 cols) to wide desktops (120+ cols).
   6. Added automated unit tests in `tests/10_tui_cli_stdlib_test.bmd` verifying box border alignment and table column truncation.
+- **Status**: `[RESOLVED]`
+
+### P74: 100% Native BramandScript Tooling Ecosystem (REPL, CLI, Test Runner, Package Manager, Disassembler, Formatter)
+- **File/Location**: `stdlib/tooling/`, `tools/`, `compiler/builtins.go`, `vm/builtins.go`, `main.go`, `tests/19_native_tooling_test.bmd`
+- **Description**: High-level tooling (interactive REPL, master CLI dispatcher, test suite discovery runner, package manager, bytecode disassembler, and source formatter) was initially implemented in Go or lacked full language self-hosting. In production language ecosystems (like Node.js writing its REPL/CLI in JavaScript while keeping V8 in C++), high-level developer tooling should be authored natively in BramandScript (`.bmd`) on top of clean runtime primitives.
+- **Root Cause**: Absence of stateful evaluation session primitives (`create_session`, `session_vars`), bytecode reflection primitives (`disasm`), and native `.bmd` tooling implementations.
+- **Fix**:
+  1. Implemented reflection and stateful session builtins in Go core: `create_session()`, `session_vars(sess)`, `disasm(code_or_closure)`, and enhanced `eval(code, [session])` to persist symbols and globals across evaluation steps.
+  2. Built modular native tooling in `stdlib/tooling/` and executable entrypoints in `tools/`:
+     - `repl.bmd`: Production-ready interactive REPL with multi-line delimiter tracking, session state persistence, ANSI TrueColor syntax rendering, and commands (`:help`, `:clear`, `:reset`, `:env`, `:type`, `:time`, `:disasm`, `:exit`).
+     - `cli.bmd`: Master CLI dispatcher supporting `run`, `repl`, `test`, `fmt`, `pkg`, `disasm`, `bench`, `info`, `version`, `help`.
+     - `test_runner.bmd`: Automated test discovery and execution engine with suite timing and status reporting.
+     - `pkg.bmd`: Package manager handling local/directory package installations, manifest initialization (`package.bmd`), and removal in `~/.bramand_libs/`.
+     - `disasm.bmd`: Bytecode disassembler inspecting VM opcodes, jump targets, and constant tables.
+     - `fmt.bmd`: Source code canonical indent/layout formatter and verification check.
+     - `index.bmd`: Unified standard library export index under `std/tooling`.
+  3. Integrated direct CLI delegation flags in `main.go` (`bramand cli`, `bramand bmd-repl`, `bramand bmd-test`, `bramand bmd-pkg`, `bramand bmd-fmt`, `bramand bmd-disasm`).
+  4. Added automated test suite `tests/19_native_tooling_test.bmd` verifying session evaluation, bytecode disassembly, package directory operations, and source formatting.
 - **Status**: `[RESOLVED]`
 
 ---

@@ -1,0 +1,9 @@
+// BramandScript Tooling :: Master CLI Entrypoint (tools/cli.bmd)
+// 100% Pure BramandScript unified CLI runner.
+// Usage: ./bramand run tools/cli.bmd [command] [args...]
+
+import "std/tooling/cli" as cli_pkg
+
+let cli_args = args();
+let code = cli_pkg.run_cli_main(cli_args);
+exit(code);

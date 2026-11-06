@@ -370,9 +370,19 @@ func (m *Matrix) Det() (float64, error) {
 
 	// Gaussian elimination with partial pivoting
 	a := make([][]float64, n)
+	maxElem := 0.0
 	for i := range a {
 		a[i] = make([]float64, n)
 		copy(a[i], m.Data[i])
+		for j := 0; j < n; j++ {
+			if v := math.Abs(m.Data[i][j]); v > maxElem {
+				maxElem = v
+			}
+		}
+	}
+	eps := 1e-15
+	if maxElem > 0 {
+		eps = 1e-15 * maxElem
 	}
 
 	det := 1.0
@@ -385,7 +395,7 @@ func (m *Matrix) Det() (float64, error) {
 			}
 		}
 
-		if math.Abs(a[pivotRow][i]) < 1e-12 {
+		if math.Abs(a[pivotRow][i]) <= eps {
 			return 0, nil
 		}
 
@@ -416,10 +426,20 @@ func (m *Matrix) Inv() (*Matrix, error) {
 
 	// Augmented matrix [A | I]
 	aug := make([][]float64, n)
+	maxElem := 0.0
 	for i := 0; i < n; i++ {
 		aug[i] = make([]float64, 2*n)
 		copy(aug[i][:n], m.Data[i])
 		aug[i][n+i] = 1.0
+		for j := 0; j < n; j++ {
+			if v := math.Abs(m.Data[i][j]); v > maxElem {
+				maxElem = v
+			}
+		}
+	}
+	eps := 1e-15
+	if maxElem > 0 {
+		eps = 1e-15 * maxElem
 	}
 
 	// Gauss-Jordan elimination
@@ -431,7 +451,7 @@ func (m *Matrix) Inv() (*Matrix, error) {
 			}
 		}
 
-		if math.Abs(aug[pivotRow][i]) < 1e-12 {
+		if math.Abs(aug[pivotRow][i]) <= eps {
 			return nil, fmt.Errorf("matrix is singular and cannot be inverted")
 		}
 

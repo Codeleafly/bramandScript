@@ -1,0 +1,22 @@
+// BramandScript Tooling :: Native Formatter CLI (tools/formatter.bmd)
+// Usage: ./bramand run tools/formatter.bmd [--check] [paths...]
+
+import "std/tooling/fmt" as fmt_pkg
+
+let cli_args = args();
+let check_only = false;
+let clean_paths = [];
+
+let i = 0;
+while i < len(cli_args) {
+    let a = cli_args[i];
+    if a == "--check" || a == "-c" {
+        check_only = true;
+    } else {
+        clean_paths = clean_paths + [a];
+    }
+    i = i + 1;
+}
+
+let code = fmt_pkg.run_fmt_cli(clean_paths, check_only);
+exit(code);

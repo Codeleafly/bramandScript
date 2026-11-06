@@ -259,14 +259,14 @@ func formatCodeTokens(code string) string {
 
 	// Normalize spaces around binary operators
 	operators := []string{
-		"==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "=>", "<-", "&&", "||",
+		"|>", "<<", ">>", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "=>", "<-", "&&", "||",
 	}
 	for _, op := range operators {
 		res = normalizeOpSpacing(res, op)
 	}
 
 	// Single char operators with care
-	singleOps := []string{"=", "+", "*", "/", "%", "<", ">"}
+	singleOps := []string{"=", "+", "*", "/", "%", "<", ">", "&", "|", "^"}
 	for _, op := range singleOps {
 		res = normalizeSingleOpSpacing(res, op)
 	}
@@ -389,11 +389,11 @@ func normalizeSingleOpSpacing(input, op string) string {
 			}
 
 			// Don't format inside compound operators
-			if prev == '=' || prev == '!' || prev == '<' || prev == '>' || prev == '+' || prev == '-' || prev == '*' || prev == '/' {
+			if prev == '=' || prev == '!' || prev == '<' || prev == '>' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '|' || prev == '&' || prev == '^' {
 				buf.WriteByte(ch)
 				continue
 			}
-			if next == '=' || next == '>' || next == '*' || next == '+' || next == '-' {
+			if next == '=' || next == '>' || next == '<' || next == '*' || next == '+' || next == '-' || next == '|' || next == '&' {
 				buf.WriteByte(ch)
 				continue
 			}

@@ -57,6 +57,10 @@ func NewEnclosedBlockSymbolTable(outer *SymbolTable) *SymbolTable {
 	return s
 }
 
+func (s *SymbolTable) Store() map[string]Symbol {
+	return s.store
+}
+
 func (s *SymbolTable) enclosingFunctionScope() *SymbolTable {
 	curr := s
 	for curr != nil {

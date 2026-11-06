@@ -1,0 +1,8 @@
+// BramandScript Tooling :: Package Manager CLI (tools/pkg_manager.bmd)
+// Usage: ./bramand run tools/pkg_manager.bmd <subcommand> [args...]
+
+import "std/tooling/pkg" as pm
+
+let cli_args = args();
+let code = pm.run_pkg_cli(cli_args);
+exit(code);

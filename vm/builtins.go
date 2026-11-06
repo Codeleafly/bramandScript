@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"os"
@@ -17,6 +18,15 @@ import (
 	"bramandscript/object"
 	"bramandscript/parser"
 )
+
+type EvalSession struct {
+	SymbolTable *compiler.SymbolTable
+	Constants   []object.Object
+	Globals     []object.Object
+}
+
+func (s *EvalSession) Type() object.ObjectType { return object.ObjectType("EVAL_SESSION") }
+func (s *EvalSession) Inspect() string         { return "eval_session()" }
 
 var (
 	builtinRegistry   = make(map[string]*object.Builtin)
@@ -76,7 +86,7 @@ func GetProgramArgs() []string {
 	return res
 }
 
-func readLineFromStdin(args []object.Object) string {
+func readLineFromStdin(args []object.Object) object.Object {
 	if len(args) > 0 {
 		if s, ok := args[0].(*object.String); ok {
 			fmt.Print(s.Value)
@@ -85,12 +95,15 @@ func readLineFromStdin(args []object.Object) string {
 		}
 	}
 	if IsTermReaderActive() {
-		return ReadLineFromTermChan()
+		return &object.String{Value: ReadLineFromTermChan()}
 	}
 	stdinReaderLock.Lock()
 	defer stdinReaderLock.Unlock()
-	text, _ := stdinReader.ReadString('\n')
-	return strings.TrimRight(text, "\r\n")
+	text, err := stdinReader.ReadString('\n')
+	if err == io.EOF && len(text) == 0 {
+		return Null
+	}
+	return &object.String{Value: strings.TrimRight(text, "\r\n")}
 }
 
 // ResetStdin resets the standard input buffer (used for testing).
@@ -800,29 +813,58 @@ func init() {
 				}
 				newElems := make([]object.Object, len(arr.Elements))
 				copy(newElems, arr.Elements)
+				typeRank := func(o object.Object) int {
+					switch o.(type) {
+					case *object.Null:
+						return 0
+					case *object.Boolean:
+						return 1
+					case *object.Integer, *object.Float, *object.BigInt, *object.BigFloat:
+						return 2
+					case *object.String:
+						return 3
+					case *object.Array:
+						return 4
+					case *object.Hash:
+						return 5
+					default:
+						return 6
+					}
+				}
 				sort.Slice(newElems, func(i, j int) bool {
-					if i1, ok1 := newElems[i].(*object.Integer); ok1 {
-						if i2, ok2 := newElems[j].(*object.Integer); ok2 {
-							return i1.Value < i2.Value
+					o1 := newElems[i]
+					o2 := newElems[j]
+					r1, r2 := typeRank(o1), typeRank(o2)
+					if r1 != r2 {
+						return r1 < r2
+					}
+					switch v1 := o1.(type) {
+					case *object.Null:
+						return false
+					case *object.Boolean:
+						if v2, ok := o2.(*object.Boolean); ok {
+							return !v1.Value && v2.Value
 						}
-						if f2, ok2 := newElems[j].(*object.Float); ok2 {
-							return float64(i1.Value) < f2.Value
+					case *object.Integer:
+						if v2, ok := o2.(*object.Integer); ok {
+							return v1.Value < v2.Value
+						}
+						if v2, ok := o2.(*object.Float); ok {
+							return float64(v1.Value) < v2.Value
+						}
+					case *object.Float:
+						if v2, ok := o2.(*object.Float); ok {
+							return v1.Value < v2.Value
+						}
+						if v2, ok := o2.(*object.Integer); ok {
+							return v1.Value < float64(v2.Value)
+						}
+					case *object.String:
+						if v2, ok := o2.(*object.String); ok {
+							return v1.Value < v2.Value
 						}
 					}
-					if f1, ok1 := newElems[i].(*object.Float); ok1 {
-						if f2, ok2 := newElems[j].(*object.Float); ok2 {
-							return f1.Value < f2.Value
-						}
-						if i2, ok2 := newElems[j].(*object.Integer); ok2 {
-							return f1.Value < float64(i2.Value)
-						}
-					}
-					if s1, ok1 := newElems[i].(*object.String); ok1 {
-						if s2, ok2 := newElems[j].(*object.String); ok2 {
-							return s1.Value < s2.Value
-						}
-					}
-					return newElems[i].Inspect() < newElems[j].Inspect()
+					return o1.Inspect() < o2.Inspect()
 				})
 				return &object.Array{Elements: newElems}
 			},
@@ -1133,8 +1175,8 @@ func init() {
 		},
 		"eval": {
 			Fn: func(args ...object.Object) object.Object {
-				if len(args) != 1 {
-					return &object.Error{Message: fmt.Sprintf("eval expected 1 argument (code string), got %d", len(args))}
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: fmt.Sprintf("eval expected 1 or 2 arguments (code string, [session]), got %d", len(args))}
 				}
 				str, ok := args[0].(*object.String)
 				if !ok {
@@ -1147,14 +1189,33 @@ func init() {
 					return &object.Error{Message: fmt.Sprintf("eval syntax error: %s", p.Errors()[0])}
 				}
 
-				comp := compiler.New()
+				var comp *compiler.Compiler
+				var sess *EvalSession
+				if len(args) == 2 {
+					var okSess bool
+					sess, okSess = args[1].(*EvalSession)
+					if !okSess {
+						return &object.Error{Message: fmt.Sprintf("eval session must be EVAL_SESSION, got %s", args[1].Type())}
+					}
+					comp = compiler.NewWithState(sess.SymbolTable, sess.Constants)
+				} else {
+					comp = compiler.New()
+				}
+
 				err := comp.Compile(program)
 				if err != nil {
 					return &object.Error{Message: fmt.Sprintf("eval compile error: %s", err)}
 				}
 
 				bytecode := comp.Bytecode()
-				childVM := New(bytecode)
+				var childVM *VM
+				if sess != nil {
+					sess.Constants = bytecode.Constants
+					childVM = NewWithGlobalsStore(bytecode, sess.Globals)
+				} else {
+					childVM = New(bytecode)
+				}
+
 				err = childVM.Run()
 				if err != nil {
 					return &object.Error{Message: fmt.Sprintf("eval runtime error: %s", err)}
@@ -1165,6 +1226,73 @@ func init() {
 					return Null
 				}
 				return res
+			},
+		},
+		"create_session": {
+			Fn: func(args ...object.Object) object.Object {
+				symTable := compiler.NewSymbolTable()
+				for i, v := range compiler.Builtins {
+					symTable.DefineBuiltin(i, v.Name)
+				}
+				return &EvalSession{
+					SymbolTable: symTable,
+					Constants:   []object.Object{},
+					Globals:     make([]object.Object, GlobalsSize),
+				}
+			},
+		},
+		"session_vars": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("session_vars requires 1 argument, got %d", len(args))}
+				}
+				sess, ok := args[0].(*EvalSession)
+				if !ok {
+					return &object.Error{Message: fmt.Sprintf("argument must be EVAL_SESSION, got %s", args[0].Type())}
+				}
+				pairs := make(map[object.HashKey]object.HashPair)
+				for name, sym := range sess.SymbolTable.Store() {
+					if sym.Scope == compiler.GlobalScope && sym.Index < len(sess.Globals) {
+						val := sess.Globals[sym.Index]
+						if val != nil {
+							key := &object.String{Value: name}
+							pairs[key.HashKey()] = object.HashPair{Key: key, Value: val}
+						}
+					}
+				}
+				return &object.Hash{Pairs: pairs}
+			},
+		},
+		"disasm": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("disasm requires 1 argument, got %d", len(args))}
+				}
+				switch target := args[0].(type) {
+				case *object.String:
+					l := lexer.New(target.Value)
+					p := parser.New(l)
+					prog := p.ParseProgram()
+					if len(p.Errors()) > 0 {
+						return &object.Error{Message: fmt.Sprintf("syntax error: %s", p.Errors()[0])}
+					}
+					comp := compiler.New()
+					if err := comp.Compile(prog); err != nil {
+						return &object.Error{Message: fmt.Sprintf("compile error: %s", err)}
+					}
+					return &object.String{Value: compiler.FormatBytecode(comp.Bytecode())}
+				case *object.Closure:
+					if target.Fn != nil {
+						bc := &compiler.Bytecode{
+							Instructions: target.Fn.Instructions,
+							Constants:    nil,
+						}
+						return &object.String{Value: compiler.FormatInstructions(bc.Instructions, nil, "")}
+					}
+					return &object.String{Value: "closure(empty)"}
+				default:
+					return &object.Error{Message: fmt.Sprintf("disasm requires STRING or CLOSURE, got %s", target.Type())}
+				}
 			},
 		},
 		"implements": {

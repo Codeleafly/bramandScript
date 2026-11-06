@@ -73,6 +73,10 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 
 	if hasParen {
 		if !p.expectPeek(token.RPAREN) {
+			if p.peekTokenIs(token.LBRACE) {
+				p.nextToken()
+				_ = p.parseBlockStatement()
+			}
 			return nil
 		}
 	}

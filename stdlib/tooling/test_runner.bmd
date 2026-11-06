@@ -1,0 +1,119 @@
+// BramandScript Standard Library :: Test Runner Framework (std/tooling/test_runner)
+// 100% Native BramandScript test suite runner and reporter.
+
+import "std/strings" as str_pkg
+import "std/io" as io_pkg
+import "std/tui/color" as color
+import "std/tui/table" as table_pkg
+
+let c_cyan = fn(t) { return color.CYAN + str(t) + color.RESET; };
+let c_green = fn(t) { return color.GREEN + str(t) + color.RESET; };
+let c_yellow = fn(t) { return color.YELLOW + str(t) + color.RESET; };
+let c_red = fn(t) { return color.RED + str(t) + color.RESET; };
+let c_dim = fn(t) { return color.DIM + str(t) + color.RESET; };
+let c_bold = fn(t) { return color.BOLD + str(t) + color.RESET; };
+
+let discover_test_files = fn(target_path) {
+    if !file_exists(target_path) {
+        return [];
+    }
+    if !is_dir(target_path) {
+        if str_pkg.ends_with(target_path, ".bmd") {
+            return [target_path];
+        }
+        return [];
+    }
+
+    let entries = list_dir(target_path);
+    let matched = [];
+    let i = 0;
+    while i < len(entries) {
+        let entry = entries[i];
+        let full = target_path + "/" + entry;
+        if is_dir(full) {
+            let nested = discover_test_files(full);
+            matched = matched + nested;
+        } else {
+            if str_pkg.ends_with(entry, "_test.bmd") || str_pkg.starts_with(entry, "test_") {
+                matched = matched + [full];
+            }
+        }
+        i = i + 1;
+    }
+    return matched;
+};
+
+let run_test_suites = fn(paths) {
+    println(c_cyan("✦ ") + c_bold("BramandScript Native Test Runner"));
+    println(c_dim("──────────────────────────────────────────────────"));
+
+    if len(paths) == 0 {
+        paths = ["tests"];
+    }
+
+    let all_files = [];
+    let p_idx = 0;
+    while p_idx < len(paths) {
+        let files = discover_test_files(paths[p_idx]);
+        all_files = all_files + files;
+        p_idx = p_idx + 1;
+    }
+
+    if len(all_files) == 0 {
+        println(c_yellow("[WARN] No test files discovered in: " + str(paths)));
+        return 0;
+    }
+
+    println("Discovered " + str(len(all_files)) + " test file(s)\n");
+
+    let total_passed = 0;
+    let total_failed = 0;
+    let t_start = time_ms();
+
+    let f_idx = 0;
+    while f_idx < len(all_files) {
+        let test_file = all_files[f_idx];
+        println(c_dim("• Running: ") + c_bold(test_file));
+
+        let t0 = time_ms();
+        // Execute test file using process exec
+        let res = exec("./bramand run " + test_file);
+        let elapsed = time_ms() - t0;
+
+        let exit_code = res["exit_code"];
+        let stdout_data = res["stdout"];
+        let stderr_data = res["stderr"];
+
+        if exit_code == 0 {
+            total_passed = total_passed + 1;
+            println("  " + c_green("[PASS]") + " " + test_file + c_dim(" (" + str(elapsed) + "ms)"));
+        } else {
+            total_failed = total_failed + 1;
+            println("  " + c_red("[FAIL]") + " " + test_file + c_dim(" (" + str(elapsed) + "ms)"));
+            if stderr_data != "" {
+                println(c_red("    " + stderr_data));
+            } else if stdout_data != "" {
+                println(c_dim("    " + stdout_data));
+            }
+        }
+        f_idx = f_idx + 1;
+    }
+
+    let total_elapsed = time_ms() - t_start;
+
+    println(c_dim("──────────────────────────────────────────────────"));
+    let failed_summary = "0 failed";
+    if total_failed > 0 {
+        failed_summary = c_red(str(total_failed) + " failed");
+    }
+    println("Test Files:  " + c_green(str(total_passed) + " passed") + ", " + failed_summary + ", " + str(len(all_files)) + " total");
+    println("Duration:    " + str(total_elapsed) + "ms\n");
+
+    if total_failed == 0 {
+        println(c_green("[OK] All test suites passed cleanly!"));
+        return 0;
+    } else {
+        println(c_red("[FAIL] " + str(total_failed) + " test suite(s) failed."));
+        return 1;
+    }
+};

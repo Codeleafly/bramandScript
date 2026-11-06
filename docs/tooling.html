@@ -189,6 +189,7 @@
             <li><a href="tooling.html#ch-disasm-profile" class="nav-link"><span>✦</span> Disassembler &amp; Profiler</a></li>
             <li><a href="tooling.html#ch-registry" class="nav-link"><span>✦</span> Package Registry Server</a></li>
             <li><a href="tooling.html#ch-optimizer" class="nav-link"><span>✦</span> AOT Optimizer &amp; Benchmarks</a></li>
+            <li><a href="tooling.html#ch-native-tooling" class="nav-link"><span>✦</span> Native Tooling Suite (.bmd)</a></li>
           </ul>
         </div>
 
@@ -564,6 +565,110 @@ bramand run benchmarks/math_benchmarks.bmd</code></pre>
           <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
             Expressions like <code class="font-mono">let x = 2 * 3 + 4 * 5</code> are folded into a single constant <code class="font-mono">26</code> at compile time, reducing instruction count and eliminating runtime stack pushes. Consecutive duplicate/pop operations are eliminated during the peephole stage.
           </p>
+        </div>
+      </section>
+
+      <!-- ================= 100% NATIVE BRAMANDSCRIPT TOOLING ECOSYSTEM ================= -->
+      <section id="ch-native-tooling" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Self-Hosted Toolchain</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">100% Native BramandScript Tooling Ecosystem (<code class="font-mono">tools/</code> &amp; <code class="font-mono">std/tooling/</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Following the industry-standard runtime architecture popularized by Node.js—where the core execution engine (V8 in C++) is kept minimal and performant while high-level tooling, REPLs, and CLI workflows are written directly in the language itself—BramandScript provides a complete suite of developer tools authored natively in <strong>100% pure BramandScript (<code class="font-mono">.bmd</code>)</strong>.
+        </p>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+          This architecture ensures that language enhancements immediately benefit the tooling ecosystem while validating the VM's real-world robustness through complete self-hosting and application dogfooding (Rule 11 &amp; Rule 12).
+        </p>
+
+        <!-- Tooling Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Native REPL (<code class="font-mono">tools/repl.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Stateful persistent session evaluation with multi-line delimiter depth tracking, ANSI TrueColor syntax rendering, and commands (<code class="font-mono">:help</code>, <code class="font-mono">:reset</code>, <code class="font-mono">:env</code>, <code class="font-mono">:disasm</code>).
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-repl</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Master CLI Router (<code class="font-mono">tools/cli.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Unified command dispatcher routing <code class="font-mono">run</code>, <code class="font-mono">repl</code>, <code class="font-mono">test</code>, <code class="font-mono">fmt</code>, <code class="font-mono">pkg</code>, <code class="font-mono">disasm</code>, and <code class="font-mono">bench</code> with automated help screens.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand cli &lt;command&gt; [args]</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Test Discovery Runner (<code class="font-mono">tools/test_runner.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Automated recursive test suite discovery (<code class="font-mono">*_test.bmd</code>), execution time measurement in ms, and clean status reporting.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-test [path]</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Package Manager (<code class="font-mono">tools/pkg_manager.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Local and remote package installation, manifest generation (<code class="font-mono">package.bmd</code>), and module uninstallation in <code class="font-mono">~/.bramand_libs/</code>.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-pkg install &lt;pkg&gt;</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Bytecode Disassembler (<code class="font-mono">tools/disasm.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Parses and compiles source code, outputting annotated VM instructions, operand values, jump targets, and constant tables.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-disasm app.bmd</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Canonical Formatter (<code class="font-mono">tools/formatter.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Pure BramandScript source code formatter with indentation normalization, operator spacing, and verification checking (<code class="font-mono">-c</code>).
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-fmt [paths]</pre>
+          </div>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Underlying VM Primitives</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The native tooling ecosystem is enabled by four high-performance reflection and evaluation primitives exposed by the Go VM engine:
+        </p>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Primitive Builtin</th><th>Signature</th><th>Return</th><th>Engine Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">create_session</code></td><td><code class="font-mono">create_session()</code></td><td><code class="font-mono">SESSION</code></td><td>Allocates a persistent stateful evaluation session with dedicated symbol table and globals store.</td></tr>
+              <tr><td><code class="font-mono font-bold">session_vars</code></td><td><code class="font-mono">session_vars(sess)</code></td><td><code class="font-mono">HASH</code></td><td>Extracts a dictionary of all actively bound user identifiers and their current runtime values.</td></tr>
+              <tr><td><code class="font-mono font-bold">eval</code></td><td><code class="font-mono">eval(code, [session])</code></td><td><code class="font-mono">ANY</code></td><td>Compiles and executes source strings, retaining symbols and mutations when passed a session.</td></tr>
+              <tr><td><code class="font-mono font-bold">disasm</code></td><td><code class="font-mono">disasm(target)</code></td><td><code class="font-mono">STRING</code></td><td>Inspects compiled bytecode and returns formatted human-readable opcode disassembly.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>

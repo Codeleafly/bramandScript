@@ -55,9 +55,10 @@ func (s *TcpServer) Close() error {
 }
 
 type TcpConn struct {
-	Conn   net.Conn
-	Reader *bufio.Reader
-	mu     sync.Mutex
+	Conn    net.Conn
+	Reader  *bufio.Reader
+	Timeout time.Duration
+	mu      sync.Mutex
 }
 
 func (c *TcpConn) Type() ObjectType { return TCP_CONN_OBJ }
@@ -88,18 +89,29 @@ func (c *TcpConn) Write(data []byte) (int, error) {
 	if c.Conn == nil {
 		return 0, fmt.Errorf("connection is closed")
 	}
+	if c.Timeout > 0 {
+		_ = c.Conn.SetWriteDeadline(time.Now().Add(c.Timeout))
+	}
 	return c.Conn.Write(data)
 }
 
 func (c *TcpConn) Read(maxBytes int) ([]byte, error) {
+	c.mu.Lock()
 	if c.Conn == nil {
+		c.mu.Unlock()
 		return nil, fmt.Errorf("connection is closed")
 	}
+	if c.Timeout > 0 {
+		_ = c.Conn.SetReadDeadline(time.Now().Add(c.Timeout))
+	}
+	r := c.Reader
+	c.mu.Unlock()
+
 	if maxBytes <= 0 {
 		maxBytes = 4096
 	}
 	buf := make([]byte, maxBytes)
-	n, err := c.Reader.Read(buf)
+	n, err := r.Read(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -107,10 +119,18 @@ func (c *TcpConn) Read(maxBytes int) ([]byte, error) {
 }
 
 func (c *TcpConn) ReadLine() (string, error) {
+	c.mu.Lock()
 	if c.Conn == nil {
+		c.mu.Unlock()
 		return "", fmt.Errorf("connection is closed")
 	}
-	line, err := c.Reader.ReadString('\n')
+	if c.Timeout > 0 {
+		_ = c.Conn.SetReadDeadline(time.Now().Add(c.Timeout))
+	}
+	r := c.Reader
+	c.mu.Unlock()
+
+	line, err := r.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return "", err
 	}
@@ -118,11 +138,16 @@ func (c *TcpConn) ReadLine() (string, error) {
 }
 
 func (c *TcpConn) SetTimeout(ms int64) {
-	if c.Conn != nil {
-		if ms > 0 {
-			deadline := time.Now().Add(time.Duration(ms) * time.Millisecond)
-			_ = c.Conn.SetDeadline(deadline)
-		} else {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ms > 0 {
+		c.Timeout = time.Duration(ms) * time.Millisecond
+		if c.Conn != nil {
+			_ = c.Conn.SetDeadline(time.Now().Add(c.Timeout))
+		}
+	} else {
+		c.Timeout = 0
+		if c.Conn != nil {
 			_ = c.Conn.SetDeadline(time.Time{})
 		}
 	}

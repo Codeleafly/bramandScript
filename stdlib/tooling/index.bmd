@@ -1,0 +1,18 @@
+// BramandScript Standard Library :: Developer Tooling Framework (std/tooling)
+// 100% Pure BramandScript REPL, CLI dispatcher, test runner, package manager,
+// code formatter, and bytecode disassembler.
+
+import "std/tooling/repl" as repl_pkg
+import "std/tooling/cli" as cli_pkg
+import "std/tooling/test_runner" as test_runner_pkg
+import "std/tooling/pkg" as pkg_pkg
+import "std/tooling/disasm" as disasm_pkg
+import "std/tooling/fmt" as fmt_pkg
+
+let start_repl = repl_pkg.start_repl;
+let run_cli = cli_pkg.run_cli_main;
+let run_test_suites = test_runner_pkg.run_test_suites;
+let run_pkg = pkg_pkg.run_pkg_cli;
+let disassemble = disasm_pkg.disassemble_target;
+let format_source = fmt_pkg.format_source;
+let run_fmt = fmt_pkg.run_fmt_cli;

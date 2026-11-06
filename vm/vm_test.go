@@ -2070,3 +2070,43 @@ func TestSliceWithStepAndReverse(t *testing.T) {
 	}
 }
 
+func TestEvalSessionAndDisasm(t *testing.T) {
+	input := `
+		let sess = create_session();
+		eval("let x = 42;", sess);
+		eval("let y = 8;", sess);
+		let res = eval("x + y;", sess);
+		let v = session_vars(sess);
+		let d = disasm("1 + 2");
+		[res, v["x"], v["y"], len(d) > 0]
+	`
+	program := parse(input)
+	comp := compiler.New()
+	err := comp.Compile(program)
+	if err != nil {
+		t.Fatalf("compile error: %s", err)
+	}
+	vm := New(comp.Bytecode())
+	err = vm.Run()
+	if err != nil {
+		t.Fatalf("vm error: %s", err)
+	}
+	stackElem := vm.LastPoppedStackElem()
+	arr, ok := stackElem.(*object.Array)
+	if !ok || len(arr.Elements) != 4 {
+		t.Fatalf("expected 4 elements, got %s", stackElem.Inspect())
+	}
+	if arr.Elements[0].Inspect() != "50" {
+		t.Errorf("expected 50, got %s", arr.Elements[0].Inspect())
+	}
+	if arr.Elements[1].Inspect() != "42" {
+		t.Errorf("expected 42, got %s", arr.Elements[1].Inspect())
+	}
+	if arr.Elements[2].Inspect() != "8" {
+		t.Errorf("expected 8, got %s", arr.Elements[2].Inspect())
+	}
+	if arr.Elements[3].Inspect() != "true" {
+		t.Errorf("expected true, got %s", arr.Elements[3].Inspect())
+	}
+}
+

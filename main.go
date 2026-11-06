@@ -43,6 +43,30 @@ func main() {
 	command := os.Args[1]
 
 	switch command {
+	case "cli":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/cli" as cli; let code = cli.run_cli_main(args()); exit(code);`, "<cli>")
+
+	case "bmd-repl":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/repl" as repl; repl.start_repl();`, "<repl>")
+
+	case "bmd-test":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/test_runner" as tr; let code = tr.run_test_suites(args()); exit(code);`, "<test_runner>")
+
+	case "bmd-pkg":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/pkg" as pm; let code = pm.run_pkg_cli(args()); exit(code);`, "<pkg_manager>")
+
+	case "bmd-fmt":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/fmt" as fmt_pkg; let code = fmt_pkg.run_fmt_cli(args(), false); exit(code);`, "<formatter>")
+
+	case "bmd-disasm":
+		vm.SetProgramArgs(os.Args[2:])
+		executeSource(`import "std/tooling/disasm" as dis; let a = args(); if len(a) == 0 { println("Usage: bramand bmd-disasm <file | expr>"); exit(1); } let code = dis.disassemble_target(a[0]); exit(code);`, "<disasm>")
+
 	case "repl":
 		repl.Start(os.Stdin, os.Stdout)
 

@@ -489,7 +489,15 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
 		}
 
+		if c.importingModules[filePath] {
+			return true, c.makeError(node.Token.Line, node.Token.Col, "circular import detected: module '%s' is already being imported", node.Path)
+		}
+
 		if !c.importedModules[filePath] {
+			c.importingModules[filePath] = true
+			defer func() {
+				delete(c.importingModules, filePath)
+			}()
 			c.importedModules[filePath] = true
 
 			var data []byte
@@ -571,6 +579,10 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 					exportedNames = append(exportedNames, s.Name.Value)
 				case *ast.EnumStatement:
 					exportedNames = append(exportedNames, s.Name.Value)
+				case *ast.ImportStatement:
+					if s.Alias != "" {
+						exportedNames = append(exportedNames, s.Alias)
+					}
 				}
 				err := c.Compile(stmt)
 				if err != nil {

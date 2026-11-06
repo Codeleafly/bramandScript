@@ -1,0 +1,13 @@
+// BramandScript Tooling :: Bytecode Disassembler CLI (tools/disasm.bmd)
+// Usage: ./bramand run tools/disasm.bmd <file.bmd | 'code_expression'>
+
+import "std/tooling/disasm" as dis
+
+let cli_args = args();
+if len(cli_args) == 0 {
+    println("Usage: bmd disasm <file.bmd | 'code_expression'>");
+    exit(1);
+}
+
+let code = dis.disassemble_target(cli_args[0]);
+exit(code);

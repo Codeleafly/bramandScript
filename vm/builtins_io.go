@@ -322,13 +322,13 @@ func init() {
 
 	RegisterBuiltin("read_line", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			return &object.String{Value: readLineFromStdin(args)}
+			return readLineFromStdin(args)
 		},
 	})
 
 	RegisterBuiltin("input", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			return &object.String{Value: readLineFromStdin(args)}
+			return readLineFromStdin(args)
 		},
 	})
 

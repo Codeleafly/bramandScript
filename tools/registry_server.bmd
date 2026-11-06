@@ -33,10 +33,10 @@ struct RegistryService {
             let entry = db.get(k, null);
             if entry != null {
                 list = list + [{
-                    "name": entry["name"],
-                    "description": entry["description"],
-                    "latest": entry["latest"],
-                    "versions": keys(entry["versions"])
+                        "name": entry["name"],
+                        "description": entry["description"],
+                        "latest": entry["latest"],
+                        "versions": keys(entry["versions"])
                 }];
             }
             i = i + 1;
@@ -161,38 +161,38 @@ let create_registry_router = fn(registry) {
     let r = net.create_router();
 
     r.get("/health", fn(ctx) {
-        return {
-            "status": "ok",
-            "service": "bramand-registry",
-            "version": "1.0.0",
-            "time": time_iso()
-        };
+            return {
+                "status": "ok",
+                "service": "bramand-registry",
+                "version": "1.0.0",
+                "time": time_iso()
+            };
     });
 
     r.get("/packages", fn(ctx) {
-        return registry.list_packages();
+            return registry.list_packages();
     });
 
     r.get("/packages/:name", fn(ctx) {
-        let name = ctx.param("name", "");
-        let pkg = registry.get_package(name);
-        if pkg != null {
-            return pkg;
-        }
-        ctx.status(404);
-        return { "error": "Package not found: " + name };
+            let name = ctx.param("name", "");
+            let pkg = registry.get_package(name);
+            if pkg != null {
+                return pkg;
+            }
+            ctx.status(404);
+            return { "error": "Package not found: " + name };
     });
 
     r.get("/api/search", fn(ctx) {
-        let q = ctx.query_param("q", "");
-        return registry.search(q);
+            let q = ctx.query_param("q", "");
+            return registry.search(q);
     });
 
     r.post("/api/publish", fn(ctx) {
-        let body = ctx.json_body();
-        let res = registry.publish(body);
-        ctx.status(res["status"]);
-        return res;
+            let body = ctx.json_body();
+            let res = registry.publish(body);
+            ctx.status(res["status"]);
+            return res;
     });
 
     return r;
@@ -210,10 +210,10 @@ let run_server = fn(port) {
 
     let app = http_server();
     app.get("/health", fn(req, res) {
-        res.json({ "status": "ok", "service": "bramand-registry", "version": "1.0.0" });
+            res.json({ "status": "ok", "service": "bramand-registry", "version": "1.0.0" });
     });
     app.get("/packages", fn(req, res) {
-        res.json(service.list_packages());
+            res.json(service.list_packages());
     });
     app.listen("127.0.0.1:" + srv_port);
     println("[OK] Registry Server active on http://127.0.0.1:" + srv_port);

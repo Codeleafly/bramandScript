@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"time"
 
 	"bramandscript/object"
 )
@@ -81,20 +82,54 @@ func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.O
 		case "send":
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
-					if len(args) != 1 {
-						return &object.Error{Message: fmt.Sprintf("send requires 1 argument, got %d", len(args))}
+					if len(args) < 1 || len(args) > 2 {
+						return &object.Error{Message: fmt.Sprintf("send requires 1 or 2 arguments, got %d", len(args))}
 					}
-					err := ch.Send(args[0])
+					var timeout time.Duration
+					if len(args) == 2 {
+						if intObj, ok := args[1].(*object.Integer); ok && intObj.Value > 0 {
+							timeout = time.Duration(intObj.Value) * time.Millisecond
+						}
+					}
+					err := ch.SendTimeout(args[0], timeout)
 					if err != nil {
 						return &object.Error{Message: err.Error()}
 					}
 					return Null
 				},
 			})
+		case "try_send":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 1 {
+						return &object.Error{Message: fmt.Sprintf("try_send requires 1 argument, got %d", len(args))}
+					}
+					if ch.TrySend(args[0]) {
+						return True
+					}
+					return False
+				},
+			})
 		case "recv", "receive":
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
-					val, ok := ch.Recv()
+					var timeout time.Duration
+					if len(args) == 1 {
+						if intObj, ok := args[0].(*object.Integer); ok && intObj.Value > 0 {
+							timeout = time.Duration(intObj.Value) * time.Millisecond
+						}
+					}
+					val, ok := ch.RecvTimeout(timeout)
+					if !ok || val == nil {
+						return Null
+					}
+					return val
+				},
+			})
+		case "try_recv":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					val, ok := ch.TryRecv()
 					if !ok || val == nil {
 						return Null
 					}

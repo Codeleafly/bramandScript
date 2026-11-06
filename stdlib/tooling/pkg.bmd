@@ -1,0 +1,252 @@
+// BramandScript Standard Library :: Package Management Engine (std/tooling/pkg)
+// 100% Native BramandScript package manager and dependency registry.
+
+import "std/strings" as str_pkg
+import "std/io" as io_pkg
+import "std/json" as json_pkg
+import "std/tui/color" as color
+
+let c_cyan = fn(t) { return color.CYAN + str(t) + color.RESET; };
+let c_green = fn(t) { return color.GREEN + str(t) + color.RESET; };
+let c_yellow = fn(t) { return color.YELLOW + str(t) + color.RESET; };
+let c_red = fn(t) { return color.RED + str(t) + color.RESET; };
+let c_dim = fn(t) { return color.DIM + str(t) + color.RESET; };
+let c_bold = fn(t) { return color.BOLD + str(t) + color.RESET; };
+
+let get_libs_dir = fn() {
+    let home = env("HOME");
+    if home == "" || home == null {
+        home = env("USERPROFILE");
+    }
+    if home == "" || home == null {
+        home = ".";
+    }
+    let libs_dir = home + "/.bramand_libs";
+    if !file_exists(libs_dir) {
+        // Create directory
+        exec("mkdir -p " + libs_dir);
+    }
+    return libs_dir;
+};
+
+let pkg_path = fn() {
+    let libs = get_libs_dir();
+    println(libs);
+    return libs;
+};
+
+let pkg_list = fn() {
+    let libs = get_libs_dir();
+    println(c_cyan("✦ BramandScript Centralized Package Registry"));
+    println(c_dim("Directory: " + libs));
+    println(c_dim("──────────────────────────────────────────────────"));
+
+    if file_exists("package.json") {
+        let content = read_file("package.json");
+        let parsed = json_pkg.parse(content);
+        if parsed != null && parsed["name"] != null {
+            println("Project: " + c_bold(parsed["name"]) + " (v" + str(parsed["version"]) + ")");
+            let deps = parsed["dependencies"];
+            if deps != null && len(keys(deps)) > 0 {
+                println("Dependencies:");
+                let d_keys = keys(deps);
+                let i = 0;
+                while i < len(d_keys) {
+                    let k = d_keys[i];
+                    println("  • " + c_bold(k) + " -> " + c_green(deps[k]));
+                    i = i + 1;
+                }
+            }
+            println(c_dim("──────────────────────────────────────────────────"));
+        }
+    }
+
+    let entries = list_dir(libs);
+    if len(entries) == 0 {
+        println(c_dim("  (no installed packages in ~/.bramand_libs)"));
+        return 0;
+    }
+
+    println(c_cyan("Installed Packages (" + str(len(entries)) + "):"));
+    let idx = 0;
+    while idx < len(entries) {
+        let entry = entries[idx];
+        let full = libs + "/" + entry;
+        let is_directory = is_dir(full);
+        let tag = "[FILE]";
+        if is_directory {
+            tag = "[DIR]";
+        }
+        println("  • " + c_bold(entry) + "  " + c_dim(tag));
+        idx = idx + 1;
+    }
+    return 0;
+};
+
+let pkg_install = fn(src_path, opt_name) {
+    if src_path == "" || src_path == null {
+        println(c_yellow("Usage: bmd pkg install <source_file_or_dir> [name@version]"));
+        return 1;
+    }
+
+    if !file_exists(src_path) {
+        println(c_red("[ERROR] Source path '" + src_path + "' does not exist"));
+        return 1;
+    }
+
+    let libs = get_libs_dir();
+    let pkg_name = opt_name;
+    if pkg_name == "" || pkg_name == null {
+        // Derive package name from source directory or package.json
+        if is_dir(src_path) && file_exists(src_path + "/package.json") {
+            let p_content = read_file(src_path + "/package.json");
+            let p_json = json_pkg.parse(p_content);
+            if p_json != null && p_json["name"] != null {
+                let ver = "1.0.0";
+                if p_json["version"] != null {
+                    ver = p_json["version"];
+                }
+                pkg_name = p_json["name"] + "@" + ver;
+            }
+        }
+        if pkg_name == "" || pkg_name == null {
+            let parts = str_pkg.split(src_path, "/");
+            pkg_name = parts[len(parts) - 1];
+        }
+    }
+
+    let target_dest = libs + "/" + pkg_name;
+    if is_dir(src_path) {
+        exec("rm -rf " + target_dest);
+        exec("cp -r " + src_path + " " + target_dest);
+    } else {
+        exec("cp " + src_path + " " + target_dest);
+    }
+
+    println(c_green("[OK] ") + "Installed package '" + c_bold(pkg_name) + "' into " + libs);
+
+    // Update local package.json dependencies if present
+    if file_exists("package.json") {
+        let content = read_file("package.json");
+        let parsed = json_pkg.parse(content);
+        if parsed != null {
+            if parsed["dependencies"] == null {
+                parsed["dependencies"] = {};
+            }
+            let name_parts = str_pkg.split(pkg_name, "@");
+            let dep_name = name_parts[0];
+            let dep_ver = "*";
+            if len(name_parts) > 1 {
+                dep_ver = name_parts[1];
+            }
+            parsed["dependencies"][dep_name] = dep_ver;
+            write_file("package.json", json_pkg.stringify(parsed));
+            println(c_dim("  · updated dependencies in package.json"));
+        }
+    }
+
+    return 0;
+};
+
+let pkg_remove = fn(name_version) {
+    if name_version == "" || name_version == null {
+        println(c_yellow("Usage: bmd pkg remove <name@version>"));
+        return 1;
+    }
+
+    let libs = get_libs_dir();
+    let target = libs + "/" + name_version;
+    if !file_exists(target) {
+        println(c_yellow("[WARN] Package '" + name_version + "' not found in " + libs));
+        return 1;
+    }
+
+    exec("rm -rf " + target);
+    println(c_green("[OK] ") + "Removed package '" + c_bold(name_version) + "' from centralized registry");
+
+    // Remove from local package.json if present
+    if file_exists("package.json") {
+        let content = read_file("package.json");
+        let parsed = json_pkg.parse(content);
+        if parsed != null && parsed["dependencies"] != null {
+            let name_parts = str_pkg.split(name_version, "@");
+            let dep_name = name_parts[0];
+            delete(parsed["dependencies"], dep_name);
+            write_file("package.json", json_pkg.stringify(parsed));
+            println(c_dim("  · updated package.json"));
+        }
+    }
+
+    return 0;
+};
+
+let pkg_init = fn(opt_name) {
+    let name = opt_name;
+    if name == "" || name == null {
+        name = "my-package";
+    }
+
+    let target_dir = name;
+    if !file_exists(target_dir) {
+        exec("mkdir -p " + target_dir);
+    }
+
+    let pkg_json_path = target_dir + "/package.json";
+    if !file_exists(pkg_json_path) {
+        let pkg_data = {
+            "name": name,
+            "version": "1.0.0",
+            "description": "BramandScript module " + name,
+            "main": "index.bmd",
+            "dependencies": {}
+        };
+        write_file(pkg_json_path, json_pkg.stringify(pkg_data));
+    }
+
+    let index_bmd_path = target_dir + "/index.bmd";
+    if !file_exists(index_bmd_path) {
+        let sample = "// BramandScript Package: " + name + "\n\nlet info = fn() {\n    return \"Package " + name + " initialized\";\n};\n";
+        write_file(index_bmd_path, sample);
+    }
+
+    println(c_green("[OK] ") + "Initialized package '" + c_bold(name) + "' (" + pkg_json_path + ", " + index_bmd_path + ")");
+    return 0;
+};
+
+let run_pkg_cli = fn(args_list) {
+    if len(args_list) == 0 {
+        println(c_cyan("✦ BramandScript Package Manager (std/tooling/pkg)"));
+        println("Commands:");
+        println("  list                          List installed packages in ~/.bramand_libs");
+        println("  install <path> [name@ver]     Install package into centralized cache");
+        println("  remove <name@ver>             Remove package from centralized cache");
+        println("  path                          Show cache directory path");
+        println("  init <name>                   Scaffold new package with index.bmd");
+        return 0;
+    }
+
+    let subcmd = args_list[0];
+    if subcmd == "list" {
+        return pkg_list();
+    } else if subcmd == "path" {
+        pkg_path();
+        return 0;
+    } else if subcmd == "install" {
+        let src = "";
+        let n = "";
+        if len(args_list) > 1 { src = args_list[1]; }
+        if len(args_list) > 2 { n = args_list[2]; }
+        return pkg_install(src, n);
+    } else if subcmd == "remove" {
+        let n = "";
+        if len(args_list) > 1 { n = args_list[1]; }
+        return pkg_remove(n);
+    } else if subcmd == "init" {
+        let n = "";
+        if len(args_list) > 1 { n = args_list[1]; }
+        return pkg_init(n);
+    } else {
+        println(c_red("[ERROR] Unknown package command: " + subcmd));
+        return 1;
+    }
+};

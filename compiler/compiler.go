@@ -48,20 +48,22 @@ type LoopContext struct {
 }
 
 type Compiler struct {
-	constants       []object.Object
-	symbolTable     *SymbolTable
-	scopes          []CompilationScope
-	scopeIndex      int
-	loops           []LoopContext
-	iterCount       int
-	destructCount   int
-	currentLine     int
-	importedModules map[string]bool
-	moduleExports   map[string][]string
-	BaseDir         string
-	currentFile     string
-	currentSource   string
-	Optimize        bool
+	constants        []object.Object
+	symbolTable      *SymbolTable
+	scopes           []CompilationScope
+	scopeIndex       int
+	loops            []LoopContext
+	iterCount        int
+	destructCount    int
+	currentLine      int
+	importedModules  map[string]bool
+	importingModules map[string]bool
+	moduleExports    map[string][]string
+	compileErr       error
+	BaseDir          string
+	currentFile      string
+	currentSource    string
+	Optimize         bool
 }
 
 func (c *Compiler) SetBaseDir(dir string) {
@@ -100,13 +102,14 @@ func New() *Compiler {
 	}
 
 	return &Compiler{
-		constants:       []object.Object{},
-		symbolTable:     symbolTable,
-		scopes:          []CompilationScope{mainScope},
-		scopeIndex:      0,
-		currentLine:     1,
-		importedModules: make(map[string]bool),
-		moduleExports:   make(map[string][]string),
+		constants:        []object.Object{},
+		symbolTable:      symbolTable,
+		scopes:           []CompilationScope{mainScope},
+		scopeIndex:       0,
+		currentLine:      1,
+		importedModules:  make(map[string]bool),
+		importingModules: make(map[string]bool),
+		moduleExports:    make(map[string][]string),
 	}
 }
 
@@ -155,6 +158,9 @@ func (c *Compiler) leaveBlockScope() {
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
+	if c.compileErr != nil {
+		return c.compileErr
+	}
 	if node == nil {
 		return fmt.Errorf("compile error: unexpected nil AST node")
 	}
@@ -162,7 +168,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 		node = FoldConstants(node)
 	}
 	if handled, err := c.compileStatement(node); handled {
-		return err
+		if err != nil {
+			return err
+		}
+		return c.compileErr
 	}
 	switch node := node.(type) {
 	case *ast.InfixExpression:
@@ -270,10 +279,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpEqual)
 		case "!=":
 			c.emit(code.OpNotEqual)
-		case "&&":
-			c.emit(code.OpAnd)
-		case "||":
-			c.emit(code.OpOr)
 		case "<-":
 			c.emit(code.OpSend)
 		default:
@@ -375,6 +380,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.loadSymbol(symbol)
 
 	case *ast.ArrayLiteral:
+		if len(node.Elements) > 65535 {
+			return c.makeError(node.Token.Line, node.Token.Col, "array literal exceeds maximum size of 65535 elements")
+		}
 		for _, el := range node.Elements {
 			err := c.Compile(el)
 			if err != nil {
@@ -384,6 +392,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpArray, len(node.Elements))
 
 	case *ast.HashLiteral:
+		if len(node.Pairs)*2 > 65535 {
+			return c.makeError(node.Token.Line, node.Token.Col, "hash literal exceeds maximum size of 32767 pairs")
+		}
 		for k, v := range node.Pairs {
 			err := c.Compile(k)
 			if err != nil {
@@ -594,6 +605,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
+		if numLocals > 65535 {
+			c.loops = outerLoops
+			return c.makeError(node.Token.Line, node.Token.Col, "function scope exceeds maximum of 65535 local variables")
+		}
 		instructions, sourceLines := c.leaveScope()
 		c.loops = outerLoops
 
@@ -663,7 +678,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	}
 
-	return nil
+	return c.compileErr
 }
 
 func (c *Compiler) loadSymbol(s Symbol) {
@@ -683,10 +698,28 @@ func (c *Compiler) loadSymbol(s Symbol) {
 
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
-	return len(c.constants) - 1
+	pos := len(c.constants) - 1
+	if pos > 65535 && c.compileErr == nil {
+		c.compileErr = fmt.Errorf("constant pool limit exceeded (maximum 65535 constants)")
+	}
+	return pos
 }
 
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
+	if c.compileErr == nil {
+		if def, err := code.Lookup(byte(op)); err == nil {
+			for i, o := range operands {
+				if i < len(def.OperandWidths) {
+					w := def.OperandWidths[i]
+					if w == 1 && (o < 0 || o > 255) {
+						c.compileErr = fmt.Errorf("operand %d for opcode %s overflows 8-bit limit", o, def.Name)
+					} else if w == 2 && (o < 0 || o > 65535) {
+						c.compileErr = fmt.Errorf("operand %d for opcode %s overflows 16-bit limit", o, def.Name)
+					}
+				}
+			}
+		}
+	}
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
 	c.setLastInstruction(op, pos)

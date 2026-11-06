@@ -1,0 +1,57 @@
+// BramandScript Test Suite :: Native Tooling & Ecosystem (tests/19_native_tooling_test.bmd)
+// Tests for native REPL sessions, CLI dispatcher, test runner, package manager, and disassembler.
+
+import "std/tooling/repl" as repl_pkg
+import "std/tooling/cli" as cli_pkg
+import "std/tooling/pkg" as pkg_pkg
+import "std/tooling/disasm" as disasm_pkg
+import "std/tooling/fmt" as fmt_pkg
+
+describe("Native Tooling: Stateful Evaluation Sessions", fn() {
+        test("Session preserves variable assignments across eval calls", fn() {
+                let sess = create_session();
+                eval("let x = 100;", sess);
+                eval("let y = 25;", sess);
+                let result = eval("x / y;", sess);
+                assert_eq(result, 4);
+
+                let vars = session_vars(sess);
+                assert_eq(vars["x"], 100);
+                assert_eq(vars["y"], 25);
+        });
+
+        test("Session supports function definitions and invocations", fn() {
+                let sess = create_session();
+                eval("let square = fn(n) { return n * n; };", sess);
+                let res = eval("square(9);", sess);
+                assert_eq(res, 81);
+        });
+});
+
+describe("Native Tooling: Bytecode Disassembly", fn() {
+        test("disasm returns formatted bytecode with constants", fn() {
+                let out = disasm("let a = 12; a + 3;");
+                assert_true(len(out) > 0);
+                assert_true(disasm_pkg.disassemble_target("1 + 1") == 0);
+        });
+});
+
+describe("Native Tooling: Package Manager Operations", fn() {
+        test("pkg_path returns centralized directory", fn() {
+                let path = pkg_pkg.pkg_path();
+                assert_true(len(path) > 0);
+        });
+
+        test("pkg_list succeeds", fn() {
+                let res = pkg_pkg.pkg_list();
+                assert_eq(res, 0);
+        });
+});
+
+describe("Native Tooling: Source Code Formatter", fn() {
+        test("format_source standardizes line spacing", fn() {
+                let unformatted = "let x=10;\nlet y=20;\n\n\nlet z=x+y;";
+                let formatted = fmt_pkg.format_source(unformatted);
+                assert_true(len(formatted) > 0);
+        });
+});

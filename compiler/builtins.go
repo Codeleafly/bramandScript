@@ -244,4 +244,9 @@ var Builtins = []BuiltinDef{
 	{Name: "ed25519_verify"},
 	{Name: "jwt_sign"},
 	{Name: "jwt_verify"},
+
+	// Developer Tooling & Reflection
+	{Name: "create_session"},
+	{Name: "session_vars"},
+	{Name: "disasm"},
 }

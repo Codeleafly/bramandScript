@@ -1,0 +1,8 @@
+// BramandScript Tooling :: Native Test Runner Entrypoint (tools/test_runner.bmd)
+// Usage: ./bramand run tools/test_runner.bmd [path...]
+
+import "std/tooling/test_runner" as tr
+
+let cli_args = args();
+let code = tr.run_test_suites(cli_args);
+exit(code);

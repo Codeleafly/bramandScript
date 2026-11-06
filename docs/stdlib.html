@@ -163,6 +163,7 @@
             <li><a href="stdlib.html#ch-json" class="nav-link pl-4 text-xs"><span>·</span> std/json</a></li>
             <li><a href="stdlib.html#ch-io" class="nav-link pl-4 text-xs"><span>·</span> std/io</a></li>
             <li><a href="stdlib.html#ch-testing" class="nav-link pl-4 text-xs"><span>·</span> std/testing</a></li>
+            <li><a href="stdlib.html#ch-tooling" class="nav-link pl-4 text-xs"><span>·</span> std/tooling (Native Toolchain)</a></li>
             <li><a href="stdlib.html#ch-net" class="nav-link pl-4 text-xs"><span>·</span> std/net (Web &amp; Routing)</a></li>
             <li><a href="stdlib.html#ch-db" class="nav-link pl-4 text-xs"><span>·</span> std/db (Storage &amp; ORM)</a></li>
             <li><a href="stdlib.html#ch-tensor" class="nav-link pl-4 text-xs"><span>·</span> std/math/tensor</a></li>
@@ -564,6 +565,51 @@ describe("Authentication Security Suite", fn() {
         assert_ne(token, "", "token cannot be empty")
     })
 })</code></pre>
+          </div>
+        </div>
+
+        <!-- 7. std/tooling -->
+        <div id="ch-tooling" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">7.</span>
+            <span><code class="font-mono">std/tooling</code> — Native BramandScript Tooling Ecosystem</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Following modern runtime architectures (such as Node.js implementing its REPL and CLI dispatcher in JavaScript over V8), high-level developer tooling in BramandScript is authored 100% in pure BramandScript (<code class="font-mono">.bmd</code>) on top of minimal Go VM reflection and session primitives.
+          </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Submodules &amp; Exported Interfaces</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Submodule</th><th>Signature</th><th>Return</th><th>Description &amp; Capabilities</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">std/tooling/repl</code></td><td><code class="font-mono">start_repl()</code></td><td><code class="font-mono">NULL</code></td><td>Interactive terminal REPL with multi-line delimiter tracking, session state persistence, syntax coloring, and commands (<code class="font-mono">:help</code>, <code class="font-mono">:clear</code>, <code class="font-mono">:reset</code>, <code class="font-mono">:env</code>, <code class="font-mono">:type</code>, <code class="font-mono">:time</code>, <code class="font-mono">:disasm</code>, <code class="font-mono">:exit</code>).</td></tr>
+                <tr><td><code class="font-mono font-bold">std/tooling/cli</code></td><td><code class="font-mono">run_cli(args)</code></td><td><code class="font-mono">INT</code></td><td>Master CLI router supporting <code class="font-mono">run</code>, <code class="font-mono">repl</code>, <code class="font-mono">test</code>, <code class="font-mono">fmt</code>, <code class="font-mono">pkg</code>, <code class="font-mono">disasm</code>, <code class="font-mono">bench</code>, <code class="font-mono">info</code>, <code class="font-mono">version</code>, and <code class="font-mono">help</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">std/tooling/test_runner</code></td><td><code class="font-mono">run_test_suites(paths)</code></td><td><code class="font-mono">INT</code></td><td>Automated test discovery and execution engine with execution timing, passed/failed counters, and formatted status reporting.</td></tr>
+                <tr><td><code class="font-mono font-bold">std/tooling/pkg</code></td><td><code class="font-mono">run_pkg(args)</code></td><td><code class="font-mono">INT</code></td><td>Package manager CLI interface supporting <code class="font-mono">list</code>, <code class="font-mono">install</code>, <code class="font-mono">remove</code>, <code class="font-mono">init</code>, and <code class="font-mono">path</code> for <code class="font-mono">~/.bramand_libs/</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">std/tooling/disasm</code></td><td><code class="font-mono">disassemble(target)</code></td><td><code class="font-mono">STRING</code></td><td>Disassembles source code strings or closure functions into annotated bytecode instructions and constant table.</td></tr>
+                <tr><td><code class="font-mono font-bold">std/tooling/fmt</code></td><td><code class="font-mono">format_source(src)</code></td><td><code class="font-mono">STRING</code></td><td>Canonical source code formatter applying 4-space indentation, operator spacing, and block normalizations.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-block-wrapper">
+            <div class="code-block-header">
+              <span>bmd — std/tooling Programmatic Usage</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/tooling/disasm" as d
+import "std/tooling/fmt" as f
+
+// Disassemble a function closure dynamically
+fn square(x) { return x * x }
+println(d.disassemble(square))
+
+// Canonical formatting
+let formatted = f.format_source("fn add(a,b){return a+b}")
+println(formatted)</code></pre>
           </div>
         </div>
 
@@ -1869,7 +1915,10 @@ println(bar_chart)</code></pre>
               <tr><th>Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
             </thead>
             <tbody>
-              <tr><td><code class="font-mono font-bold">eval</code></td><td><code class="font-mono">eval(code_str)</code></td><td><code class="font-mono">ANY</code></td><td>Dynamically parses, compiles, and evaluates BramandScript source in isolated child VM.</td></tr>
+              <tr><td><code class="font-mono font-bold">eval</code></td><td><code class="font-mono">eval(code_str, [session])</code></td><td><code class="font-mono">ANY</code></td><td>Dynamically parses, compiles, and evaluates BramandScript source in an isolated child VM or persistent stateful session.</td></tr>
+              <tr><td><code class="font-mono font-bold">create_session</code></td><td><code class="font-mono">create_session()</code></td><td><code class="font-mono">SESSION</code></td><td>Allocates a persistent stateful evaluation session retaining global symbols, bindings, and constants across invocations.</td></tr>
+              <tr><td><code class="font-mono font-bold">session_vars</code></td><td><code class="font-mono">session_vars(sess)</code></td><td><code class="font-mono">HASH</code></td><td>Returns a dictionary map of active user variables and values defined in an evaluation session.</td></tr>
+              <tr><td><code class="font-mono font-bold">disasm</code></td><td><code class="font-mono">disasm(code_or_closure)</code></td><td><code class="font-mono">STRING</code></td><td>Disassembles source snippet or compiled closure function into human-readable bytecode instructions and constant table.</td></tr>
               <tr><td><code class="font-mono font-bold">implements</code></td><td><code class="font-mono">implements(obj, req)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Structural duck typing validator; checks if object provides method names (supports embedded structs).</td></tr>
             </tbody>
           </table>

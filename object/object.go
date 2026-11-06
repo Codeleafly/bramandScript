@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type ObjectType string
@@ -324,6 +325,10 @@ func (c *Channel) Inspect() string {
 }
 
 func (c *Channel) Send(val Object) (err error) {
+	return c.SendTimeout(val, 0)
+}
+
+func (c *Channel) SendTimeout(val Object, timeout time.Duration) (err error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -338,16 +343,69 @@ func (c *Channel) Send(val Object) (err error) {
 		}
 	}()
 
-	ch <- val
-	return nil
+	if timeout <= 0 {
+		ch <- val
+		return nil
+	}
+
+	select {
+	case ch <- val:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("channel send timed out after %v", timeout)
+	}
+}
+
+func (c *Channel) TrySend(val Object) bool {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return false
+	}
+	ch := c.Ch
+	c.mu.Unlock()
+
+	select {
+	case ch <- val:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Channel) Recv() (Object, bool) {
-	val, ok := <-c.Ch
-	if !ok {
+	return c.RecvTimeout(0)
+}
+
+func (c *Channel) RecvTimeout(timeout time.Duration) (Object, bool) {
+	if timeout <= 0 {
+		val, ok := <-c.Ch
+		if !ok {
+			return &Null{}, false
+		}
+		return val, true
+	}
+	select {
+	case val, ok := <-c.Ch:
+		if !ok {
+			return &Null{}, false
+		}
+		return val, true
+	case <-time.After(timeout):
 		return &Null{}, false
 	}
-	return val, true
+}
+
+func (c *Channel) TryRecv() (Object, bool) {
+	select {
+	case val, ok := <-c.Ch:
+		if !ok {
+			return &Null{}, false
+		}
+		return val, true
+	default:
+		return &Null{}, false
+	}
 }
 
 func (c *Channel) Close() error {
