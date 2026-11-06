@@ -1,4 +1,4 @@
-// BramandScript Standard Library :: Language Lexer Framework (std/lang/lexer)
+// MiniLang Engine :: Language Lexer Framework (examples/minilang/engine/lexer)
 // Reusable token scanner, position tracker, and lexical analyzer written in BramandScript.
 
 // Token Types

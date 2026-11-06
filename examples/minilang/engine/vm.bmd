@@ -1,9 +1,9 @@
-// BramandScript Standard Library :: Stack-Based Virtual Machine Engine (std/lang/vm)
+// MiniLang Engine :: Stack-Based Virtual Machine Engine (examples/minilang/engine/vm)
 // Complete bytecode compiler, opcode encoder/decoder, and stack-based execution VM
 // written 100% in pure BramandScript.
 
-import "std/lang/lexer" as lexer_mod
-import "std/lang/parser" as parser_mod
+import "./lexer" as lexer_mod
+import "./parser" as parser_mod
 
 // Bytecode Opcodes
 let OP_CONSTANT = 1;

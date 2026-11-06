@@ -1,8 +1,8 @@
-// BramandScript Standard Library :: Pratt Parser Framework (std/lang/parser)
+// MiniLang Engine :: Pratt Parser Framework (examples/minilang/engine/parser)
 // Reusable Top-Down Operator Precedence (Pratt) parser engine generating AST nodes
 // with line/column error diagnostics.
 
-import "std/lang/lexer" as lexer_mod
+import "./lexer" as lexer_mod
 
 // Operator Precedences
 let PREC_LOWEST = 1;

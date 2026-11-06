@@ -546,7 +546,7 @@ The following architectural and standard library capabilities represent high-val
    - Document collection storage with predicate query filtering, document updates, and index acceleration.
 5. **Multi-Dimensional Tensor & Linear Algebra Engine (`stdlib/math/tensor.bmd`) [Day 12]**:
    - N-dimensional tensor striding, matrix operations, broadcasting, and autograd computation graph.
-6. **Pure BramandScript Self-Hosting Toolchain (`stdlib/lang/`) [Day 13]**:
+6. **Pure BramandScript Self-Hosting MiniLang Engine (`examples/minilang/engine/`) [Day 13]**:
    - Reusable Lexer, Pratt Parser, Bytecode VM, and mini programming language demonstration built 100% in BramandScript.
 7. **Package Registry Web Server & Bytecode Disassembler (`tools/`) [Day 14]**:
    - Centralized package publisher and distribution server, along with REPL `:disasm` and runtime profiler.

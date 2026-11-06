@@ -5,7 +5,7 @@
 import "std/math/tensor" as tensor
 import "std/dataframe" as df
 import "std/ml" as ml
-import "std/lang/lexer" as lexer
+import "examples/minilang/engine/lexer" as lexer
 import "std/db/kv" as kv
 
 println("✦ BramandScript Comprehensive Performance Benchmark Suite");

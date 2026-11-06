@@ -1,9 +1,9 @@
-// BramandScript Standard Library :: Language Builder Framework (std/lang)
+// MiniLang Engine :: Demonstration Language Builder Framework (examples/minilang/engine)
 // Pure BramandScript Lexer, Pratt Parser, Bytecode Compiler, and Stack-based Virtual Machine.
 
-import "std/lang/lexer" as lexer_pkg
-import "std/lang/parser" as parser_pkg
-import "std/lang/vm" as vm_pkg
+import "./lexer" as lexer_pkg
+import "./parser" as parser_pkg
+import "./vm" as vm_pkg
 
 // --- Module Exports ---
 let Token = lexer_pkg.Token;

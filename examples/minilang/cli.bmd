@@ -1,7 +1,7 @@
 // MiniLang :: Demonstration Self-Hosting Language built 100% on BramandScript (examples/minilang/cli.bmd)
 // Demonstrates lexer, Pratt parser, bytecode compiler, and virtual machine pipeline.
 
-import "std/lang" as lang
+import "./engine" as lang
 
 let run_minilang_file = fn(filepath) {
     if file_exists(filepath) != true {

@@ -1,0 +1,5 @@
+// Hello MiniLang demonstration program
+let greeting = 100;
+let factor = 2;
+let result = greeting * factor + 42;
+result;

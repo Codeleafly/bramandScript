@@ -9,7 +9,7 @@ import "std/net" as net
 import "std/db" as db
 import "std/dataframe" as dataframe
 import "std/ml" as ml
-import "std/lang" as lang
+import "examples/minilang/engine" as lang
 
 describe("Adversarial QA 01: Deep Nested Closures and Concurrency", fn() {
         test("Multi-level 4-tier nested closures mutating outer captured lexical scope", fn() {

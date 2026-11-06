@@ -1,10 +1,10 @@
 // BramandScript Test Suite :: Day 13 Language Builder & Self-Hosting MiniLang
-// Tests: std/lang (Lexer, Pratt Parser, Bytecode VM) and examples/minilang.
+// Tests: examples/minilang/engine (Lexer, Pratt Parser, Bytecode VM) and examples/minilang.
 
-import "std/lang" as lang
-import "std/lang/lexer" as lexer_pkg
-import "std/lang/parser" as parser_pkg
-import "std/lang/vm" as vm_pkg
+import "examples/minilang/engine" as lang
+import "examples/minilang/engine/lexer" as lexer_pkg
+import "examples/minilang/engine/parser" as parser_pkg
+import "examples/minilang/engine/vm" as vm_pkg
 
 describe("Pure BramandScript Lexer and Token Scanner", fn() {
         test("Token scanning of keywords, operators, and literals", fn() {

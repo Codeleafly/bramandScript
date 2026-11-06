@@ -169,7 +169,6 @@
             <li><a href="stdlib.html#ch-tensor" class="nav-link pl-4 text-xs"><span>·</span> std/math/tensor</a></li>
             <li><a href="stdlib.html#ch-dataframe" class="nav-link pl-4 text-xs"><span>·</span> std/dataframe</a></li>
             <li><a href="stdlib.html#ch-ml" class="nav-link pl-4 text-xs"><span>·</span> std/ml (Autograd)</a></li>
-            <li><a href="stdlib.html#ch-lang" class="nav-link pl-4 text-xs"><span>·</span> std/lang (Language Engine)</a></li>
             <li><a href="stdlib.html#ch-rational-decimal" class="nav-link pl-4 text-xs"><span>·</span> std/math/rational &amp; decimal</a></li>
             <li><a href="stdlib.html#ch-complex-ntheory" class="nav-link pl-4 text-xs"><span>·</span> std/math/complex &amp; ntheory</a></li>
             <li><a href="stdlib.html#ch-calculus-opt-ode" class="nav-link pl-4 text-xs"><span>·</span> std/math/calculus, opt &amp; ode</a></li>
@@ -1327,42 +1326,6 @@ loss.backward()
 model.step(0.05)</code></pre>
         </div>
       </section>
-
-
-      <!-- ================= MODULAR STDLIB: STD/LANG ================= -->
-      <section id="ch-lang" class="section-anchor">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-purple">Language Engineering</span>
-        </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Language Builder &amp; Self-Hosting VM (<code class="font-mono">std/lang</code>)</h2>
-
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          The <code class="font-mono">std/lang</code> package provides a modular framework for creating custom programming languages, domain-specific languages (DSLs), and interpreters in pure BramandScript. It contains a full Lexer scanner, a Pratt operator precedence parser, and an in-memory stack-based Virtual Machine engine.
-        </p>
-
-        <div class="code-block-wrapper">
-          <div class="code-block-header">
-            <span>bmd — Scanning, Parsing &amp; Evaluating Source Code</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
-          </div>
-          <pre><code>import "std/lang" as lang
-
-let source = "let a = 15; let b = 25; a + b"
-
-// 1. Lexical Tokenization
-let l = lang.create_lexer(source)
-let tokens = l.tokenize()
-
-// 2. Pratt Parsing to AST (accepts source string or lexer)
-let p = lang.create_parser(source)
-let program = p.parse_program()
-
-// 3. Bytecode Compilation and Evaluation (returns { success, errors, result, globals })
-let out = lang.eval_code(source)
-println("MiniLang Success:", out.success, "Result:", out.result) // 40</code></pre>
-        </div>
-      </section>
-
 
 
       <!-- ================= MODULAR STDLIB: RATIONAL & DECIMAL ================= -->
