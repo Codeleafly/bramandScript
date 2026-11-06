@@ -12,6 +12,33 @@ describe("Concurrency and Channels", fn() {
                 assert_eq(received, "message from task");
         });
 
+        test("Channel methods: send, try_send, recv, try_recv, close and capacity", fn() {
+                let ch = chan(2);
+                assert_eq(ch.capacity, 2);
+
+                let s1 = ch.try_send("first");
+                let s2 = ch.try_send("second");
+                let s3 = ch.try_send("overflow");
+                assert_eq(s1, true);
+                assert_eq(s2, true);
+                assert_eq(s3, false);
+
+                let r1 = ch.try_recv();
+                assert_eq(r1, "first");
+
+                let r2 = ch.recv(100);
+                assert_eq(r2, "second");
+
+                let r3 = ch.try_recv();
+                assert_eq(r3, null);
+
+                ch.send("third", 100);
+                let r4 = ch.recv();
+                assert_eq(r4, "third");
+
+                ch.close();
+        });
+
         test("Mutex lock synchronization", fn() {
                 let m = mutex();
                 m.lock();

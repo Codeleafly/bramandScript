@@ -279,6 +279,54 @@
 <span class="token-fn">println</span>(<span class="token-op">&lt;-</span><span class="token-fn">queue</span>) <span class="token-comment">// "Alpha"</span>
 <span class="token-fn">println</span>(<span class="token-op">&lt;-</span><span class="token-fn">queue</span>) <span class="token-comment">// "Beta"</span></code></pre>
         </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Channel Methods &amp; Non-Blocking Operations</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          In addition to the arrow operators (<code class="font-mono">ch &lt;- val</code> and <code class="font-mono">&lt;-ch</code>), BramandScript channels provide object-oriented methods supporting timeouts, non-blocking polling, buffer inspection, and lifecycle management:
+        </p>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Method / Property</th><th>Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">ch.send</code></td><td><code class="font-mono">ch.send(val, [timeout_ms])</code></td><td><code class="font-mono">NULL</code></td><td>Sends value into channel. If <code class="font-mono">timeout_ms</code> is specified (&gt; 0), aborts with a runtime error if not received within the timeout window.</td></tr>
+              <tr><td><code class="font-mono font-bold">ch.try_send</code></td><td><code class="font-mono">ch.try_send(val)</code></td><td><code class="font-mono">BOOL</code></td><td>Non-blocking attempt to send. Returns <code class="font-mono">true</code> if delivered immediately (into buffer or waiting task), or <code class="font-mono">false</code> if full/unready without blocking.</td></tr>
+              <tr><td><code class="font-mono font-bold">ch.recv</code></td><td><code class="font-mono">ch.recv([timeout_ms])</code></td><td><code class="font-mono">ANY</code></td><td>Receives value from channel. If <code class="font-mono">timeout_ms</code> is specified (&gt; 0), returns <code class="font-mono">null</code> if the timeout expires. (Alias: <code class="font-mono">ch.receive</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">ch.try_recv</code></td><td><code class="font-mono">ch.try_recv()</code></td><td><code class="font-mono">ANY</code></td><td>Non-blocking attempt to receive. Returns the received object immediately if available, or <code class="font-mono">null</code> without blocking if channel is empty.</td></tr>
+              <tr><td><code class="font-mono font-bold">ch.close</code></td><td><code class="font-mono">ch.close()</code></td><td><code class="font-mono">NULL</code></td><td>Closes channel. Equivalent to <code class="font-mono">close(ch)</code>. Safe against double closing.</td></tr>
+              <tr><td><code class="font-mono font-bold">ch.capacity</code></td><td><code class="font-mono">ch.capacity</code></td><td><code class="font-mono">INT</code></td><td>Property returning the buffer capacity integer (<code class="font-mono">0</code> for unbuffered channels). (Alias: <code class="font-mono">ch.cap</code>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Non-blocking polling & timeouts</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-comment">// Allocate a buffered channel of capacity 2</span>
+<span class="token-kw">let</span> <span class="token-fn">ch</span> <span class="token-op">=</span> <span class="token-fn">chan</span>(<span class="token-num">2</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Channel capacity:"</span>, <span class="token-fn">ch</span>.<span class="token-fn">capacity</span>) <span class="token-comment">// 2</span>
+
+<span class="token-comment">// 1. Non-blocking try_send</span>
+<span class="token-kw">let</span> <span class="token-fn">s1</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">try_send</span>(<span class="token-str">"event_A"</span>) <span class="token-comment">// true</span>
+<span class="token-kw">let</span> <span class="token-fn">s2</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">try_send</span>(<span class="token-str">"event_B"</span>) <span class="token-comment">// true</span>
+<span class="token-kw">let</span> <span class="token-fn">s3</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">try_send</span>(<span class="token-str">"event_C"</span>) <span class="token-comment">// false (buffer full, does not block)</span>
+
+<span class="token-comment">// 2. Non-blocking try_recv</span>
+<span class="token-kw">let</span> <span class="token-fn">item1</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">try_recv</span>() <span class="token-comment">// "event_A"</span>
+
+<span class="token-comment">// 3. Receive with timeout (100ms)</span>
+<span class="token-kw">let</span> <span class="token-fn">item2</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">recv</span>(<span class="token-num">100</span>) <span class="token-comment">// "event_B"</span>
+<span class="token-kw">let</span> <span class="token-fn">item3</span> <span class="token-op">=</span> <span class="token-fn">ch</span>.<span class="token-fn">recv</span>(<span class="token-num">50</span>)  <span class="token-comment">// null (timeout elapsed on empty channel)</span>
+
+<span class="token-comment">// 4. Send with timeout & close</span>
+<span class="token-fn">ch</span>.<span class="token-fn">send</span>(<span class="token-str">"final"</span>, <span class="token-num">200</span>)
+<span class="token-fn">println</span>(<span class="token-str">"Drained:"</span>, <span class="token-fn">ch</span>.<span class="token-fn">recv</span>()) <span class="token-comment">// "final"</span>
+<span class="token-fn">ch</span>.<span class="token-fn">close</span>()</code></pre>
+        </div>
       </section>
 
       <!-- ================= MUTEX & SYNCHRONIZATION ================= -->

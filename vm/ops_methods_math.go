@@ -113,6 +113,9 @@ func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.O
 		case "recv", "receive":
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
+					if len(args) > 1 {
+						return &object.Error{Message: fmt.Sprintf("recv requires 0 or 1 arguments, got %d", len(args))}
+					}
 					var timeout time.Duration
 					if len(args) == 1 {
 						if intObj, ok := args[0].(*object.Integer); ok && intObj.Value > 0 {
@@ -129,6 +132,9 @@ func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.O
 		case "try_recv":
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 0 {
+						return &object.Error{Message: fmt.Sprintf("try_recv requires 0 arguments, got %d", len(args))}
+					}
 					val, ok := ch.TryRecv()
 					if !ok || val == nil {
 						return Null

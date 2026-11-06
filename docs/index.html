@@ -378,6 +378,16 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
                 <td><code class="font-mono">bmd script.bmd</code></td>
               </tr>
               <tr>
+                <td><code class="font-mono">bmd test [paths]</code></td>
+                <td>Run automated test suite discovery and execution runner</td>
+                <td><code class="font-mono">bmd test tests/</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd fmt [-c] [paths]</code></td>
+                <td>Format source files or verify formatting with <code class="font-mono">-c</code></td>
+                <td><code class="font-mono">bmd fmt -c stdlib/</code></td>
+              </tr>
+              <tr>
                 <td><code class="font-mono">bmd version</code></td>
                 <td>Print version and runtime platform architecture</td>
                 <td><code class="font-mono">bmd version</code></td>

@@ -51,6 +51,29 @@ func TestSpawnAndChannels(t *testing.T) {
 			`,
 			expected: "ping",
 		},
+		{
+			input: `
+			let ch = chan(2);
+			let s1 = ch.try_send("first");
+			let s2 = ch.try_send("second");
+			let s3 = ch.try_send("third");
+			let r1 = ch.try_recv();
+			let r2 = ch.recv(50);
+			let r3 = ch.try_recv();
+			s1 && s2 && (!s3) && (r1 == "first") && (r2 == "second") && (r3 == null);
+			`,
+			expected: true,
+		},
+		{
+			input: `
+			let ch = chan(1);
+			ch.send("buffered", 100);
+			let val = ch.recv();
+			ch.close();
+			val;
+			`,
+			expected: "buffered",
+		},
 	}
 	runVmTests(t, tests)
 }

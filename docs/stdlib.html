@@ -232,7 +232,7 @@
           Standard Library Reference
         </h1>
         <p class="text-base text-slate-600 dark:text-slate-300 leading-relaxed max-w-3xl">
-          Exhaustive guide to all modular <code class="font-mono">std/...</code> packages, the Terminal UI &amp; CLI framework (<code class="font-mono">std/tui</code> across 11 submodules), scientific math, linear algebra, cryptography, and an exhaustive dictionary of all 116 VM built-in functions.
+          Exhaustive guide to all modular <code class="font-mono">std/...</code> packages, the Terminal UI &amp; CLI framework (<code class="font-mono">std/tui</code> across 11 submodules), scientific math, linear algebra, cryptography, and an exhaustive dictionary of all 182 VM built-in functions.
         </p>
       </div>
   
@@ -585,6 +585,7 @@ describe("Authentication Security Suite", fn() {
                 <tr><th>Submodule</th><th>Signature</th><th>Return</th><th>Description &amp; Capabilities</th></tr>
               </thead>
               <tbody>
+                <tr><td><code class="font-mono font-bold">std/tooling</code></td><td><code class="font-mono">import "std/tooling" as tool</code></td><td><code class="font-mono">HASH</code></td><td>Unified developer tooling framework re-exporting <code class="font-mono">start_repl</code>, <code class="font-mono">run_cli</code>, <code class="font-mono">run_test_suites</code>, <code class="font-mono">run_pkg</code>, <code class="font-mono">disassemble</code>, and <code class="font-mono">format_source</code>.</td></tr>
                 <tr><td><code class="font-mono font-bold">std/tooling/repl</code></td><td><code class="font-mono">start_repl()</code></td><td><code class="font-mono">NULL</code></td><td>Interactive terminal REPL with multi-line delimiter tracking, session state persistence, syntax coloring, and commands (<code class="font-mono">:help</code>, <code class="font-mono">:clear</code>, <code class="font-mono">:reset</code>, <code class="font-mono">:env</code>, <code class="font-mono">:type</code>, <code class="font-mono">:time</code>, <code class="font-mono">:disasm</code>, <code class="font-mono">:exit</code>).</td></tr>
                 <tr><td><code class="font-mono font-bold">std/tooling/cli</code></td><td><code class="font-mono">run_cli(args)</code></td><td><code class="font-mono">INT</code></td><td>Master CLI router supporting <code class="font-mono">run</code>, <code class="font-mono">repl</code>, <code class="font-mono">test</code>, <code class="font-mono">fmt</code>, <code class="font-mono">pkg</code>, <code class="font-mono">disasm</code>, <code class="font-mono">bench</code>, <code class="font-mono">info</code>, <code class="font-mono">version</code>, and <code class="font-mono">help</code>.</td></tr>
                 <tr><td><code class="font-mono font-bold">std/tooling/test_runner</code></td><td><code class="font-mono">run_test_suites(paths)</code></td><td><code class="font-mono">INT</code></td><td>Automated test discovery and execution engine with execution timing, passed/failed counters, and formatted status reporting.</td></tr>
@@ -1819,7 +1820,7 @@ println(bar_chart)</code></pre>
               <tr><th>Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
             </thead>
             <tbody>
-              <tr><td><code class="font-mono font-bold">chan</code></td><td><code class="font-mono">chan([capacity])</code></td><td><code class="font-mono">CHANNEL</code></td><td>Instantiates an unbuffered or buffered channel for thread-safe message passing.</td></tr>
+              <tr><td><code class="font-mono font-bold">chan</code></td><td><code class="font-mono">chan([capacity])</code></td><td><code class="font-mono">CHANNEL</code></td><td>Instantiates an unbuffered or buffered channel for thread-safe message passing. Provides instance methods: <code class="font-mono">.send(val, [timeout_ms])</code>, <code class="font-mono">.try_send(val)</code>, <code class="font-mono">.recv([timeout_ms])</code>, <code class="font-mono">.try_recv()</code>, <code class="font-mono">.close()</code>, and property <code class="font-mono">.capacity</code>.</td></tr>
               <tr><td><code class="font-mono font-bold">close</code></td><td><code class="font-mono">close(channel)</code></td><td><code class="font-mono">NULL</code></td><td>Closes channel. Prevents further sends while allowing drain.</td></tr>
               <tr><td><code class="font-mono font-bold">mutex</code></td><td><code class="font-mono">mutex()</code></td><td><code class="font-mono">MUTEX</code></td><td>Instantiates mutual exclusion lock with <code class="font-mono">.lock()</code>, <code class="font-mono">.unlock()</code>, <code class="font-mono">.try_lock()</code>.</td></tr>
               <tr><td><code class="font-mono font-bold">wait_group</code></td><td><code class="font-mono">wait_group()</code></td><td><code class="font-mono">WAIT_GROUP</code></td><td>Instantiates synchronization counter with <code class="font-mono">.add()</code>, <code class="font-mono">.done()</code>, <code class="font-mono">.wait()</code>.</td></tr>
@@ -2148,6 +2149,25 @@ println(bar_chart)</code></pre>
               <tr><td><code class="font-mono font-bold">ed25519_verify</code></td><td><code class="font-mono">ed25519_verify(pub_key, msg, sig)</code></td><td><code class="font-mono">BOOL</code></td><td>Verifies Ed25519 signature validity against public key.</td></tr>
               <tr><td><code class="font-mono font-bold">jwt_sign</code></td><td><code class="font-mono">jwt_sign(payload, secret, [alg])</code></td><td><code class="font-mono">STRING</code></td><td>Generates signed JSON Web Token (HS256 HMAC or EdDSA Ed25519).</td></tr>
               <tr><td><code class="font-mono font-bold">jwt_verify</code></td><td><code class="font-mono">jwt_verify(token, secret, [alg])</code></td><td><code class="font-mono">HASH</code></td><td>Validates JWT signature, decoding header and verified payload hash.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 23: Internal VM Iteration Primitives -->
+        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">23. Compiler &amp; VM Iteration Helpers</h3>
+        <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+          The following four builtins are internal execution primitives compiled into bytecode by the Pratt parser to power zero-allocation, high-throughput <code class="font-mono">for-in</code> loop iterations over Arrays, Hashes, Strings, and raw Bytes:
+        </p>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Internal Builtin</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">__iter_len</code></td><td><code class="font-mono">__iter_len(collection)</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns the exact element count or key length for iteration loop boundaries.</td></tr>
+              <tr><td><code class="font-mono font-bold">__iter_key</code></td><td><code class="font-mono">__iter_key(collection, index)</code></td><td><code class="font-mono">ANY</code></td><td>Returns the current iteration key (string key for hashes, integer index for arrays/strings/bytes).</td></tr>
+              <tr><td><code class="font-mono font-bold">__iter_val</code></td><td><code class="font-mono">__iter_val(collection, index)</code></td><td><code class="font-mono">ANY</code></td><td>Retrieves the collection value element at the current iteration position.</td></tr>
+              <tr><td><code class="font-mono font-bold">__iter_item</code></td><td><code class="font-mono">__iter_item(collection, index)</code></td><td><code class="font-mono">ARRAY</code></td><td>Yields a 2-element tuple <code class="font-mono">[key, val]</code> for dual-variable iteration loops.</td></tr>
             </tbody>
           </table>
         </div>

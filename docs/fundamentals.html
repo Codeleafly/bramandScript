@@ -567,7 +567,7 @@ println("Result 2:", res2) // 16</code></pre>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Control Flow (<code class="font-mono">if</code> / <code class="font-mono">else if</code> / <code class="font-mono">else</code> with optional parens, <code class="font-mono">while</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Conditionals in BramandScript do not require enclosing parentheses around their condition expressions, keeping syntax clean and readable.
+          Conditionals in BramandScript do not require enclosing parentheses around their condition expressions, keeping syntax clean and readable. Furthermore, BramandScript deliberately does not use the C-style ternary operator (<code class="font-mono">?:</code>); instead, <code class="font-mono">if</code> statements are first-class expressions that evaluate directly to a value (<code class="font-mono">let x = if cond { a } else { b }</code>).
         </p>
 
         <h3 class="text-xl font-semibold mt-6 mb-3"><code class="font-mono">if</code>, <code class="font-mono">else if</code>, <code class="font-mono">else</code></h3>

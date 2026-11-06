@@ -356,7 +356,7 @@ func (c *Channel) SendTimeout(val Object, timeout time.Duration) (err error) {
 	}
 }
 
-func (c *Channel) TrySend(val Object) bool {
+func (c *Channel) TrySend(val Object) (sent bool) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -364,6 +364,12 @@ func (c *Channel) TrySend(val Object) bool {
 	}
 	ch := c.Ch
 	c.mu.Unlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			sent = false
+		}
+	}()
 
 	select {
 	case ch <- val:

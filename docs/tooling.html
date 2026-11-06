@@ -650,6 +650,28 @@ bramand run benchmarks/math_benchmarks.bmd</code></pre>
             </p>
             <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand bmd-fmt [paths]</pre>
           </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Package Registry Server (<code class="font-mono">tools/registry_server.bmd</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Self-contained HTTP package registry server providing publish APIs, tarball artifact storage, semver resolution, and search endpoints.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">bramand run tools/registry_server.bmd</pre>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>Project Task Tracker (<code class="font-mono">tools/task.js</code> / <code class="font-mono">bmd-task</code>)</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Strict roadmap and milestone tracking tool managing weekly task manifests under <code class="font-mono">date/MMYY/</code> with automatic status checkboxes.
+            </p>
+            <pre class="text-xs font-mono bg-slate-100 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400">node tools/task.js list</pre>
+          </div>
         </div>
 
         <h3 class="text-xl font-semibold mt-6 mb-3">Underlying VM Primitives</h3>
