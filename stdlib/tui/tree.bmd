@@ -5,8 +5,8 @@ import "std/tui/color" as color
 import "std/tui/style" as style
 
 let BRANCH_CHILD = "├── ";
-let BRANCH_LAST  = "└── ";
-let BRANCH_PIPE  = "│   ";
+let BRANCH_LAST = "└── ";
+let BRANCH_PIPE = "│   ";
 let BRANCH_SPACE = "    ";
 
 let render_subtree = fn(node, prefix, is_last, is_root, opts) {

@@ -5,26 +5,26 @@
 import "std/lang/lexer" as lexer_mod
 
 // Operator Precedences
-let PREC_LOWEST      = 1;
-let PREC_EQUALS      = 2; // ==, !=
-let PREC_LESSGREATER = 3; // >, <
-let PREC_SUM         = 4; // +, -
-let PREC_PRODUCT     = 5; // *, /
-let PREC_PREFIX      = 6; // -X or !X
-let PREC_CALL        = 7; // myFunction(X)
+let PREC_LOWEST = 1;
+let PREC_EQUALS = 2;  // ==, !=
+let PREC_LESSGREATER = 3;  // >, <
+let PREC_SUM = 4;  // +, -
+let PREC_PRODUCT = 5;  // *, /
+let PREC_PREFIX = 6;  // -X or !X
+let PREC_CALL = 7;  // myFunction(X)
 
 let PRECEDENCES = {
     "==": PREC_EQUALS,
     "!=": PREC_EQUALS,
-    "<":  PREC_LESSGREATER,
-    ">":  PREC_LESSGREATER,
+    "<": PREC_LESSGREATER,
+    ">": PREC_LESSGREATER,
     "<=": PREC_LESSGREATER,
     ">=": PREC_LESSGREATER,
-    "+":  PREC_SUM,
-    "-":  PREC_SUM,
-    "/":  PREC_PRODUCT,
-    "*":  PREC_PRODUCT,
-    "(":  PREC_CALL
+    "+": PREC_SUM,
+    "-": PREC_SUM,
+    "/": PREC_PRODUCT,
+    "*": PREC_PRODUCT,
+    "(": PREC_CALL
 };
 
 // --- AST Node Constructors ---
@@ -143,8 +143,8 @@ let parse_call_args = fn(p, func_node) {
     args = args + [parse_expr(p, PREC_LOWEST)];
 
     while p["peek_tok"].token_type == lexer_mod.TOKEN_COMMA {
-        advance_token(p); // on comma
-        advance_token(p); // on next arg
+        advance_token(p);  // on comma
+        advance_token(p);  // on next arg
         args = args + [parse_expr(p, PREC_LOWEST)];
     }
 
@@ -165,12 +165,12 @@ let parse_if = fn(p) {
 
     let alternative = null;
     if p["peek_tok"].token_type == lexer_mod.TOKEN_ELSE {
-        advance_token(p); // on else
+        advance_token(p);  // on else
         if expect_peek(p, lexer_mod.TOKEN_LBRACE) != true { return null; }
         alternative = parse_block(p);
     }
 
-    return ast_if(condition, consequence, alternative);
+    return ast_if (condition, consequence, alternative);
 };
 
 let parse_fn = fn(p) {
@@ -181,8 +181,8 @@ let parse_fn = fn(p) {
         advance_token(p);
         parameters = parameters + [ast_identifier(p["cur_tok"].literal)];
         while p["peek_tok"].token_type == lexer_mod.TOKEN_COMMA {
-            advance_token(p); // comma
-            advance_token(p); // param
+            advance_token(p);  // comma
+            advance_token(p);  // param
             parameters = parameters + [ast_identifier(p["cur_tok"].literal)];
         }
     }
@@ -225,7 +225,7 @@ parse_expr = fn(p, precedence) {
             return null;
         }
     } else if t == lexer_mod.TOKEN_IF {
-        prefix_expr = parse_if(p);
+        prefix_expr = parse_if (p);
     } else if t == lexer_mod.TOKEN_FN {
         prefix_expr = parse_fn(p);
     } else {
@@ -237,15 +237,15 @@ parse_expr = fn(p, precedence) {
     while p["peek_tok"].token_type != lexer_mod.TOKEN_SEMICOLON && precedence < peek_precedence(p) {
         let peek_type = p["peek_tok"].token_type;
         if peek_type == lexer_mod.TOKEN_PLUS ||
-           peek_type == lexer_mod.TOKEN_MINUS ||
-           peek_type == lexer_mod.TOKEN_SLASH ||
-           peek_type == lexer_mod.TOKEN_ASTERISK ||
-           peek_type == lexer_mod.TOKEN_EQ ||
-           peek_type == lexer_mod.TOKEN_NOT_EQ ||
-           peek_type == lexer_mod.TOKEN_LT ||
-           peek_type == lexer_mod.TOKEN_GT ||
-           peek_type == lexer_mod.TOKEN_LTE ||
-           peek_type == lexer_mod.TOKEN_GTE {
+        peek_type == lexer_mod.TOKEN_MINUS ||
+        peek_type == lexer_mod.TOKEN_SLASH ||
+        peek_type == lexer_mod.TOKEN_ASTERISK ||
+        peek_type == lexer_mod.TOKEN_EQ ||
+        peek_type == lexer_mod.TOKEN_NOT_EQ ||
+        peek_type == lexer_mod.TOKEN_LT ||
+        peek_type == lexer_mod.TOKEN_GT ||
+        peek_type == lexer_mod.TOKEN_LTE ||
+        peek_type == lexer_mod.TOKEN_GTE {
             advance_token(p);
             let op = p["cur_tok"].literal;
             let cur_prec = cur_precedence(p);

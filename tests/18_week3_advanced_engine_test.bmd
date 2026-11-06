@@ -14,307 +14,307 @@ import "std/crypto/advanced" as crypto;
 import "std/tui/plot" as plot;
 
 describe("Day 18: Matrix Factorization & Linear Systems", fn() {
-    test("LU Decomposition with partial row pivoting", fn() {
-        let A = [
-            [2.0, 1.0, 1.0],
-            [4.0, -6.0, 0.0],
-            [-2.0, 7.0, 2.0]
-        ];
-        let lu = decomp.lu_decompose(A);
-        let PA = decomp.matrix_mult(lu.P, A);
-        let LU = decomp.matrix_mult(lu.L, lu.U);
+        test("LU Decomposition with partial row pivoting", fn() {
+                let A = [
+                    [2.0, 1.0, 1.0],
+                    [4.0, -6.0, 0.0],
+                    [-2.0, 7.0, 2.0]
+                ];
+                let lu = decomp.lu_decompose(A);
+                let PA = decomp.matrix_mult(lu.P, A);
+                let LU = decomp.matrix_mult(lu.L, lu.U);
 
-        let diff = 0.0;
-        let r = 0;
-        while r < 3 {
-            let c = 0;
-            while c < 3 {
-                diff = diff + abs(PA[r][c] - LU[r][c]);
-                c = c + 1;
-            }
-            r = r + 1;
-        }
-        assert_true(diff < 0.000000001);
-    });
+                let diff = 0.0;
+                let r = 0;
+                while r < 3 {
+                    let c = 0;
+                    while c < 3 {
+                        diff = diff + abs(PA[r][c] - LU[r][c]);
+                        c = c + 1;
+                    }
+                    r = r + 1;
+                }
+                assert_true(diff < 0.000000001);
+        });
 
-    test("QR Decomposition via Householder reflections", fn() {
-        let A = [
-            [12.0, -51.0, 4.0],
-            [6.0, 167.0, -68.0],
-            [-4.0, 24.0, -41.0]
-        ];
-        let qr = decomp.qr_decompose(A);
-        let QR = decomp.matrix_mult(qr.Q, qr.R);
+        test("QR Decomposition via Householder reflections", fn() {
+                let A = [
+                    [12.0, -51.0, 4.0],
+                    [6.0, 167.0, -68.0],
+                    [-4.0, 24.0, -41.0]
+                ];
+                let qr = decomp.qr_decompose(A);
+                let QR = decomp.matrix_mult(qr.Q, qr.R);
 
-        let diff = 0.0;
-        let r = 0;
-        while r < 3 {
-            let c = 0;
-            while c < 3 {
-                diff = diff + abs(A[r][c] - QR[r][c]);
-                c = c + 1;
-            }
-            r = r + 1;
-        }
-        assert_true(diff < 0.000000001);
-    });
+                let diff = 0.0;
+                let r = 0;
+                while r < 3 {
+                    let c = 0;
+                    while c < 3 {
+                        diff = diff + abs(A[r][c] - QR[r][c]);
+                        c = c + 1;
+                    }
+                    r = r + 1;
+                }
+                assert_true(diff < 0.000000001);
+        });
 
-    test("Cholesky Decomposition for symmetric positive-definite systems", fn() {
-        let S = [
-            [4.0, 12.0, -16.0],
-            [12.0, 37.0, -43.0],
-            [-16.0, -43.0, 98.0]
-        ];
-        let L = decomp.cholesky_decompose(S);
-        assert_true(L != null);
-        let Lt = decomp.matrix_transpose(L);
-        let LLt = decomp.matrix_mult(L, Lt);
+        test("Cholesky Decomposition for symmetric positive-definite systems", fn() {
+                let S = [
+                    [4.0, 12.0, -16.0],
+                    [12.0, 37.0, -43.0],
+                    [-16.0, -43.0, 98.0]
+                ];
+                let L = decomp.cholesky_decompose(S);
+                assert_true(L != null);
+                let Lt = decomp.matrix_transpose(L);
+                let LLt = decomp.matrix_mult(L, Lt);
 
-        let diff = 0.0;
-        let r = 0;
-        while r < 3 {
-            let c = 0;
-            while c < 3 {
-                diff = diff + abs(S[r][c] - LLt[r][c]);
-                c = c + 1;
-            }
-            r = r + 1;
-        }
-        assert_true(diff < 0.000000001);
-    });
+                let diff = 0.0;
+                let r = 0;
+                while r < 3 {
+                    let c = 0;
+                    while c < 3 {
+                        diff = diff + abs(S[r][c] - LLt[r][c]);
+                        c = c + 1;
+                    }
+                    r = r + 1;
+                }
+                assert_true(diff < 0.000000001);
+        });
 
-    test("Linear system solver A*x = b via LU factorization", fn() {
-        let A = [
-            [3.0, 2.0, -1.0],
-            [2.0, -2.0, 4.0],
-            [-1.0, 0.5, -1.0]
-        ];
-        let b = [1.0, -2.0, 0.0];
-        let x = decomp.solve_linear_system(A, b);
-        let Ax = decomp.matrix_vec_mult(A, x);
+        test("Linear system solver A*x = b via LU factorization", fn() {
+                let A = [
+                    [3.0, 2.0, -1.0],
+                    [2.0, -2.0, 4.0],
+                    [-1.0, 0.5, -1.0]
+                ];
+                let b = [1.0, -2.0, 0.0];
+                let x = decomp.solve_linear_system(A, b);
+                let Ax = decomp.matrix_vec_mult(A, x);
 
-        let err = abs(Ax[0] - b[0]) + abs(Ax[1] - b[1]) + abs(Ax[2] - b[2]);
-        assert_true(err < 0.000000001);
-    });
+                let err = abs(Ax[0] - b[0]) + abs(Ax[1] - b[1]) + abs(Ax[2] - b[2]);
+                assert_true(err < 0.000000001);
+        });
 
-    test("Polynomial least-squares regression", fn() {
-        let x_pts = [0.0, 1.0, 2.0, 3.0];
-        let y_pts = [1.0, 3.0, 5.0, 7.0]; // y = 2*x + 1
-        let fit = decomp.least_squares_fit(x_pts, y_pts, 1);
-        let coeffs = fit.coeffs;
-        assert_true(abs(coeffs[0] - 1.0) < 0.0001); // intercept
-        assert_true(abs(coeffs[1] - 2.0) < 0.0001); // slope
-        assert_true(abs(fit.predict(4.0) - 9.0) < 0.0001);
-    });
+        test("Polynomial least-squares regression", fn() {
+                let x_pts = [0.0, 1.0, 2.0, 3.0];
+                let y_pts = [1.0, 3.0, 5.0, 7.0];  // y = 2*x + 1
+                let fit = decomp.least_squares_fit(x_pts, y_pts, 1);
+                let coeffs = fit.coeffs;
+                assert_true(abs(coeffs[0] - 1.0) < 0.0001);  // intercept
+                assert_true(abs(coeffs[1] - 2.0) < 0.0001);  // slope
+                assert_true(abs(fit.predict(4.0) - 9.0) < 0.0001);
+        });
 });
 
 describe("Day 18: Spectral Analysis, Sparse Matrices & Tensor Broadcasting", fn() {
-    test("Power Iteration and Shifted QR Eigenvalue Solvers", fn() {
-        let sym = [
-            [2.0, 1.0],
-            [1.0, 2.0]
-        ];
-        let eig = eigen.eigen_qr(sym, 100, 0.0000000001);
-        assert_true(abs(eig.eigenvalues[0] - 3.0) < 0.0001);
-        assert_true(abs(eig.eigenvalues[1] - 1.0) < 0.0001);
+        test("Power Iteration and Shifted QR Eigenvalue Solvers", fn() {
+                let sym = [
+                    [2.0, 1.0],
+                    [1.0, 2.0]
+                ];
+                let eig = eigen.eigen_qr(sym, 100, 0.0000000001);
+                assert_true(abs(eig.eigenvalues[0] - 3.0) < 0.0001);
+                assert_true(abs(eig.eigenvalues[1] - 1.0) < 0.0001);
 
-        let pi_res = eigen.power_iteration(sym, 100, 0.0000000001);
-        assert_true(abs(pi_res.eigenvalue - 3.0) < 0.0001);
-    });
+                let pi_res = eigen.power_iteration(sym, 100, 0.0000000001);
+                assert_true(abs(pi_res.eigenvalue - 3.0) < 0.0001);
+        });
 
-    test("Spectral radius and condition number", fn() {
-        let sym = [
-            [4.0, 0.0],
-            [0.0, 2.0]
-        ];
-        let sr = eigen.spectral_radius(sym);
-        assert_true(abs(sr - 4.0) < 0.0001);
+        test("Spectral radius and condition number", fn() {
+                let sym = [
+                    [4.0, 0.0],
+                    [0.0, 2.0]
+                ];
+                let sr = eigen.spectral_radius(sym);
+                assert_true(abs(sr - 4.0) < 0.0001);
 
-        let cond = eigen.condition_number(sym);
-        assert_true(abs(cond - 2.0) < 0.0001);
-    });
+                let cond = eigen.condition_number(sym);
+                assert_true(abs(cond - 2.0) < 0.0001);
+        });
 
-    test("Compressed Sparse Row (CSR) matrix operations", fn() {
-        let dense = [
-            [1.0, 0.0, 0.0],
-            [0.0, 0.0, 3.0],
-            [4.0, 0.0, 5.0]
-        ];
-        let csr = sparse.csr_from_dense(dense);
-        assert_eq(csr.nnz(), 4);
-        assert_eq(csr.get(0, 0), 1.0);
-        assert_eq(csr.get(0, 1), 0.0);
-        assert_eq(csr.get(1, 2), 3.0);
+        test("Compressed Sparse Row (CSR) matrix operations", fn() {
+                let dense = [
+                    [1.0, 0.0, 0.0],
+                    [0.0, 0.0, 3.0],
+                    [4.0, 0.0, 5.0]
+                ];
+                let csr = sparse.csr_from_dense(dense);
+                assert_eq(csr.nnz(), 4);
+                assert_eq(csr.get(0, 0), 1.0);
+                assert_eq(csr.get(0, 1), 0.0);
+                assert_eq(csr.get(1, 2), 3.0);
 
-        let v = [2.0, 10.0, 4.0];
-        let res = csr.matmul_vec(v);
-        // [1*2 = 2, 3*4 = 12, 4*2 + 5*4 = 28]
-        assert_eq(res[0], 2.0);
-        assert_eq(res[1], 12.0);
-        assert_eq(res[2], 28.0);
-    });
+                let v = [2.0, 10.0, 4.0];
+                let res = csr.matmul_vec(v);
+                // [1*2 = 2, 3*4 = 12, 4*2 + 5*4 = 28]
+                assert_eq(res[0], 2.0);
+                assert_eq(res[1], 12.0);
+                assert_eq(res[2], 28.0);
+        });
 
-    test("Tensor multi-dimensional dimension broadcasting rules", fn() {
-        let s1 = [2, 1, 4];
-        let s2 = [3, 4];
-        let b = tensor.broadcast_shapes(s1, s2);
-        assert_eq(b[0], 2);
-        assert_eq(b[1], 3);
-        assert_eq(b[2], 4);
+        test("Tensor multi-dimensional dimension broadcasting rules", fn() {
+                let s1 = [2, 1, 4];
+                let s2 = [3, 4];
+                let b = tensor.broadcast_shapes(s1, s2);
+                assert_eq(b[0], 2);
+                assert_eq(b[1], 3);
+                assert_eq(b[2], 4);
 
-        let incompatible = tensor.broadcast_shapes([2, 3], [2, 4]);
-        assert_eq(incompatible, null);
-    });
+                let incompatible = tensor.broadcast_shapes([2, 3], [2, 4]);
+                assert_eq(incompatible, null);
+        });
 });
 
 describe("Day 19: Pipeline Operator, Pattern Destructuring & Generators", fn() {
-    test("Pipeline operator (|>) chaining", fn() {
-        let inc = fn(x) { return x + 1; };
-        let sq = fn(x) { return x * x; };
-        let add = fn(x, y) { return x + y; };
+        test("Pipeline operator (|>) chaining", fn() {
+                let inc = fn(x) { return x + 1; };
+                let sq = fn(x) { return x * x; };
+                let add = fn(x, y) { return x + y; };
 
-        let res = 3 |> inc |> sq; // (3+1)^2 = 16
-        assert_eq(res, 16);
+                let res = 3 |> inc |> sq;  // (3+1)^2 = 16
+                assert_eq(res, 16);
 
-        let res2 = 5 |> add(10) |> inc; // 5 + 10 = 15 -> 16
-        assert_eq(res2, 16);
-    });
-
-    test("Array pattern destructuring with rest operator", fn() {
-        let [x, y, ...tail] = [10, 20, 30, 40, 50];
-        assert_eq(x, 10);
-        assert_eq(y, 20);
-        assert_eq(len(tail), 3);
-        assert_eq(tail[0], 30);
-        assert_eq(tail[2], 50);
-    });
-
-    test("Hash pattern destructuring", fn() {
-        let point = { "x": 100, "y": 200, "z": 300 };
-        let { x, y } = point;
-        assert_eq(x, 100);
-        assert_eq(y, 200);
-    });
-
-    test("Function parameter pattern destructuring", fn() {
-        let get_mag = fn({ x, y }) {
-            return sqrt((x * x) + (y * y));
-        };
-        assert_eq(get_mag({ "x": 3.0, "y": 4.0 }), 5.0);
-
-        let head_sum = fn([a, b, ...rem]) {
-            return a + b;
-        };
-        assert_eq(head_sum([10, 20, 30]), 30);
-    });
-
-    test("Generator functions with yield and lazy stream evaluation", fn() {
-        let gen = iter.generator(fn(yield) {
-            let i = 1;
-            while i <= 5 {
-                yield i * 10;
-                i = i + 1;
-            }
+                let res2 = 5 |> add(10) |> inc;  // 5 + 10 = 15 -> 16
+                assert_eq(res2, 16);
         });
-        let items = iter.take(gen, 3);
-        assert_eq(items[0], 10);
-        assert_eq(items[1], 20);
-        assert_eq(items[2], 30);
 
-        let rng = iter.range(1, 10, 2);
-        let doubled = rng.map(fn(x) { return x * 2; });
-        let res = iter.take(doubled, 2);
-        assert_eq(res[0], 2);
-        assert_eq(res[1], 6);
-    });
+        test("Array pattern destructuring with rest operator", fn() {
+                let [x, y, ...tail] = [10, 20, 30, 40, 50];
+                assert_eq(x, 10);
+                assert_eq(y, 20);
+                assert_eq(len(tail), 3);
+                assert_eq(tail[0], 30);
+                assert_eq(tail[2], 50);
+        });
+
+        test("Hash pattern destructuring", fn() {
+                let point = { "x": 100, "y": 200, "z": 300 };
+                let { x, y } = point;
+                assert_eq(x, 100);
+                assert_eq(y, 200);
+        });
+
+        test("Function parameter pattern destructuring", fn() {
+                let get_mag = fn({ x, y }) {
+                    return sqrt((x * x) + (y * y));
+                };
+                assert_eq(get_mag({ "x": 3.0, "y": 4.0 }), 5.0);
+
+                let head_sum = fn([a, b, ...rem]) {
+                    return a + b;
+                };
+                assert_eq(head_sum([10, 20, 30]), 30);
+        });
+
+        test("Generator functions with yield and lazy stream evaluation", fn() {
+                let gen = iter.generator(fn(yield) {
+                        let i = 1;
+                        while i <= 5 {
+                            yield i * 10;
+                            i = i + 1;
+                        }
+                });
+                let items = iter.take(gen, 3);
+                assert_eq(items[0], 10);
+                assert_eq(items[1], 20);
+                assert_eq(items[2], 30);
+
+                let rng = iter.range(1, 10, 2);
+                let doubled = rng.map(fn(x) { return x * 2; });
+                let res = iter.take(doubled, 2);
+                assert_eq(res[0], 2);
+                assert_eq(res[1], 6);
+        });
 });
 
 describe("Day 20: Compression, Binary Packing & Modern Cryptography", fn() {
-    test("Gzip and Zlib round-trip compression", fn() {
-        let msg = "BramandScript pure standard library offline-first high performance!";
-        let gz = gzip.compress(msg);
-        let decomp = gzip.decompress(gz);
-        assert_eq(str(decomp), msg);
+        test("Gzip and Zlib round-trip compression", fn() {
+                let msg = "BramandScript pure standard library offline-first high performance!";
+                let gz = gzip.compress(msg);
+                let decomp = gzip.decompress(gz);
+                assert_eq(str(decomp), msg);
 
-        let zl = zlib.compress(msg);
-        let z_decomp = zlib.decompress(zl);
-        assert_eq(str(z_decomp), msg);
-    });
-
-    test("Tar POSIX archiving and unpacking", fn() {
-        let archive = tar.pack({
-            "config.bmd": "let port = 8080;",
-            "static/app.js": "console.log('ready');"
+                let zl = zlib.compress(msg);
+                let z_decomp = zlib.decompress(zl);
+                assert_eq(str(z_decomp), msg);
         });
-        let files = tar.unpack(archive);
-        assert_eq(str(files["config.bmd"]), "let port = 8080;");
-        assert_eq(str(files["static/app.js"]), "console.log('ready');");
-    });
 
-    test("Python-style struct pack and unpack", fn() {
-        let sz = bin.calcsize(">hhi");
-        assert_eq(sz, 8);
+        test("Tar POSIX archiving and unpacking", fn() {
+                let archive = tar.pack({
+                        "config.bmd": "let port = 8080;",
+                        "static/app.js": "console.log('ready');"
+                });
+                let files = tar.unpack(archive);
+                assert_eq(str(files["config.bmd"]), "let port = 8080;");
+                assert_eq(str(files["static/app.js"]), "console.log('ready');");
+        });
 
-        let packed = bin.pack(">hhi4s", [42, -99, 123456, "BMD!"]);
-        let unpacked = bin.unpack(">hhi4s", packed);
-        assert_eq(unpacked[0], 42);
-        assert_eq(unpacked[1], -99);
-        assert_eq(unpacked[2], 123456);
-        assert_eq(unpacked[3], "BMD!");
-    });
+        test("Python-style struct pack and unpack", fn() {
+                let sz = bin.calcsize(">hhi");
+                assert_eq(sz, 8);
 
-    test("MessagePack binary serialization and decoding", fn() {
-        let data = {
-            "name": "Bramand",
-            "version": 1,
-            "rates": [1.25, 2.5]
-        };
-        let encoded = bin.encode(data);
-        let decoded = bin.decode(encoded);
-        assert_eq(decoded["name"], "Bramand");
-        assert_eq(decoded["version"], 1);
-        assert_eq(decoded["rates"][0], 1.25);
-    });
+                let packed = bin.pack(">hhi4s", [42, -99, 123456, "BMD!"]);
+                let unpacked = bin.unpack(">hhi4s", packed);
+                assert_eq(unpacked[0], 42);
+                assert_eq(unpacked[1], -99);
+                assert_eq(unpacked[2], 123456);
+                assert_eq(unpacked[3], "BMD!");
+        });
 
-    test("AES-256-GCM authenticated symmetric encryption", fn() {
-        let key = "abcdefghijklmnopqrstuvwxyz123456"; // 32 bytes
-        let secret = "Ultra confidential payload";
-        let enc = crypto.encrypt_gcm(key, secret, null, "aad-data");
-        let dec = crypto.decrypt_gcm(key, enc.combined, null, "aad-data");
-        assert_eq(str(dec), secret);
-    });
+        test("MessagePack binary serialization and decoding", fn() {
+                let data = {
+                    "name": "Bramand",
+                    "version": 1,
+                    "rates": [1.25, 2.5]
+                };
+                let encoded = bin.encode(data);
+                let decoded = bin.decode(encoded);
+                assert_eq(decoded["name"], "Bramand");
+                assert_eq(decoded["version"], 1);
+                assert_eq(decoded["rates"][0], 1.25);
+        });
 
-    test("Ed25519 digital signatures and verification", fn() {
-        let kp = crypto.keypair_ed25519();
-        let msg = "Wire transfer authorization $500,000";
-        let sig = crypto.sign_ed25519(kp.private_key, msg);
-        assert_true(crypto.verify_ed25519(kp.public_key, msg, sig));
-        assert_false(crypto.verify_ed25519(kp.public_key, "Tampered!", sig));
-    });
+        test("AES-256-GCM authenticated symmetric encryption", fn() {
+                let key = "abcdefghijklmnopqrstuvwxyz123456";  // 32 bytes
+                let secret = "Ultra confidential payload";
+                let enc = crypto.encrypt_gcm(key, secret, null, "aad-data");
+                let dec = crypto.decrypt_gcm(key, enc.combined, null, "aad-data");
+                assert_eq(str(dec), secret);
+        });
 
-    test("JSON Web Token (JWT) signing and verification", fn() {
-        let payload = { "user": "bramand", "role": "admin" };
-        let secret = "jwt_secret_token_key_secure";
-        let token = crypto.sign_jwt(payload, secret, "HS256");
-        let v = crypto.verify_jwt(token, secret, "HS256");
-        assert_true(v.valid);
-        assert_eq(v.payload["user"], "bramand");
+        test("Ed25519 digital signatures and verification", fn() {
+                let kp = crypto.keypair_ed25519();
+                let msg = "Wire transfer authorization $500,000";
+                let sig = crypto.sign_ed25519(kp.private_key, msg);
+                assert_true(crypto.verify_ed25519(kp.public_key, msg, sig));
+                assert_false(crypto.verify_ed25519(kp.public_key, "Tampered!", sig));
+        });
 
-        let bad_v = crypto.verify_jwt(token, "wrong_secret", "HS256");
-        assert_false(bad_v.valid);
-    });
+        test("JSON Web Token (JWT) signing and verification", fn() {
+                let payload = { "user": "bramand", "role": "admin" };
+                let secret = "jwt_secret_token_key_secure";
+                let token = crypto.sign_jwt(payload, secret, "HS256");
+                let v = crypto.verify_jwt(token, secret, "HS256");
+                assert_true(v.valid);
+                assert_eq(v.payload["user"], "bramand");
+
+                let bad_v = crypto.verify_jwt(token, "wrong_secret", "HS256");
+                assert_false(bad_v.valid);
+        });
 });
 
 describe("Day 21: Terminal Braille Plotting Engine", fn() {
-    test("High-resolution Braille function curve plotting", fn() {
-        let rendered = plot.plot_function(fn(x) { return x * x; }, -2.0, 2.0, "Parabola", 30, 6);
-        assert_true(len(rendered) > 0);
-    });
+        test("High-resolution Braille function curve plotting", fn() {
+                let rendered = plot.plot_function(fn(x) { return x * x; }, -2.0, 2.0, "Parabola", 30, 6);
+                assert_true(len(rendered) > 0);
+        });
 
-    test("Unicode box bar chart generation", fn() {
-        let cats = ["Math", "Crypto", "TUI"];
-        let vals = [10.0, 20.0, 15.0];
-        let bar = plot.plot_bar(cats, vals, "Bench", 20);
-        assert_true(len(bar) > 0);
-    });
+        test("Unicode box bar chart generation", fn() {
+                let cats = ["Math", "Crypto", "TUI"];
+                let vals = [10.0, 20.0, 15.0];
+                let bar = plot.plot_bar(cats, vals, "Bench", 20);
+                assert_true(len(bar) > 0);
+        });
 });

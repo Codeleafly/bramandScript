@@ -94,13 +94,13 @@ let generator = fn(worker_fn) {
     let is_done = false;
 
     let yielder = fn(val) {
-        let _ = <-resume_ch;
+        let _ = <- resume_ch;
         yield_ch <- { "value": val, "done": false };
     };
 
     spawn fn() {
         worker_fn(yielder);
-        let _ = <-resume_ch;
+        let _ = <- resume_ch;
         yield_ch <- { "value": null, "done": true };
     }();
 
@@ -109,7 +109,7 @@ let generator = fn(worker_fn) {
             return { "value": null, "done": true };
         }
         resume_ch <- null;
-        let res = <-yield_ch;
+        let res = <- yield_ch;
         if res.done {
             is_done = true;
         }

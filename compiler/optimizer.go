@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"encoding/binary"
 	"math"
 
 	"bramandscript/ast"
@@ -15,14 +16,23 @@ func FoldConstants(node ast.Node) ast.Node {
 
 	switch n := node.(type) {
 	case *ast.InfixExpression:
-		left := FoldConstants(n.Left).(ast.Expression)
-		right := FoldConstants(n.Right).(ast.Expression)
-		n.Left = left
-		n.Right = right
+		if n.Left == nil || n.Right == nil {
+			return n
+		}
+		leftExpr, ok := FoldConstants(n.Left).(ast.Expression)
+		if !ok {
+			return n
+		}
+		rightExpr, ok := FoldConstants(n.Right).(ast.Expression)
+		if !ok {
+			return n
+		}
+		n.Left = leftExpr
+		n.Right = rightExpr
 
 		// Integer op Integer
-		intLeft, okLeft := left.(*ast.IntegerLiteral)
-		intRight, okRight := right.(*ast.IntegerLiteral)
+		intLeft, okLeft := leftExpr.(*ast.IntegerLiteral)
+		intRight, okRight := rightExpr.(*ast.IntegerLiteral)
 		if okLeft && okRight {
 			v1 := intLeft.Value
 			v2 := intRight.Value
@@ -34,11 +44,11 @@ func FoldConstants(node ast.Node) ast.Node {
 			case "*":
 				return &ast.IntegerLiteral{Token: n.Token, Value: v1 * v2}
 			case "/":
-				if v2 != 0 {
+				if v2 != 0 && !(v1 == math.MinInt64 && v2 == -1) {
 					return &ast.IntegerLiteral{Token: n.Token, Value: v1 / v2}
 				}
 			case "%":
-				if v2 != 0 {
+				if v2 != 0 && !(v1 == math.MinInt64 && v2 == -1) {
 					return &ast.IntegerLiteral{Token: n.Token, Value: v1 % v2}
 				}
 			case "**":
@@ -79,8 +89,8 @@ func FoldConstants(node ast.Node) ast.Node {
 		}
 
 		// Float op Float
-		floatLeft, okFLeft := left.(*ast.FloatLiteral)
-		floatRight, okFRight := right.(*ast.FloatLiteral)
+		floatLeft, okFLeft := leftExpr.(*ast.FloatLiteral)
+		floatRight, okFRight := rightExpr.(*ast.FloatLiteral)
 		if okFLeft && okFRight {
 			v1 := floatLeft.Value
 			v2 := floatRight.Value
@@ -113,8 +123,8 @@ func FoldConstants(node ast.Node) ast.Node {
 		}
 
 		// String concatenation
-		strLeft, okSLeft := left.(*ast.StringLiteral)
-		strRight, okSRight := right.(*ast.StringLiteral)
+		strLeft, okSLeft := leftExpr.(*ast.StringLiteral)
+		strRight, okSRight := rightExpr.(*ast.StringLiteral)
 		if okSLeft && okSRight {
 			switch n.Operator {
 			case "+":
@@ -127,8 +137,8 @@ func FoldConstants(node ast.Node) ast.Node {
 		}
 
 		// Boolean equality
-		boolLeft, okBLeft := left.(*ast.BooleanLiteral)
-		boolRight, okBRight := right.(*ast.BooleanLiteral)
+		boolLeft, okBLeft := leftExpr.(*ast.BooleanLiteral)
+		boolRight, okBRight := rightExpr.(*ast.BooleanLiteral)
 		if okBLeft && okBRight {
 			switch n.Operator {
 			case "==":
@@ -141,23 +151,29 @@ func FoldConstants(node ast.Node) ast.Node {
 		return n
 
 	case *ast.PrefixExpression:
-		right := FoldConstants(n.Right).(ast.Expression)
-		n.Right = right
+		if n.Right == nil {
+			return n
+		}
+		rightExpr, ok := FoldConstants(n.Right).(ast.Expression)
+		if !ok {
+			return n
+		}
+		n.Right = rightExpr
 
 		switch n.Operator {
 		case "!":
-			if b, ok := right.(*ast.BooleanLiteral); ok {
+			if b, ok := rightExpr.(*ast.BooleanLiteral); ok {
 				return &ast.BooleanLiteral{Token: n.Token, Value: !b.Value}
 			}
 		case "-":
-			if i, ok := right.(*ast.IntegerLiteral); ok {
+			if i, ok := rightExpr.(*ast.IntegerLiteral); ok {
 				return &ast.IntegerLiteral{Token: n.Token, Value: -i.Value}
 			}
-			if f, ok := right.(*ast.FloatLiteral); ok {
+			if f, ok := rightExpr.(*ast.FloatLiteral); ok {
 				return &ast.FloatLiteral{Token: n.Token, Value: -f.Value}
 			}
 		case "~":
-			if i, ok := right.(*ast.IntegerLiteral); ok {
+			if i, ok := rightExpr.(*ast.IntegerLiteral); ok {
 				return &ast.IntegerLiteral{Token: n.Token, Value: ^i.Value}
 			}
 		}
@@ -174,11 +190,13 @@ func OptimizeBytecode(ins code.Instructions) code.Instructions {
 		return ins
 	}
 	out := make(code.Instructions, 0, len(ins))
+	offsetMap := make([]int, len(ins)+1)
 	i := 0
 	for i < len(ins) {
 		op := code.Opcode(ins[i])
 		def, err := code.Lookup(ins[i])
 		if err != nil {
+			offsetMap[i] = len(out)
 			out = append(out, ins[i])
 			i++
 			continue
@@ -187,15 +205,54 @@ func OptimizeBytecode(ins code.Instructions) code.Instructions {
 		for _, w := range def.OperandWidths {
 			insLen += w
 		}
+		if i+insLen > len(ins) {
+			for k := i; k < len(ins); k++ {
+				offsetMap[k] = len(out)
+				out = append(out, ins[k])
+			}
+			break
+		}
 
 		// Peephole: OpDup followed immediately by OpPop -> cancel both out
 		if op == code.OpDup && i+insLen < len(ins) && code.Opcode(ins[i+insLen]) == code.OpPop {
+			for k := 0; k < insLen+1; k++ {
+				offsetMap[i+k] = len(out)
+			}
 			i += insLen + 1
 			continue
 		}
 
+		for k := 0; k < insLen; k++ {
+			offsetMap[i+k] = len(out) + k
+		}
 		out = append(out, ins[i:i+insLen]...)
 		i += insLen
+	}
+	offsetMap[len(ins)] = len(out)
+
+	// Pass 2: Re-target all jumps according to offsetMap
+	j := 0
+	for j < len(out) {
+		op := code.Opcode(out[j])
+		def, err := code.Lookup(out[j])
+		if err != nil {
+			j++
+			continue
+		}
+		insLen := 1
+		for _, w := range def.OperandWidths {
+			insLen += w
+		}
+		if op == code.OpJump || op == code.OpJumpNotTruthy || op == code.OpJumpTruthy {
+			if j+3 <= len(out) {
+				oldTarget := int(binary.BigEndian.Uint16(out[j+1:]))
+				if oldTarget <= len(ins) {
+					newTarget := offsetMap[oldTarget]
+					binary.BigEndian.PutUint16(out[j+1:], uint16(newTarget))
+				}
+			}
+		}
+		j += insLen
 	}
 	return out
 }

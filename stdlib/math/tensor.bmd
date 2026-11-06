@@ -294,7 +294,7 @@ struct Tensor {
 
             let pivot = aug[p][p];
             if abs(pivot) < 0.000000000001 {
-                return null; // Singular matrix
+                return null;  // Singular matrix
             }
 
             // Scale pivot row
@@ -502,7 +502,7 @@ let broadcast_shapes = fn(shapeA, shapeB) {
         } else if dimB == 1 {
             out_shape = [dimA] + out_shape;
         } else {
-            return null; // Shapes are not broadcast-compatible
+            return null;  // Shapes are not broadcast-compatible
         }
         k = k + 1;
     }

@@ -187,6 +187,9 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 	offset := 0
 
 	for i, width := range def.OperandWidths {
+		if offset+width > len(ins) {
+			return operands, offset
+		}
 		switch width {
 		case 4:
 			operands[i] = int(binary.BigEndian.Uint32(ins[offset:]))
@@ -209,6 +212,7 @@ func (ins Instructions) String() string {
 		def, err := Lookup(ins[i])
 		if err != nil {
 			fmt.Fprintf(&out, "ERROR: %s\n", err)
+			i++
 			continue
 		}
 

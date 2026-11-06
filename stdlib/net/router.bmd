@@ -246,8 +246,8 @@ struct Router {
         let upper_method = to_upper(method);
         insert_route(root, upper_method, pattern, handler);
         routes = routes + [{
-            "method": upper_method,
-            "pattern": pattern
+                "method": upper_method,
+                "pattern": pattern
         }];
     }
 

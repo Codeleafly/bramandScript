@@ -116,6 +116,14 @@ func Format(source string) (string, error) {
 	return result, nil
 }
 
+func isQuoteEscaped(s string, i int) bool {
+	count := 0
+	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
+		count++
+	}
+	return count%2 == 1
+}
+
 func countNetOpen(line string) int {
 	net := 0
 	inString := false
@@ -130,7 +138,7 @@ func countNetOpen(line string) int {
 		}
 
 		// Handle string literals
-		if (ch == '"' || ch == '`') && (i == 0 || line[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(line, i) {
 			if !inString {
 				inString = true
 				strQuote = ch
@@ -173,7 +181,7 @@ func formatLineContent(line string) string {
 	var q byte
 	for i := 0; i < len(line); i++ {
 		ch := line[i]
-		if (ch == '"' || ch == '`') && (i == 0 || line[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(line, i) {
 			if !inStr {
 				inStr = true
 				q = ch
@@ -205,7 +213,7 @@ func formatCodeTokens(code string) string {
 	for i := 0; i < len(code); i++ {
 		ch := code[i]
 
-		if (ch == '"' || ch == '`') && (i == 0 || code[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(code, i) {
 			if !inStr {
 				inStr = true
 				q = ch
@@ -313,7 +321,7 @@ func normalizeOpSpacing(input, op string) string {
 
 	for i := 0; i < len(input); {
 		ch := input[i]
-		if (ch == '"' || ch == '`') && (i == 0 || input[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(input, i) {
 			if !inStr {
 				inStr = true
 				q = ch
@@ -362,7 +370,7 @@ func normalizeSingleOpSpacing(input, op string) string {
 
 	for i := 0; i < len(input); i++ {
 		ch := input[i]
-		if (ch == '"' || ch == '`') && (i == 0 || input[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(input, i) {
 			if !inStr {
 				inStr = true
 				q = ch
@@ -425,7 +433,7 @@ func cleanDuplicateSpacesOutsideStrings(input string) string {
 
 	for i := 0; i < len(input); i++ {
 		ch := input[i]
-		if (ch == '"' || ch == '`') && (i == 0 || input[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(input, i) {
 			if !inStr {
 				inStr = true
 				q = ch
@@ -455,7 +463,7 @@ func cleanParenBracketSpacing(input string) string {
 
 	for i := 0; i < len(input); {
 		ch := input[i]
-		if (ch == '"' || ch == '`') && (i == 0 || input[i-1] != '\\') {
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(input, i) {
 			if !inStr {
 				inStr = true
 				q = ch

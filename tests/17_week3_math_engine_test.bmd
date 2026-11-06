@@ -11,168 +11,168 @@ import "std/math/opt" as opt;
 import "std/math/ode" as ode;
 
 describe("Day 15: Adaptive BigInt Promotion & pow_mod", fn() {
-    test("Integer addition and multiplication promotes to BigInt on int64 overflow", fn() {
-        let max_int64 = 9223372036854775807;
-        let overflow_add = max_int64 + 10;
-        assert_eq(type(overflow_add), "BIG_INT");
-        assert_eq(str(overflow_add), "9223372036854775817");
+        test("Integer addition and multiplication promotes to BigInt on int64 overflow", fn() {
+                let max_int64 = 9223372036854775807;
+                let overflow_add = max_int64 + 10;
+                assert_eq(type(overflow_add), "BIG_INT");
+                assert_eq(str(overflow_add), "9223372036854775817");
 
-        let overflow_mul = max_int64 * 2;
-        assert_eq(type(overflow_mul), "BIG_INT");
-        assert_eq(str(overflow_mul), "18446744073709551614");
-    });
+                let overflow_mul = max_int64 * 2;
+                assert_eq(type(overflow_mul), "BIG_INT");
+                assert_eq(str(overflow_mul), "18446744073709551614");
+        });
 
-    test("Integer power promotes to BigInt", fn() {
-        let p = 2 ** 70;
-        assert_eq(type(p), "BIG_INT");
-        assert_eq(str(p), "1180591620717411303424");
-    });
+        test("Integer power promotes to BigInt", fn() {
+                let p = 2 ** 70;
+                assert_eq(type(p), "BIG_INT");
+                assert_eq(str(p), "1180591620717411303424");
+        });
 
-    test("pow_mod modular exponentiation builtin", fn() {
-        let pm1 = pow_mod(2, 10, 1000);
-        assert_eq(pm1, 24);
+        test("pow_mod modular exponentiation builtin", fn() {
+                let pm1 = pow_mod(2, 10, 1000);
+                assert_eq(pm1, 24);
 
-        let pm2 = pow_mod(7, 560, 561);
-        assert_eq(pm2, 1);
-    });
+                let pm2 = pow_mod(7, 560, 561);
+                assert_eq(pm2, 1);
+        });
 
-    test("Rational fractions with automatic GCD reduction", fn() {
-        let f1 = r.rational(2, 6);
-        assert_eq(f1.to_string(), "1/3");
+        test("Rational fractions with automatic GCD reduction", fn() {
+                let f1 = r.rational(2, 6);
+                assert_eq(f1.to_string(), "1/3");
 
-        let f2 = r.rational(1, 6);
-        let sum = f1.add(f2);
-        assert_eq(sum.to_string(), "1/2");
+                let f2 = r.rational(1, 6);
+                let sum = f1.add(f2);
+                assert_eq(sum.to_string(), "1/2");
 
-        let diff = f1.sub(f2);
-        assert_eq(diff.to_string(), "1/6");
+                let diff = f1.sub(f2);
+                assert_eq(diff.to_string(), "1/6");
 
-        let prod = f1.mul(r.rational(3, 2));
-        assert_eq(prod.to_string(), "1/2");
+                let prod = f1.mul(r.rational(3, 2));
+                assert_eq(prod.to_string(), "1/2");
 
-        let quot = f1.div(r.rational(1, 3));
-        assert_eq(quot.to_string(), "1");
-    });
+                let quot = f1.div(r.rational(1, 3));
+                assert_eq(quot.to_string(), "1");
+        });
 
-    test("Arbitrary decimal arithmetic", fn() {
-        let d1 = d.decimal("0.1");
-        let d2 = d.decimal("0.2");
-        let sum = d1.add(d2);
-        assert_eq(sum.to_string(), "0.3");
+        test("Arbitrary decimal arithmetic", fn() {
+                let d1 = d.decimal("0.1");
+                let d2 = d.decimal("0.2");
+                let sum = d1.add(d2);
+                assert_eq(sum.to_string(), "0.3");
 
-        let d3 = d.decimal("1.50");
-        let d4 = d.decimal("0.50");
-        assert_eq(d3.sub(d4).to_string(), "1.00");
-    });
+                let d3 = d.decimal("1.50");
+                let d4 = d.decimal("0.50");
+                assert_eq(d3.sub(d4).to_string(), "1.00");
+        });
 });
 
 describe("Day 16: Complex Numbers, Number Theory & Constants", fn() {
-    test("Complex number Cartesian arithmetic & polar operations", fn() {
-        let z1 = c.complex(3, 4);
-        let z2 = c.complex(1, 2);
+        test("Complex number Cartesian arithmetic & polar operations", fn() {
+                let z1 = c.complex(3, 4);
+                let z2 = c.complex(1, 2);
 
-        assert_eq(z1.abs(), 5.0);
-        assert_eq(z1.add(z2).to_string(), "4 + 6i");
-        assert_eq(z1.sub(z2).to_string(), "2 + 2i");
-        assert_eq(z1.mul(z2).to_string(), "-5 + 10i");
-        assert_eq(z1.conj().to_string(), "3 - 4i");
-    });
+                assert_eq(z1.abs(), 5.0);
+                assert_eq(z1.add(z2).to_string(), "4 + 6i");
+                assert_eq(z1.sub(z2).to_string(), "2 + 2i");
+                assert_eq(z1.mul(z2).to_string(), "-5 + 10i");
+                assert_eq(z1.conj().to_string(), "3 - 4i");
+        });
 
-    test("Euler identity e^(i*pi) + 1 = 0", fn() {
-        let i_pi = c.complex(0, 3.141592653589793);
-        let res = i_pi.exp();
-        assert(abs(res.re - (-1.0)) < 0.000001, "real part is -1");
-        assert(abs(res.im) < 0.000001, "imaginary part is 0");
-    });
+        test("Euler identity e^(i*pi) + 1 = 0", fn() {
+                let i_pi = c.complex(0, 3.141592653589793);
+                let res = i_pi.exp();
+                assert(abs(res.re - (-1.0)) < 0.000001, "real part is -1");
+                assert(abs(res.im) < 0.000001, "imaginary part is 0");
+        });
 
-    test("Cryptographic number theory", fn() {
-        assert_eq(nt.is_prime(2), true);
-        assert_eq(nt.is_prime(97), true);
-        assert_eq(nt.is_prime(100), false);
-        assert_eq(nt.is_prime(7919), true); // 1000th prime
+        test("Cryptographic number theory", fn() {
+                assert_eq(nt.is_prime(2), true);
+                assert_eq(nt.is_prime(97), true);
+                assert_eq(nt.is_prime(100), false);
+                assert_eq(nt.is_prime(7919), true);  // 1000th prime
 
-        let factors = nt.prime_factors(84);
-        assert_eq(factors, [2, 2, 3, 7]);
+                let factors = nt.prime_factors(84);
+                assert_eq(factors, [2, 2, 3, 7]);
 
-        let eea = nt.gcd_ext(35, 15);
-        assert_eq(eea["gcd"], 5);
+                let eea = nt.gcd_ext(35, 15);
+                assert_eq(eea["gcd"], 5);
 
-        let inv = nt.mod_inv(7, 26);
-        assert_eq(inv, 15); // (7 * 15) % 26 = 105 % 26 = 1
+                let inv = nt.mod_inv(7, 26);
+                assert_eq(inv, 15);  // (7 * 15) % 26 = 105 % 26 = 1
 
-        assert_eq(nt.nCr(6, 2), 15);
-        assert_eq(nt.nPr(6, 2), 30);
-        assert_eq(nt.catalan_number(3), 5);
-        assert_eq(nt.integer_partitions(4), 5);
-    });
+                assert_eq(nt.nCr(6, 2), 15);
+                assert_eq(nt.nPr(6, 2), 30);
+                assert_eq(nt.catalan_number(3), 5);
+                assert_eq(nt.integer_partitions(4), 5);
+        });
 
-    test("High-precision mathematical constants Pi, E, Phi", fn() {
-        let pi_str = consts.compute_pi_digits(20);
-        assert_eq(substring(pi_str, 0, 10), "3.14159265");
+        test("High-precision mathematical constants Pi, E, Phi", fn() {
+                let pi_str = consts.compute_pi_digits(20);
+                assert_eq(substring(pi_str, 0, 10), "3.14159265");
 
-        let e_str = consts.compute_e_digits(20);
-        assert_eq(substring(e_str, 0, 10), "2.71828182");
+                let e_str = consts.compute_e_digits(20);
+                assert_eq(substring(e_str, 0, 10), "2.71828182");
 
-        let phi_str = consts.compute_phi_digits(20);
-        assert_eq(substring(phi_str, 0, 10), "1.61803398");
-    });
+                let phi_str = consts.compute_phi_digits(20);
+                assert_eq(substring(phi_str, 0, 10), "1.61803398");
+        });
 });
 
 describe("Day 17: Calculus, Optimization & ODE Solvers", fn() {
-    test("Numerical differentiation (central difference & second derivative)", fn() {
-        // f(x) = x^3, f'(2) = 3*(2^2) = 12, f''(2) = 6*2 = 12
-        let f = fn(x) { return x * x * x; };
-        let d1 = calc.diff(f, 2.0);
-        let d2 = calc.diff2(f, 2.0);
+        test("Numerical differentiation (central difference & second derivative)", fn() {
+                // f(x) = x^3, f'(2) = 3*(2^2) = 12, f''(2) = 6*2 = 12
+                let f = fn(x) { return x * x * x; };
+                let d1 = calc.diff(f, 2.0);
+                let d2 = calc.diff2(f, 2.0);
 
-        assert(abs(d1 - 12.0) < 0.0001, "diff of x^3 at 2 should be ~12");
-        assert(abs(d2 - 12.0) < 0.001, "diff2 of x^3 at 2 should be ~12");
-    });
+                assert(abs(d1 - 12.0) < 0.0001, "diff of x^3 at 2 should be ~12");
+                assert(abs(d2 - 12.0) < 0.001, "diff2 of x^3 at 2 should be ~12");
+        });
 
-    test("Numerical quadrature (Simpson and Gauss-Legendre)", fn() {
-        // Integrate f(x) = x^2 from 0 to 3: exact is (3^3)/3 = 9
-        let f = fn(x) { return x * x; };
-        let int_simp = calc.integrate_simpson(f, 0.0, 3.0, 50);
-        let int_gauss = calc.integrate_gauss(f, 0.0, 3.0);
+        test("Numerical quadrature (Simpson and Gauss-Legendre)", fn() {
+                // Integrate f(x) = x^2 from 0 to 3: exact is (3^3)/3 = 9
+                let f = fn(x) { return x * x; };
+                let int_simp = calc.integrate_simpson(f, 0.0, 3.0, 50);
+                let int_gauss = calc.integrate_gauss(f, 0.0, 3.0);
 
-        assert(abs(int_simp - 9.0) < 0.000001, "Simpson integral of x^2 from 0 to 3");
-        assert(abs(int_gauss - 9.0) < 0.000001, "Gauss integral of x^2 from 0 to 3");
-    });
+                assert(abs(int_simp - 9.0) < 0.000001, "Simpson integral of x^2 from 0 to 3");
+                assert(abs(int_gauss - 9.0) < 0.000001, "Gauss integral of x^2 from 0 to 3");
+        });
 
-    test("Root finding with Newton-Raphson, Bisection and Brent", fn() {
-        // Solve f(x) = x^2 - 4 = 0, root at x = 2
-        let f = fn(x) { return (x * x) - 4.0; };
+        test("Root finding with Newton-Raphson, Bisection and Brent", fn() {
+                // Solve f(x) = x^2 - 4 = 0, root at x = 2
+                let f = fn(x) { return (x * x) - 4.0; };
 
-        let res_bisect = opt.root_bisection(f, 0.0, 5.0);
-        assert(res_bisect["converged"], "bisection should converge");
-        assert(abs(res_bisect["root"] - 2.0) < 0.0001, "bisection root is ~2");
+                let res_bisect = opt.root_bisection(f, 0.0, 5.0);
+                assert(res_bisect["converged"], "bisection should converge");
+                assert(abs(res_bisect["root"] - 2.0) < 0.0001, "bisection root is ~2");
 
-        let res_newton = opt.root_newton(f, null, 1.0);
-        assert(res_newton["converged"], "newton should converge");
-        assert(abs(res_newton["root"] - 2.0) < 0.000001, "newton root is ~2");
+                let res_newton = opt.root_newton(f, null, 1.0);
+                assert(res_newton["converged"], "newton should converge");
+                assert(abs(res_newton["root"] - 2.0) < 0.000001, "newton root is ~2");
 
-        let res_brent = opt.root_brent(f, 0.0, 5.0);
-        assert(res_brent["converged"], "brent should converge");
-        assert(abs(res_brent["root"] - 2.0) < 0.000001, "brent root is ~2");
-    });
+                let res_brent = opt.root_brent(f, 0.0, 5.0);
+                assert(res_brent["converged"], "brent should converge");
+                assert(abs(res_brent["root"] - 2.0) < 0.000001, "brent root is ~2");
+        });
 
-    test("Scalar minimization with golden-section search", fn() {
-        // Minimize f(x) = (x - 3)^2 + 5, minimum at x = 3, y = 5
-        let f = fn(x) { return ((x - 3.0) * (x - 3.0)) + 5.0; };
-        let res = opt.minimize_scalar(f, 0.0, 10.0);
-        assert(abs(res["min_x"] - 3.0) < 0.0001, "minimum x is ~3");
-        assert(abs(res["min_y"] - 5.0) < 0.0001, "minimum y is ~5");
-    });
+        test("Scalar minimization with golden-section search", fn() {
+                // Minimize f(x) = (x - 3)^2 + 5, minimum at x = 3, y = 5
+                let f = fn(x) { return ((x - 3.0) * (x - 3.0)) + 5.0; };
+                let res = opt.minimize_scalar(f, 0.0, 10.0);
+                assert(abs(res["min_x"] - 3.0) < 0.0001, "minimum x is ~3");
+                assert(abs(res["min_y"] - 5.0) < 0.0001, "minimum y is ~5");
+        });
 
-    test("ODE solver RK4 on exponential decay dy/dt = -y", fn() {
-        // y(0) = 1, exact y(t) = e^(-t). At t = 1, y(1) = 1/e ~ 0.367879
-        let f = fn(t, y) { return -y; };
-        let traj = ode.ode_solve_rk4(f, 1.0, 0.0, 1.0, 0.1);
-        let final_state = traj[len(traj) - 1];
-        let final_t = final_state[0];
-        let final_y = final_state[1];
+        test("ODE solver RK4 on exponential decay dy/dt = -y", fn() {
+                // y(0) = 1, exact y(t) = e^(-t). At t = 1, y(1) = 1/e ~ 0.367879
+                let f = fn(t, y) { return -y; };
+                let traj = ode.ode_solve_rk4(f, 1.0, 0.0, 1.0, 0.1);
+                let final_state = traj[len(traj) - 1];
+                let final_t = final_state[0];
+                let final_y = final_state[1];
 
-        assert(abs(final_t - 1.0) < 0.000001, "final t is 1.0");
-        assert(abs(final_y - 0.367879) < 0.0001, "final y is ~e^(-1)");
-    });
+                assert(abs(final_t - 1.0) < 0.000001, "final t is 1.0");
+                assert(abs(final_y - 0.367879) < 0.0001, "final y is ~e^(-1)");
+        });
 });

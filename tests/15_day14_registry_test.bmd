@@ -12,13 +12,13 @@ let service = reg.create_registry_service(test_storage);
 // Test 1: Publish a new package
 println("· Test 1: Publishing a new package...");
 let pub_res1 = service.publish({
-    "name": "math_extra",
-    "version": "1.0.0",
-    "description": "High performance math algorithms for BramandScript",
-    "files": {
-        "math.bmd": "let add = fn(a, b) { return a + b; };",
-        "README.md": "# Math Extra Package"
-    }
+        "name": "math_extra",
+        "version": "1.0.0",
+        "description": "High performance math algorithms for BramandScript",
+        "files": {
+            "math.bmd": "let add = fn(a, b) { return a + b; };",
+            "README.md": "# Math Extra Package"
+        }
 });
 
 assert_eq(pub_res1["success"], true);
@@ -38,12 +38,12 @@ println("[PASS] Package files written and verified");
 // Test 3: Publish new version of existing package
 println("· Test 3: Publishing version 1.1.0 for math_extra...");
 let pub_res2 = service.publish({
-    "name": "math_extra",
-    "version": "1.1.0",
-    "description": "Updated math algorithms",
-    "files": {
-        "math.bmd": "let add = fn(a, b) { return a + b; }; let mul = fn(a, b) { return a * b; };"
-    }
+        "name": "math_extra",
+        "version": "1.1.0",
+        "description": "Updated math algorithms",
+        "files": {
+            "math.bmd": "let add = fn(a, b) { return a + b; }; let mul = fn(a, b) { return a * b; };"
+        }
 });
 assert_eq(pub_res2["success"], true);
 assert_eq(pub_res2["status"], 201);
@@ -58,9 +58,9 @@ println("[PASS] Multi-version registry tracking verified");
 // Test 4: Reject duplicate version publish
 println("· Test 4: Rejecting duplicate version 1.0.0 publish...");
 let pub_dup = service.publish({
-    "name": "math_extra",
-    "version": "1.0.0",
-    "description": "Duplicate"
+        "name": "math_extra",
+        "version": "1.0.0",
+        "description": "Duplicate"
 });
 assert_eq(pub_dup["success"], false);
 assert_eq(pub_dup["status"], 409);
@@ -69,12 +69,12 @@ println("[PASS] Duplicate version conflict detected (HTTP 409)");
 // Test 5: Publish second package and list
 println("· Test 5: Publishing second package and listing...");
 service.publish({
-    "name": "http_router",
-    "version": "0.5.0",
-    "description": "Fast Radix tree HTTP routing framework",
-    "files": {
-        "router.bmd": "// router"
-    }
+        "name": "http_router",
+        "version": "0.5.0",
+        "description": "Fast Radix tree HTTP routing framework",
+        "files": {
+            "router.bmd": "// router"
+        }
 });
 
 let all_pkgs = service.list_packages();

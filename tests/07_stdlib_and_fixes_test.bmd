@@ -2,133 +2,133 @@
 // Verifies v0.1.1 engine fixes and modular stdlib packages
 
 describe("Struct State Synchronization", fn() {
-    test("Method invocation mutates instance field in hash", fn() {
-        struct Counter {
-            val
-            fn inc() {
-                val += 1;
-                return val;
-            }
-            fn dec() {
-                val -= 1;
-                return val;
-            }
-        }
+        test("Method invocation mutates instance field in hash", fn() {
+                struct Counter {
+                    val
+                    fn inc() {
+                        val += 1;
+                        return val;
+                    }
+                    fn dec() {
+                        val -= 1;
+                        return val;
+                    }
+                }
 
-        let c = Counter(10);
-        assert_eq(c.inc(), 11);
-        assert_eq(c.inc(), 12);
-        assert_eq(c.val, 12);
-        assert_eq(c.dec(), 11);
-        assert_eq(c.val, 11);
-    });
+                let c = Counter(10);
+                assert_eq(c.inc(), 11);
+                assert_eq(c.inc(), 12);
+                assert_eq(c.val, 12);
+                assert_eq(c.dec(), 11);
+                assert_eq(c.val, 11);
+        });
 
-    test("Direct property mutation synchronizes into methods", fn() {
-        struct State {
-            count
-            fn step() {
-                count += 5;
-                return count;
-            }
-        }
+        test("Direct property mutation synchronizes into methods", fn() {
+                struct State {
+                    count
+                    fn step() {
+                        count += 5;
+                        return count;
+                    }
+                }
 
-        let s = State(0);
-        assert_eq(s.step(), 5);
-        s.count = 100;
-        assert_eq(s.step(), 105);
-        assert_eq(s.count, 105);
-    });
+                let s = State(0);
+                assert_eq(s.step(), 5);
+                s.count = 100;
+                assert_eq(s.step(), 105);
+                assert_eq(s.count, 105);
+        });
 });
 
 describe("Compound Assignments and Operators", fn() {
-    test("Index compound assignment on arrays and hashes", fn() {
-        let arr = [10, 20, 30];
-        arr[0] += 5;
-        arr[1] *= 2;
-        arr[2] -= 10;
-        assert_eq(arr[0], 15);
-        assert_eq(arr[1], 40);
-        assert_eq(arr[2], 20);
+        test("Index compound assignment on arrays and hashes", fn() {
+                let arr = [10, 20, 30];
+                arr[0] += 5;
+                arr[1] *= 2;
+                arr[2] -= 10;
+                assert_eq(arr[0], 15);
+                assert_eq(arr[1], 40);
+                assert_eq(arr[2], 20);
 
-        let dict = {"score": 50};
-        dict["score"] += 25;
-        assert_eq(dict["score"], 75);
-    });
+                let dict = {"score": 50};
+                dict["score"] += 25;
+                assert_eq(dict["score"], 75);
+        });
 
-    test("Boolean negation of zero and truthy values", fn() {
-        assert_eq(!0, true);
-        assert_eq(!1, false);
-        assert_eq(!0.0, true);
-        assert_eq(!null, true);
-        assert_eq(!true, false);
-        assert_eq(!false, true);
-    });
+        test("Boolean negation of zero and truthy values", fn() {
+                assert_eq(!0, true);
+                assert_eq(!1, false);
+                assert_eq(!0.0, true);
+                assert_eq(!null, true);
+                assert_eq(!true, false);
+                assert_eq(!false, true);
+        });
 });
 
 describe("Cyclic Structures and Depth Protection", fn() {
-    test("Cyclic array equality without stack overflow", fn() {
-        let a = [1];
-        a[0] = a;
-        assert_eq(a == a, true);
-    });
+        test("Cyclic array equality without stack overflow", fn() {
+                let a = [1];
+                a[0] = a;
+                assert_eq(a == a, true);
+        });
 });
 
 describe("Standard Library Modules", fn() {
-    test("std/math functions and constants", fn() {
-        import "std/math" as math;
+        test("std/math functions and constants", fn() {
+                import "std/math" as math;
 
-        assert_eq(math.PI > 3.14, true);
-        assert_eq(math.clamp(15, 0, 10), 10);
-        assert_eq(math.clamp(-5, 0, 10), 0);
-        assert_eq(math.clamp(5, 0, 10), 5);
-        assert_eq(math.gcd(48, 18), 6);
-        assert_eq(math.lcm(4, 6), 12);
-        assert_eq(math.is_even(4), true);
-        assert_eq(math.is_odd(5), true);
-    });
+                assert_eq(math.PI > 3.14, true);
+                assert_eq(math.clamp(15, 0, 10), 10);
+                assert_eq(math.clamp(-5, 0, 10), 0);
+                assert_eq(math.clamp(5, 0, 10), 5);
+                assert_eq(math.gcd(48, 18), 6);
+                assert_eq(math.lcm(4, 6), 12);
+                assert_eq(math.is_even(4), true);
+                assert_eq(math.is_odd(5), true);
+        });
 
-    test("std/strings utilities", fn() {
-        import "std/strings" as str;
+        test("std/strings utilities", fn() {
+                import "std/strings" as str;
 
-        assert_eq(str.capitalize("bramand"), "Bramand");
-        assert_eq(str.pad_left("7", 3, "0"), "007");
-        assert_eq(str.pad_right("go", 4, "!"), "go!!");
-        assert_eq(str.slugify("Hello Bramand World"), "hello-bramand-world");
-        assert_eq(str.starts_with("bramand", "bra"), true);
-        assert_eq(str.ends_with("bramand", "and"), true);
-        assert_eq(str.reverse("abcd"), "dcba");
-    });
+                assert_eq(str.capitalize("bramand"), "Bramand");
+                assert_eq(str.pad_left("7", 3, "0"), "007");
+                assert_eq(str.pad_right("go", 4, "!"), "go!!");
+                assert_eq(str.slugify("Hello Bramand World"), "hello-bramand-world");
+                assert_eq(str.starts_with("bramand", "bra"), true);
+                assert_eq(str.ends_with("bramand", "and"), true);
+                assert_eq(str.reverse("abcd"), "dcba");
+        });
 
-    test("std/collections functional operations", fn() {
-        import "std/collections" as coll;
+        test("std/collections functional operations", fn() {
+                import "std/collections" as coll;
 
-        let nums = [1, 2, 3, 4, 5, 6];
-        let evens = coll.filter(nums, fn(x) { return x % 2 == 0; });
-        assert_eq(len(evens), 3);
-        assert_eq(evens[0], 2);
-        assert_eq(evens[1], 4);
-        assert_eq(evens[2], 6);
+                let nums = [1, 2, 3, 4, 5, 6];
+                let evens = coll.filter(nums, fn(x) { return x % 2 == 0; });
+                assert_eq(len(evens), 3);
+                assert_eq(evens[0], 2);
+                assert_eq(evens[1], 4);
+                assert_eq(evens[2], 6);
 
-        let doubled = coll.map([1, 2, 3], fn(x) { return x * 2; });
-        assert_eq(doubled[0], 2);
-        assert_eq(doubled[1], 4);
-        assert_eq(doubled[2], 6);
+                let doubled = coll.map([1, 2, 3], fn(x) { return x * 2; });
+                assert_eq(doubled[0], 2);
+                assert_eq(doubled[1], 4);
+                assert_eq(doubled[2], 6);
 
-        let total = coll.reduce([1, 2, 3, 4], fn(acc, x) { return acc + x; }, 0);
-        assert_eq(total, 10);
+                let total = coll.reduce([1, 2, 3, 4], fn(acc, x) { return acc + x; }, 0);
+                assert_eq(total, 10);
 
-        let unq = coll.unique([1, 2, 2, 3, 1, 4]);
-        assert_eq(len(unq), 4);
-    });
+                let unq = coll.unique([1, 2, 2, 3, 1, 4]);
+                assert_eq(len(unq), 4);
+        });
 
-    test("std/json parsing and serialization", fn() {
-        import "std/json" as json;
+        test("std/json parsing and serialization", fn() {
+                import "std/json" as json;
 
-        let obj = json.parse("{\"status\": \"ok\", \"code\": 200}");
-        assert_eq(obj["status"], "ok");
-        assert_eq(obj["code"], 200);
+                let obj = json.parse("{\"status\": \"ok\", \"code\": 200}");
+                assert_eq(obj["status"], "ok");
+                assert_eq(obj["code"], 200);
 
-        let serialized = json.stringify(obj);
-        assert_eq(len(serialized) > 0, true);
-    });
+                let serialized = json.stringify(obj);
+                assert_eq(len(serialized) > 0, true);
+        });
 });

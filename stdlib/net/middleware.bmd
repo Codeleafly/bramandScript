@@ -14,7 +14,7 @@ struct MiddlewarePipeline {
             if idx < len(middlewares) {
                 let mw = middlewares[idx];
                 return mw(ctx, fn() {
-                    return dispatch(idx + 1);
+                        return dispatch(idx + 1);
                 });
             }
             if target_handler != null {
@@ -115,8 +115,8 @@ let rate_limit = fn(max_requests, window_secs) {
         if record["count"] > max_requests {
             ctx.status(429);
             ctx.send_json({
-                "error": "Too Many Requests",
-                "message": "Rate limit exceeded. Try again in " + (record["reset_at"] - now_sec) + "s."
+                    "error": "Too Many Requests",
+                    "message": "Rate limit exceeded. Try again in " + (record["reset_at"] - now_sec) + "s."
             });
             return null;
         }

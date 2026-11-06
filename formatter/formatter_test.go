@@ -75,3 +75,18 @@ func TestFormatCompoundAndBitwiseOperators(t *testing.T) {
 		t.Errorf("Format mismatch.\nGot:\n%s\nWant:\n%s", formatted, expected)
 	}
 }
+
+func TestFormatEscapedBackslashInStrings(t *testing.T) {
+	input := `let SPINNER = ["-", "\\", "|", "/"];
+let other = "normal";`
+	expected := `let SPINNER = ["-", "\\", "|", "/"];
+let other = "normal";
+`
+	formatted, err := Format(input)
+	if err != nil {
+		t.Fatalf("Format error: %s", err)
+	}
+	if formatted != expected {
+		t.Errorf("Format mismatch.\nGot:\n%s\nWant:\n%s", formatted, expected)
+	}
+}

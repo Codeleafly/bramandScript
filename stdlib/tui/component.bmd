@@ -76,13 +76,13 @@ let key_value = fn(key, val, key_width) {
 // Status indicator dot
 let status_indicator = fn(status, text) {
     let dot = "●";
-    let col = color.hex("#10b981"); // green
+    let col = color.hex("#10b981");  // green
     if status == "error" || status == "offline" || status == "failed" {
-        col = color.hex("#ef4444"); // red
+        col = color.hex("#ef4444");  // red
     } else if status == "warn" || status == "warning" || status == "pending" {
-        col = color.hex("#f59e0b"); // yellow
+        col = color.hex("#f59e0b");  // yellow
     } else if status == "info" || status == "running" {
-        col = color.hex("#06b6d4"); // cyan
+        col = color.hex("#06b6d4");  // cyan
     }
     return col + dot + color.RESET + " " + text;
 };

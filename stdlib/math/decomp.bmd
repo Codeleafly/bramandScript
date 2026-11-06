@@ -330,7 +330,7 @@ let cholesky_decompose = fn(A) {
             if i == j {
                 let diag = A[i][i] - sum_val;
                 if diag <= 0.0 {
-                    return null; // Not positive-definite
+                    return null;  // Not positive-definite
                 }
                 L[i][i] = sqrt(diag);
             } else {

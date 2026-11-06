@@ -305,7 +305,7 @@ let condition_number = fn(A) {
     let min_val = vals[len(vals) - 1];
 
     if min_val <= 0.0000000000000001 {
-        return 999999999999.0; // Ill-conditioned or singular
+        return 999999999999.0;  // Ill-conditioned or singular
     }
     return sqrt(max_val) / sqrt(min_val);
 };

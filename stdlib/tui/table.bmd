@@ -99,7 +99,7 @@ let render_table = fn(headers, rows, opts) {
 
     let widths = calc_col_widths(headers, rows);
     let col_count = len(headers);
-    let padding = 1; // default 1 space on each side
+    let padding = 1;  // default 1 space on each side
 
     // Responsive fitting: calculate terminal width and scale/truncate columns if table exceeds screen
     let term_w = terminal.width();

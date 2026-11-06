@@ -9,296 +9,296 @@ import "std/net/sse" as sse
 import "std/net/ws_room" as ws_room
 
 describe("HTTP Trie Router & Param Extraction", fn() {
-    test("Static route registration and dispatch", fn() {
-        let r = net.create_router();
-        r.get("/health", fn(ctx) { return "ok"; });
-        r.post("/users", fn(ctx) { return "created"; });
+        test("Static route registration and dispatch", fn() {
+                let r = net.create_router();
+                r.get("/health", fn(ctx) { return "ok"; });
+                r.post("/users", fn(ctx) { return "created"; });
 
-        let m1 = r.lookup("GET", "/health");
-        assert_eq(m1.found, true);
-        assert_eq(m1.handler(null), "ok");
+                let m1 = r.lookup("GET", "/health");
+                assert_eq(m1.found, true);
+                assert_eq(m1.handler(null), "ok");
 
-        let m2 = r.lookup("POST", "/users");
-        assert_eq(m2.found, true);
-        assert_eq(m2.handler(null), "created");
+                let m2 = r.lookup("POST", "/users");
+                assert_eq(m2.found, true);
+                assert_eq(m2.handler(null), "created");
 
-        let m3 = r.lookup("DELETE", "/health");
-        assert_eq(m3.found, false);
-        assert_eq(m3.status, 405);
+                let m3 = r.lookup("DELETE", "/health");
+                assert_eq(m3.found, false);
+                assert_eq(m3.status, 405);
 
-        let m4 = r.lookup("GET", "/unknown");
-        assert_eq(m4.found, false);
-        assert_eq(m4.status, 404);
-    });
+                let m4 = r.lookup("GET", "/unknown");
+                assert_eq(m4.found, false);
+                assert_eq(m4.status, 404);
+        });
 
-    test("Parameterized route parsing (:id, :slug)", fn() {
-        let r = net.create_router();
-        r.get("/users/:id", fn(ctx) { return "user_view"; });
-        r.get("/posts/:post_id/comments/:comment_id", fn(ctx) { return "comment_view"; });
+        test("Parameterized route parsing (:id, :slug)", fn() {
+                let r = net.create_router();
+                r.get("/users/:id", fn(ctx) { return "user_view"; });
+                r.get("/posts/:post_id/comments/:comment_id", fn(ctx) { return "comment_view"; });
 
-        let m1 = r.lookup("GET", "/users/42");
-        assert_eq(m1.found, true);
-        assert_eq(m1.params["id"], "42");
+                let m1 = r.lookup("GET", "/users/42");
+                assert_eq(m1.found, true);
+                assert_eq(m1.params["id"], "42");
 
-        let m2 = r.lookup("GET", "/posts/101/comments/555");
-        assert_eq(m2.found, true);
-        assert_eq(m2.params["post_id"], "101");
-        assert_eq(m2.params["comment_id"], "555");
-    });
+                let m2 = r.lookup("GET", "/posts/101/comments/555");
+                assert_eq(m2.found, true);
+                assert_eq(m2.params["post_id"], "101");
+                assert_eq(m2.params["comment_id"], "555");
+        });
 
-    test("Wildcard route parsing (*filepath)", fn() {
-        let r = net.create_router();
-        r.get("/static/*filepath", fn(ctx) { return "file"; });
+        test("Wildcard route parsing (*filepath)", fn() {
+                let r = net.create_router();
+                r.get("/static/*filepath", fn(ctx) { return "file"; });
 
-        let m = r.lookup("GET", "/static/css/theme/dark.css");
-        assert_eq(m.found, true);
-        assert_eq(m.params["filepath"], "css/theme/dark.css");
-    });
+                let m = r.lookup("GET", "/static/css/theme/dark.css");
+                assert_eq(m.found, true);
+                assert_eq(m.params["filepath"], "css/theme/dark.css");
+        });
 
-    test("Nested route groups (/api/v1/auth)", fn() {
-        let r = net.create_router();
-        let api = r.group("/api/v1");
-        let auth = api.group("/auth");
+        test("Nested route groups (/api/v1/auth)", fn() {
+                let r = net.create_router();
+                let api = r.group("/api/v1");
+                let auth = api.group("/auth");
 
-        api.get("/status", fn(ctx) { return "api_ok"; });
-        auth.post("/login", fn(ctx) { return "auth_ok"; });
+                api.get("/status", fn(ctx) { return "api_ok"; });
+                auth.post("/login", fn(ctx) { return "auth_ok"; });
 
-        let m1 = r.lookup("GET", "/api/v1/status");
-        assert_eq(m1.found, true);
-        assert_eq(m1.handler(null), "api_ok");
+                let m1 = r.lookup("GET", "/api/v1/status");
+                assert_eq(m1.found, true);
+                assert_eq(m1.handler(null), "api_ok");
 
-        let m2 = r.lookup("POST", "/api/v1/auth/login");
-        assert_eq(m2.found, true);
-        assert_eq(m2.handler(null), "auth_ok");
-    });
+                let m2 = r.lookup("POST", "/api/v1/auth/login");
+                assert_eq(m2.found, true);
+                assert_eq(m2.handler(null), "auth_ok");
+        });
 });
 
 describe("HTTP Context with JSON and Query Binding", fn() {
-    test("Query parameter extraction", fn() {
-        let req = {
-            "method": "GET",
-            "url": "/search?q=bramand&page=2&sort=desc",
-            "headers": { "Accept": "application/json" }
-        };
-        let ctx = net.create_context(req, {});
-        assert_eq(ctx.query_param("q", ""), "bramand");
-        assert_eq(ctx.query_param("page", "1"), "2");
-        assert_eq(ctx.query_param("sort", "asc"), "desc");
-        assert_eq(ctx.query_param("missing", "default_val"), "default_val");
-    });
+        test("Query parameter extraction", fn() {
+                let req = {
+                    "method": "GET",
+                    "url": "/search?q=bramand&page=2&sort=desc",
+                    "headers": { "Accept": "application/json" }
+                };
+                let ctx = net.create_context(req, {});
+                assert_eq(ctx.query_param("q", ""), "bramand");
+                assert_eq(ctx.query_param("page", "1"), "2");
+                assert_eq(ctx.query_param("sort", "asc"), "desc");
+                assert_eq(ctx.query_param("missing", "default_val"), "default_val");
+        });
 
-    test("Header case insensitivity", fn() {
-        let req = {
-            "method": "GET",
-            "url": "/test",
-            "headers": { "X-Custom-Token": "secret123", "content-type": "application/json" }
-        };
-        let ctx = net.create_context(req, {});
-        assert_eq(ctx.header("x-custom-token"), "secret123");
-        assert_eq(ctx.header("Content-Type"), "application/json");
-        assert_eq(ctx.header("non-existent"), null);
-    });
+        test("Header case insensitivity", fn() {
+                let req = {
+                    "method": "GET",
+                    "url": "/test",
+                    "headers": { "X-Custom-Token": "secret123", "content-type": "application/json" }
+                };
+                let ctx = net.create_context(req, {});
+                assert_eq(ctx.header("x-custom-token"), "secret123");
+                assert_eq(ctx.header("Content-Type"), "application/json");
+                assert_eq(ctx.header("non-existent"), null);
+        });
 
-    test("JSON body decoding and response formatting", fn() {
-        let req = {
-            "method": "POST",
-            "url": "/api/echo",
-            "headers": { "Content-Type": "application/json" },
-            "body": "{\"user\":\"alice\",\"role\":\"admin\"}"
-        };
-        let ctx = net.create_context(req, { "id": "99" });
-        assert_eq(ctx.param("id", ""), "99");
+        test("JSON body decoding and response formatting", fn() {
+                let req = {
+                    "method": "POST",
+                    "url": "/api/echo",
+                    "headers": { "Content-Type": "application/json" },
+                    "body": "{\"user\":\"alice\",\"role\":\"admin\"}"
+                };
+                let ctx = net.create_context(req, { "id": "99" });
+                assert_eq(ctx.param("id", ""), "99");
 
-        let parsed = ctx.json_body();
-        assert_eq(parsed["user"], "alice");
-        assert_eq(parsed["role"], "admin");
+                let parsed = ctx.json_body();
+                assert_eq(parsed["user"], "alice");
+                assert_eq(parsed["role"], "admin");
 
-        ctx.status(201);
-        ctx.set_header("X-App", "Bramand");
-        ctx.send_json({ "success": true, "id": 99 });
+                ctx.status(201);
+                ctx.set_header("X-App", "Bramand");
+                ctx.send_json({ "success": true, "id": 99 });
 
-        let resp = ctx.response();
-        assert_eq(resp.status, 201);
-        assert_eq(resp.headers["X-App"], "Bramand");
-        assert(contains(resp.headers["Content-Type"], "application/json"));
+                let resp = ctx.response();
+                assert_eq(resp.status, 201);
+                assert_eq(resp.headers["X-App"], "Bramand");
+                assert(contains(resp.headers["Content-Type"], "application/json"));
 
-        let resp_data = json_parse(resp.body);
-        assert_eq(resp_data["success"], true);
-        assert_eq(resp_data["id"], 99);
-    });
+                let resp_data = json_parse(resp.body);
+                assert_eq(resp_data["success"], true);
+                assert_eq(resp_data["id"], 99);
+        });
 });
 
 describe("Composable Middleware Pipeline", fn() {
-    test("Sequential and onion execution order", fn() {
-        let pipe = net.new_pipeline();
-        let trace_box = { "items": [] };
+        test("Sequential and onion execution order", fn() {
+                let pipe = net.new_pipeline();
+                let trace_box = { "items": [] };
 
-        pipe.use(fn(ctx, next) {
-            trace_box["items"] = trace_box["items"] + ["mw1_in"];
-            next();
-            trace_box["items"] = trace_box["items"] + ["mw1_out"];
+                pipe.use(fn(ctx, next) {
+                        trace_box["items"] = trace_box["items"] + ["mw1_in"];
+                        next();
+                        trace_box["items"] = trace_box["items"] + ["mw1_out"];
+                });
+
+                pipe.use(fn(ctx, next) {
+                        trace_box["items"] = trace_box["items"] + ["mw2_in"];
+                        next();
+                        trace_box["items"] = trace_box["items"] + ["mw2_out"];
+                });
+
+                let ctx = net.create_context({ "method": "GET", "url": "/order" }, {});
+                pipe.run(ctx, fn(c) {
+                        trace_box["items"] = trace_box["items"] + ["handler"];
+                        c.send_text("done");
+                });
+
+                let trace = trace_box["items"];
+                assert_eq(len(trace), 5);
+                assert_eq(trace[0], "mw1_in");
+                assert_eq(trace[1], "mw2_in");
+                assert_eq(trace[2], "handler");
+                assert_eq(trace[3], "mw2_out");
+                assert_eq(trace[4], "mw1_out");
         });
 
-        pipe.use(fn(ctx, next) {
-            trace_box["items"] = trace_box["items"] + ["mw2_in"];
-            next();
-            trace_box["items"] = trace_box["items"] + ["mw2_out"];
+        test("Auth bearer middleware protects unauthorized routes", fn() {
+                let pipe = net.new_pipeline();
+                pipe.use(net.auth_bearer("valid_secret_token"));
+
+                let unauth_ctx = net.create_context({
+                        "method": "GET",
+                        "url": "/private",
+                        "headers": {}
+                    }, {});
+
+                pipe.run(unauth_ctx, fn(c) {
+                        c.send_text("protected_data");
+                });
+
+                assert_eq(unauth_ctx.res_status, 401);
+                assert_eq(unauth_ctx.res_body != "protected_data", true);
+
+                let auth_ctx = net.create_context({
+                        "method": "GET",
+                        "url": "/private",
+                        "headers": { "Authorization": "Bearer valid_secret_token" }
+                    }, {});
+
+                pipe.run(auth_ctx, fn(c) {
+                        c.send_text("protected_data");
+                });
+
+                assert_eq(auth_ctx.res_status, 200);
+                assert_eq(auth_ctx.res_body, "protected_data");
         });
 
-        let ctx = net.create_context({ "method": "GET", "url": "/order" }, {});
-        pipe.run(ctx, fn(c) {
-            trace_box["items"] = trace_box["items"] + ["handler"];
-            c.send_text("done");
+        test("Rate limiter middleware throttles excess requests", fn() {
+                let pipe = net.new_pipeline();
+                pipe.use(net.rate_limit(2, 60));
+
+                let ctx1 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
+                pipe.run(ctx1, fn(c) { c.send_text("req1"); });
+                assert_eq(ctx1.res_status, 200);
+
+                let ctx2 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
+                pipe.run(ctx2, fn(c) { c.send_text("req2"); });
+                assert_eq(ctx2.res_status, 200);
+
+                let ctx3 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
+                pipe.run(ctx3, fn(c) { c.send_text("req3"); });
+                assert_eq(ctx3.res_status, 429);
         });
 
-        let trace = trace_box["items"];
-        assert_eq(len(trace), 5);
-        assert_eq(trace[0], "mw1_in");
-        assert_eq(trace[1], "mw2_in");
-        assert_eq(trace[2], "handler");
-        assert_eq(trace[3], "mw2_out");
-        assert_eq(trace[4], "mw1_out");
-    });
+        test("CORS middleware handles OPTIONS preflight", fn() {
+                let pipe = net.new_pipeline();
+                pipe.use(net.cors({ "origin": "https://example.com" }));
 
-    test("Auth bearer middleware protects unauthorized routes", fn() {
-        let pipe = net.new_pipeline();
-        pipe.use(net.auth_bearer("valid_secret_token"));
+                let opt_ctx = net.create_context({
+                        "method": "OPTIONS",
+                        "url": "/api/data",
+                        "headers": {}
+                    }, {});
 
-        let unauth_ctx = net.create_context({
-            "method": "GET",
-            "url": "/private",
-            "headers": {}
-        }, {});
+                let handler_called = false;
+                pipe.run(opt_ctx, fn(c) {
+                        handler_called = true;
+                });
 
-        pipe.run(unauth_ctx, fn(c) {
-            c.send_text("protected_data");
+                assert_eq(handler_called, false);
+                assert_eq(opt_ctx.res_status, 204);
+                assert_eq(opt_ctx.res_headers["Access-Control-Allow-Origin"], "https://example.com");
         });
-
-        assert_eq(unauth_ctx.res_status, 401);
-        assert_eq(unauth_ctx.res_body != "protected_data", true);
-
-        let auth_ctx = net.create_context({
-            "method": "GET",
-            "url": "/private",
-            "headers": { "Authorization": "Bearer valid_secret_token" }
-        }, {});
-
-        pipe.run(auth_ctx, fn(c) {
-            c.send_text("protected_data");
-        });
-
-        assert_eq(auth_ctx.res_status, 200);
-        assert_eq(auth_ctx.res_body, "protected_data");
-    });
-
-    test("Rate limiter middleware throttles excess requests", fn() {
-        let pipe = net.new_pipeline();
-        pipe.use(net.rate_limit(2, 60));
-
-        let ctx1 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
-        pipe.run(ctx1, fn(c) { c.send_text("req1"); });
-        assert_eq(ctx1.res_status, 200);
-
-        let ctx2 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
-        pipe.run(ctx2, fn(c) { c.send_text("req2"); });
-        assert_eq(ctx2.res_status, 200);
-
-        let ctx3 = net.create_context({ "method": "GET", "url": "/quota", "remote_addr": "10.0.0.1" }, {});
-        pipe.run(ctx3, fn(c) { c.send_text("req3"); });
-        assert_eq(ctx3.res_status, 429);
-    });
-
-    test("CORS middleware handles OPTIONS preflight", fn() {
-        let pipe = net.new_pipeline();
-        pipe.use(net.cors({ "origin": "https://example.com" }));
-
-        let opt_ctx = net.create_context({
-            "method": "OPTIONS",
-            "url": "/api/data",
-            "headers": {}
-        }, {});
-
-        let handler_called = false;
-        pipe.run(opt_ctx, fn(c) {
-            handler_called = true;
-        });
-
-        assert_eq(handler_called, false);
-        assert_eq(opt_ctx.res_status, 204);
-        assert_eq(opt_ctx.res_headers["Access-Control-Allow-Origin"], "https://example.com");
-    });
 });
 
 describe("Server-Sent Events (SSE) Engine", fn() {
-    test("Event chunk formatting and parsing", fn() {
-        let event_chunk = net.format_sse_event("telemetry", { "cpu": 45, "mem": 128 }, "evt_001", 3000);
-        assert(contains(event_chunk, "event: telemetry\n"));
-        assert(contains(event_chunk, "id: evt_001\n"));
-        assert(contains(event_chunk, "retry: 3000\n"));
-        assert(contains(event_chunk, "data: {\"cpu\":45,\"mem\":128}\n\n"));
+        test("Event chunk formatting and parsing", fn() {
+                let event_chunk = net.format_sse_event("telemetry", { "cpu": 45, "mem": 128 }, "evt_001", 3000);
+                assert(contains(event_chunk, "event: telemetry\n"));
+                assert(contains(event_chunk, "id: evt_001\n"));
+                assert(contains(event_chunk, "retry: 3000\n"));
+                assert(contains(event_chunk, "data: {\"cpu\":45,\"mem\":128}\n\n"));
 
-        let parsed = net.parse_sse_event(event_chunk);
-        assert_eq(parsed.event, "telemetry");
-        assert_eq(parsed.id, "evt_001");
-        assert_eq(parsed.retry, 3000);
-        let data_obj = json_parse(parsed.data);
-        assert_eq(data_obj["cpu"], 45);
-    });
+                let parsed = net.parse_sse_event(event_chunk);
+                assert_eq(parsed.event, "telemetry");
+                assert_eq(parsed.id, "evt_001");
+                assert_eq(parsed.retry, 3000);
+                let data_obj = json_parse(parsed.data);
+                assert_eq(data_obj["cpu"], 45);
+        });
 
-    test("SSE Stream struct buffer and ping comments", fn() {
-        let stream = net.new_sse_stream();
-        stream.send("greeting", "Hello Client", 1);
-        stream.ping();
-        let payload = stream.flush();
-        assert(contains(payload, "event: greeting\n"));
-        assert(contains(payload, "data: Hello Client\n\n"));
-        assert(contains(payload, ": keepalive"));
-        assert_eq(stream.flush(), "");
-    });
+        test("SSE Stream struct buffer and ping comments", fn() {
+                let stream = net.new_sse_stream();
+                stream.send("greeting", "Hello Client", 1);
+                stream.ping();
+                let payload = stream.flush();
+                assert(contains(payload, "event: greeting\n"));
+                assert(contains(payload, "data: Hello Client\n\n"));
+                assert(contains(payload, ": keepalive"));
+                assert_eq(stream.flush(), "");
+        });
 });
 
 describe("WebSocket Room Hub and Broadcaster", fn() {
-    test("Multi-room client subscriptions and broadcasting", fn() {
-        let hub = net.new_room_hub();
+        test("Multi-room client subscriptions and broadcasting", fn() {
+                let hub = net.new_room_hub();
 
-        let client1_box = { "msgs": [] };
-        let client2_box = { "msgs": [] };
-        let client3_box = { "msgs": [] };
+                let client1_box = { "msgs": [] };
+                let client2_box = { "msgs": [] };
+                let client3_box = { "msgs": [] };
 
-        let conn1 = { "write": fn(msg) { client1_box["msgs"] = client1_box["msgs"] + [msg]; } };
-        let conn2 = { "write": fn(msg) { client2_box["msgs"] = client2_box["msgs"] + [msg]; } };
-        let conn3 = { "write": fn(msg) { client3_box["msgs"] = client3_box["msgs"] + [msg]; } };
+                let conn1 = { "write": fn(msg) { client1_box["msgs"] = client1_box["msgs"] + [msg]; } };
+                let conn2 = { "write": fn(msg) { client2_box["msgs"] = client2_box["msgs"] + [msg]; } };
+                let conn3 = { "write": fn(msg) { client3_box["msgs"] = client3_box["msgs"] + [msg]; } };
 
-        hub.join("general", "u1", conn1, { "name": "Alice" });
-        hub.join("general", "u2", conn2, { "name": "Bob" });
-        hub.join("dev", "u2", conn2, { "name": "Bob" });
-        hub.join("dev", "u3", conn3, { "name": "Charlie" });
+                hub.join("general", "u1", conn1, { "name": "Alice" });
+                hub.join("general", "u2", conn2, { "name": "Bob" });
+                hub.join("dev", "u2", conn2, { "name": "Bob" });
+                hub.join("dev", "u3", conn3, { "name": "Charlie" });
 
-        assert_eq(hub.room_count("general"), 2);
-        assert_eq(hub.room_count("dev"), 2);
-        assert_eq(hub.is_in_room("general", "u1"), true);
-        assert_eq(hub.is_in_room("general", "u3"), false);
+                assert_eq(hub.room_count("general"), 2);
+                assert_eq(hub.room_count("dev"), 2);
+                assert_eq(hub.is_in_room("general", "u1"), true);
+                assert_eq(hub.is_in_room("general", "u3"), false);
 
-        // Broadcast to general excluding sender u1
-        let sent_count = hub.broadcast("general", "Welcome to general!", "u1");
-        assert_eq(sent_count, 1);
-        assert_eq(len(client1_box["msgs"]), 0);
-        assert_eq(len(client2_box["msgs"]), 1);
-        assert_eq(client2_box["msgs"][0], "Welcome to general!");
+                // Broadcast to general excluding sender u1
+                let sent_count = hub.broadcast("general", "Welcome to general!", "u1");
+                assert_eq(sent_count, 1);
+                assert_eq(len(client1_box["msgs"]), 0);
+                assert_eq(len(client2_box["msgs"]), 1);
+                assert_eq(client2_box["msgs"][0], "Welcome to general!");
 
-        // Broadcast to dev
-        hub.broadcast("dev", "Build succeeded", null);
-        assert_eq(len(client2_box["msgs"]), 2);
-        assert_eq(len(client3_box["msgs"]), 1);
-        assert_eq(client3_box["msgs"][0], "Build succeeded");
+                // Broadcast to dev
+                hub.broadcast("dev", "Build succeeded", null);
+                assert_eq(len(client2_box["msgs"]), 2);
+                assert_eq(len(client3_box["msgs"]), 1);
+                assert_eq(client3_box["msgs"][0], "Build succeeded");
 
-        // Leave room
-        hub.leave("general", "u2");
-        assert_eq(hub.room_count("general"), 1);
-        assert_eq(hub.is_in_room("general", "u2"), false);
+                // Leave room
+                hub.leave("general", "u2");
+                assert_eq(hub.room_count("general"), 1);
+                assert_eq(hub.is_in_room("general", "u2"), false);
 
-        // Leave all
-        hub.leave_all("u3");
-        assert_eq(hub.room_count("dev"), 1);
-    });
+                // Leave all
+                hub.leave_all("u3");
+                assert_eq(hub.room_count("dev"), 1);
+        });
 });

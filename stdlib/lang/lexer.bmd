@@ -2,39 +2,39 @@
 // Reusable token scanner, position tracker, and lexical analyzer written in BramandScript.
 
 // Token Types
-let TOKEN_ILLEGAL   = "ILLEGAL";
-let TOKEN_EOF       = "EOF";
-let TOKEN_IDENT     = "IDENT";
-let TOKEN_INT       = "INT";
-let TOKEN_FLOAT     = "FLOAT";
-let TOKEN_STRING    = "STRING";
-let TOKEN_ASSIGN    = "=";
-let TOKEN_PLUS      = "+";
-let TOKEN_MINUS     = "-";
-let TOKEN_ASTERISK  = "*";
-let TOKEN_SLASH     = "/";
-let TOKEN_BANG      = "!";
-let TOKEN_EQ        = "==";
-let TOKEN_NOT_EQ    = "!=";
-let TOKEN_LT        = "<";
-let TOKEN_GT        = ">";
-let TOKEN_LTE       = "<=";
-let TOKEN_GTE       = ">=";
-let TOKEN_COMMA     = ",";
+let TOKEN_ILLEGAL = "ILLEGAL";
+let TOKEN_EOF = "EOF";
+let TOKEN_IDENT = "IDENT";
+let TOKEN_INT = "INT";
+let TOKEN_FLOAT = "FLOAT";
+let TOKEN_STRING = "STRING";
+let TOKEN_ASSIGN = "=";
+let TOKEN_PLUS = "+";
+let TOKEN_MINUS = "-";
+let TOKEN_ASTERISK = "*";
+let TOKEN_SLASH = "/";
+let TOKEN_BANG = "!";
+let TOKEN_EQ = "==";
+let TOKEN_NOT_EQ = "!=";
+let TOKEN_LT = "<";
+let TOKEN_GT = ">";
+let TOKEN_LTE = "<=";
+let TOKEN_GTE = ">=";
+let TOKEN_COMMA = ",";
 let TOKEN_SEMICOLON = ";";
-let TOKEN_LPAREN    = "(";
-let TOKEN_RPAREN    = ")";
-let TOKEN_LBRACE    = "{";
-let TOKEN_RBRACE    = "}";
-let TOKEN_LBRACKET  = "[";
-let TOKEN_RBRACKET  = "]";
-let TOKEN_LET       = "LET";
-let TOKEN_FN        = "FN";
-let TOKEN_TRUE      = "TRUE";
-let TOKEN_FALSE     = "FALSE";
-let TOKEN_IF        = "IF";
-let TOKEN_ELSE      = "ELSE";
-let TOKEN_RETURN    = "RETURN";
+let TOKEN_LPAREN = "(";
+let TOKEN_RPAREN = ")";
+let TOKEN_LBRACE = "{";
+let TOKEN_RBRACE = "}";
+let TOKEN_LBRACKET = "[";
+let TOKEN_RBRACKET = "]";
+let TOKEN_LET = "LET";
+let TOKEN_FN = "FN";
+let TOKEN_TRUE = "TRUE";
+let TOKEN_FALSE = "FALSE";
+let TOKEN_IF = "IF";
+let TOKEN_ELSE = "ELSE";
+let TOKEN_RETURN = "RETURN";
 
 let KEYWORDS = {
     "let": TOKEN_LET,
@@ -145,12 +145,12 @@ let lex_read_number = fn(l) {
 let lex_read_string = fn(l) {
     let inp = l["input"];
     let start_pos = l["position"] + 1;
-    lex_read_char(l); // skip opening quote
+    lex_read_char(l);  // skip opening quote
     while l["ch"] != "\"" && l["ch"] != "" {
         lex_read_char(l);
     }
     let str_val = slice(inp, start_pos, l["position"]);
-    lex_read_char(l); // skip closing quote
+    lex_read_char(l);  // skip closing quote
     return str_val;
 };
 
@@ -252,7 +252,7 @@ let lex_tokenize = fn(l) {
         tokens = tokens + [tok];
         tok = lex_next_token(l);
     }
-    tokens = tokens + [tok]; // Append EOF
+    tokens = tokens + [tok];  // Append EOF
     return tokens;
 };
 

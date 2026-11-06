@@ -6,26 +6,26 @@ import "std/lang/lexer" as lexer_mod
 import "std/lang/parser" as parser_mod
 
 // Bytecode Opcodes
-let OP_CONSTANT      = 1;
-let OP_ADD           = 2;
-let OP_SUB           = 3;
-let OP_MUL           = 4;
-let OP_DIV           = 5;
-let OP_POP           = 6;
-let OP_TRUE          = 7;
-let OP_FALSE         = 8;
-let OP_EQUAL         = 9;
-let OP_NOT_EQUAL     = 10;
-let OP_GREATER_THAN  = 11;
-let OP_MINUS         = 12;
-let OP_BANG          = 13;
-let OP_JUMP          = 14;
+let OP_CONSTANT = 1;
+let OP_ADD = 2;
+let OP_SUB = 3;
+let OP_MUL = 4;
+let OP_DIV = 5;
+let OP_POP = 6;
+let OP_TRUE = 7;
+let OP_FALSE = 8;
+let OP_EQUAL = 9;
+let OP_NOT_EQUAL = 10;
+let OP_GREATER_THAN = 11;
+let OP_MINUS = 12;
+let OP_BANG = 13;
+let OP_JUMP = 14;
 let OP_JUMP_IF_FALSE = 15;
-let OP_SET_GLOBAL    = 16;
-let OP_GET_GLOBAL    = 17;
-let OP_GTE           = 18;
-let OP_LTE           = 19;
-let OP_HALT          = 20;
+let OP_SET_GLOBAL = 16;
+let OP_GET_GLOBAL = 17;
+let OP_GTE = 18;
+let OP_LTE = 19;
+let OP_HALT = 20;
 
 // Forward declare compiler function
 let compile_ast_node = null;
