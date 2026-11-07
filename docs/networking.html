@@ -130,6 +130,8 @@
             <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
             <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+            <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
+            <li><a href="fundamentals.html#ch-exceptions" class="nav-link"><span>11.</span> Exceptions &amp; Permissions</a></li>
           </ul>
         </div>
 
@@ -294,7 +296,41 @@
 
 <span class="token-comment">// HTTP Client calls</span>
 <span class="token-kw">let</span> <span class="token-fn">resp</span> <span class="token-op">=</span> <span class="token-fn">http_get</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>)
-<span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())</code></pre>
+<span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())
+
+<span class="token-comment">// HTTP POST with JSON body and custom headers</span>
+<span class="token-kw">let</span> <span class="token-fn">postResp</span> <span class="token-op">=</span> <span class="token-fn">http_post</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>, {<span class="token-str">"name"</span>: <span class="token-str">"Charlie"</span>}, {<span class="token-str">"Content-Type"</span>: <span class="token-str">"application/json"</span>})
+<span class="token-fn">println</span>(<span class="token-str">"POST Status:"</span>, <span class="token-fn">postResp</span>.<span class="token-fn">status</span>)
+
+<span class="token-comment">// HTTP PUT and DELETE</span>
+<span class="token-kw">let</span> <span class="token-fn">putResp</span> <span class="token-op">=</span> <span class="token-fn">http_put</span>(<span class="token-str">"http://127.0.0.1:3000/api/users/2"</span>, {<span class="token-str">"name"</span>: <span class="token-str">"Robert"</span>})
+<span class="token-kw">let</span> <span class="token-fn">delResp</span> <span class="token-op">=</span> <span class="token-fn">http_delete</span>(<span class="token-str">"http://127.0.0.1:3000/api/users/1"</span>)
+
+<span class="token-comment">// Low-level http_request with timeout</span>
+<span class="token-kw">let</span> <span class="token-fn">customResp</span> <span class="token-op">=</span> <span class="token-fn">http_request</span>({
+    <span class="token-str">"method"</span>: <span class="token-str">"POST"</span>,
+    <span class="token-str">"url"</span>: <span class="token-str">"http://127.0.0.1:3000/api/users"</span>,
+    <span class="token-str">"body"</span>: {<span class="token-str">"name"</span>: <span class="token-str">"Eve"</span>},
+    <span class="token-str">"headers"</span>: {<span class="token-str">"X-App-ID"</span>: <span class="token-str">"bmd-client"</span>},
+    <span class="token-str">"timeout"</span>: <span class="token-num">3000</span>
+})
+<span class="token-fn">println</span>(<span class="token-str">"Custom Request Status:"</span>, <span class="token-fn">customResp</span>.<span class="token-fn">status</span>)</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">HTTP Client Reference Table</h3>
+        <div class="overflow-x-auto mb-4">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Exact Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">http_get</code></td><td><code class="font-mono">http_get(url, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP GET request; returns response hash with <code class="font-mono">status</code>, <code class="font-mono">headers</code>, <code class="font-mono">body</code>, and <code class="font-mono">json()</code>.</td></tr>
+              <tr><td><code class="font-mono">http_post</code></td><td><code class="font-mono">http_post(url, body, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP POST request; automatically serializes non-string body into JSON string.</td></tr>
+              <tr><td><code class="font-mono">http_put</code></td><td><code class="font-mono">http_put(url, body, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP PUT request with payload and optional headers.</td></tr>
+              <tr><td><code class="font-mono">http_delete</code></td><td><code class="font-mono">http_delete(url, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP DELETE request to target endpoint.</td></tr>
+              <tr><td><code class="font-mono">http_request</code></td><td><code class="font-mono">http_request(options)</code></td><td><code class="font-mono">HASH</code></td><td>Executes customized request with <code class="font-mono">{"method", "url", "body", "headers", "timeout"}</code>.</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="code-block-wrapper mt-6">

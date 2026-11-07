@@ -689,19 +689,19 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		catchTarget := len(c.currentInstructions())
 		c.changeOperand(pushHandlerPos, catchTarget)
 
-		if node.CatchVar != nil {
-			c.enterBlockScope()
-			symbol := c.symbolTable.Define(node.CatchVar.Value, false)
-			if symbol.Scope == GlobalScope {
-				c.emit(code.OpSetGlobal, symbol.Index)
-			} else {
-				c.emit(code.OpSetLocal, symbol.Index)
-			}
-		} else {
-			c.emit(code.OpPop)
-		}
-
 		if node.CatchBlock != nil {
+			if node.CatchVar != nil {
+				c.enterBlockScope()
+				symbol := c.symbolTable.Define(node.CatchVar.Value, false)
+				if symbol.Scope == GlobalScope {
+					c.emit(code.OpSetGlobal, symbol.Index)
+				} else {
+					c.emit(code.OpSetLocal, symbol.Index)
+				}
+			} else {
+				c.emit(code.OpPop)
+			}
+
 			for _, s := range node.CatchBlock.Statements {
 				err := c.Compile(s)
 				if err != nil {
@@ -714,6 +714,32 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			if node.CatchVar != nil {
 				c.leaveBlockScope()
 			}
+		} else {
+			// Try-finally without catch: an exception occurred in try block.
+			// Save error, run finally block, and re-throw the error!
+			c.enterBlockScope()
+			tmpErrSym := c.symbolTable.Define("__finally_err", false)
+			if tmpErrSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, tmpErrSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, tmpErrSym.Index)
+			}
+
+			if node.FinallyBlock != nil {
+				err := c.Compile(node.FinallyBlock)
+				if err != nil {
+					c.leaveBlockScope()
+					return true, err
+				}
+			}
+
+			if tmpErrSym.Scope == GlobalScope {
+				c.emit(code.OpGetGlobal, tmpErrSym.Index)
+			} else {
+				c.emit(code.OpGetLocal, tmpErrSym.Index)
+			}
+			c.emit(code.OpThrow)
+			c.leaveBlockScope()
 		}
 
 		afterCatchPos := len(c.currentInstructions())

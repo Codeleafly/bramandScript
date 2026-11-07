@@ -67,6 +67,51 @@ describe("Exception Handling: Try-Catch-Finally Statements", fn() {
         }
         assert_eq(caughtSignal, "deep_failure_signal");
     });
+
+    test("Try-Finally without catch re-throws caught exception", fn() {
+        let finallyRan = false;
+        let caughtByOuter = "";
+        try {
+            try {
+                throw "inner_error";
+            } finally {
+                finallyRan = true;
+            }
+        } catch e {
+            caughtByOuter = e;
+        }
+        assert_true(finallyRan);
+        assert_eq(caughtByOuter, "inner_error");
+    });
+
+    test("Try-Finally clean execution runs finally without error", fn() {
+        let val = 10;
+        let finallyRan = false;
+        try {
+            val = val * 5;
+        } finally {
+            finallyRan = true;
+        }
+        assert_true(finallyRan);
+        assert_eq(val, 50);
+    });
+
+    test("Nested try-catch blocks with distinct error propagation", fn() {
+        let innerCaught = "";
+        let outerCaught = "";
+        try {
+            try {
+                throw "inner_exception";
+            } catch e1 {
+                innerCaught = e1;
+                throw "escalated_exception";
+            }
+        } catch e2 {
+            outerCaught = e2;
+        }
+        assert_eq(innerCaught, "inner_exception");
+        assert_eq(outerCaught, "escalated_exception");
+    });
 });
 
 describe("Dynamic Call Stack & Recursion Expansion", fn() {

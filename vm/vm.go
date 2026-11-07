@@ -153,10 +153,14 @@ func (vm *VM) setGlobal(index int, val object.Object) {
 }
 
 func (vm *VM) handleException(errObj object.Object) bool {
+	oldSP := vm.sp
 	for vm.framesIndex > 0 {
 		frame := vm.currentFrame()
 		if len(frame.handlers) > 0 {
 			handler, _ := frame.PopHandler()
+			for i := handler.SP; i < oldSP && i < len(vm.stack); i++ {
+				vm.stack[i] = nil
+			}
 			vm.sp = handler.SP
 			_ = vm.push(errObj)
 			frame.ip = handler.CatchIP - 1
@@ -649,12 +653,18 @@ func (vm *VM) runLoop() error {
 
 			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 			vm.sp = vm.sp - numElements
 
 			err = vm.push(hash)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -811,14 +821,24 @@ func (vm *VM) runLoop() error {
 
 			channel, ok := chObj.(*object.Channel)
 			if !ok {
-				return fmt.Errorf("send operator <- requires CHANNEL, got %s", chObj.Type())
+				err := fmt.Errorf("send operator <- requires CHANNEL, got %s", chObj.Type())
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
+				return err
 			}
 			err := channel.Send(val)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 			err = vm.push(Null)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -827,11 +847,18 @@ func (vm *VM) runLoop() error {
 
 			channel, ok := chObj.(*object.Channel)
 			if !ok {
-				return fmt.Errorf("receive operator <- requires CHANNEL, got %s", chObj.Type())
+				err := fmt.Errorf("receive operator <- requires CHANNEL, got %s", chObj.Type())
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
+				return err
 			}
 			val, _ := channel.Recv()
 			err := vm.push(val)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 

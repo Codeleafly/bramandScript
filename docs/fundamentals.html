@@ -131,6 +131,7 @@
             <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
             <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
+            <li><a href="fundamentals.html#ch-exceptions" class="nav-link"><span>11.</span> Exceptions &amp; Permissions</a></li>
           </ul>
         </div>
 
@@ -385,7 +386,56 @@ const { host, port } = { "host": "127.0.0.1", "port": 8080 }</code></pre>
 
 <span class="token-fn">print</span>(<span class="token-str">"Type of int:"</span>, <span class="token-fn">type</span>(<span class="token-fn">intVal</span>))     <span class="token-comment">// INTEGER</span>
 <span class="token-fn">print</span>(<span class="token-str">"Type of float:"</span>, <span class="token-fn">type</span>(<span class="token-fn">floatVal</span>)) <span class="token-comment">// FLOAT</span>
-<span class="token-fn">print</span>(<span class="token-str">"Type of text:"</span>, <span class="token-fn">type</span>(<span class="token-fn">text</span>))       <span class="token-comment">// STRING</span></code></pre>
+print("Type of text:", type(text))       // STRING</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">String Manipulation Builtins</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript includes robust Unicode-compliant string manipulation primitives for formatting, tokenization, and text processing:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — string operations</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let line = "  brahmand,cosmos,universe  "
+
+// Trimming whitespace
+let clean = trim(line)                  // "brahmand,cosmos,universe"
+
+// Case conversion
+println(to_upper(clean))                // "BRAHMAND,COSMOS,UNIVERSE"
+println(to_lower("BRAMAND SCRIPT"))     // "bramand script"
+
+// Splitting and Joining
+let parts = split(clean, ",")           // ["brahmand", "cosmos", "universe"]
+let joined = join(parts, " :: ")        // "brahmand :: cosmos :: universe"
+
+// Substring extraction (supports negative indexing)
+println(substring(clean, 0, 8))         // "brahmand"
+println(substring(clean, -8, len(clean))) // "universe"
+
+// String replacement
+let updated = replace(clean, "cosmos", "galaxy")
+println(updated)                        // "brahmand,galaxy,universe"</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Exact Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">split</code></td><td><code class="font-mono">split(str, sep)</code></td><td><code class="font-mono">ARRAY</code></td><td>Splits string by separator into an array of substrings.</td></tr>
+              <tr><td><code class="font-mono">join</code></td><td><code class="font-mono">join(arr, sep)</code></td><td><code class="font-mono">STRING</code></td><td>Concatenates array of elements into a string delimited by separator.</td></tr>
+              <tr><td><code class="font-mono">substring</code></td><td><code class="font-mono">substring(str, start, [end])</code></td><td><code class="font-mono">STRING</code></td><td>Extracts substring between start and end indices with negative index support.</td></tr>
+              <tr><td><code class="font-mono">trim</code></td><td><code class="font-mono">trim(str)</code></td><td><code class="font-mono">STRING</code></td><td>Strips leading and trailing whitespace characters.</td></tr>
+              <tr><td><code class="font-mono">to_lower</code></td><td><code class="font-mono">to_lower(str)</code></td><td><code class="font-mono">STRING</code></td><td>Converts all UTF-8 characters to lowercase.</td></tr>
+              <tr><td><code class="font-mono">to_upper</code></td><td><code class="font-mono">to_upper(str)</code></td><td><code class="font-mono">STRING</code></td><td>Converts all UTF-8 characters to uppercase.</td></tr>
+              <tr><td><code class="font-mono">replace</code></td><td><code class="font-mono">replace(str, old, new)</code></td><td><code class="font-mono">STRING</code></td><td>Replaces all occurrences of old substring with new substring.</td></tr>
+            </tbody>
+          </table>
         </div>
         <h3 class="text-xl font-semibold mt-6 mb-3">Adaptive Numeric Core &amp; Transparent BigInt Promotion</h3>
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">

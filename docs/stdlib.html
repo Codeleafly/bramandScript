@@ -130,6 +130,8 @@
             <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
             <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+            <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
+            <li><a href="fundamentals.html#ch-exceptions" class="nav-link"><span>11.</span> Exceptions &amp; Permissions</a></li>
           </ul>
         </div>
 
@@ -1710,6 +1712,7 @@ println(bar_chart)</code></pre>
               <tr><td><code class="font-mono font-bold">eprintln</code></td><td><code class="font-mono">eprintln(...args)</code></td><td><code class="font-mono">NULL</code></td><td>Prints space-separated arguments to stderr followed by a newline.</td></tr>
               <tr><td><code class="font-mono font-bold">input</code></td><td><code class="font-mono">input([prompt])</code></td><td><code class="font-mono">STRING</code></td><td>Displays optional prompt and reads a line from stdin up to newline.</td></tr>
               <tr><td><code class="font-mono font-bold">read_line</code></td><td><code class="font-mono">read_line([prompt])</code></td><td><code class="font-mono">STRING</code></td><td>Reads a line of text from standard input; supports terminal raw channel buffer.</td></tr>
+              <tr><td><code class="font-mono font-bold">ensure_newline</code></td><td><code class="font-mono">ensure_newline()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Emits a trailing newline to stdout if the last character written was not a newline; returns <code class="font-mono">true</code> if a newline was emitted, <code class="font-mono">false</code> otherwise.</td></tr>
               <tr><td><code class="font-mono font-bold">color</code></td><td><code class="font-mono">color(name, text)</code></td><td><code class="font-mono">STRING</code></td><td>Wraps text in standard 16-color ANSI codes (<code class="font-mono">"red"</code>, <code class="font-mono">"green"</code>, etc.).</td></tr>
               <tr><td><code class="font-mono font-bold">styled</code></td><td><code class="font-mono">styled(text, style)</code></td><td><code class="font-mono">STRING</code></td><td>Wraps text in ANSI style codes (<code class="font-mono">"bold"</code>, <code class="font-mono">"dim"</code>, <code class="font-mono">"italic"</code>, <code class="font-mono">"underline"</code>).</td></tr>
             </tbody>
@@ -2055,6 +2058,7 @@ println(bar_chart)</code></pre>
               <tr><td><code class="font-mono font-bold">assert_eq</code></td><td><code class="font-mono">assert_eq(actual, expected, [msg])</code></td><td><code class="font-mono">NULL</code></td><td>Asserts deep structural equality with cyclic structure protection and formatted diff.</td></tr>
               <tr><td><code class="font-mono font-bold">assert_ne</code></td><td><code class="font-mono">assert_ne(actual, expected, [msg])</code></td><td><code class="font-mono">NULL</code></td><td>Asserts that two values are not structurally equal.</td></tr>
               <tr><td><code class="font-mono font-bold">panic</code></td><td><code class="font-mono">panic([msg])</code></td><td><code class="font-mono">NULL</code></td><td>Halts VM execution immediately with an explicit fatal panic.</td></tr>
+              <tr><td><code class="font-mono font-bold">throw</code></td><td><code class="font-mono">throw(value)</code></td><td><code class="font-mono">NULL</code></td><td>Raises a catchable runtime exception with an arbitrary payload value (can also be invoked via statement syntax: <code class="font-mono">throw expr;</code>).</td></tr>
               <tr><td><code class="font-mono font-bold">test</code></td><td><code class="font-mono">test(name, fn)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Executes isolated test block, measuring duration and catching assertion failures.</td></tr>
               <tr><td><code class="font-mono font-bold">describe</code></td><td><code class="font-mono">describe(suite_name, fn)</code></td><td><code class="font-mono">NULL</code></td><td>Groups related tests under a common suite heading with duration aggregation.</td></tr>
               <tr><td><code class="font-mono font-bold">benchmark</code></td><td><code class="font-mono">benchmark(name, fn, [iters])</code></td><td><code class="font-mono">HASH</code></td><td>Runs warmup and iterations loop; returns <code class="font-mono">{"name", "iterations", "total_ms", "ops_per_sec"}</code>.</td></tr>

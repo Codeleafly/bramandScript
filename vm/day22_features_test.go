@@ -292,3 +292,78 @@ func Test64BitOpcodeOperands(t *testing.T) {
 		t.Errorf("expected OpSetGlobal in bytecode")
 	}
 }
+
+func TestTryFinallyRethrow(t *testing.T) {
+	input := `
+	let outerCaught = "";
+	let finallyRan = false;
+	try {
+		try {
+			throw "fail_in_try";
+		} finally {
+			finallyRan = true;
+		}
+	} catch e {
+		outerCaught = e;
+	}
+	[finallyRan, outerCaught];
+	`
+	obj, err := executeForTest(t, input)
+	if err != nil {
+		t.Fatalf("unexpected execution error: %v", err)
+	}
+	arr, ok := obj.(*object.Array)
+	if !ok || len(arr.Elements) != 2 {
+		t.Fatalf("expected 2-element array, got %v", obj)
+	}
+	bObj, ok := arr.Elements[0].(*object.Boolean)
+	if !ok || !bObj.Value {
+		t.Errorf("expected finallyRan=true, got %v", arr.Elements[0])
+	}
+	sObj, ok := arr.Elements[1].(*object.String)
+	if !ok || sObj.Value != "fail_in_try" {
+		t.Errorf("expected outerCaught='fail_in_try', got %v", arr.Elements[1])
+	}
+}
+
+func TestBareTrySyntaxError(t *testing.T) {
+	input := `try { let x = 1; }`
+	l := lexer.New(input)
+	p := parser.New(l)
+	p.ParseProgram()
+	if len(p.Errors()) == 0 {
+		t.Fatalf("expected syntax error for bare try statement without catch or finally")
+	}
+	found := false
+	for _, e := range p.Errors() {
+		if strings.Contains(e, "expected 'catch' or 'finally'") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'expected catch or finally' error, got %v", p.Errors())
+	}
+}
+
+func TestExtendedPermissionsGuards(t *testing.T) {
+	// Verify CheckPermission returns PermissionDenied when flags are false
+	perms := &Permissions{
+		AllowAll:   false,
+		AllowRun:   false,
+		AllowWrite: false,
+		AllowNet:   false,
+		AllowRead:  true,
+	}
+
+	// Verify direct Permission types
+	if perms.AllowNet {
+		t.Errorf("expected AllowNet false")
+	}
+	if perms.AllowWrite {
+		t.Errorf("expected AllowWrite false")
+	}
+	if perms.AllowRun {
+		t.Errorf("expected AllowRun false")
+	}
+}

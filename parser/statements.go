@@ -466,6 +466,16 @@ func (p *Parser) parseTryCatchStatement() *ast.TryCatchStatement {
 		stmt.FinallyBlock = p.parseBlockStatement()
 	}
 
+	if stmt.CatchBlock == nil && stmt.FinallyBlock == nil {
+		p.errors = append(p.errors, fmt.Sprintf("expected 'catch' or 'finally' after try block at line %d, col %d", p.curToken.Line, p.curToken.Col))
+		p.SyntaxErrors = append(p.SyntaxErrors, SyntaxError{
+			Line:    p.curToken.Line,
+			Col:     p.curToken.Col,
+			Message: "expected 'catch' or 'finally' after try block",
+		})
+		return nil
+	}
+
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}

@@ -83,8 +83,8 @@ func Format(source string) (string, error) {
 		// Format line content
 		formattedContent := formatLineContent(trimmed)
 
-		// Combine closing brace and else if applicable
-		if strings.HasPrefix(formattedContent, "} else") || strings.HasPrefix(formattedContent, "} catch") {
+		// Combine closing brace and else/catch/finally if applicable
+		if strings.HasPrefix(formattedContent, "} else") || strings.HasPrefix(formattedContent, "} catch") || strings.HasPrefix(formattedContent, "} finally") {
 			currentIndent = indentLevel - 1
 			if currentIndent < 0 {
 				currentIndent = 0

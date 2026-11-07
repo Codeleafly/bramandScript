@@ -130,6 +130,8 @@
             <li><a href="fundamentals.html#ch7" class="nav-link"><span>7.</span> Operators &amp; Precedence</a></li>
             <li><a href="fundamentals.html#ch8" class="nav-link"><span>8.</span> Control Flow &amp; Loops</a></li>
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
+            <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
+            <li><a href="fundamentals.html#ch-exceptions" class="nav-link"><span>11.</span> Exceptions &amp; Permissions</a></li>
           </ul>
         </div>
 
@@ -366,8 +368,30 @@
     <span class="token-fn">wg</span>.<span class="token-fn">done</span>()
 }()
 
-<span class="token-fn">wg</span>.<span class="token-fn">wait</span>()
-<span class="token-fn">println</span>(<span class="token-str">"Safe counter:"</span>, <span class="token-fn">counter</span>)</code></pre>
+wg.wait()
+println("Safe counter:", counter)
+
+// sleep(ms): Pauses current thread of execution
+println("Pausing for 50 milliseconds...")
+sleep(50)
+println("Resumed execution cleanly")</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Concurrency &amp; Synchronization Reference</h3>
+        <div class="overflow-x-auto mb-4">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Exact Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">spawn</code></td><td><code class="font-mono">spawn fn() { ... }()</code></td><td><code class="font-mono">NULL</code></td><td>Grammar keyword: launches function in lightweight concurrent Goroutine.</td></tr>
+              <tr><td><code class="font-mono">chan</code></td><td><code class="font-mono">chan([capacity])</code></td><td><code class="font-mono">CHANNEL</code></td><td>Creates unbuffered (<code class="font-mono">0</code>) or buffered channel for typed message passing.</td></tr>
+              <tr><td><code class="font-mono">close</code></td><td><code class="font-mono">close(channel)</code></td><td><code class="font-mono">NULL</code></td><td>Closes channel, notifying receivers of stream termination.</td></tr>
+              <tr><td><code class="font-mono">mutex</code></td><td><code class="font-mono">mutex()</code></td><td><code class="font-mono">MUTEX</code></td><td>Creates mutual exclusion lock with <code class="font-mono">.lock()</code> and <code class="font-mono">.unlock()</code>.</td></tr>
+              <tr><td><code class="font-mono">wait_group</code></td><td><code class="font-mono">wait_group()</code></td><td><code class="font-mono">WAIT_GROUP</code></td><td>Coordination barrier with <code class="font-mono">.add(n)</code>, <code class="font-mono">.done()</code>, and <code class="font-mono">.wait()</code>.</td></tr>
+              <tr><td><code class="font-mono">sleep</code></td><td><code class="font-mono">sleep(milliseconds)</code></td><td><code class="font-mono">NULL</code></td><td>Suspends execution of the current thread/task for specified milliseconds.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

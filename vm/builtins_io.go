@@ -146,6 +146,9 @@ func init() {
 
 	RegisterBuiltin("chmod", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermWrite); err != nil {
+				return &object.Error{Message: err.Error()}
+			}
 			if len(args) != 2 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
 			}
