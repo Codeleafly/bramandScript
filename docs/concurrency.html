@@ -151,6 +151,7 @@
             <li><a href="concurrency.html#ch-concurrency" class="nav-link active"><span>✦</span> Concurrency &amp; Tasks</a></li>
             <li><a href="concurrency.html#ch-channels" class="nav-link"><span>✦</span> Channels &amp; Message Passing</a></li>
             <li><a href="concurrency.html#ch-mutex" class="nav-link"><span>✦</span> Mutex &amp; Synchronization</a></li>
+            <li><a href="concurrency.html#ch-semaphores-pools" class="nav-link"><span>✦</span> Semaphores &amp; Worker Pools</a></li>
             <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
           </ul>
         </div>
@@ -390,6 +391,106 @@ println("Resumed execution cleanly")</code></pre>
               <tr><td><code class="font-mono">mutex</code></td><td><code class="font-mono">mutex()</code></td><td><code class="font-mono">MUTEX</code></td><td>Creates mutual exclusion lock with <code class="font-mono">.lock()</code> and <code class="font-mono">.unlock()</code>.</td></tr>
               <tr><td><code class="font-mono">wait_group</code></td><td><code class="font-mono">wait_group()</code></td><td><code class="font-mono">WAIT_GROUP</code></td><td>Coordination barrier with <code class="font-mono">.add(n)</code>, <code class="font-mono">.done()</code>, and <code class="font-mono">.wait()</code>.</td></tr>
               <tr><td><code class="font-mono">sleep</code></td><td><code class="font-mono">sleep(milliseconds)</code></td><td><code class="font-mono">NULL</code></td><td>Suspends execution of the current thread/task for specified milliseconds.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= ENTERPRISE CONCURRENCY PATTERNS ================= -->
+
+      <section id="ch-semaphores-pools" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Enterprise Concurrency</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Semaphores &amp; Worker Pools (<code class="font-mono">std/semaphore</code> &amp; <code class="font-mono">std/pool</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For large-scale backend systems, microservices, and high-throughput data processing, BramandScript provides battle-tested concurrency primitives built directly on top of lightweight tasks and buffered channels:
+        </p>
+
+        <!-- 1. Counting Semaphore -->
+        <h3 class="text-xl font-semibold mt-6 mb-3">1. Counting Semaphore (<code class="font-mono">std/semaphore</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The counting semaphore bounds the number of concurrent operations accessing a constrained resource (e.g. database connections, rate-limited APIs, or disk writes). It provides non-blocking <code class="font-mono">try_acquire()</code> and exception-safe <code class="font-mono">with_permit()</code> wrappers using <code class="font-mono">defer</code>:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — Counting Semaphore Rate Limiting</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/semaphore" as sem_mod
+
+// Allow at most 3 concurrent operations
+let sem = sem_mod.new(3)
+
+// Acquire permit, execute task, and automatically release via defer
+let result = sem.with_permit(fn() {
+    println("Active permits:", sem.capacity() - sem.available())
+    return "operation completed safely"
+})
+println("Result:", result)
+println("All permits released. Available:", sem.available()) // 3</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function / Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">new</code></td><td><code class="font-mono">new([capacity = 1])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a counting semaphore with specified capacity (default 1).</td></tr>
+              <tr><td><code class="font-mono">acquire</code></td><td><code class="font-mono">sem.acquire()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Blocks until a permit is available, decrements count, and returns <code class="font-mono">true</code>.</td></tr>
+              <tr><td><code class="font-mono">try_acquire</code></td><td><code class="font-mono">sem.try_acquire()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Attempts non-blocking acquisition. Returns <code class="font-mono">true</code> if acquired, <code class="font-mono">false</code> if full.</td></tr>
+              <tr><td><code class="font-mono">release</code></td><td><code class="font-mono">sem.release()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Releases permit back to semaphore, waking a waiting task.</td></tr>
+              <tr><td><code class="font-mono">available</code></td><td><code class="font-mono">sem.available()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns number of currently available permits.</td></tr>
+              <tr><td><code class="font-mono">with_permit</code></td><td><code class="font-mono">sem.with_permit(action)</code></td><td><code class="font-mono">ANY</code></td><td>Executes <code class="font-mono">action()</code> under an acquired permit with guaranteed deferred release.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2. High-Throughput Worker Pool -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">2. High-Throughput Worker Pool (<code class="font-mono">std/pool</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Worker pools distribute work across a fixed pool of lightweight background worker tasks, preventing resource exhaustion while guaranteeing that results from parallel <code class="font-mono">map()</code> preserve their exact input index ordering:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — Order-Preserving Parallel Worker Pool</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/pool" as pool_mod
+
+// Create pool with 4 concurrent background worker tasks
+let pool = pool_mod.new(4)
+let endpoints = [
+    "https://api.internal/users",
+    "https://api.internal/orders",
+    "https://api.internal/billing",
+    "https://api.internal/inventory"
+]
+
+// Parallel map runs across workers and returns array in identical input order:
+let summaries = pool.map(endpoints, fn(url) {
+    println("Worker processing:", url)
+    return { "endpoint": url, "status": "processed" }
+})
+
+println("Summary count:", len(summaries))
+println("First summary:", summaries[0]["endpoint"]) // Guaranteed to match endpoints[0]</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function / Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">new</code></td><td><code class="font-mono">new([num_workers = 4])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a concurrent worker pool with fixed number of worker tasks.</td></tr>
+              <tr><td><code class="font-mono">map</code></td><td><code class="font-mono">pool.map(items, worker_fn)</code></td><td><code class="font-mono">ARRAY</code></td><td>Concurrently applies <code class="font-mono">worker_fn(item)</code> across items in parallel; preserves exact input order.</td></tr>
+              <tr><td><code class="font-mono">execute_all</code></td><td><code class="font-mono">pool.execute_all(jobs_list)</code></td><td><code class="font-mono">ARRAY</code></td><td>Concurrently executes array of parameterless task functions <code class="font-mono">[fn() { ... }, ...]</code>.</td></tr>
+              <tr><td><code class="font-mono">workers</code></td><td><code class="font-mono">pool.workers()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns configured worker count.</td></tr>
             </tbody>
           </table>
         </div>

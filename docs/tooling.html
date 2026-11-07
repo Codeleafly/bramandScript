@@ -590,6 +590,23 @@ bramand run --allow-net server.bmd       # Allow tcp_listen()
 # Custom call stack depth limit
 bramand run --max-frames 2048 deep_recursion.bmd</code></pre>
         </div>
+
+        <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">CLI Runtime Options &amp; Security Flags Reference</h4>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Option / Flag</th><th>Default</th><th>Description &amp; Protected Operations</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">--allow-all</code></td><td><code class="font-mono">false</code></td><td>Grants all permissions (process execution, file system mutation, and network listening).</td></tr>
+              <tr><td><code class="font-mono">--allow-run</code></td><td><code class="font-mono">false</code></td><td>Authorizes execution of external subprocesses via <code class="font-mono">exec()</code>.</td></tr>
+              <tr><td><code class="font-mono">--allow-write</code></td><td><code class="font-mono">false</code></td><td>Authorizes file system write and delete mutations (<code class="font-mono">write_file()</code>, <code class="font-mono">append_file()</code>, <code class="font-mono">delete_file()</code>).</td></tr>
+              <tr><td><code class="font-mono">--allow-net</code></td><td><code class="font-mono">false</code></td><td>Authorizes host network socket listening (<code class="font-mono">tcp_listen()</code>, web servers).</td></tr>
+              <tr><td><code class="font-mono">--max-frames &lt;N&gt;</code></td><td><code class="font-mono">1024</code></td><td>Sets maximum call stack frame limit for deep recursive algorithms.</td></tr>
+              <tr><td><code class="font-mono">-O</code></td><td><code class="font-mono">false</code></td><td>Enables ahead-of-time (AOT) constant folding and peephole bytecode optimization.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- ================= 100% NATIVE BRAMANDSCRIPT TOOLING ECOSYSTEM ================= -->

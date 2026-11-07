@@ -462,9 +462,72 @@ bramand pkg init logger@0.1.0</code></pre>
                 <td><code class="font-mono">[frame] --&gt; [returnVal]</code></td>
                 <td>Restores caller frame and pushes return value</td>
               </tr>
+              <tr>
+                <td><code class="font-mono">OpJumpNotNull</code></td>
+                <td><code class="font-mono">[uint64]</code> offset</td>
+                <td><code class="font-mono">[val] --&gt; [val]</code></td>
+                <td>Inspects top of stack; jumps to 64-bit offset if value is NOT null (null-coalescing <code class="font-mono">??</code> short-circuit)</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpJumpNull</code></td>
+                <td><code class="font-mono">[uint64]</code> offset</td>
+                <td><code class="font-mono">[val] --&gt; [val]</code></td>
+                <td>Inspects top of stack; jumps to 64-bit offset if value IS null (optional chaining <code class="font-mono">?.</code> short-circuit)</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpDefer</code></td>
+                <td><code class="font-mono">[uint8]</code> numArgs</td>
+                <td><code class="font-mono">[fn, args...] --&gt;</code></td>
+                <td>Registers deferred LIFO cleanup closure hook on active call frame</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpSpread</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[container] --&gt; [unpacked...]</code></td>
+                <td>Unpacks iterable elements (Array or Hash) inline into enclosing literal</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpDup</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[val] --&gt; [val, val]</code></td>
+                <td>Duplicates the top element on the evaluation stack</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpBitAnd / OpBitOr / OpBitXor</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[a, b] --&gt; [res]</code></td>
+                <td>Performs 64-bit bitwise AND, OR, and XOR operations</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpShiftLeft / OpShiftRight / OpBitNot</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[a, n] --&gt; [res]</code> / <code class="font-mono">[a] --&gt; [res]</code></td>
+                <td>Performs bitwise left shift, arithmetic right shift, and bitwise inversion (~)</td>
+              </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Architecture Deep Dives -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Dynamic Stack Allocation &amp; Configurable Call Frames</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Unlike primitive bytecode engines with fixed stack arrays that crash on deep recursive traversals, the Bramand Virtual Machine dynamically expands its call frame slice (<code class="font-mono">vm.frames</code>) and operand stack on demand. Developers can configure max stack depth limits via CLI flag <code class="font-mono">--max-frames &lt;N&gt;</code> to bound recursion or enable deep scientific computation safely.
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">OOP Struct State Synchronization &amp; Thread Safety</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Structs instantiate as hash tables encapsulating method closures. To prevent state desynchronization between property mutation and closure state, BramandScript enforces <strong>bidirectional state synchronization</strong>:
+        </p>
+        <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside mb-4">
+          <li><strong>Pre-Call Synchronization:</strong> Instance properties are copied into method closure free variables before execution.</li>
+          <li><strong>Post-Return Synchronization:</strong> Modified free variables are written back to the instance hash on method exit (<code class="font-mono">OpReturnValue</code> / <code class="font-mono">OpReturn</code>).</li>
+          <li><strong>Thread-Safe Memory Primitives:</strong> Shared runtime collections (<code class="font-mono">object.Hash</code> and <code class="font-mono">object.Channel</code>) are protected by Go standard library <code class="font-mono">sync.RWMutex</code>, eliminating race conditions across concurrent <code class="font-mono">spawn</code> tasks.</li>
+        </ul>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Garbage Collection Model &amp; Embedded Standard Library (<code class="font-mono">embed.FS</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript delegates heap memory reclamation directly to Go's concurrent tri-color mark-and-sweep garbage collector, ensuring sub-millisecond pause times and zero manual memory leaks. Circular references are protected with depth barriers across equality and inspection routines. Furthermore, all 21 modular standard library packages are embedded directly inside the binary using pure Go standard library <code class="font-mono">//go:embed *</code>, enabling standalone execution anywhere on any operating system without filesystem dependencies.
+        </p>
       </section>
 
       <!-- ================= CHAPTER 18 ================= -->

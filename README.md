@@ -298,14 +298,14 @@ for i, item in fruits {
 ## ✦ Modular Documentation Portal
 
 The documentation is organized into dedicated, fast-loading modular guides:
-- [Getting Started & Overview](https://codeleafly.github.io/bramandScript/) — Installation, CLI commands, and REPL `:editor` mode.
-- [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, data types, operators, and functions.
-- [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, and pattern matching.
-- [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight tasks (`spawn`), channels, mutexes, and file I/O.
-- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — `std/math`, `std/strings`, `std/collections`, `std/io`, `std/json`, `std/testing`, BigInt/BigFloat, and builtins reference.
-- [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, AI streaming, and vector search.
-- [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), and package manager (`bmd pkg`).
-- [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — VM pipeline, diagnostics engine, and contributing guide.
+- [Getting Started & Overview](https://codeleafly.github.io/bramandScript/) — Installation, CLI commands, permission flags, and REPL `:editor` mode.
+- [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, operators (null-coalescing `??`, optional chaining `?.`, ternary `?:`), default parameters, LIFO `defer`, and `try-catch-finally` exceptions.
+- [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, spread operators (`...`), enums, and pattern matching.
+- [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight tasks (`spawn`), channels, mutexes, counting semaphores (`std/semaphore`), worker pools (`std/pool`), and file I/O.
+- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 21 embedded modules: `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
+- [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, resilient network requests, AI streaming, and vector search.
+- [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
+- [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 64-bit opcode VM pipeline, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.
 
 ---
 

@@ -169,6 +169,10 @@
             <li><a href="stdlib.html#ch-log" class="nav-link pl-4 text-xs"><span>·</span> std/log (Structured Logging)</a></li>
             <li><a href="stdlib.html#ch-retry" class="nav-link pl-4 text-xs"><span>·</span> std/retry (Backoff &amp; Retries)</a></li>
             <li><a href="stdlib.html#ch-config" class="nav-link pl-4 text-xs"><span>·</span> std/config (Dotenv &amp; INI)</a></li>
+            <li><a href="stdlib.html#ch-uuid" class="nav-link pl-4 text-xs"><span>·</span> std/uuid (RFC 4122 v4)</a></li>
+            <li><a href="stdlib.html#ch-semaphore" class="nav-link pl-4 text-xs"><span>·</span> std/semaphore (Limiter)</a></li>
+            <li><a href="stdlib.html#ch-circuitbreaker" class="nav-link pl-4 text-xs"><span>·</span> std/circuitbreaker (Resiliency)</a></li>
+            <li><a href="stdlib.html#ch-pool" class="nav-link pl-4 text-xs"><span>·</span> std/pool (Worker Pool)</a></li>
             <li><a href="stdlib.html#ch-net" class="nav-link pl-4 text-xs"><span>·</span> std/net (Web &amp; Routing)</a></li>
             <li><a href="stdlib.html#ch-db" class="nav-link pl-4 text-xs"><span>·</span> std/db (Storage &amp; ORM)</a></li>
             <li><a href="stdlib.html#ch-tensor" class="nav-link pl-4 text-xs"><span>·</span> std/math/tensor</a></li>
@@ -774,8 +778,28 @@ println("DB URL:", cfg.get(env, "DATABASE_URL", "sqlite://app.db")) // "sqlite:/
             <span><code class="font-mono">std/uuid</code> — RFC 4122 v4 UUID Generator &amp; Parser</span>
           </h3>
           <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
-            Cryptographically secure RFC 4122 Version 4 UUID generation, full format validation, nil UUID checking, and component parsing (time_low, time_mid, time_hi_and_version, clock_seq, node).
+            Cryptographically secure RFC 4122 Version 4 UUID generation, full format validation, nil UUID checking, and canonical component parsing (time_low, time_mid, time_hi_and_version, clock_seq, node).
           </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions &amp; Constants</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Member</th><th>Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">v4</code></td><td><code class="font-mono">v4()</code></td><td><code class="font-mono">STRING</code></td><td>Generates a cryptographically secure random RFC 4122 version 4 UUID string.</td></tr>
+                <tr><td><code class="font-mono font-bold">new</code></td><td><code class="font-mono">new()</code></td><td><code class="font-mono">STRING</code></td><td>Alias for <code class="font-mono">v4()</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">validate</code></td><td><code class="font-mono">validate(id)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Validates whether string is a properly formatted 36-character hexadecimal UUID with hyphens.</td></tr>
+                <tr><td><code class="font-mono font-bold">version</code></td><td><code class="font-mono">version(id)</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns the UUID version integer (e.g. <code class="font-mono">4</code>), or <code class="font-mono">-1</code> if invalid.</td></tr>
+                <tr><td><code class="font-mono font-bold">parse</code></td><td><code class="font-mono">parse(id)</code></td><td><code class="font-mono">HASH</code></td><td>Parses UUID into <code class="font-mono">{"valid", "error", "version", "variant", "time_low", "time_mid", "time_hi_and_version", "clock_seq", "node", "raw"}</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">nil_uuid</code></td><td><code class="font-mono">nil_uuid()</code></td><td><code class="font-mono">STRING</code></td><td>Returns canonical nil UUID string (<code class="font-mono">"00000000-0000-0000-0000-000000000000"</code>).</td></tr>
+                <tr><td><code class="font-mono font-bold">is_nil</code></td><td><code class="font-mono">is_nil(id)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the specified ID equals the nil UUID string.</td></tr>
+                <tr><td><code class="font-mono font-bold">NIL_UUID</code></td><td><code class="font-mono">NIL_UUID</code></td><td><code class="font-mono">STRING</code></td><td>Constant representing the 36-character nil UUID.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="code-block-wrapper mb-4">
             <div class="code-block-header">
               <span>bmd — std/uuid Example</span>
@@ -803,10 +827,29 @@ println("Time Low:", parsed.time_low) // "c4b69d4e"</code></pre>
           <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
             Counting semaphore abstraction for bounding concurrent executions across <code class="font-mono">spawn</code> tasks, providing non-blocking <code class="font-mono">try_acquire()</code> and exception-safe <code class="font-mono">with_permit()</code> wrappers.
           </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions &amp; Methods</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Function / Method</th><th>Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">new</code></td><td><code class="font-mono">new([capacity = 1])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a counting semaphore initialized with the specified permit capacity (minimum 1).</td></tr>
+                <tr><td><code class="font-mono font-bold">acquire</code></td><td><code class="font-mono">sem.acquire()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Blocks until a permit is available, decrements the available counter, and returns <code class="font-mono">true</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">try_acquire</code></td><td><code class="font-mono">sem.try_acquire()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Attempts immediate non-blocking acquisition. Returns <code class="font-mono">true</code> if acquired, <code class="font-mono">false</code> if at capacity.</td></tr>
+                <tr><td><code class="font-mono font-bold">release</code></td><td><code class="font-mono">sem.release()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Releases a permit back to the semaphore, unblocking waiting tasks. Returns <code class="font-mono">true</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">available</code></td><td><code class="font-mono">sem.available()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns current number of available permits.</td></tr>
+                <tr><td><code class="font-mono font-bold">capacity</code></td><td><code class="font-mono">sem.capacity()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns total configured permit capacity.</td></tr>
+                <tr><td><code class="font-mono font-bold">with_permit</code></td><td><code class="font-mono">sem.with_permit(action)</code></td><td><code class="font-mono">ANY</code></td><td>Acquires permit, executes <code class="font-mono">action()</code>, guarantees <code class="font-mono">release()</code> via <code class="font-mono">defer</code>, and returns result.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="code-block-wrapper mb-4">
             <div class="code-block-header">
               <span>bmd — std/semaphore Example</span>
-              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
             </div>
             <pre><code>import "std/semaphore" as sem_mod
 
@@ -829,10 +872,29 @@ let res = sem.with_permit(fn() {
           <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
             Production-grade Circuit Breaker pattern with Closed, Open, and Half-Open states, automated reset timeout probe recovery, fallback delegation, and runtime metrics tracking.
           </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions, Methods &amp; Constants</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Member</th><th>Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">new</code></td><td><code class="font-mono">new([options])</code></td><td><code class="font-mono">HASH</code></td><td>Instantiates a circuit breaker with options: <code class="font-mono">failure_threshold</code>, <code class="font-mono">reset_timeout</code>, <code class="font-mono">half_open_success_threshold</code>, and <code class="font-mono">fallback</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">execute</code></td><td><code class="font-mono">cb.execute(operation, [fallback])</code></td><td><code class="font-mono">HASH</code></td><td>Runs operation protected by breaker. Returns <code class="font-mono">{"ok", "fallback_used", "result", "error", "circuit_open", "state"}</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">state</code></td><td><code class="font-mono">cb.state()</code></td><td><code class="font-mono">STRING</code></td><td>Returns current state (<code class="font-mono">"CLOSED"</code>, <code class="font-mono">"OPEN"</code>, <code class="font-mono">"HALF_OPEN"</code>). Auto-transitions after timeout.</td></tr>
+                <tr><td><code class="font-mono font-bold">trip</code></td><td><code class="font-mono">cb.trip()</code></td><td><code class="font-mono">NULL</code></td><td>Manually trips the circuit breaker into the <code class="font-mono">OPEN</code> state.</td></tr>
+                <tr><td><code class="font-mono font-bold">reset</code></td><td><code class="font-mono">cb.reset()</code></td><td><code class="font-mono">NULL</code></td><td>Manually resets breaker to <code class="font-mono">CLOSED</code> state and clears consecutive failures.</td></tr>
+                <tr><td><code class="font-mono font-bold">metrics</code></td><td><code class="font-mono">cb.metrics()</code></td><td><code class="font-mono">HASH</code></td><td>Returns health statistics: <code class="font-mono">{"state", "consecutive_failures", "total_calls", "total_successes", "total_failures", "trips", "reset_timeout", "failure_threshold"}</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">STATE_CLOSED, STATE_OPEN, STATE_HALF_OPEN</code></td><td><code class="font-mono">"CLOSED", "OPEN", "HALF_OPEN"</code></td><td><code class="font-mono">STRING</code></td><td>Enumeration constants for circuit breaker states.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="code-block-wrapper mb-4">
             <div class="code-block-header">
               <span>bmd — std/circuitbreaker Example</span>
-              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
             </div>
             <pre><code>import "std/circuitbreaker" as cb_mod
 
@@ -857,10 +919,26 @@ let response = cb.execute(fn() {
           <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
             Worker pool abstraction for parallelizing concurrent workloads with a fixed concurrency quota, ensuring thread-safe job distribution and input-order-preserving parallel <code class="font-mono">map()</code> operations.
           </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions &amp; Methods</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Function / Method</th><th>Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">new</code></td><td><code class="font-mono">new([num_workers = 4])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a concurrent worker pool with fixed number of Goroutines (minimum 1).</td></tr>
+                <tr><td><code class="font-mono font-bold">map</code></td><td><code class="font-mono">pool.map(items, worker_fn)</code></td><td><code class="font-mono">ARRAY</code></td><td>Concurrently processes items with <code class="font-mono">worker_fn(item)</code>; preserves exact input index order and captures errors cleanly.</td></tr>
+                <tr><td><code class="font-mono font-bold">execute_all</code></td><td><code class="font-mono">pool.execute_all(jobs_list)</code></td><td><code class="font-mono">ARRAY</code></td><td>Concurrently runs an array of parameterless task functions <code class="font-mono">[fn() { ... }, ...]</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">workers</code></td><td><code class="font-mono">pool.workers()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns the number of active worker tasks configured in the pool.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
           <div class="code-block-wrapper mb-4">
             <div class="code-block-header">
               <span>bmd — std/pool Parallel Processing Example</span>
-              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
             </div>
             <pre><code>import "std/pool" as pool_mod
 
@@ -1991,6 +2069,7 @@ println(bar_chart)</code></pre>
               <tr><td><code class="font-mono font-bold">str</code></td><td><code class="font-mono">str(value)</code></td><td><code class="font-mono">STRING</code></td><td>Converts any BramandScript runtime value into its string representation.</td></tr>
               <tr><td><code class="font-mono font-bold">bool</code></td><td><code class="font-mono">bool(value)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Evaluates truthiness: <code class="font-mono">false</code> and <code class="font-mono">null</code> are falsy; all else is truthy.</td></tr>
               <tr><td><code class="font-mono font-bold">type</code></td><td><code class="font-mono">type(object)</code></td><td><code class="font-mono">STRING</code></td><td>Returns object type name (<code class="font-mono">"INTEGER"</code>, <code class="font-mono">"ARRAY"</code>, <code class="font-mono">"HASH"</code>, <code class="font-mono">"BYTES"</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">error</code></td><td><code class="font-mono">error([message])</code></td><td><code class="font-mono">ERROR</code></td><td>Instantiates a structured runtime Error object with <code class="font-mono">.message</code>, <code class="font-mono">.stack_trace</code>, and <code class="font-mono">.frames</code>.</td></tr>
             </tbody>
           </table>
         </div>
@@ -2314,6 +2393,8 @@ println(bar_chart)</code></pre>
             </thead>
             <tbody>
               <tr><td><code class="font-mono font-bold">assert</code></td><td><code class="font-mono">assert(cond, [msg])</code></td><td><code class="font-mono">NULL</code></td><td>Asserts condition is truthy; raises fatal AssertionError if falsy.</td></tr>
+              <tr><td><code class="font-mono font-bold">assert_true</code></td><td><code class="font-mono">assert_true(cond, [msg])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Asserts condition evaluates to truthy; raises AssertionError if falsy.</td></tr>
+              <tr><td><code class="font-mono font-bold">assert_false</code></td><td><code class="font-mono">assert_false(cond, [msg])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Asserts condition evaluates to falsy (<code class="font-mono">false</code> or <code class="font-mono">null</code>); raises AssertionError if truthy.</td></tr>
               <tr><td><code class="font-mono font-bold">assert_eq</code></td><td><code class="font-mono">assert_eq(actual, expected, [msg])</code></td><td><code class="font-mono">NULL</code></td><td>Asserts deep structural equality with cyclic structure protection and formatted diff.</td></tr>
               <tr><td><code class="font-mono font-bold">assert_ne</code></td><td><code class="font-mono">assert_ne(actual, expected, [msg])</code></td><td><code class="font-mono">NULL</code></td><td>Asserts that two values are not structurally equal.</td></tr>
               <tr><td><code class="font-mono font-bold">panic</code></td><td><code class="font-mono">panic([msg])</code></td><td><code class="font-mono">NULL</code></td><td>Halts VM execution immediately with an explicit fatal panic.</td></tr>

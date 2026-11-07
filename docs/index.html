@@ -291,9 +291,10 @@
         <h3 class="text-xl font-semibold mt-6 mb-3">Core Pillars</h3>
         <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside">
           <li><strong>Clean, International English Syntax:</strong> Familiar to developers from Python, JavaScript, and Go, with no syntactic noise or forced ceremony.</li>
-          <li><strong>Bytecode Virtual Machine:</strong> Every source program is compiled to dense, BigEndian binary instructions executed by a high-throughput stack loop.</li>
+          <li><strong>64-Bit Opcode Virtual Machine &amp; Dynamic Stack:</strong> Every source program is compiled to dense 64-bit BigEndian binary opcodes executed by a high-throughput stack loop with dynamically expandable call frames.</li>
+          <li><strong>Enterprise Resilience &amp; Granular Capability Security:</strong> Fine-grained permission guards (<code class="font-mono">--allow-run</code>, <code class="font-mono">--allow-write</code>, <code class="font-mono">--allow-net</code>), first-class <code class="font-mono">try-catch-finally</code> exceptions, and production stdlib suites (<code class="font-mono">std/log</code>, <code class="font-mono">std/retry</code>, <code class="font-mono">std/config</code>, <code class="font-mono">std/uuid</code>, <code class="font-mono">std/semaphore</code>, <code class="font-mono">std/circuitbreaker</code>, <code class="font-mono">std/pool</code>).</li>
           <li><strong>Zero Emojis Standard:</strong> Clean, professional developer diagnostics utilizing Unicode geometric symbols (<code class="font-mono">✦</code>, <code class="font-mono">❯</code>, <code class="font-mono">·</code>) and standard bracketed status badges (<code class="font-mono">[OK]</code>, <code class="font-mono">[INFO]</code>, <code class="font-mono">[ERROR]</code>).</li>
-          <li><strong>First-Class Termux & ARM64 Support:</strong> Developed directly on Android mobile workstations with native performance.</li>
+          <li><strong>First-Class Termux &amp; ARM64 Support:</strong> Developed directly on Android mobile workstations with native performance.</li>
         </ul>
       </section>
 
@@ -368,6 +369,21 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
                 <td><code class="font-mono">bmd run [-O] &lt;file.bmd&gt;</code></td>
                 <td>Execute source file (optional <code class="font-mono">-O</code> for AOT optimizations)</td>
                 <td><code class="font-mono">bmd run -O app.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd run --allow-all &lt;file.bmd&gt;</code></td>
+                <td>Run with unrestricted capabilities (exec, write, net)</td>
+                <td><code class="font-mono">bmd run --allow-all server.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd run --allow-run|--allow-write|--allow-net</code></td>
+                <td>Run with granular capability grants</td>
+                <td><code class="font-mono">bmd run --allow-net server.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd run --max-frames &lt;N&gt;</code></td>
+                <td>Configure custom call stack depth limit</td>
+                <td><code class="font-mono">bmd run --max-frames 2048 app.bmd</code></td>
               </tr>
               <tr>
                 <td><code class="font-mono">bmd build [-O] &lt;src&gt;</code></td>
