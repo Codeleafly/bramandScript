@@ -67,3 +67,37 @@ let j = 10`
 		t.Errorf("missing hint in: %s", formatted)
 	}
 }
+
+func TestDiagnosticOperatorSpansAndHints(t *testing.T) {
+	// Operator span length test
+	tests := []struct {
+		line   string
+		offset int
+		want   int
+	}{
+		{"let a ??= 10", 6, 3}, // "??=" at index 6 -> length 3
+		{"let a == 10", 6, 2},  // "==" at index 6 -> length 2
+		{"let a != 10", 6, 2},  // "!=" at index 6 -> length 2
+		{"let a ?. b", 6, 2},   // "?." at index 6 -> length 2
+		{"let a |> b", 6, 2},   // "|>" at index 6 -> length 2
+		{"let my_var = 1", 4, 6}, // identifier "my_var" -> length 6
+	}
+
+	for _, tc := range tests {
+		got := getWordLength(tc.line, tc.offset)
+		if got != tc.want {
+			t.Errorf("getWordLength(%q, %d) = %d, want %d", tc.line, tc.offset, got, tc.want)
+		}
+	}
+
+	// Hint tests
+	permHint := GenerateHint("PermissionDenied: exec is not permitted")
+	if !strings.Contains(permHint, "--allow-run") {
+		t.Errorf("expected permission hint to mention --allow-run, got: %s", permHint)
+	}
+
+	nullHint := GenerateHint("calling non-function and non-builtin: NULL")
+	if !strings.Contains(nullHint, "optional chaining") {
+		t.Errorf("expected null call hint to mention optional chaining, got: %s", nullHint)
+	}
+}

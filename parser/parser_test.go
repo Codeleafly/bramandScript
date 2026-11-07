@@ -335,3 +335,52 @@ func TestEnterpriseSyntaxParsing(t *testing.T) {
 		t.Fatalf("expected 5 parts, got=%d", len(interp.Parts))
 	}
 }
+
+func TestNestedTernaryConsequenceParsing(t *testing.T) {
+	// Nested ternary in consequence: a ? b ? c : d : e
+	input := `let res = a ? b ? 1 : 2 : 3;`
+	p := New(lexer.New(input))
+	prog := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := prog.Statements[0].(*ast.LetStatement)
+	outerTern, ok := stmt.Value.(*ast.TernaryExpression)
+	if !ok {
+		t.Fatalf("expected outer *ast.TernaryExpression, got=%T", stmt.Value)
+	}
+
+	innerTern, ok := outerTern.Consequence.(*ast.TernaryExpression)
+	if !ok {
+		t.Fatalf("expected inner *ast.TernaryExpression in consequence, got=%T", outerTern.Consequence)
+	}
+
+	if innerTern.Condition.String() != "b" {
+		t.Errorf("expected inner condition 'b', got=%s", innerTern.Condition.String())
+	}
+	if outerTern.Alternative.String() != "3" {
+		t.Errorf("expected outer alternative '3', got=%s", outerTern.Alternative.String())
+	}
+}
+
+func TestInterpolatedStringEscapeSequences(t *testing.T) {
+	input := `let msg = f"Line1\nLine2\tTab\x41\u0042\{escaped\}";`
+	p := New(lexer.New(input))
+	prog := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := prog.Statements[0].(*ast.LetStatement)
+	interp, ok := stmt.Value.(*ast.InterpolatedStringLiteral)
+	if !ok {
+		t.Fatalf("expected *ast.InterpolatedStringLiteral, got=%T", stmt.Value)
+	}
+
+	if len(interp.Parts) != 1 {
+		t.Fatalf("expected 1 part (literal with escaped braces), got=%d", len(interp.Parts))
+	}
+
+	strLit := interp.Parts[0].(*ast.StringLiteral)
+	expected := "Line1\nLine2\tTabAB{escaped}"
+	if strLit.Value != expected {
+		t.Errorf("expected unescaped string %q, got %q", expected, strLit.Value)
+	}
+}

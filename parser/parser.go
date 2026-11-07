@@ -843,7 +843,7 @@ func (p *Parser) parseTernaryExpression(condition ast.Expression) ast.Expression
 		Condition: condition,
 	}
 	p.nextToken() // consume '?'
-	exp.Consequence = p.parseExpression(CONDITIONAL)
+	exp.Consequence = p.parseExpression(LOWEST)
 	if !p.expectPeek(token.COLON) {
 		return nil
 	}
@@ -913,10 +913,54 @@ func (p *Parser) parseInterpolatedStringLiteral() ast.Expression {
 		// Escape sequences
 		if runes[i] == '\\' && i+1 < n {
 			next := runes[i+1]
-			if next == '{' || next == '}' || next == '$' || next == '\\' || next == '"' || next == '`' {
+			switch next {
+			case '{', '}', '$', '\\', '"', '`', '\'':
 				textBuf.WriteRune(next)
 				i += 2
 				continue
+			case 'n':
+				textBuf.WriteRune('\n')
+				i += 2
+				continue
+			case 't':
+				textBuf.WriteRune('\t')
+				i += 2
+				continue
+			case 'r':
+				textBuf.WriteRune('\r')
+				i += 2
+				continue
+			case 'e':
+				textBuf.WriteRune(0x1b)
+				i += 2
+				continue
+			case '0':
+				if i+3 < n && runes[i+2] == '3' && runes[i+3] == '3' {
+					textBuf.WriteRune(0x1b)
+					i += 4
+					continue
+				}
+				textBuf.WriteRune(0)
+				i += 2
+				continue
+			case 'x':
+				if i+3 < n {
+					hexStr := string(runes[i+2 : i+4])
+					if val, err := strconv.ParseInt(hexStr, 16, 32); err == nil {
+						textBuf.WriteRune(rune(val))
+						i += 4
+						continue
+					}
+				}
+			case 'u':
+				if i+5 < n {
+					hexStr := string(runes[i+2 : i+6])
+					if val, err := strconv.ParseInt(hexStr, 16, 32); err == nil {
+						textBuf.WriteRune(rune(val))
+						i += 6
+						continue
+					}
+				}
 			}
 			textBuf.WriteRune('\\')
 			textBuf.WriteRune(next)

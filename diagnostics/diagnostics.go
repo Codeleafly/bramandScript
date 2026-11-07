@@ -137,20 +137,37 @@ func getWordLength(line string, offset int) int {
 		return 1
 	}
 
-	length := 0
-	for i := offset; i < len(line); i++ {
-		ch := line[i]
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
-			length++
-		} else {
-			break
+	ch := line[offset]
+	if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
+		length := 0
+		for i := offset; i < len(line); i++ {
+			c := line[i]
+			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
+				length++
+			} else {
+				break
+			}
+		}
+		return length
+	}
+
+	// Punctuation and multi-character operator spans (e.g. '??=', '??', '?.', '==', '!=', '<=', '>=', '&&', '||')
+	if strings.ContainsRune("?!=<>+-*/%^&|.:", rune(ch)) {
+		length := 0
+		for i := offset; i < len(line); i++ {
+			c := line[i]
+			if strings.ContainsRune("?!=<>+-*/%^&|.:", rune(c)) {
+				length++
+			} else {
+				break
+			}
+		}
+		if length > 0 {
+			return length
 		}
 	}
 
-	if length == 0 {
-		return 1
-	}
-	return length
+	return 1
 }
 
 // GenerateHint provides intelligent suggestions based on error message and token
@@ -171,6 +188,10 @@ func GenerateHint(msg string) string {
 		return "Array index is outside the valid range (0 to len - 1)"
 	case strings.Contains(lower, "expected next token"):
 		return "Check syntax around this token"
+	case strings.Contains(lower, "permissiondenied") || strings.Contains(lower, "permission denied"):
+		return "Run with the required security permission flag: --allow-run, --allow-write, --allow-net, or --allow-all"
+	case strings.Contains(lower, "calling non-function and non-builtin: null") || strings.Contains(lower, "calling null"):
+		return "Verify target function is not null, or use optional chaining (?.)"
 	default:
 		return ""
 	}

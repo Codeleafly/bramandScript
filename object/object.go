@@ -264,7 +264,9 @@ func (a *Array) inspectDepth(depth int) string {
 	var out bytes.Buffer
 	var elements []string
 	for _, e := range a.Elements {
-		if subArr, ok := e.(*Array); ok {
+		if e == nil {
+			elements = append(elements, "null")
+		} else if subArr, ok := e.(*Array); ok {
 			elements = append(elements, subArr.inspectDepth(depth+1))
 		} else if subHash, ok := e.(*Hash); ok {
 			elements = append(elements, subHash.inspectDepth(depth+1))
@@ -310,9 +312,14 @@ func (h *Hash) inspectDepth(depth int) string {
 	var out bytes.Buffer
 	var pairs []string
 	for _, pair := range h.Pairs {
-		keyStr := pair.Key.Inspect()
+		keyStr := "null"
+		if pair.Key != nil {
+			keyStr = pair.Key.Inspect()
+		}
 		var valStr string
-		if subArr, ok := pair.Value.(*Array); ok {
+		if pair.Value == nil {
+			valStr = "null"
+		} else if subArr, ok := pair.Value.(*Array); ok {
 			valStr = subArr.inspectDepth(depth + 1)
 		} else if subHash, ok := pair.Value.(*Hash); ok {
 			valStr = subHash.inspectDepth(depth + 1)

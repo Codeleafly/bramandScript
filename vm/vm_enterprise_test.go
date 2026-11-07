@@ -285,3 +285,74 @@ func TestEnterpriseErrorStackTrace(t *testing.T) {
 		t.Fatalf("expected at least 3 stack frames, got %d", numFrames)
 	}
 }
+
+func TestNestedTernaryConsequenceExecution(t *testing.T) {
+	input := `
+	let r1 = true ? false ? 1 : 2 : 3;
+	let r2 = true ? true ? 1 : 2 : 3;
+	let r3 = false ? true ? 1 : 2 : 3;
+	let r4 = true ? false ? 1 : 2 : true ? 3 : 4;
+	let r5 = false ? false ? 1 : 2 : true ? 3 : 4;
+	let r6 = false ? false ? 1 : 2 : false ? 3 : 4;
+	[r1, r2, r3, r4, r5, r6];
+	`
+	res := runVM(t, input)
+	arr := res.(*object.Array)
+	expected := []int64{2, 1, 3, 2, 3, 4}
+	for i, exp := range expected {
+		val := arr.Elements[i].(*object.Integer).Value
+		if val != exp {
+			t.Errorf("r%d = %d, want %d", i+1, val, exp)
+		}
+	}
+}
+
+func TestStringInterpolationEscapedSequencesExecution(t *testing.T) {
+	input := `
+	let item = 99;
+	let s = f"A\nB\t{item}\x41";
+	s;
+	`
+	res := runVM(t, input)
+	str := res.(*object.String).Value
+	expected := "A\nB\t99A"
+	if str != expected {
+		t.Errorf("expected %q, got %q", expected, str)
+	}
+}
+
+func TestChainedOptionalCallsWithArguments(t *testing.T) {
+	input := `
+	let called = false;
+	let svc = {
+		"calc": fn(a, b) {
+			return {
+				"sub": fn(c, d) {
+					return (a + b) - (c + d);
+				}
+			};
+		}
+	};
+	let null_svc = null;
+
+	let res1 = svc?.calc(10, 20)?.sub(5, 5);
+	let res2 = null_svc?.calc(10, fn() { called = true; return 20; }())?.sub(1, 1);
+	let res3 = svc?.calc(10, 20)?.missing?.(1, 1);
+
+	[res1, res2, res3, called];
+	`
+	res := runVM(t, input)
+	arr := res.(*object.Array)
+	if arr.Elements[0].(*object.Integer).Value != 20 {
+		t.Errorf("res1 = %v, want 20", arr.Elements[0])
+	}
+	if arr.Elements[1] != Null {
+		t.Errorf("res2 = %v, want null", arr.Elements[1])
+	}
+	if arr.Elements[2] != Null {
+		t.Errorf("res3 = %v, want null", arr.Elements[2])
+	}
+	if arr.Elements[3].(*object.Boolean).Value != false {
+		t.Errorf("called = true, expected short-circuit arguments to remain uncalled")
+	}
+}

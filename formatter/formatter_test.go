@@ -90,3 +90,23 @@ let other = "normal";
 		t.Errorf("Format mismatch.\nGot:\n%s\nWant:\n%s", formatted, expected)
 	}
 }
+
+func TestFormatEnterpriseOperators(t *testing.T) {
+	input := `a??=10;
+let x = a??b;
+let y = cond?1:2;
+let z = obj?.prop;
+`
+	expected := `a ??= 10;
+let x = a ?? b;
+let y = cond ? 1 : 2;
+let z = obj?.prop;
+`
+	formatted, err := Format(input)
+	if err != nil {
+		t.Fatalf("Format error: %s", err)
+	}
+	if formatted != expected {
+		t.Errorf("Format mismatch.\nGot:\n%s\nWant:\n%s", formatted, expected)
+	}
+}

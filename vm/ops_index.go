@@ -11,7 +11,11 @@ import (
 func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
 	elements := make([]object.Object, endIndex-startIndex)
 	for i := startIndex; i < endIndex; i++ {
-		elements[i-startIndex] = vm.stack[i]
+		val := vm.stack[i]
+		if val == nil {
+			val = Null
+		}
+		elements[i-startIndex] = val
 	}
 	return &object.Array{Elements: elements}
 }
@@ -22,6 +26,12 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 	for i := startIndex; i < endIndex; i += 2 {
 		key := vm.stack[i]
 		value := vm.stack[i+1]
+		if key == nil {
+			key = Null
+		}
+		if value == nil {
+			value = Null
+		}
 
 		pair := object.HashPair{Key: key, Value: value}
 

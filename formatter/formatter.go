@@ -248,11 +248,14 @@ func formatCodeTokens(code string) string {
 				buf.WriteByte(' ')
 			}
 		case ':':
-			// For match cases or hash keys
+			// For match cases, hash keys, or ternary
 			s := buf.String()
 			for len(s) > 0 && (s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
 				buf.Truncate(buf.Len() - 1)
 				s = buf.String()
+			}
+			if strings.Contains(s, " ? ") {
+				buf.WriteByte(' ')
 			}
 			buf.WriteByte(':')
 			if i+1 < len(code) && code[i+1] != ' ' && code[i+1] != ':' {
@@ -267,17 +270,19 @@ func formatCodeTokens(code string) string {
 
 	// Normalize spaces around binary operators
 	operators := []string{
-		"|>", "<<", ">>", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "=>", "<-", "&&", "||",
+		"??=", "??", "|>", "<<", ">>", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "=>", "<-", "&&", "||",
 	}
 	for _, op := range operators {
 		res = normalizeOpSpacing(res, op)
 	}
 
 	// Single char operators with care
-	singleOps := []string{"=", "+", "*", "/", "%", "<", ">", "&", "|", "^"}
+	singleOps := []string{"=", "+", "*", "/", "%", "<", ">", "&", "|", "^", "?"}
 	for _, op := range singleOps {
 		res = normalizeSingleOpSpacing(res, op)
 	}
+
+	res = normalizeTernaryColon(res)
 
 	// Clean duplicate spaces
 	for strings.Contains(res, "  ") {
@@ -339,6 +344,15 @@ func normalizeOpSpacing(input, op string) string {
 		}
 
 		if i+opLen <= len(input) && input[i:i+opLen] == op {
+			// Don't format inside longer compound operators (e.g. '??' inside '??=')
+			if op == "??" {
+				if (i > 0 && input[i-1] == '?') || (i+opLen < len(input) && (input[i+opLen] == '=' || input[i+opLen] == '?')) {
+					buf.WriteByte(ch)
+					i++
+					continue
+				}
+			}
+
 			// Trim space before op in buf
 			s := buf.String()
 			for len(s) > 0 && s[len(s)-1] == ' ' {
@@ -397,11 +411,11 @@ func normalizeSingleOpSpacing(input, op string) string {
 			}
 
 			// Don't format inside compound operators
-			if prev == '=' || prev == '!' || prev == '<' || prev == '>' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '|' || prev == '&' || prev == '^' {
+			if prev == '=' || prev == '!' || prev == '<' || prev == '>' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '|' || prev == '&' || prev == '^' || prev == '?' {
 				buf.WriteByte(ch)
 				continue
 			}
-			if next == '=' || next == '>' || next == '<' || next == '*' || next == '+' || next == '-' || next == '|' || next == '&' {
+			if next == '=' || next == '>' || next == '<' || next == '*' || next == '+' || next == '-' || next == '|' || next == '&' || next == '?' || next == '.' {
 				buf.WriteByte(ch)
 				continue
 			}
@@ -416,6 +430,57 @@ func normalizeSingleOpSpacing(input, op string) string {
 			buf.WriteByte(ch)
 			buf.WriteByte(' ')
 			for i+1 < len(input) && input[i+1] == ' ' {
+				i++
+			}
+			continue
+		}
+
+		buf.WriteByte(ch)
+	}
+	return buf.String()
+}
+
+func normalizeTernaryColon(input string) string {
+	if !strings.Contains(input, " ? ") || !strings.Contains(input, ":") {
+		return input
+	}
+	var buf bytes.Buffer
+	inStr := false
+	var q byte
+	sawTernary := false
+
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+		if (ch == '"' || ch == '`') && !isQuoteEscaped(input, i) {
+			if !inStr {
+				inStr = true
+				q = ch
+			} else if q == ch {
+				inStr = false
+			}
+			buf.WriteByte(ch)
+			continue
+		}
+		if inStr {
+			buf.WriteByte(ch)
+			continue
+		}
+
+		if i+3 <= len(input) && input[i:i+3] == " ? " {
+			sawTernary = true
+			buf.WriteString(" ? ")
+			i += 2
+			continue
+		}
+
+		if sawTernary && ch == ':' && (i+1 >= len(input) || input[i+1] != ':') && (i == 0 || input[i-1] != ':') {
+			s := buf.String()
+			for len(s) > 0 && s[len(s)-1] == ' ' {
+				buf.Truncate(buf.Len() - 1)
+				s = buf.String()
+			}
+			buf.WriteString(" : ")
+			if i+1 < len(input) && input[i+1] == ' ' {
 				i++
 			}
 			continue

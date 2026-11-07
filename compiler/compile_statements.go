@@ -690,8 +690,12 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			exportedNames := c.moduleExports[filePath]
 			for _, name := range exportedNames {
 				c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
-				sym, _ := c.symbolTable.Resolve(name)
-				c.loadSymbol(sym)
+				sym, ok := c.symbolTable.Resolve(name)
+				if !ok {
+					c.emit(code.OpNull)
+				} else {
+					c.loadSymbol(sym)
+				}
 			}
 			c.emit(code.OpHash, len(exportedNames)*2)
 
