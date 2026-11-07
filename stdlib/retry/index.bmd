@@ -1,0 +1,134 @@
+// BramandScript Standard Library :: Resilience & Retry Engine (std/retry)
+// Automated retries with exponential backoff, jitter, and configurable error filters.
+
+let retry = fn(operation, options) {
+    let max_attempts = 3;
+    let delay = 50;
+    let backoff_factor = 2.0;
+    let max_delay = 5000;
+    let retry_if = null;
+    let on_retry = null;
+
+    if options != null {
+        if options["max_attempts"] != null {
+            max_attempts = options["max_attempts"];
+        }
+        if options["delay"] != null {
+            delay = options["delay"];
+        }
+        if options["backoff_factor"] != null {
+            backoff_factor = options["backoff_factor"];
+        }
+        if options["max_delay"] != null {
+            max_delay = options["max_delay"];
+        }
+        if options["retry_if"] != null {
+            retry_if = options["retry_if"];
+        }
+        if options["on_retry"] != null {
+            on_retry = options["on_retry"];
+        }
+    }
+
+    let attempt = 1;
+    let cur_delay = delay;
+    let last_err = null;
+
+    while attempt <= max_attempts {
+        let succeeded = false;
+        let res = null;
+
+        try {
+            res = operation(attempt);
+            succeeded = true;
+        } catch err {
+            last_err = err;
+            succeeded = false;
+        }
+
+        if succeeded {
+            return {
+                "ok": true,
+                "result": res,
+                "attempts": attempt,
+                "error": null
+            };
+        }
+
+        // If we reached max attempts, stop
+        if attempt >= max_attempts {
+            break;
+        }
+
+        // Check if error is retryable
+        if retry_if != null && !retry_if(last_err) {
+            break;
+        }
+
+        // Notify callback
+        if on_retry != null {
+            on_retry(attempt, last_err, cur_delay);
+        }
+
+        // Sleep with backoff
+        if cur_delay > 0 {
+            sleep(cur_delay);
+        }
+
+        // Exponential backoff
+        cur_delay = int(cur_delay * backoff_factor);
+        if cur_delay > max_delay {
+            cur_delay = max_delay;
+        }
+
+        attempt = attempt + 1;
+    }
+
+    return {
+        "ok": false,
+        "result": null,
+        "attempts": attempt,
+        "error": last_err
+    };
+};
+
+let retry_or_throw = fn(operation, options) {
+    let outcome = retry(operation, options);
+    if outcome["ok"] {
+        return outcome["result"];
+    }
+    throw outcome["error"];
+};
+
+let with_backoff = fn(op, max_retries, initial_delay_ms, max_delay_ms, factor) {
+    if max_retries == null { max_retries = 3; }
+    if initial_delay_ms == null { initial_delay_ms = 50; }
+    if max_delay_ms == null { max_delay_ms = 5000; }
+    if factor == null { factor = 2.0; }
+    return retry_or_throw(fn(att) { return op(); }, {
+        "max_attempts": max_retries,
+        "delay": initial_delay_ms,
+        "max_delay": max_delay_ms,
+        "backoff_factor": factor
+    });
+};
+
+let with_linear = fn(op, max_retries, step_ms) {
+    if max_retries == null { max_retries = 3; }
+    if step_ms == null { step_ms = 50; }
+    return retry_or_throw(fn(att) { return op(); }, {
+        "max_attempts": max_retries,
+        "delay": step_ms,
+        "backoff_factor": 1.0
+    });
+};
+
+let with_fixed = fn(op, max_retries, delay_ms) {
+    if max_retries == null { max_retries = 3; }
+    if delay_ms == null { delay_ms = 50; }
+    return retry_or_throw(fn(att) { return op(); }, {
+        "max_attempts": max_retries,
+        "delay": delay_ms,
+        "backoff_factor": 1.0
+    });
+};

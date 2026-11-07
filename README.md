@@ -90,6 +90,45 @@
       println("Guaranteed cleanup")
   }
   ```
+- **Enterprise Language Operators & Syntax**:
+  - **Null-Coalescing (`??`) & Nullish Assignment (`??=`)**:
+    ```bmd
+    let port = config.port ?? 8080
+    settings["timeout"] ??= 30
+    ```
+  - **Optional Chaining (`?.`)**: Short-circuiting property, index, and method access on nullable targets:
+    ```bmd
+    let name = user?.profile?.name
+    let item = matrix?.[row]?.[col]
+    let result = service?.compute?.(x, y)
+    ```
+  - **Ternary Conditional Expression (`?:`)**:
+    ```bmd
+    let status = active ? "online" : "offline"
+    let grade = score >= 90 ? "A" : score >= 80 ? "B" : "C"
+    ```
+  - **String Interpolation (`f"..."` & Template Literals)**:
+    ```bmd
+    let greeting = f"Hello, {user.name}! Score is {score + 10}."
+    let banner = `Server running on ${host}:${port}`
+    ```
+  - **Enterprise Call Stack Trace Inspection**:
+    ```bmd
+    try {
+        processOrder(orderId)
+    } catch err {
+        println("Error message:", err.message)
+        println("Stack trace:\n", err.stack_trace)
+        for frame in err.frames {
+            println("  at", frame.fn, "line", frame.line)
+        }
+    }
+    ```
+  - **Enterprise Standard Library Modules**:
+    - `import "std/log" as log` — Leveled structured logger with JSON and console text outputs
+    - `import "std/retry" as retry` — Exponential backoff retry engine with jitter and error filters
+    - `import "std/config" as config` — Environment variable loader, `.env` dotenv parser, and INI configuration parser
+    - `import "std/collections" as coll` — `partition`, `key_by`, `flat_map`, `compact`, `sum_by`, `min_by`, `max_by`, `frequencies`, `difference`, `intersection`, `union`
 - **AOT Constant Folding & Peephole Optimizer**:
   Compiler optimization pass (`bmd run -O script.bmd`, `bmd build -O app.bmd`) pre-evaluating constant arithmetic expressions and compacting bytecode opcodes.
 - **Modular Standard Library (`stdlib/`)**:

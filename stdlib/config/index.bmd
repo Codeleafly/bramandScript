@@ -1,0 +1,187 @@
+// BramandScript Standard Library :: Configuration Management Module (std/config)
+// Environment variable resolution, .env dotenv parsing, and INI configuration loader.
+
+// parse_env parses the text content of a .env file into a hash map
+let parse_env = fn(content) {
+    let lines = split(content, "\n");
+    let config = {};
+
+    for raw_line in lines {
+        let line = trim(raw_line);
+        // Ignore blank lines and comment lines
+        if len(line) == 0 || line[0] == "#" {
+            continue;
+        }
+
+        // Support export FOO=bar syntax
+        if len(line) > 7 && substring(line, 0, 7) == "export " {
+            line = trim(substring(line, 7, len(line)));
+        }
+
+        // Find '=' delimiter
+        let eq_idx = -1;
+        let i = 0;
+        while i < len(line) {
+            if line[i] == "=" {
+                eq_idx = i;
+                break;
+            }
+            i = i + 1;
+        }
+
+        if eq_idx > 0 {
+            let key = trim(substring(line, 0, eq_idx));
+            let val = trim(substring(line, eq_idx + 1, len(line)));
+
+            // Unquote quoted strings: "..." or '...'
+            if len(val) >= 2 {
+                let first = val[0];
+                let last = val[len(val) - 1];
+                let is_quoted = false;
+                if first == "\"" && last == "\"" {
+                    is_quoted = true;
+                }
+                if first == "'" && last == "'" {
+                    is_quoted = true;
+                }
+                if is_quoted {
+                    val = substring(val, 1, len(val) - 1);
+                }
+            }
+            config[key] = val;
+        }
+    }
+
+    return config;
+};
+
+// load_env reads a .env file and populates the process environment via set_env
+let load_env = fn(filepath) {
+    let path = filepath;
+    if path == null || path == "" {
+        path = ".env";
+    }
+
+    let content = read_file(path);
+    if content == null {
+        return null;
+    }
+
+    let parsed = parse_env(content);
+    for k, v in parsed {
+        set_env(k, v);
+    }
+    return parsed;
+};
+
+// parse_ini parses an INI formatted string into nested sections { "section": { "key": "val" } }
+let parse_ini = fn(content) {
+    let lines = split(content, "\n");
+    let root = {};
+    let cur_section = "default";
+    root[cur_section] = {};
+
+    for raw_line in lines {
+        let line = trim(raw_line);
+        if len(line) == 0 || line[0] == "#" || line[0] == ";" {
+            continue;
+        }
+
+        // Section header: [SectionName]
+        if line[0] == "[" && line[len(line) - 1] == "]" {
+            cur_section = trim(substring(line, 1, len(line) - 1));
+            if root[cur_section] == null {
+                root[cur_section] = {};
+            }
+            continue;
+        }
+
+        // Key = Value
+        let eq_idx = -1;
+        let i = 0;
+        while i < len(line) {
+            if line[i] == "=" || line[i] == ":" {
+                eq_idx = i;
+                break;
+            }
+            i = i + 1;
+        }
+
+        if eq_idx > 0 {
+            let key = trim(substring(line, 0, eq_idx));
+            let val = trim(substring(line, eq_idx + 1, len(line)));
+            if len(val) >= 2 {
+                let first = val[0];
+                let last = val[len(val) - 1];
+                let is_quoted = false;
+                if first == "\"" && last == "\"" {
+                    is_quoted = true;
+                }
+                if first == "'" && last == "'" {
+                    is_quoted = true;
+                }
+                if is_quoted {
+                    val = substring(val, 1, len(val) - 1);
+                }
+            }
+            root[cur_section][key] = val;
+        }
+    }
+
+    return root;
+};
+
+// parse_dotenv is an alias for parse_env
+let parse_dotenv = parse_env;
+
+// get reads an environment variable or hash map entry; if null or empty, returns default_val
+let get = fn(arg1, arg2, arg3) {
+    if type(arg1) == "HASH" {
+        let key = arg2;
+        let default_val = arg3;
+        let v = arg1[key];
+        if v == null {
+            return default_val;
+        }
+        return v;
+    }
+    let key = arg1;
+    let default_val = arg2;
+    let val = env(key);
+    if val == null || val == "" {
+        return default_val;
+    }
+    return val;
+};
+
+// get_or_default is an alias for get
+let get_or_default = get;
+
+// get_int reads an environment variable as integer, or returns default_val
+let get_int = fn(key, default_val) {
+    let val = env(key);
+    if val == null || val == "" {
+        return default_val;
+    }
+    let parsed = int(val);
+    if parsed == null {
+        return default_val;
+    }
+    return parsed;
+};
+
+// get_bool reads an environment variable as boolean
+let get_bool = fn(key, default_val) {
+    let val = env(key);
+    if val == null || val == "" {
+        return default_val;
+    }
+    let lower = to_lower(val);
+    if lower == "true" || lower == "1" || lower == "yes" || lower == "on" {
+        return true;
+    }
+    if lower == "false" || lower == "0" || lower == "no" || lower == "off" {
+        return false;
+    }
+    return default_val;
+};

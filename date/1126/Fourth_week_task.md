@@ -8,6 +8,12 @@
 - [x] Exception Handling Grammar and Runtime (try-catch): Implement AST, Lexer, Parser, Compiler, and VM execution for try { } catch err { } exception handling statements with error capture. (Includes: token/token.go, lexer/lexer.go, ast/ast.go, parser/statements.go, compiler/compile_statements.go, vm/vm.go, tests)
 ## Day 23
 
+- [x] Null-Coalescing Operator (??) and Nullish Assignment (??=): Implement AST, Lexer, Pratt Parser, Bytecode Compiler, and VM execution for null-coalescing (??) and nullish assignment (??=) with short-circuiting. (Includes: token/token.go, lexer/lexer.go, ast/ast.go, parser/parser.go, compiler/compiler.go, vm/vm.go, tests)
+- [x] Optional Chaining Operator (?.): Implement AST, Lexer, Pratt Parser, Bytecode Compiler, and VM execution for optional chaining property access (obj?.prop), index access (obj?.[idx]), and method/call invocation (obj?.method()). (Includes: token/token.go, lexer/lexer.go, ast/ast.go, parser/parser.go, compiler/compiler.go, vm/vm.go, tests)
+- [x] Ternary Conditional Expression (cond ? then : else) — Implement AST, Lexer, Pratt Parser, Bytecode Compiler, and VM execution for ternary conditional expressions with right-associative parsing and short-circuit evaluation. (Includes: token/token.go, lexer/lexer.go, ast/ast.go, parser/parser.go, compiler/compiler.go, vm/vm.go, tests)
+- [x] String Interpolation Expressions (f"..." and template literals): Implement AST, Lexer, Parser, and Bytecode Compiler for format strings f"Hello {name}" and template strings with embedded expressions and escapes. (Includes: token/token.go, lexer/lexer.go, ast/ast.go, parser/parser.go, compiler/compiler.go, tests)
+- [x] Enterprise Error Tracking and Stack Trace Inspection: Implement call stack frame capture on runtime errors and exceptions with error.stack_trace, error.frames, and source line mapping. (Includes: object/object.go, vm/vm.go, vm/ops_index.go, compiler/compiler.go, main.go, tests)
+- [x] Enterprise Standard Library Suites (std/log, std/retry, std/config, std/collections): Implement production-grade standard library modules for structured logging (std/log), retry and resilience policies (std/retry), environment configuration parser (std/config), and advanced collection helpers (std/collections). (Includes: stdlib/log/index.bmd, stdlib/retry/index.bmd, stdlib/config/index.bmd, stdlib/collections/index.bmd, tests, docs)
 ## Day 24
 
 ## Day 25

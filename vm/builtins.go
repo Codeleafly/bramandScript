@@ -210,5 +210,14 @@ func init() {
 				return &object.Array{Elements: elements}
 			},
 		},
+		"error": {
+			Fn: func(args ...object.Object) object.Object {
+				msg := "error"
+				if len(args) > 0 {
+					msg = args[0].Inspect()
+				}
+				return &object.Error{Message: msg}
+			},
+		},
 	})
 }

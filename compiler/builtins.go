@@ -251,4 +251,5 @@ var Builtins = []BuiltinDef{
 	{Name: "session_vars"},
 	{Name: "disasm"},
 	{Name: "ensure_newline"},
+	{Name: "error"},
 }

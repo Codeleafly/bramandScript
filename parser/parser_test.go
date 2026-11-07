@@ -270,3 +270,68 @@ func TestTryCatchParsing(t *testing.T) {
 		t.Fatalf("expected 1 statement in finally block, got=%v", tc.FinallyBlock)
 	}
 }
+
+func TestEnterpriseSyntaxParsing(t *testing.T) {
+	// 1. Ternary expression
+	inputTernary := `let res = active ? 100 : 200;`
+	p := New(lexer.New(inputTernary))
+	prog := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := prog.Statements[0].(*ast.LetStatement)
+	tern, ok := stmt.Value.(*ast.TernaryExpression)
+	if !ok {
+		t.Fatalf("expected *ast.TernaryExpression, got=%T", stmt.Value)
+	}
+	if tern.Condition.String() != "active" {
+		t.Fatalf("expected condition 'active', got=%s", tern.Condition.String())
+	}
+
+	// 2. Null-coalescing and nullish assignment
+	inputCoalesce := `
+	let val = x ?? 42;
+	x ??= 10;
+	`
+	p = New(lexer.New(inputCoalesce))
+	prog = p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt1 := prog.Statements[0].(*ast.LetStatement)
+	if _, ok := stmt1.Value.(*ast.NullCoalesceExpression); !ok {
+		t.Fatalf("expected *ast.NullCoalesceExpression, got=%T", stmt1.Value)
+	}
+	stmt2 := prog.Statements[1].(*ast.ReassignStatement)
+	if stmt2.Operator != "??=" {
+		t.Fatalf("expected operator '??=', got=%s", stmt2.Operator)
+	}
+
+	// 3. Optional chaining
+	inputOpt := `
+	let a = user?.profile?.name;
+	let b = matrix?.[row];
+	let c = service?.start(1, 2);
+	`
+	p = New(lexer.New(inputOpt))
+	prog = p.ParseProgram()
+	checkParserErrors(t, p)
+	optStmt1 := prog.Statements[0].(*ast.LetStatement)
+	if _, ok := optStmt1.Value.(*ast.OptionalDotExpression); !ok {
+		t.Fatalf("expected *ast.OptionalDotExpression, got=%T", optStmt1.Value)
+	}
+	optStmt2 := prog.Statements[1].(*ast.LetStatement)
+	if _, ok := optStmt2.Value.(*ast.OptionalIndexExpression); !ok {
+		t.Fatalf("expected *ast.OptionalIndexExpression, got=%T", optStmt2.Value)
+	}
+
+	// 4. String interpolation
+	inputInterp := `let msg = f"Hello, {name}! Count: {count + 1}.";`
+	p = New(lexer.New(inputInterp))
+	prog = p.ParseProgram()
+	checkParserErrors(t, p)
+	interpStmt := prog.Statements[0].(*ast.LetStatement)
+	interp, ok := interpStmt.Value.(*ast.InterpolatedStringLiteral)
+	if !ok {
+		t.Fatalf("expected *ast.InterpolatedStringLiteral, got=%T", interpStmt.Value)
+	}
+	if len(interp.Parts) != 5 {
+		t.Fatalf("expected 5 parts, got=%d", len(interp.Parts))
+	}
+}

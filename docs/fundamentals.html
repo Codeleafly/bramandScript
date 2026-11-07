@@ -437,6 +437,34 @@ println(updated)                        // "brahmand,galaxy,universe"</code></pr
             </tbody>
           </table>
         </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">String Interpolation &amp; Template Literals</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides native first-class string interpolation via <code class="font-mono">f"..."</code> format strings and backtick template literals (<code class="font-mono">`...`</code>). Expressions enclosed in <code class="font-mono">{expr}</code> or <code class="font-mono">${expr}</code> are parsed directly into AST expressions and lowered by the compiler into efficient concatenated bytecode without runtime reflection overhead:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — string interpolation &amp; templates</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let user = "Devendra"
+let role = "Lead Architect"
+let year = 2026
+
+// Python-style format string with {expr}
+let greeting = f"Welcome {user}, role: {role} (v{year + 1})!"
+println(greeting) // "Welcome Devendra, role: Lead Architect (v2027)!"
+
+// JavaScript-style backtick template literal with ${expr}
+let summary = `Architect: ${user} | System active: ${year}`
+println(summary)
+
+// Literal braces escaped with {{ and }}
+let json_tmpl = f"{{\"user\": \"{user}\", \"status\": 200}}"
+println(json_tmpl) // {"user": "Devendra", "status": 200}</code></pre>
+        </div>
+
         <h3 class="text-xl font-semibold mt-6 mb-3">Adaptive Numeric Core &amp; Transparent BigInt Promotion</h3>
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
           BramandScript automatically and transparently promotes standard 64-bit integer arithmetic (<code class="font-mono">+</code>, <code class="font-mono">-</code>, <code class="font-mono">*</code>, <code class="font-mono">**</code>) to arbitrary-precision <code class="font-mono">BigInt</code> when results exceed signed 64-bit limits (<code class="font-mono">&gt; 9,223,372,036,854,775,807</code>). This completely eliminates silent integer overflow wrapping bugs, while retaining raw unboxed int64 speed on small numbers!
@@ -488,81 +516,111 @@ println("Modular exponentiation:", pm) // 1</code></pre>
             <tbody>
               <tr>
                 <td>1 (Lowest)</td>
+                <td><code class="font-mono">|&gt;</code></td>
+                <td>Left-to-Right</td>
+                <td>Pipeline Operator</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td><code class="font-mono">&lt;-</code></td>
+                <td>Left-to-Right</td>
+                <td>Channel Send / Receive</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td><code class="font-mono">? :</code></td>
+                <td><strong>Right-to-Left</strong></td>
+                <td>Ternary Conditional Operator (Short-Circuit)</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td><code class="font-mono">??</code></td>
+                <td>Left-to-Right</td>
+                <td>Null-Coalescing Operator (Short-Circuit)</td>
+              </tr>
+              <tr>
+                <td>5</td>
                 <td><code class="font-mono">||</code></td>
                 <td>Left-to-Right</td>
                 <td>Logical OR (Value-Preserving Short-Circuit)</td>
               </tr>
               <tr>
-                <td>2</td>
+                <td>6</td>
                 <td><code class="font-mono">&amp;&amp;</code></td>
                 <td>Left-to-Right</td>
                 <td>Logical AND (Value-Preserving Short-Circuit)</td>
               </tr>
               <tr>
-                <td>3</td>
+                <td>7</td>
                 <td><code class="font-mono">|</code></td>
                 <td>Left-to-Right</td>
                 <td>Bitwise OR</td>
               </tr>
               <tr>
-                <td>4</td>
+                <td>8</td>
                 <td><code class="font-mono">^</code></td>
                 <td>Left-to-Right</td>
                 <td>Bitwise XOR</td>
               </tr>
               <tr>
-                <td>5</td>
+                <td>9</td>
                 <td><code class="font-mono">&amp;</code></td>
                 <td>Left-to-Right</td>
                 <td>Bitwise AND</td>
               </tr>
               <tr>
-                <td>6</td>
+                <td>10</td>
                 <td><code class="font-mono">==</code>, <code class="font-mono">!=</code></td>
                 <td>Left-to-Right</td>
                 <td>Equality and Inequality</td>
               </tr>
               <tr>
-                <td>7</td>
+                <td>11</td>
                 <td><code class="font-mono">&lt;</code>, <code class="font-mono">&gt;</code>, <code class="font-mono">&lt;=</code>, <code class="font-mono">&gt;=</code></td>
                 <td>Left-to-Right</td>
                 <td>Relational Comparisons</td>
               </tr>
               <tr>
-                <td>8</td>
+                <td>12</td>
                 <td><code class="font-mono">&lt;&lt;</code>, <code class="font-mono">&gt;&gt;</code></td>
                 <td>Left-to-Right</td>
                 <td>Bitwise Left and Right Shifts</td>
               </tr>
               <tr>
-                <td>9</td>
+                <td>13</td>
                 <td><code class="font-mono">+</code>, <code class="font-mono">-</code></td>
                 <td>Left-to-Right</td>
                 <td>Addition, Subtraction, String Concatenation</td>
               </tr>
               <tr>
-                <td>10</td>
+                <td>14</td>
                 <td><code class="font-mono">*</code>, <code class="font-mono">/</code>, <code class="font-mono">%</code></td>
                 <td>Left-to-Right</td>
                 <td>Multiplication, Division, Modulo</td>
               </tr>
               <tr>
-                <td>11</td>
+                <td>15</td>
                 <td><code class="font-mono">**</code></td>
                 <td><strong>Right-to-Left</strong></td>
                 <td>Exponentiation / Power</td>
               </tr>
               <tr>
-                <td>12</td>
+                <td>16</td>
                 <td><code class="font-mono">!</code>, <code class="font-mono">-</code>, <code class="font-mono">~</code> (prefix)</td>
                 <td>Right-to-Left</td>
                 <td>Unary Bang, Negation, Bitwise NOT</td>
               </tr>
               <tr>
-                <td>13 (Highest)</td>
-                <td><code class="font-mono">()</code>, <code class="font-mono">[]</code>, <code class="font-mono">.</code></td>
+                <td>17</td>
+                <td><code class="font-mono">()</code></td>
                 <td>Left-to-Right</td>
-                <td>Function Call, Indexing, Dot Property Access</td>
+                <td>Function Call</td>
+              </tr>
+              <tr>
+                <td>18 (Highest)</td>
+                <td><code class="font-mono">[]</code>, <code class="font-mono">.</code>, <code class="font-mono">?.</code></td>
+                <td>Left-to-Right</td>
+                <td>Array Index, Dot Property Access, Optional Chaining</td>
               </tr>
             </tbody>
           </table>
@@ -606,6 +664,71 @@ println("Result:", res) // 16
 let res2 = 5 |> add(10) |> inc // add(5, 10) -> 15 -> inc(15) -> 16
 println("Result 2:", res2) // 16</code></pre>
         </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Null-Coalescing (<code class="font-mono">??</code>) &amp; Nullish Assignment (<code class="font-mono">??=</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The null-coalescing operator (<code class="font-mono">??</code>) provides clean fallback semantics for <code class="font-mono">null</code> values. Unlike logical OR (<code class="font-mono">||</code>) which falls back on any falsey value (such as <code class="font-mono">0</code> or <code class="font-mono">false</code>), <code class="font-mono">??</code> evaluates its right operand <em>only</em> if the left operand evaluates strictly to <code class="font-mono">null</code>:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — null-coalescing &amp; nullish assignment</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let user_input = null
+let fallback = "default_user"
+let name = user_input ?? fallback // "default_user"
+
+// Preserves falsey non-null values (0, false, "")
+let count = 0
+let total = count ?? 100 // 0 (NOT replaced with 100)
+
+// Nullish assignment (??=) assigns only if currently null
+let config = {"host": "localhost", "port": null}
+config["port"] ??= 8080 // Assigns 8080 because port was null
+config["host"] ??= "example.com" // Preserved "localhost"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Optional Chaining Operator (<code class="font-mono">?.</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Optional chaining safely traverses deeply nested property accesses, indexed collections, and method invocations without risking runtime <code class="font-mono">null</code> dereference errors. If any stage in the chain resolves to <code class="font-mono">null</code>, the entire expression immediately short-circuits and evaluates to <code class="font-mono">null</code>:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — optional chaining</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let account = {"profile": null}
+
+// Safe property navigation: returns null instead of raising error
+let city = account?.profile?.address?.city
+println("City:", city) // null
+
+// Safe index navigation (?.[idx])
+let items = null
+let first = items?.[0] // null
+
+// Safe method / function invocation (?.())
+let service = {"fetch": null}
+let result = service.fetch?.("users") // null (fetch is never called)</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Ternary Conditional Operator (<code class="font-mono">? :</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript supports C-style ternary expressions with right-to-left associativity and guaranteed short-circuit evaluation:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — ternary conditional expressions</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>let score = 85
+let grade = score >= 90 ? "A" : score >= 80 ? "B" : "C"
+println("Grade:", grade) // "B"
+
+let is_admin = true
+let access = is_admin ? "granted" : "denied"
+println("Access:", access) // "granted"</code></pre>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 8 ================= -->
@@ -617,7 +740,7 @@ println("Result 2:", res2) // 16</code></pre>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Control Flow (<code class="font-mono">if</code> / <code class="font-mono">else if</code> / <code class="font-mono">else</code> with optional parens, <code class="font-mono">while</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Conditionals in BramandScript do not require enclosing parentheses around their condition expressions, keeping syntax clean and readable. Furthermore, BramandScript deliberately does not use the C-style ternary operator (<code class="font-mono">?:</code>); instead, <code class="font-mono">if</code> statements are first-class expressions that evaluate directly to a value (<code class="font-mono">let x = if cond { a } else { b }</code>).
+          Conditionals in BramandScript do not require enclosing parentheses around their condition expressions, keeping syntax clean and readable. In addition to ternary conditional expressions (<code class="font-mono">cond ? a : b</code>), <code class="font-mono">if</code> blocks are first-class expressions that evaluate directly to a value (<code class="font-mono">let x = if cond { a } else { b }</code>).
         </p>
 
         <h3 class="text-xl font-semibold mt-6 mb-3"><code class="font-mono">if</code>, <code class="font-mono">else if</code>, <code class="font-mono">else</code></h3>
@@ -983,6 +1106,38 @@ println("First 6 Fibonacci numbers:", first_six) // [0, 1, 1, 2, 3, 5]</code></p
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 11.3 Enterprise Stack Trace Inspection -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">3. Enterprise Error Tracking &amp; Call Stack Inspection</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For enterprise debugging, observability, and diagnostics, BramandScript's VM automatically captures the full call stack upon any runtime fault or <code class="font-mono">error(msg)</code> instantiation. Caught errors expose structured stack introspection:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — stack trace inspection</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>fn execute_payment(user_id, amount) {
+    if amount <= 0 {
+        throw error("InvalidPayment: amount must be strictly positive")
+    }
+}
+
+fn process_order(order) {
+    execute_payment(order["user"], order["amount"])
+}
+
+try {
+    process_order({"user": "usr_99", "amount": -10})
+} catch err {
+    println("Error message:", err.message)
+    // Formatted multi-frame call stack:
+    println("Call trace:\n", err.stack_trace)
+    // Structured frame objects: [{"fn": "execute_payment", "line": 3}, ...]
+    println("Frame count:", len(err.frames))
+}</code></pre>
         </div>
       </section>
     </main>

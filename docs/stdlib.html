@@ -166,6 +166,9 @@
             <li><a href="stdlib.html#ch-io" class="nav-link pl-4 text-xs"><span>·</span> std/io</a></li>
             <li><a href="stdlib.html#ch-testing" class="nav-link pl-4 text-xs"><span>·</span> std/testing</a></li>
             <li><a href="stdlib.html#ch-tooling" class="nav-link pl-4 text-xs"><span>·</span> std/tooling (Native Toolchain)</a></li>
+            <li><a href="stdlib.html#ch-log" class="nav-link pl-4 text-xs"><span>·</span> std/log (Structured Logging)</a></li>
+            <li><a href="stdlib.html#ch-retry" class="nav-link pl-4 text-xs"><span>·</span> std/retry (Backoff &amp; Retries)</a></li>
+            <li><a href="stdlib.html#ch-config" class="nav-link pl-4 text-xs"><span>·</span> std/config (Dotenv &amp; INI)</a></li>
             <li><a href="stdlib.html#ch-net" class="nav-link pl-4 text-xs"><span>·</span> std/net (Web &amp; Routing)</a></li>
             <li><a href="stdlib.html#ch-db" class="nav-link pl-4 text-xs"><span>·</span> std/db (Storage &amp; ORM)</a></li>
             <li><a href="stdlib.html#ch-tensor" class="nav-link pl-4 text-xs"><span>·</span> std/math/tensor</a></li>
@@ -408,6 +411,17 @@ println(str.truncate("A very long sentence here", 11, "...")) // "A very long...
                 <tr><td><code class="font-mono font-bold">count</code></td><td><code class="font-mono">count(arr, predicate)</code></td><td><code class="font-mono">INTEGER</code></td><td>Counts total elements satisfying predicate.</td></tr>
                 <tr><td><code class="font-mono font-bold">reverse_array</code></td><td><code class="font-mono">reverse_array(arr)</code></td><td><code class="font-mono">ARRAY</code></td><td>Returns new array in reversed order without mutating original.</td></tr>
                 <tr><td><code class="font-mono font-bold">group_by</code></td><td><code class="font-mono">group_by(arr, key_fn)</code></td><td><code class="font-mono">HASH</code></td><td>Groups array elements into hash partitions mapped by <code class="font-mono">key_fn(elem)</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">key_by</code></td><td><code class="font-mono">key_by(arr, key_fn)</code></td><td><code class="font-mono">HASH</code></td><td>Indexes elements into a hash mapped by unique key from <code class="font-mono">key_fn(elem)</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">partition</code></td><td><code class="font-mono">partition(arr, predicate)</code></td><td><code class="font-mono">ARRAY</code></td><td>Splits array into two arrays: <code class="font-mono">[matches, non_matches]</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">flat_map</code></td><td><code class="font-mono">flat_map(arr, transform)</code></td><td><code class="font-mono">ARRAY</code></td><td>Maps each element using transform function and flattens result by one level.</td></tr>
+                <tr><td><code class="font-mono font-bold">compact</code></td><td><code class="font-mono">compact(arr)</code></td><td><code class="font-mono">ARRAY</code></td><td>Filters out all <code class="font-mono">null</code> values from array.</td></tr>
+                <tr><td><code class="font-mono font-bold">sum_by</code></td><td><code class="font-mono">sum_by(arr, fn_num)</code></td><td><code class="font-mono">NUMBER</code></td><td>Calculates arithmetic sum of numerical values returned by <code class="font-mono">fn_num(elem)</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">min_by</code></td><td><code class="font-mono">min_by(arr, fn_val)</code></td><td><code class="font-mono">ANY</code></td><td>Returns array element that yields minimal value under <code class="font-mono">fn_val(elem)</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">max_by</code></td><td><code class="font-mono">max_by(arr, fn_val)</code></td><td><code class="font-mono">ANY</code></td><td>Returns array element that yields maximal value under <code class="font-mono">fn_val(elem)</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">frequencies</code></td><td><code class="font-mono">frequencies(arr)</code></td><td><code class="font-mono">HASH</code></td><td>Counts occurrences of each distinct element, returning frequency map.</td></tr>
+                <tr><td><code class="font-mono font-bold">difference</code></td><td><code class="font-mono">difference(arr1, arr2)</code></td><td><code class="font-mono">ARRAY</code></td><td>Returns elements in <code class="font-mono">arr1</code> that do not occur in <code class="font-mono">arr2</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">intersection</code></td><td><code class="font-mono">intersection(arr1, arr2)</code></td><td><code class="font-mono">ARRAY</code></td><td>Returns distinct elements present in both <code class="font-mono">arr1</code> and <code class="font-mono">arr2</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">union</code></td><td><code class="font-mono">union(arr1, arr2)</code></td><td><code class="font-mono">ARRAY</code></td><td>Returns deduplicated combined elements from both <code class="font-mono">arr1</code> and <code class="font-mono">arr2</code>.</td></tr>
               </tbody>
             </table>
           </div>
@@ -612,6 +626,144 @@ println(d.disassemble(square))
 // Canonical formatting
 let formatted = f.format_source("fn add(a,b){return a+b}")
 println(formatted)</code></pre>
+          </div>
+        </div>
+
+        <!-- 8. std/log -->
+        <div id="ch-log" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">8.</span>
+            <span><code class="font-mono">std/log</code> — Enterprise Structured Logging</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Production-ready structured logger featuring configurable log levels (<code class="font-mono">DEBUG</code>, <code class="font-mono">INFO</code>, <code class="font-mono">WARN</code>, <code class="font-mono">ERROR</code>), multiple formatting modes (colorized terminal text and machine-readable JSON), ISO-8601 timestamps, contextual key-value fields, and custom sinks.
+          </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions &amp; Constants</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Member</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">new_logger</code></td><td><code class="font-mono">new_logger([level, format, sink])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a customized logger instance with specified level, format (<code class="font-mono">"text"</code> or <code class="font-mono">"json"</code>), and output callback sink.</td></tr>
+                <tr><td><code class="font-mono font-bold">debug</code></td><td><code class="font-mono">debug(msg, [fields])</code></td><td><code class="font-mono">NULL</code></td><td>Emits a DEBUG level log entry using default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">info</code></td><td><code class="font-mono">info(msg, [fields])</code></td><td><code class="font-mono">NULL</code></td><td>Emits an INFO level log entry using default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">warn</code></td><td><code class="font-mono">warn(msg, [fields])</code></td><td><code class="font-mono">NULL</code></td><td>Emits a WARN level log entry using default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">err</code></td><td><code class="font-mono">err(msg, [fields])</code></td><td><code class="font-mono">NULL</code></td><td>Emits an ERROR level log entry using default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">set_level</code></td><td><code class="font-mono">set_level(level)</code></td><td><code class="font-mono">NULL</code></td><td>Updates the minimum log level filter on the default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">set_format</code></td><td><code class="font-mono">set_format(fmt)</code></td><td><code class="font-mono">NULL</code></td><td>Sets output format to <code class="font-mono">"text"</code> or <code class="font-mono">"json"</code> on the default logger.</td></tr>
+                <tr><td><code class="font-mono font-bold">LEVEL_DEBUG, LEVEL_INFO, LEVEL_WARN, LEVEL_ERROR</code></td><td><code class="font-mono">10, 20, 30, 40</code></td><td><code class="font-mono">INT</code></td><td>Integer constants representing severity levels.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-block-wrapper">
+            <div class="code-block-header">
+              <span>bmd — std/log Structured Logging Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/log" as log
+
+// Standard text logging with contextual attributes
+log.info("Server started", {"port": 8080, "env": "production"})
+
+// JSON formatted logging for cloud log aggregators
+log.set_format("json")
+log.warn("Database latency high", {"latency_ms": 450, "pool": "primary"})
+
+// Instance logger with custom sink
+let custom = log.new_logger(log.LEVEL_DEBUG, "json", fn(entry) {
+    println("[SINK]", entry["message"])
+})
+custom.debug("Cache miss", {"key": "user:123"})</code></pre>
+          </div>
+        </div>
+
+        <!-- 9. std/retry -->
+        <div id="ch-retry" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">9.</span>
+            <span><code class="font-mono">std/retry</code> — Exponential Backoff &amp; Fault Tolerance</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Enterprise resilience and retry framework supporting exponential backoff, linear backoff, and fixed interval retries with maximum delay clamping and automatic exception recovery.
+          </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">with_backoff</code></td><td><code class="font-mono">with_backoff(operation, [max_retries, initial_delay_ms, max_delay_ms, factor])</code></td><td><code class="font-mono">ANY</code></td><td>Executes operation with exponential backoff delay growth until success or max retries exhausted.</td></tr>
+                <tr><td><code class="font-mono font-bold">with_linear</code></td><td><code class="font-mono">with_linear(operation, [max_retries, step_ms])</code></td><td><code class="font-mono">ANY</code></td><td>Executes operation with linearly increasing delays: <code class="font-mono">attempt * step_ms</code>.</td></tr>
+                <tr><td><code class="font-mono font-bold">with_fixed</code></td><td><code class="font-mono">with_fixed(operation, [max_retries, delay_ms])</code></td><td><code class="font-mono">ANY</code></td><td>Executes operation with constant delay intervals between failed attempts.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-block-wrapper">
+            <div class="code-block-header">
+              <span>bmd — std/retry Exponential Backoff Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/retry" as retry
+
+let attempts = 0
+let fetch_data = fn() {
+    attempts = attempts + 1
+    if attempts < 3 {
+        throw "Connection timed out"
+    }
+    return {"status": 200, "data": "OK"}
+}
+
+// Retries up to 4 times with exponential backoff starting at 20ms
+let result = retry.with_backoff(fetch_data, 4, 20, 500, 2)
+println("Final result:", result["status"]) // 200</code></pre>
+          </div>
+        </div>
+
+        <!-- 10. std/config -->
+        <div id="ch-config" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">10.</span>
+            <span><code class="font-mono">std/config</code> — Unified Configuration &amp; Dotenv Parser</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Lightweight configuration engine supporting Twelve-Factor app <code class="font-mono">.env</code> files and sectioned <code class="font-mono">.ini</code> format configuration with automatic comment stripping, quoted string unescaping, and default fallback lookup.
+          </p>
+
+          <h4 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">Exported Functions</h4>
+          <div class="overflow-x-auto mb-6">
+            <table class="doc-table">
+              <thead>
+                <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code class="font-mono font-bold">parse_dotenv</code></td><td><code class="font-mono">parse_dotenv(content)</code></td><td><code class="font-mono">HASH</code></td><td>Parses dotenv format text supporting <code class="font-mono">#</code> comments, <code class="font-mono">export KEY=VAL</code>, and quoted strings.</td></tr>
+                <tr><td><code class="font-mono font-bold">parse_ini</code></td><td><code class="font-mono">parse_ini(content)</code></td><td><code class="font-mono">HASH</code></td><td>Parses INI configuration with <code class="font-mono">[section]</code> headers and key-value properties.</td></tr>
+                <tr><td><code class="font-mono font-bold">get</code></td><td><code class="font-mono">get(config, key, [default_val])</code></td><td><code class="font-mono">ANY</code></td><td>Safely retrieves value for key, returning <code class="font-mono">default_val</code> (or <code class="font-mono">null</code>) if absent.</td></tr>
+                <tr><td><code class="font-mono font-bold">get_or_default</code></td><td><code class="font-mono">get_or_default(config, key, default_val)</code></td><td><code class="font-mono">ANY</code></td><td>Retrieves value or default fallback.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-block-wrapper">
+            <div class="code-block-header">
+              <span>bmd — std/config Usage Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/config" as cfg
+
+let raw_env = "# Server Environment\nPORT=8080\nHOST=0.0.0.0\nexport DEBUG=true\n"
+let env = cfg.parse_dotenv(raw_env)
+
+println("Host:", env["HOST"]) // "0.0.0.0"
+println("Port:", cfg.get(env, "PORT", "3000")) // "8080"
+println("DB URL:", cfg.get(env, "DATABASE_URL", "sqlite://app.db")) // "sqlite://app.db"</code></pre>
           </div>
         </div>
 

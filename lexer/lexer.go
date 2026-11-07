@@ -213,12 +213,43 @@ func (l *Lexer) NextToken() token.Token {
 			return token.Token{Type: token.ILLEGAL, Literal: "unterminated string", Line: curLine, Col: curCol}
 		}
 		return token.Token{Type: token.STRING, Literal: str, Line: curLine, Col: curCol}
+	case '`':
+		str, ok := l.readFormatString('`')
+		if !ok {
+			return token.Token{Type: token.ILLEGAL, Literal: "unterminated template string", Line: curLine, Col: curCol}
+		}
+		return token.Token{Type: token.FORMAT_STRING, Literal: str, Line: curLine, Col: curCol}
+	case '?':
+		if l.peekChar() == '?' {
+			ch := l.ch
+			l.readChar()
+			if l.peekChar() == '=' {
+				l.readChar()
+				tok = token.Token{Type: token.COALESCE_ASSIGN, Literal: "??=", Line: curLine, Col: curCol}
+			} else {
+				tok = token.Token{Type: token.COALESCE, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+			}
+		} else if l.peekChar() == '.' {
+			ch := l.ch
+			l.readChar()
+			tok = token.Token{Type: token.QUESTION_DOT, Literal: string(ch) + string(l.ch), Line: curLine, Col: curCol}
+		} else {
+			tok = newToken(token.QUESTION, l.ch, curLine, curCol)
+		}
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
 		tok.Line = curLine
 		tok.Col = curCol
 	default:
+		if (l.ch == 'f' || l.ch == 'F') && l.peekChar() == '"' {
+			l.readChar() // consume 'f' or 'F'
+			str, ok := l.readFormatString('"')
+			if !ok {
+				return token.Token{Type: token.ILLEGAL, Literal: "unterminated format string", Line: curLine, Col: curCol}
+			}
+			return token.Token{Type: token.FORMAT_STRING, Literal: str, Line: curLine, Col: curCol}
+		}
 		if isIdentStart(l.ch) {
 			lit := l.readIdentifier()
 			tokType := token.LookupIdent(lit)
@@ -460,6 +491,91 @@ func (l *Lexer) readString() (string, bool) {
 			l.readChar()
 			continue
 		}
+		sb.WriteRune(l.ch)
+		l.readChar()
+	}
+
+	return sb.String(), true
+}
+
+func (l *Lexer) readFormatString(quote rune) (string, bool) {
+	var sb strings.Builder
+	l.readChar() // consume opening quote
+
+	braceDepth := 0
+	inString := false
+	var strQuote rune
+
+	for {
+		if l.ch == 0 {
+			return "", false
+		}
+		if !inString && braceDepth == 0 && l.ch == quote {
+			l.readChar() // consume closing quote
+			break
+		}
+		if l.ch == '\n' {
+			l.line++
+			l.col = 0
+		}
+		if l.ch == '\\' {
+			sb.WriteRune(l.ch)
+			l.readChar()
+			if l.ch == 0 {
+				return "", false
+			}
+			sb.WriteRune(l.ch)
+			l.readChar()
+			continue
+		}
+
+		if inString {
+			if l.ch == strQuote {
+				inString = false
+			}
+			sb.WriteRune(l.ch)
+			l.readChar()
+			continue
+		}
+
+		if braceDepth > 0 {
+			if l.ch == '"' || l.ch == '\'' {
+				inString = true
+				strQuote = l.ch
+				sb.WriteRune(l.ch)
+				l.readChar()
+				continue
+			}
+			if l.ch == '{' {
+				braceDepth++
+			} else if l.ch == '}' {
+				braceDepth--
+			}
+			sb.WriteRune(l.ch)
+			l.readChar()
+			continue
+		}
+
+		// At top-level format string (outside embedded expressions)
+		if l.ch == '{' && l.peekChar() == '{' {
+			sb.WriteString("{{")
+			l.readChar()
+			l.readChar()
+			continue
+		}
+		if l.ch == '}' && l.peekChar() == '}' {
+			sb.WriteString("}}")
+			l.readChar()
+			l.readChar()
+			continue
+		}
+		if l.ch == '{' {
+			braceDepth++
+			sb.WriteRune(l.ch)
+			l.readChar()
+			continue
+		}
+
 		sb.WriteRune(l.ch)
 		l.readChar()
 	}

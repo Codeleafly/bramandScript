@@ -203,6 +203,21 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		if prop == "message" || prop == "msg" {
 			return vm.push(&object.String{Value: errObj.Message})
 		}
+		if prop == "stack_trace" || prop == "stack" {
+			return vm.push(&object.String{Value: errObj.FormatStackTrace()})
+		}
+		if prop == "frames" {
+			var frameObjs []object.Object
+			for _, f := range errObj.StackTrace {
+				m := make(map[object.HashKey]object.HashPair)
+				fnKey := (&object.String{Value: "fn"}).HashKey()
+				m[fnKey] = object.HashPair{Key: &object.String{Value: "fn"}, Value: &object.String{Value: f.Function}}
+				lineKey := (&object.String{Value: "line"}).HashKey()
+				m[lineKey] = object.HashPair{Key: &object.String{Value: "line"}, Value: &object.Integer{Value: int64(f.Line)}}
+				frameObjs = append(frameObjs, &object.Hash{Pairs: m})
+			}
+			return vm.push(&object.Array{Elements: frameObjs})
+		}
 		return vm.push(Null)
 	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ || left.Type() == object.BYTES_OBJ) && index.Type() == object.STRING_OBJ:
 		prop := index.(*object.String).Value

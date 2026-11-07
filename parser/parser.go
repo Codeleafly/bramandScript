@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 // Precedence levels
@@ -15,6 +16,8 @@ const (
 	LOWEST
 	PIPE        // |>
 	SEND        // <-
+	CONDITIONAL // ? :
+	NULLISH     // ??
 	LOGICAL_OR  // ||
 	LOGICAL_AND // &&
 	BIT_OR      // |
@@ -32,30 +35,33 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
-	token.PIPE_OP:     PIPE,
-	token.SEND_RECV:   SEND,
-	token.OR:          LOGICAL_OR,
-	token.AND:         LOGICAL_AND,
-	token.BIT_OR:      BIT_OR,
-	token.BIT_XOR:     BIT_XOR,
-	token.BIT_AND:     BIT_AND,
-	token.EQ:          EQUALS,
-	token.NOT_EQ:      EQUALS,
-	token.LT:          LESSGREATER,
-	token.GT:          LESSGREATER,
-	token.LTE:         LESSGREATER,
-	token.GTE:         LESSGREATER,
-	token.SHIFT_LEFT:  SHIFT,
-	token.SHIFT_RIGHT: SHIFT,
-	token.PLUS:        SUM,
-	token.MINUS:     SUM,
-	token.SLASH:     PRODUCT,
-	token.ASTERISK:  PRODUCT,
-	token.MODULO:    PRODUCT,
-	token.POWER:     POWER,
-	token.LPAREN:    CALL,
-	token.LBRACKET:  INDEX,
-	token.DOT:       INDEX,
+	token.PIPE_OP:      PIPE,
+	token.SEND_RECV:    SEND,
+	token.QUESTION:     CONDITIONAL,
+	token.COALESCE:     NULLISH,
+	token.OR:           LOGICAL_OR,
+	token.AND:          LOGICAL_AND,
+	token.BIT_OR:       BIT_OR,
+	token.BIT_XOR:      BIT_XOR,
+	token.BIT_AND:      BIT_AND,
+	token.EQ:           EQUALS,
+	token.NOT_EQ:       EQUALS,
+	token.LT:           LESSGREATER,
+	token.GT:           LESSGREATER,
+	token.LTE:          LESSGREATER,
+	token.GTE:          LESSGREATER,
+	token.SHIFT_LEFT:   SHIFT,
+	token.SHIFT_RIGHT:  SHIFT,
+	token.PLUS:         SUM,
+	token.MINUS:        SUM,
+	token.SLASH:        PRODUCT,
+	token.ASTERISK:     PRODUCT,
+	token.MODULO:       PRODUCT,
+	token.POWER:        POWER,
+	token.LPAREN:       CALL,
+	token.LBRACKET:     INDEX,
+	token.DOT:          INDEX,
+	token.QUESTION_DOT: INDEX,
 }
 
 type (
@@ -111,9 +117,12 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.SEND_RECV, p.parsePrefixExpression)
 	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
 	p.registerPrefix(token.YIELD, p.parseYieldExpression)
+	p.registerPrefix(token.FORMAT_STRING, p.parseInterpolatedStringLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PIPE_OP, p.parsePipeExpression)
+	p.registerInfix(token.QUESTION, p.parseTernaryExpression)
+	p.registerInfix(token.COALESCE, p.parseNullCoalesceExpression)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
@@ -137,6 +146,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 	p.registerInfix(token.DOT, p.parseDotExpression)
+	p.registerInfix(token.QUESTION_DOT, p.parseOptionalChainExpression)
 
 	p.nextToken()
 	p.nextToken()
@@ -824,5 +834,177 @@ func (p *Parser) parseYieldExpression() ast.Expression {
 	}
 	p.nextToken()
 	exp.Value = p.parseExpression(LOWEST)
+	return exp
+}
+
+func (p *Parser) parseTernaryExpression(condition ast.Expression) ast.Expression {
+	exp := &ast.TernaryExpression{
+		Token:     p.curToken,
+		Condition: condition,
+	}
+	p.nextToken() // consume '?'
+	exp.Consequence = p.parseExpression(CONDITIONAL)
+	if !p.expectPeek(token.COLON) {
+		return nil
+	}
+	p.nextToken()                                       // consume ':'
+	exp.Alternative = p.parseExpression(CONDITIONAL - 1) // right-associative
+	return exp
+}
+
+func (p *Parser) parseNullCoalesceExpression(left ast.Expression) ast.Expression {
+	exp := &ast.NullCoalesceExpression{
+		Token: p.curToken,
+		Left:  left,
+	}
+	precedence := p.curPrecedence()
+	p.nextToken() // consume '??'
+	exp.Right = p.parseExpression(precedence)
+	return exp
+}
+
+func (p *Parser) parseOptionalChainExpression(left ast.Expression) ast.Expression {
+	dotToken := p.curToken // '?.'
+	if p.peekTokenIs(token.IDENT) {
+		p.nextToken()
+		field := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		return &ast.OptionalDotExpression{Token: dotToken, Left: left, Field: field}
+	} else if p.peekTokenIs(token.LBRACKET) {
+		p.nextToken() // curToken is now '['
+		p.nextToken() // start of index
+		idx := p.parseExpression(LOWEST)
+		if !p.expectPeek(token.RBRACKET) {
+			return nil
+		}
+		return &ast.OptionalIndexExpression{Token: dotToken, Left: left, Index: idx}
+	} else if p.peekTokenIs(token.LPAREN) {
+		p.nextToken() // curToken is now '('
+		args := p.parseExpressionList(token.RPAREN)
+		return &ast.OptionalCallExpression{Token: dotToken, Function: left, Arguments: args}
+	}
+	p.peekError(token.IDENT)
+	return nil
+}
+
+func (p *Parser) parseInterpolatedStringLiteral() ast.Expression {
+	tok := p.curToken
+	lit := tok.Literal
+	exp := &ast.InterpolatedStringLiteral{
+		Token: tok,
+		Parts: []ast.Expression{},
+	}
+
+	i := 0
+	runes := []rune(lit)
+	n := len(runes)
+	var textBuf strings.Builder
+
+	flushText := func() {
+		if textBuf.Len() > 0 {
+			exp.Parts = append(exp.Parts, &ast.StringLiteral{
+				Token: token.Token{Type: token.STRING, Literal: textBuf.String(), Line: tok.Line, Col: tok.Col},
+				Value: textBuf.String(),
+			})
+			textBuf.Reset()
+		}
+	}
+
+	for i < n {
+		// Escape sequences
+		if runes[i] == '\\' && i+1 < n {
+			next := runes[i+1]
+			if next == '{' || next == '}' || next == '$' || next == '\\' || next == '"' || next == '`' {
+				textBuf.WriteRune(next)
+				i += 2
+				continue
+			}
+			textBuf.WriteRune('\\')
+			textBuf.WriteRune(next)
+			i += 2
+			continue
+		}
+
+		// Double braces escape: {{ -> {, }} -> }
+		if runes[i] == '{' && i+1 < n && runes[i+1] == '{' {
+			textBuf.WriteRune('{')
+			i += 2
+			continue
+		}
+		if runes[i] == '}' && i+1 < n && runes[i+1] == '}' {
+			textBuf.WriteRune('}')
+			i += 2
+			continue
+		}
+
+		// Embedded expression: ${...} or {...}
+		isExpr := false
+		startExpr := 0
+		if runes[i] == '$' && i+1 < n && runes[i+1] == '{' {
+			isExpr = true
+			i += 2
+			startExpr = i
+		} else if runes[i] == '{' {
+			isExpr = true
+			i += 1
+			startExpr = i
+		}
+
+		if isExpr {
+			flushText()
+			depth := 1
+			inStr := false
+			var strQuote rune
+			for i < n && depth > 0 {
+				r := runes[i]
+				if inStr {
+					if r == '\\' && i+1 < n {
+						i += 2
+						continue
+					}
+					if r == strQuote {
+						inStr = false
+					}
+					i++
+					continue
+				}
+				if r == '"' || r == '\'' {
+					inStr = true
+					strQuote = r
+					i++
+					continue
+				}
+				if r == '{' {
+					depth++
+				} else if r == '}' {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				i++
+			}
+			exprStr := string(runes[startExpr:i])
+			if i < n && runes[i] == '}' {
+				i++ // consume closing '}'
+			}
+			// Parse inner expression
+			subLexer := lexer.New(exprStr)
+			subParser := New(subLexer)
+			parsedExpr := subParser.parseExpression(LOWEST)
+			if len(subParser.errors) > 0 {
+				p.errors = append(p.errors, subParser.errors...)
+				p.SyntaxErrors = append(p.SyntaxErrors, subParser.SyntaxErrors...)
+			}
+			if parsedExpr != nil {
+				exp.Parts = append(exp.Parts, parsedExpr)
+			}
+			continue
+		}
+
+		textBuf.WriteRune(runes[i])
+		i++
+	}
+
+	flushText()
 	return exp
 }

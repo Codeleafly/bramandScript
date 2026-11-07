@@ -14,10 +14,11 @@ const (
 	EOF     = "EOF"
 
 	// Identifiers & Literals
-	IDENT  = "IDENT"
-	INT    = "INT"
-	FLOAT  = "FLOAT"
-	STRING = "STRING"
+	IDENT         = "IDENT"
+	INT           = "INT"
+	FLOAT         = "FLOAT"
+	STRING        = "STRING"
+	FORMAT_STRING = "FORMAT_STRING"
 
 	// Arithmetic Operators
 	ASSIGN   = "="
@@ -29,15 +30,19 @@ const (
 	POWER    = "**"
 
 	// Compound Assignment
-	PLUS_ASSIGN  = "+="
-	MINUS_ASSIGN = "-="
-	MUL_ASSIGN   = "*="
-	DIV_ASSIGN   = "/="
+	PLUS_ASSIGN     = "+="
+	MINUS_ASSIGN    = "-="
+	MUL_ASSIGN      = "*="
+	DIV_ASSIGN      = "/="
+	COALESCE_ASSIGN = "??="
 
-	// Logical Operators
-	BANG = "!"
-	AND  = "&&"
-	OR   = "||"
+	// Logical & Conditional Operators
+	BANG         = "!"
+	AND          = "&&"
+	OR           = "||"
+	QUESTION     = "?"
+	COALESCE     = "??"
+	QUESTION_DOT = "?."
 
 	// Bitwise Operators
 	BIT_AND     = "&"

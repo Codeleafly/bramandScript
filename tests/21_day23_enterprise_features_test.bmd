@@ -1,0 +1,275 @@
+// BramandScript Test Suite :: Day 23 Enterprise Features & Production Hardening
+// Validates: Null-coalescing (??), Nullish assignment (??=), Optional chaining (?.),
+// Ternary (?:), String interpolation (f"..."), Stack traces, std/log, std/retry, std/config, std/collections.
+
+import "std/testing" as t;
+import "std/log" as log;
+import "std/retry" as retry;
+import "std/config" as config;
+import "std/collections" as collections;
+
+describe("Day 23: Null-Coalescing and Nullish Assignment", fn() {
+    test("Null-coalescing operator ?? evaluates left when not null", fn() {
+        assert_eq(null ?? "default", "default");
+        assert_eq("present" ?? "default", "present");
+        assert_eq(0 ?? 999, 0);
+        assert_eq(false ?? true, false);
+        assert_eq("" ?? "empty", "");
+    });
+
+    test("Null-coalescing operator ?? chains and short-circuits", fn() {
+        assert_eq(null ?? null ?? 42, 42);
+        // Short-circuit: right side has runtime division by zero but is never evaluated
+        let val = 100 ?? (1 / 0);
+        assert_eq(val, 100);
+    });
+
+    test("Nullish assignment ??= updates only null variables", fn() {
+        let x = null;
+        x ??= "assigned";
+        assert_eq(x, "assigned");
+
+        let y = "original";
+        y ??= "ignored";
+        assert_eq(y, "original");
+
+        let z = 0;
+        z ??= 100;
+        assert_eq(z, 0);
+    });
+
+    test("Nullish assignment ??= updates hash map fields", fn() {
+        let conf = {"port": null, "timeout": 30};
+        conf["port"] ??= 8080;
+        conf["timeout"] ??= 60;
+        conf["host"] ??= "127.0.0.1";
+
+        assert_eq(conf["port"], 8080);
+        assert_eq(conf["timeout"], 30);
+        assert_eq(conf["host"], "127.0.0.1");
+    });
+});
+
+describe("Day 23: Optional Chaining Operator (?.)", fn() {
+    test("Optional property access on objects and null", fn() {
+        let user = {"profile": {"name": "Antigravity", "meta": null}};
+        let empty_user = null;
+
+        assert_eq(user?.profile?.name, "Antigravity");
+        assert_eq(empty_user?.profile?.name, null);
+        assert_eq(user?.profile?.meta?.tags, null);
+    });
+
+    test("Optional index access on arrays and matrices", fn() {
+        let matrix = [[10, 20], null, [50, 60]];
+        let empty_matrix = null;
+
+        assert_eq(matrix?.[0]?.[1], 20);
+        assert_eq(empty_matrix?.[0], null);
+        assert_eq(matrix?.[1]?.[0], null);
+    });
+
+    test("Optional method and function calls short-circuit", fn() {
+        let called = false;
+        let service = {
+            "compute": fn(x) { return x * 2; },
+            "noop": null
+        };
+        let empty_svc = null;
+
+        assert_eq(service?.compute(21), 42);
+        // Arguments are not evaluated when target is null
+        assert_eq(empty_svc?.compute(fn() { called = true; return 10; }()), null);
+        assert_false(called);
+        assert_eq(service?.noop?.(), null);
+    });
+});
+
+describe("Day 23: Ternary Conditional Expression (?:)", fn() {
+    test("Basic ternary condition evaluation", fn() {
+        let res1 = true ? "yes" : "no";
+        assert_eq(res1, "yes");
+
+        let res2 = false ? "yes" : "no";
+        assert_eq(res2, "no");
+
+        let num = 15;
+        let tier = num > 10 ? "gold" : "silver";
+        assert_eq(tier, "gold");
+    });
+
+    test("Nested right-associative ternary expressions", fn() {
+        let score = 85;
+        let grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : "F";
+        assert_eq(grade, "B");
+    });
+
+    test("Ternary short-circuiting preserves error-free execution", fn() {
+        let safe = true ? 42 : (10 / 0);
+        assert_eq(safe, 42);
+    });
+});
+
+describe("Day 23: String Interpolation Expressions", fn() {
+    test("f-string format string with variable interpolation", fn() {
+        let name = "Bramand";
+        let lang = "Script";
+        let version = 1;
+        let s = f"Hello, {name}{lang} v{version}!";
+        assert_eq(s, "Hello, BramandScript v1!");
+    });
+
+    test("f-string with expressions and escaped braces", fn() {
+        let a = 10;
+        let b = 25;
+        let s = f"Sum: {a + b}, Braces: {{escaped}}";
+        assert_eq(s, "Sum: 35, Braces: {escaped}");
+    });
+
+    test("Template literal backtick interpolation", fn() {
+        let user = "admin";
+        let role = "superuser";
+        let s = `User: ${user} (Role: ${role})`;
+        assert_eq(s, "User: admin (Role: superuser)");
+    });
+});
+
+describe("Day 23: Enterprise Error Tracking & Stack Trace", fn() {
+    test("Error stack trace records multi-frame call stack", fn() {
+        let levelC = fn() {
+            throw error("nested_failure_cause");
+        };
+        let levelB = fn() {
+            return levelC();
+        };
+        let levelA = fn() {
+            return levelB();
+        };
+
+        let caught = null;
+        try {
+            levelA();
+        } catch err {
+            caught = err;
+        }
+
+        assert_eq(caught.message, "nested_failure_cause");
+        assert_true(len(caught.stack_trace) > 0);
+        assert_true(len(caught.frames) >= 3);
+    });
+});
+
+describe("Day 23: Enterprise Standard Library Suites", fn() {
+    test("std/log structured logger formats text and JSON", fn() {
+        let logs = [];
+        let custom_out = fn(line) {
+            logs = push(logs, line);
+        };
+        let l = log.create_logger({
+            "level": log.DEBUG,
+            "format": "json",
+            "context": {"app": "core"},
+            "output_fn": custom_out
+        });
+
+        l.info("Worker started", {"worker_id": 1});
+        assert_eq(len(logs), 1);
+        let parsed = json_parse(logs[0]);
+        assert_eq(parsed["level"], "INFO");
+        assert_eq(parsed["message"], "Worker started");
+        assert_eq(parsed["context"]["app"], "core");
+        assert_eq(parsed["context"]["worker_id"], 1);
+    });
+
+    test("std/retry successfully recovers after transient failures", fn() {
+        let counter = 0;
+        let outcome = retry.retry(fn(attempt) {
+            counter = counter + 1;
+            if counter < 3 {
+                throw error("temporary timeout");
+            }
+            return "recovered";
+        }, {
+            "max_attempts": 5,
+            "delay": 1,
+            "backoff_factor": 1.5
+        });
+
+        assert_true(outcome["ok"]);
+        assert_eq(outcome["result"], "recovered");
+        assert_eq(outcome["attempts"], 3);
+
+        // Positional with_backoff helper
+        let call_count = 0;
+        let val = retry.with_backoff(fn() {
+            call_count = call_count + 1;
+            if call_count < 2 {
+                throw error("temporary failure");
+            }
+            return 99;
+        }, 3, 1, 10, 1.5);
+        assert_eq(val, 99);
+    });
+
+    test("std/config parses dotenv and INI formats", fn() {
+        let env_text = "APP_NAME=BramandEnterprise\n# Comment\nAPP_PORT=8443\nSECURE=true";
+        let env_cfg = config.parse_env(env_text);
+        assert_eq(env_cfg["APP_NAME"], "BramandEnterprise");
+        assert_eq(env_cfg["APP_PORT"], "8443");
+        assert_eq(env_cfg["SECURE"], "true");
+
+        // parse_dotenv alias and get helper
+        let dotenv_cfg = config.parse_dotenv("FOO=bar\nBAZ=123");
+        assert_eq(config.get(dotenv_cfg, "FOO"), "bar");
+        assert_eq(config.get(dotenv_cfg, "MISSING", "fallback"), "fallback");
+
+        let ini_text = "[server]\nhost=0.0.0.0\nport=8080\n[database]\nname=bmd_prod";
+        let ini_cfg = config.parse_ini(ini_text);
+        assert_eq(ini_cfg["server"]["host"], "0.0.0.0");
+        assert_eq(ini_cfg["server"]["port"], "8080");
+        assert_eq(ini_cfg["database"]["name"], "bmd_prod");
+    });
+
+    test("std/collections advanced functional helpers", fn() {
+        let users = [
+            {"id": 1, "name": "Alice", "active": true, "score": 90},
+            {"id": 2, "name": "Bob", "active": false, "score": 75},
+            {"id": 3, "name": "Charlie", "active": true, "score": 95}
+        ];
+
+        // key_by
+        let by_name = collections.key_by(users, fn(u) { return u["name"]; });
+        assert_eq(by_name["Alice"]["score"], 90);
+
+        // partition
+        let parts = collections.partition(users, fn(u) { return u["active"]; });
+        assert_eq(len(parts[0]), 2); // Alice & Charlie active
+        assert_eq(len(parts[1]), 1); // Bob inactive
+
+        // compact
+        let compacted = collections.compact([1, null, 2, null, 3]);
+        assert_eq(len(compacted), 3);
+
+        // sum_by, min_by, max_by
+        let total_score = collections.sum_by(users, fn(u) { return u["score"]; });
+        assert_eq(total_score, 260);
+
+        let top_user = collections.max_by(users, fn(u) { return u["score"]; });
+        assert_eq(top_user["name"], "Charlie");
+
+        let low_user = collections.min_by(users, fn(u) { return u["score"]; });
+        assert_eq(low_user["name"], "Bob");
+
+        // frequencies
+        let freq = collections.frequencies(["apple", "banana", "apple", "cherry", "apple"]);
+        assert_eq(freq["apple"], 3);
+        assert_eq(freq["banana"], 1);
+
+        // set operations: difference, intersection, union
+        let a = [1, 2, 3, 4];
+        let b = [3, 4, 5, 6];
+        assert_eq(collections.difference(a, b), [1, 2]);
+        assert_eq(collections.intersection(a, b), [3, 4]);
+        assert_eq(collections.union(a, b), [1, 2, 3, 4, 5, 6]);
+    });
+});

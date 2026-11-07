@@ -64,6 +64,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && existing.IsConst && (existing.File == c.currentFile) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
 		}
+		if fnLit, ok := node.Value.(*ast.FunctionLiteral); ok && fnLit.Name == "" {
+			fnLit.Name = node.Name.Value
+		}
 		symbol := c.symbolTable.Define(node.Name.Value, false)
 		err := c.Compile(node.Value)
 		if err != nil {
@@ -81,6 +84,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 		if existing, ok := c.symbolTable.store[node.Name.Value]; ok && (existing.File == c.currentFile) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot re-declare constant '%s'", node.Name.Value)
+		}
+		if fnLit, ok := node.Value.(*ast.FunctionLiteral); ok && fnLit.Name == "" {
+			fnLit.Name = node.Name.Value
 		}
 		symbol := c.symbolTable.Define(node.Name.Value, true)
 		err := c.Compile(node.Value)
@@ -107,6 +113,32 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			if err != nil {
 				return true, err
 			}
+		} else if node.Operator == "??=" {
+			c.loadSymbol(symbol)
+			c.emit(code.OpDup)
+			jumpNotNullPos := c.emit(code.OpJumpNotNull, 9999)
+			c.emit(code.OpPop)
+
+			err := c.Compile(node.Value)
+			if err != nil {
+				return true, err
+			}
+			if symbol.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, symbol.Index)
+			} else if symbol.Scope == LocalScope {
+				c.emit(code.OpSetLocal, symbol.Index)
+			} else if symbol.Scope == FreeScope {
+				c.emit(code.OpSetFree, symbol.Index)
+			}
+			jumpEndPos := c.emit(code.OpJump, 9999)
+
+			afterNotNullPos := len(c.currentInstructions())
+			c.changeOperand(jumpNotNullPos, afterNotNullPos)
+			c.emit(code.OpPop)
+
+			afterAllPos := len(c.currentInstructions())
+			c.changeOperand(jumpEndPos, afterAllPos)
+			return true, nil
 		} else {
 			c.loadSymbol(symbol)
 			err := c.Compile(node.Value)
@@ -153,6 +185,61 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 				return true, err
 			}
 			c.emit(code.OpSetIndex)
+		} else if node.Operator == "??=" {
+			// Compound nullish assignment on index/dot: target[index] ??= value
+			c.iterCount++
+			targetTemp := fmt.Sprintf("__cassign_t_%d", c.iterCount)
+			idxTemp := fmt.Sprintf("__cassign_i_%d", c.iterCount)
+
+			// 1. Evaluate target once and save in temp
+			err := c.Compile(node.Left)
+			if err != nil {
+				return true, err
+			}
+			tSym := c.symbolTable.Define(targetTemp, false)
+			if tSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, tSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, tSym.Index)
+			}
+
+			// 2. Evaluate index once and save in temp
+			err = c.Compile(node.Index)
+			if err != nil {
+				return true, err
+			}
+			iSym := c.symbolTable.Define(idxTemp, false)
+			if iSym.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, iSym.Index)
+			} else {
+				c.emit(code.OpSetLocal, iSym.Index)
+			}
+
+			// 3. Load target[index]
+			c.loadSymbol(tSym)
+			c.loadSymbol(iSym)
+			c.emit(code.OpIndex)
+			c.emit(code.OpDup)
+			jumpNotNullPos := c.emit(code.OpJumpNotNull, 9999)
+			c.emit(code.OpPop)
+
+			// 4. If null: evaluate value and set target[index] = value
+			c.loadSymbol(tSym)
+			c.loadSymbol(iSym)
+			err = c.Compile(node.Value)
+			if err != nil {
+				return true, err
+			}
+			c.emit(code.OpSetIndex)
+			jumpEndPos := c.emit(code.OpJump, 9999)
+
+			// 5. If not null: skip evaluation and assignment
+			afterNotNullPos := len(c.currentInstructions())
+			c.changeOperand(jumpNotNullPos, afterNotNullPos)
+			c.emit(code.OpPop)
+
+			afterAllPos := len(c.currentInstructions())
+			c.changeOperand(jumpEndPos, afterAllPos)
 		} else {
 			// Compound assignment on index/dot: target[index] op= value
 			c.iterCount++
@@ -423,6 +510,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 		compiledFn := &object.CompiledFunction{
+			Name:          node.Name.Value,
 			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Embeds) + len(node.Fields),

@@ -3,6 +3,7 @@ package ast
 import (
 	"bramandscript/token"
 	"bytes"
+	"fmt"
 	"math/big"
 	"strings"
 )
@@ -737,4 +738,93 @@ func (ye *YieldExpression) String() string {
 		return "yield " + ye.Value.String()
 	}
 	return "yield"
+}
+
+// ---------------- Enterprise Language AST Nodes ----------------
+
+type TernaryExpression struct {
+	Token       token.Token // token.QUESTION '?'
+	Condition   Expression
+	Consequence Expression
+	Alternative Expression
+}
+
+func (te *TernaryExpression) expressionNode()      {}
+func (te *TernaryExpression) TokenLiteral() string { return te.Token.Literal }
+func (te *TernaryExpression) String() string {
+	return fmt.Sprintf("(%s ? %s : %s)", te.Condition.String(), te.Consequence.String(), te.Alternative.String())
+}
+
+type NullCoalesceExpression struct {
+	Token token.Token // token.COALESCE '??'
+	Left  Expression
+	Right Expression
+}
+
+func (nce *NullCoalesceExpression) expressionNode()      {}
+func (nce *NullCoalesceExpression) TokenLiteral() string { return nce.Token.Literal }
+func (nce *NullCoalesceExpression) String() string {
+	return fmt.Sprintf("(%s ?? %s)", nce.Left.String(), nce.Right.String())
+}
+
+type OptionalDotExpression struct {
+	Token token.Token // token.QUESTION_DOT '?.'
+	Left  Expression
+	Field *Identifier
+}
+
+func (ode *OptionalDotExpression) expressionNode()      {}
+func (ode *OptionalDotExpression) TokenLiteral() string { return ode.Token.Literal }
+func (ode *OptionalDotExpression) String() string {
+	return ode.Left.String() + "?." + ode.Field.String()
+}
+
+type OptionalIndexExpression struct {
+	Token token.Token // token.QUESTION_DOT '?.'
+	Left  Expression
+	Index Expression
+}
+
+func (oie *OptionalIndexExpression) expressionNode()      {}
+func (oie *OptionalIndexExpression) TokenLiteral() string { return oie.Token.Literal }
+func (oie *OptionalIndexExpression) String() string {
+	return oie.Left.String() + "?." + "[" + oie.Index.String() + "]"
+}
+
+type OptionalCallExpression struct {
+	Token     token.Token // token.QUESTION_DOT '?.'
+	Function  Expression
+	Arguments []Expression
+}
+
+func (oce *OptionalCallExpression) expressionNode()      {}
+func (oce *OptionalCallExpression) TokenLiteral() string { return oce.Token.Literal }
+func (oce *OptionalCallExpression) String() string {
+	var out bytes.Buffer
+	var args []string
+	for _, a := range oce.Arguments {
+		args = append(args, a.String())
+	}
+	out.WriteString(oce.Function.String())
+	out.WriteString("?.(")
+	out.WriteString(strings.Join(args, ", "))
+	out.WriteString(")")
+	return out.String()
+}
+
+type InterpolatedStringLiteral struct {
+	Token token.Token // token.FORMAT_STRING
+	Parts []Expression
+}
+
+func (isl *InterpolatedStringLiteral) expressionNode()      {}
+func (isl *InterpolatedStringLiteral) TokenLiteral() string { return isl.Token.Literal }
+func (isl *InterpolatedStringLiteral) String() string {
+	var out bytes.Buffer
+	out.WriteString("f\"")
+	for _, p := range isl.Parts {
+		out.WriteString(p.String())
+	}
+	out.WriteString("\"")
+	return out.String()
 }

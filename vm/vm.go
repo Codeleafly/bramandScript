@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,13 +28,61 @@ var False = &object.Boolean{Value: false}
 var Null = &object.Null{}
 
 type RuntimeError struct {
-	Line    int
-	Col     int
-	Message string
+	Line       int
+	Col        int
+	Message    string
+	StackTrace []object.StackFrameInfo
 }
 
 func (re *RuntimeError) Error() string {
 	return re.Message
+}
+
+func (re *RuntimeError) FormatStackTrace() string {
+	var sb strings.Builder
+	sb.WriteString("Runtime Error: ")
+	sb.WriteString(re.Message)
+	if len(re.StackTrace) > 0 {
+		for _, frame := range re.StackTrace {
+			sb.WriteString("\n  at ")
+			fn := frame.Function
+			if fn == "" {
+				fn = "<anonymous>"
+			}
+			sb.WriteString(fn)
+			if frame.Line > 0 {
+				sb.WriteString(fmt.Sprintf(" (line %d)", frame.Line))
+			}
+		}
+	}
+	return sb.String()
+}
+
+func (vm *VM) captureStackTrace() []object.StackFrameInfo {
+	var frames []object.StackFrameInfo
+	for i := vm.framesIndex - 1; i >= 0; i-- {
+		f := vm.frames[i]
+		if f == nil || f.cl == nil || f.cl.Fn == nil {
+			continue
+		}
+		fnName := f.cl.Fn.Name
+		if fnName == "" {
+			if i == 0 {
+				fnName = "<main>"
+			} else {
+				fnName = "<anonymous>"
+			}
+		}
+		line := 1
+		if f.ip >= 0 && f.ip < len(f.cl.Fn.SourceMap) {
+			line = f.cl.Fn.SourceMap[f.ip]
+		}
+		frames = append(frames, object.StackFrameInfo{
+			Function: fnName,
+			Line:     line,
+		})
+	}
+	return frames
 }
 
 func (vm *VM) wrapError(err error) error {
@@ -50,7 +99,8 @@ func (vm *VM) wrapError(err error) error {
 			line = frame.cl.Fn.SourceMap[frame.ip]
 		}
 	}
-	return &RuntimeError{Line: line, Col: 1, Message: err.Error()}
+	frames := vm.captureStackTrace()
+	return &RuntimeError{Line: line, Col: 1, Message: err.Error(), StackTrace: frames}
 }
 
 type GlobalsStore struct {
@@ -98,6 +148,7 @@ func (vm *VM) SetMaxStackSize(max int) {
 
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{
+		Name:         "<main>",
 		Instructions: bytecode.Instructions,
 		SourceMap:    bytecode.SourceMap,
 	}
@@ -153,6 +204,9 @@ func (vm *VM) setGlobal(index int, val object.Object) {
 }
 
 func (vm *VM) handleException(errObj object.Object) bool {
+	if e, ok := errObj.(*object.Error); ok && len(e.StackTrace) == 0 {
+		e.StackTrace = vm.captureStackTrace()
+	}
 	oldSP := vm.sp
 	for vm.framesIndex > 0 {
 		frame := vm.currentFrame()
@@ -534,6 +588,24 @@ func (vm *VM) runLoop() error {
 
 			condition := vm.pop()
 			if isTruthy(condition) {
+				vm.currentFrame().ip = pos - 1
+			}
+
+		case code.OpJumpNotNull:
+			pos := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
+
+			condition := vm.pop()
+			if condition != Null && condition != nil {
+				vm.currentFrame().ip = pos - 1
+			}
+
+		case code.OpJumpNull:
+			pos := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
+
+			condition := vm.pop()
+			if condition == Null || condition == nil {
 				vm.currentFrame().ip = pos - 1
 			}
 

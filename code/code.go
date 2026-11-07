@@ -88,6 +88,10 @@ const (
 	OpPushHandler
 	OpPopHandler
 	OpThrow
+
+	// Enterprise Null-Coalescing & Optional Jumps
+	OpJumpNotNull
+	OpJumpNull
 )
 
 type Definition struct {
@@ -149,6 +153,8 @@ var definitions = map[Opcode]*Definition{
 	OpPushHandler:      {"OpPushHandler", []int{8}},
 	OpPopHandler:       {"OpPopHandler", []int{}},
 	OpThrow:            {"OpThrow", []int{}},
+	OpJumpNotNull:      {"OpJumpNotNull", []int{8}},
+	OpJumpNull:         {"OpJumpNull", []int{8}},
 }
 
 func Lookup(op byte) (*Definition, error) {

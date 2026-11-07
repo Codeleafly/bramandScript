@@ -345,6 +345,51 @@ func (c *Compiler) Compile(node ast.Node) error {
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterAlternativePos)
 
+	case *ast.TernaryExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
+
+		jumpPos := c.emit(code.OpJump, 9999)
+
+		afterConsequencePos := len(c.currentInstructions())
+		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
+		err = c.Compile(node.Alternative)
+		if err != nil {
+			return err
+		}
+
+		afterAlternativePos := len(c.currentInstructions())
+		c.changeOperand(jumpPos, afterAlternativePos)
+
+	case *ast.NullCoalesceExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Left)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpDup)
+		jumpNotNullPos := c.emit(code.OpJumpNotNull, 9999)
+		c.emit(code.OpPop)
+
+		err = c.Compile(node.Right)
+		if err != nil {
+			return err
+		}
+
+		afterRightPos := len(c.currentInstructions())
+		c.changeOperand(jumpNotNullPos, afterRightPos)
+
 
 	case *ast.IntegerLiteral:
 		if node.BigValue != nil {
@@ -361,6 +406,43 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.StringLiteral:
 		str := &object.String{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(str))
+
+	case *ast.InterpolatedStringLiteral:
+		c.currentLine = node.Token.Line
+		if len(node.Parts) == 0 {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: ""}))
+			return nil
+		}
+		if len(node.Parts) == 1 {
+			if strLit, ok := node.Parts[0].(*ast.StringLiteral); ok {
+				c.emit(code.OpConstant, c.addConstant(&object.String{Value: strLit.Value}))
+				return nil
+			}
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: ""}))
+			err := c.Compile(node.Parts[0])
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpAdd)
+			return nil
+		}
+
+		startIdx := 0
+		if strLit, ok := node.Parts[0].(*ast.StringLiteral); ok {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: strLit.Value}))
+			startIdx = 1
+		} else {
+			c.emit(code.OpConstant, c.addConstant(&object.String{Value: ""}))
+			startIdx = 0
+		}
+
+		for i := startIdx; i < len(node.Parts); i++ {
+			err := c.Compile(node.Parts[i])
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpAdd)
+		}
 
 	case *ast.BooleanLiteral:
 		if node.Value {
@@ -467,6 +549,60 @@ func (c *Compiler) Compile(node ast.Node) error {
 		key := &object.String{Value: node.Field.Value}
 		c.emit(code.OpConstant, c.addConstant(key))
 		c.emit(code.OpIndex)
+
+	case *ast.OptionalDotExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Left)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpDup)
+		jumpNullPos := c.emit(code.OpJumpNull, 9999)
+
+		key := &object.String{Value: node.Field.Value}
+		c.emit(code.OpConstant, c.addConstant(key))
+		c.emit(code.OpIndex)
+
+		afterChainPos := len(c.currentInstructions())
+		c.changeOperand(jumpNullPos, afterChainPos)
+
+	case *ast.OptionalIndexExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Left)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpDup)
+		jumpNullPos := c.emit(code.OpJumpNull, 9999)
+
+		err = c.Compile(node.Index)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpIndex)
+
+		afterChainPos := len(c.currentInstructions())
+		c.changeOperand(jumpNullPos, afterChainPos)
+
+	case *ast.OptionalCallExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Function)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpDup)
+		jumpNullPos := c.emit(code.OpJumpNull, 9999)
+
+		for _, a := range node.Arguments {
+			err := c.Compile(a)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpCall, len(node.Arguments))
+
+		afterCallPos := len(c.currentInstructions())
+		c.changeOperand(jumpNullPos, afterCallPos)
 
 	case *ast.PipeExpression:
 		c.currentLine = node.Token.Line
@@ -630,7 +766,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 			freeNames[i] = s.Name
 		}
 
+		fnName := node.Name
+		if fnName == "" {
+			fnName = "<anonymous>"
+		}
+
 		compiledFn := &object.CompiledFunction{
+			Name:          fnName,
 			Instructions:  instructions,
 			NumLocals:     numLocals,
 			NumParameters: len(node.Parameters),
@@ -643,6 +785,60 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 
 	case *ast.CallExpression:
+		if optDot, ok := node.Function.(*ast.OptionalDotExpression); ok {
+			c.currentLine = optDot.Token.Line
+			err := c.Compile(optDot.Left)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpDup)
+			jumpNullPos := c.emit(code.OpJumpNull, 9999)
+
+			key := &object.String{Value: optDot.Field.Value}
+			c.emit(code.OpConstant, c.addConstant(key))
+			c.emit(code.OpIndex)
+
+			for _, a := range node.Arguments {
+				err := c.Compile(a)
+				if err != nil {
+					return err
+				}
+			}
+			c.emit(code.OpCall, len(node.Arguments))
+
+			afterCallPos := len(c.currentInstructions())
+			c.changeOperand(jumpNullPos, afterCallPos)
+			return nil
+		}
+
+		if optIdx, ok := node.Function.(*ast.OptionalIndexExpression); ok {
+			c.currentLine = optIdx.Token.Line
+			err := c.Compile(optIdx.Left)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpDup)
+			jumpNullPos := c.emit(code.OpJumpNull, 9999)
+
+			err = c.Compile(optIdx.Index)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpIndex)
+
+			for _, a := range node.Arguments {
+				err := c.Compile(a)
+				if err != nil {
+					return err
+				}
+			}
+			c.emit(code.OpCall, len(node.Arguments))
+
+			afterCallPos := len(c.currentInstructions())
+			c.changeOperand(jumpNullPos, afterCallPos)
+			return nil
+		}
+
 		err := c.Compile(node.Function)
 		if err != nil {
 			return err

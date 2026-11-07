@@ -11,7 +11,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.IDENT:
 		if p.peekTokenIs(token.ASSIGN) || p.peekTokenIs(token.PLUS_ASSIGN) ||
 			p.peekTokenIs(token.MINUS_ASSIGN) || p.peekTokenIs(token.MUL_ASSIGN) ||
-			p.peekTokenIs(token.DIV_ASSIGN) {
+			p.peekTokenIs(token.DIV_ASSIGN) || p.peekTokenIs(token.COALESCE_ASSIGN) {
 			return p.parseReassignStatement()
 		}
 		return p.parseExpressionStatement()
@@ -200,7 +200,7 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 
 	if p.peekTokenIs(token.ASSIGN) || p.peekTokenIs(token.PLUS_ASSIGN) ||
 		p.peekTokenIs(token.MINUS_ASSIGN) || p.peekTokenIs(token.MUL_ASSIGN) ||
-		p.peekTokenIs(token.DIV_ASSIGN) {
+		p.peekTokenIs(token.DIV_ASSIGN) || p.peekTokenIs(token.COALESCE_ASSIGN) {
 		p.nextToken()
 		assignToken := p.curToken
 		op := assignToken.Literal

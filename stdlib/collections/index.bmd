@@ -190,3 +190,153 @@ let group_by = fn(arr, key_fn) {
     }
     return groups;
 };
+
+// key_by indexes array elements into a hash map where key is determined by key_fn
+let key_by = fn(arr, key_fn) {
+    let out = {};
+    for item in arr {
+        let k = key_fn(item);
+        out[k] = item;
+    }
+    return out;
+};
+
+// partition splits array into two arrays: [matching, non_matching]
+let partition = fn(arr, predicate) {
+    let matches = [];
+    let non_matches = [];
+    for item in arr {
+        if predicate(item) {
+            push(matches, item);
+        } else {
+            push(non_matches, item);
+        }
+    }
+    return [matches, non_matches];
+};
+
+// flat_map applies transform returning arrays and flattens result by one level
+let flat_map = fn(arr, transform) {
+    let out = [];
+    for item in arr {
+        let mapped = transform(item);
+        if type(mapped) == "ARRAY" {
+            for sub in mapped {
+                push(out, sub);
+            }
+        } else {
+            push(out, mapped);
+        }
+    }
+    return out;
+};
+
+// compact filters out all null values from array
+let compact = fn(arr) {
+    let out = [];
+    for item in arr {
+        if item != null {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+// sum_by sums the numeric values extracted by num_fn from each item
+let sum_by = fn(arr, num_fn) {
+    let total = 0;
+    for item in arr {
+        total = total + num_fn(item);
+    }
+    return total;
+};
+
+// min_by returns the item with the minimum value determined by num_fn
+let min_by = fn(arr, num_fn) {
+    if len(arr) == 0 {
+        return null;
+    }
+    let best_item = arr[0];
+    let best_val = num_fn(best_item);
+    let i = 1;
+    while i < len(arr) {
+        let cur_val = num_fn(arr[i]);
+        if cur_val < best_val {
+            best_val = cur_val;
+            best_item = arr[i];
+        }
+        i = i + 1;
+    }
+    return best_item;
+};
+
+// max_by returns the item with the maximum value determined by num_fn
+let max_by = fn(arr, num_fn) {
+    if len(arr) == 0 {
+        return null;
+    }
+    let best_item = arr[0];
+    let best_val = num_fn(best_item);
+    let i = 1;
+    while i < len(arr) {
+        let cur_val = num_fn(arr[i]);
+        if cur_val > best_val {
+            best_val = cur_val;
+            best_item = arr[i];
+        }
+        i = i + 1;
+    }
+    return best_item;
+};
+
+// frequencies returns a map counting the occurrences of each element
+let frequencies = fn(arr) {
+    let counts = {};
+    for item in arr {
+        let k = str(item);
+        if counts[k] == null {
+            counts[k] = 1;
+        } else {
+            counts[k] = counts[k] + 1;
+        }
+    }
+    return counts;
+};
+
+// difference returns elements from arr1 that are not present in arr2
+let difference = fn(arr1, arr2) {
+    let out = [];
+    for item in arr1 {
+        if !contains_item(arr2, item) {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+// intersection returns elements present in both arr1 and arr2
+let intersection = fn(arr1, arr2) {
+    let out = [];
+    for item in arr1 {
+        if contains_item(arr2, item) && !contains_item(out, item) {
+            push(out, item);
+        }
+    }
+    return out;
+};
+
+// union returns unique elements combined from both arr1 and arr2
+let union = fn(arr1, arr2) {
+    let out = [];
+    for item in arr1 {
+        if !contains_item(out, item) {
+            push(out, item);
+        }
+    }
+    for item in arr2 {
+        if !contains_item(out, item) {
+            push(out, item);
+        }
+    }
+    return out;
+};

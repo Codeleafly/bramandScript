@@ -154,17 +154,46 @@ type ReturnValue struct {
 func (rv *ReturnValue) Type() ObjectType { return RETURN_VALUE_OBJ }
 func (rv *ReturnValue) Inspect() string  { return rv.Value.Inspect() }
 
+// ---------------- StackFrameInfo ----------------
+type StackFrameInfo struct {
+	Function string
+	Line     int
+	File     string
+}
+
 // ---------------- Error ----------------
 type Error struct {
-	Message string
-	Fatal   bool
+	Message    string
+	Fatal      bool
+	StackTrace []StackFrameInfo
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "Runtime Error: " + e.Message }
 
+func (e *Error) FormatStackTrace() string {
+	var sb strings.Builder
+	sb.WriteString("Runtime Error: ")
+	sb.WriteString(e.Message)
+	if len(e.StackTrace) > 0 {
+		for _, frame := range e.StackTrace {
+			sb.WriteString("\n  at ")
+			fn := frame.Function
+			if fn == "" {
+				fn = "<anonymous>"
+			}
+			sb.WriteString(fn)
+			if frame.Line > 0 {
+				sb.WriteString(fmt.Sprintf(" (line %d)", frame.Line))
+			}
+		}
+	}
+	return sb.String()
+}
+
 // ---------------- CompiledFunction ----------------
 type CompiledFunction struct {
+	Name          string
 	Instructions  []byte
 	NumLocals     int
 	NumParameters int

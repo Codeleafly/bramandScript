@@ -257,3 +257,75 @@ func TestScientificNotation(t *testing.T) {
 		}
 	}
 }
+
+func TestEnterpriseTokens(t *testing.T) {
+	input := `
+	a ? b : c;
+	x ?? y;
+	count ??= 10;
+	user?.name;
+	arr?.[0];
+	my_func?.();
+	f"Hello, {name}!";
+	` + "`" + `Count: ${val}` + "`" + `;
+	`
+
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.IDENT, "a"},
+		{token.QUESTION, "?"},
+		{token.IDENT, "b"},
+		{token.COLON, ":"},
+		{token.IDENT, "c"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "x"},
+		{token.COALESCE, "??"},
+		{token.IDENT, "y"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "count"},
+		{token.COALESCE_ASSIGN, "??="},
+		{token.INT, "10"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "user"},
+		{token.QUESTION_DOT, "?."},
+		{token.IDENT, "name"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "arr"},
+		{token.QUESTION_DOT, "?."},
+		{token.LBRACKET, "["},
+		{token.INT, "0"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
+
+		{token.IDENT, "my_func"},
+		{token.QUESTION_DOT, "?."},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+		{token.SEMICOLON, ";"},
+
+		{token.FORMAT_STRING, "Hello, {name}!"},
+		{token.SEMICOLON, ";"},
+
+		{token.FORMAT_STRING, "Count: ${val}"},
+		{token.SEMICOLON, ";"},
+
+		{token.EOF, ""},
+	}
+
+	l := New(input)
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType {
+			t.Fatalf("test[%d] - wrong type. expected=%q, got=%q", i, tt.expectedType, tok.Type)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("test[%d] - wrong literal. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}

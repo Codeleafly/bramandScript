@@ -1,0 +1,179 @@
+// BramandScript Standard Library :: Structured Logging Module (std/log)
+// Enterprise-grade structured, leveled logging with JSON and console formatting.
+
+let DEBUG = 10;
+let INFO = 20;
+let WARN = 30;
+let ERROR = 40;
+let FATAL = 50;
+
+let level_name = fn(lvl) {
+    if lvl <= DEBUG { return "DEBUG"; }
+    if lvl <= INFO { return "INFO"; }
+    if lvl <= WARN { return "WARN"; }
+    if lvl <= ERROR { return "ERROR"; }
+    return "FATAL";
+};
+
+let level_from_name = fn(name) {
+    let u = to_upper(str(name));
+    if u == "DEBUG" { return DEBUG; }
+    if u == "INFO" { return INFO; }
+    if u == "WARN" || u == "WARNING" { return WARN; }
+    if u == "ERROR" { return ERROR; }
+    if u == "FATAL" { return FATAL; }
+    return INFO;
+};
+
+// Merge two hash maps into a new map
+let _merge_context = fn(base, extra) {
+    let out = {};
+    if base != null {
+        for k, v in base {
+            out[k] = v;
+        }
+    }
+    if extra != null {
+        for k, v in extra {
+            out[k] = v;
+        }
+    }
+    return out;
+};
+
+// Logger implementation
+struct Logger {
+    level,
+    format,
+    context,
+    output_fn,
+
+    fn with(extra_context) {
+        let merged = _merge_context(context, extra_context);
+        return Logger(level, format, merged, output_fn);
+    },
+
+    fn log(msg_level, msg, fields) {
+        if msg_level < level {
+            return null;
+        }
+
+        let timestamp = time_iso();
+        let lvl_str = level_name(msg_level);
+        let merged_fields = _merge_context(context, fields);
+
+        let out_line = "";
+        if format == "json" {
+            let record = {
+                "timestamp": timestamp,
+                "level": lvl_str,
+                "message": str(msg)
+            };
+            if len(merged_fields) > 0 {
+                record["context"] = merged_fields;
+            }
+            out_line = json_stringify(record);
+        } else {
+            // Text console format: [2026-11-07T...] [INFO] Message {key=val}
+            out_line = "[" + timestamp + "] [" + lvl_str + "] " + str(msg);
+            if len(merged_fields) > 0 {
+                out_line = out_line + " " + json_stringify(merged_fields);
+            }
+        }
+
+        if output_fn != null {
+            output_fn(out_line);
+        } else {
+            println(out_line);
+        }
+        return out_line;
+    },
+
+    fn debug(msg, fields) {
+        return log(DEBUG, msg, fields);
+    },
+
+    fn info(msg, fields) {
+        return log(INFO, msg, fields);
+    },
+
+    fn warn(msg, fields) {
+        return log(WARN, msg, fields);
+    },
+
+    fn error(msg, fields) {
+        return log(ERROR, msg, fields);
+    },
+
+    fn fatal(msg, fields) {
+        return log(FATAL, msg, fields);
+    }
+};
+
+let create_logger = fn(options) {
+    let lvl = INFO;
+    let fmt = "text";
+    let ctx = {};
+    let out_fn = null;
+
+    if options != null {
+        if options["level"] != null {
+            if type(options["level"]) == "INTEGER" {
+                lvl = options["level"];
+            } else {
+                lvl = level_from_name(options["level"]);
+            }
+        }
+        if options["format"] != null {
+            fmt = str(options["format"]);
+        }
+        if options["context"] != null {
+            ctx = options["context"];
+        }
+        if options["output_fn"] != null {
+            out_fn = options["output_fn"];
+        }
+    }
+
+    return Logger(lvl, fmt, ctx, out_fn);
+};
+
+// Default singleton logger
+let default_logger = create_logger({"level": INFO, "format": "text"});
+
+// Top-level module convenience helpers
+let set_level = fn(lvl) {
+    if type(lvl) == "STRING" {
+        default_logger.level = level_from_name(lvl);
+    } else {
+        default_logger.level = lvl;
+    }
+};
+
+let set_format = fn(fmt) {
+    default_logger.format = fmt;
+};
+
+let with_context = fn(extra) {
+    return default_logger.with(extra);
+};
+
+let debug = fn(msg, fields) {
+    return default_logger.debug(msg, fields);
+};
+
+let info = fn(msg, fields) {
+    return default_logger.info(msg, fields);
+};
+
+let warn = fn(msg, fields) {
+    return default_logger.warn(msg, fields);
+};
+
+let err = fn(msg, fields) {
+    return default_logger.error(msg, fields);
+};
+
+let fatal = fn(msg, fields) {
+    return default_logger.fatal(msg, fields);
+};

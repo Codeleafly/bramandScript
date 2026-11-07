@@ -243,7 +243,7 @@ func OptimizeBytecode(ins code.Instructions) code.Instructions {
 		for _, w := range def.OperandWidths {
 			insLen += w
 		}
-		if op == code.OpJump || op == code.OpJumpNotTruthy || op == code.OpJumpTruthy || op == code.OpPushHandler {
+		if op == code.OpJump || op == code.OpJumpNotTruthy || op == code.OpJumpTruthy || op == code.OpPushHandler || op == code.OpJumpNotNull || op == code.OpJumpNull {
 			if j+9 <= len(out) {
 				oldTarget := int(binary.BigEndian.Uint64(out[j+1:]))
 				if oldTarget <= len(ins) {
