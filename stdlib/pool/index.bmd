@@ -1,0 +1,94 @@
+// BramandScript Standard Library :: Enterprise Worker Pool (std/pool)
+// Concurrent task distribution and parallel batch processing with fixed concurrency.
+
+let new = fn(num_workers = 4) {
+    if num_workers < 1 {
+        num_workers = 1;
+    }
+
+    let map = fn(items, worker_fn) {
+        let total = len(items);
+        if total == 0 {
+            return [];
+        }
+
+        let actual_workers = num_workers;
+        if actual_workers > total {
+            actual_workers = total;
+        }
+
+        let jobs = chan(total);
+        let results_map = {};
+        let results_mu = mutex();
+        let wg = wait_group();
+
+        // Enqueue all items with their target index
+        let idx = 0;
+        while idx < total {
+            jobs.send({
+                "index": idx,
+                "item": items[idx]
+            });
+            idx += 1;
+        }
+
+        // Spawn worker tasks
+        let w = 0;
+        while w < actual_workers {
+            wg.add(1);
+            spawn(fn() {
+                defer wg.done();
+                while true {
+                    let job = jobs.try_recv();
+                    if job == null || job == false {
+                        break;
+                    }
+
+                    let res = null;
+                    try {
+                        res = worker_fn(job["item"]);
+                    } catch err {
+                        res = {
+                            "error": err,
+                            "failed": true
+                        };
+                    }
+
+                    results_mu.lock();
+                    results_map[job["index"]] = res;
+                    results_mu.unlock();
+                }
+            });
+            w += 1;
+        }
+
+        wg.wait();
+
+        // Reconstruct array in exact input order
+        let ordered = [];
+        let i = 0;
+        while i < total {
+            ordered = append(ordered, results_map[i]);
+            i += 1;
+        }
+
+        return ordered;
+    };
+
+    let execute_all = fn(jobs_list) {
+        let runner = fn(job_fn) {
+            return job_fn();
+        };
+        return map(jobs_list, runner);
+    };
+
+    let get_workers = fn() {
+        return num_workers;
+    };
+
+    return {
+        "map": map,
+        "execute_all": execute_all,
+        "workers": get_workers
+    };
+};

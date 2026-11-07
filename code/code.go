@@ -92,6 +92,10 @@ const (
 	// Enterprise Null-Coalescing & Optional Jumps
 	OpJumpNotNull
 	OpJumpNull
+
+	// Enterprise Defer & Spread Opcodes
+	OpDefer
+	OpSpread
 )
 
 type Definition struct {
@@ -155,6 +159,8 @@ var definitions = map[Opcode]*Definition{
 	OpThrow:            {"OpThrow", []int{}},
 	OpJumpNotNull:      {"OpJumpNotNull", []int{8}},
 	OpJumpNull:         {"OpJumpNull", []int{8}},
+	OpDefer:            {"OpDefer", []int{2}},
+	OpSpread:           {"OpSpread", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

@@ -129,6 +129,39 @@
     - `import "std/retry" as retry` — Exponential backoff retry engine with jitter and error filters
     - `import "std/config" as config` — Environment variable loader, `.env` dotenv parser, and INI configuration parser
     - `import "std/collections" as coll` — `partition`, `key_by`, `flat_map`, `compact`, `sum_by`, `min_by`, `max_by`, `frequencies`, `difference`, `intersection`, `union`
+  - **LIFO `defer` Statement Runtime**:
+    Guaranteed LIFO-ordered cleanup executed upon normal function returns, early returns, and exception unwinding:
+    ```bmd
+    fn processFile(path) {
+        let file = open(path)
+        defer file.close()
+
+        let mu = mutex()
+        mu.lock()
+        defer mu.unlock()
+
+        // processing logic...
+    }
+    ```
+  - **Default Parameter Values in Functions**:
+    Declarative default parameter expressions with preceding parameter reference capability:
+    ```bmd
+    fn connect(host, port = 8080, timeout = 30) {
+        return f"Connecting to {host}:{port} (timeout {timeout}s)"
+    }
+    connect("localhost") // port defaults to 8080, timeout to 30
+    ```
+  - **Array & Hash Spread Expressions (`...`)**:
+    In-line unpacking and deterministic dictionary merging with progressive overriding:
+    ```bmd
+    let items = [1, ...numbers, 4]
+    let config = { ...defaults, "port": 9000, "debug": true }
+    ```
+  - **Enterprise Resiliency & Concurrency Standard Library**:
+    - `import "std/uuid" as uuid` — RFC 4122 v4 UUID generation, parsing, and format validation
+    - `import "std/semaphore" as semaphore` — Counting semaphore concurrency limiter with `with_permit()`
+    - `import "std/circuitbreaker" as circuitbreaker` — Fault-tolerant circuit breaker (Closed, Open, Half-Open) with automatic recovery timeouts and fallbacks
+    - `import "std/pool" as pool` — High-throughput worker pool abstraction with order-preserving parallel `map()`
 - **AOT Constant Folding & Peephole Optimizer**:
   Compiler optimization pass (`bmd run -O script.bmd`, `bmd build -O app.bmd`) pre-evaluating constant arithmetic expressions and compacting bytecode opcodes.
 - **Modular Standard Library (`stdlib/`)**:

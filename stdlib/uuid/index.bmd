@@ -1,0 +1,110 @@
+// BramandScript Standard Library :: RFC 4122 UUID Engine (std/uuid)
+// Cryptographically secure UUID generation, RFC 4122 v4 validation, and component parsing.
+
+let NIL_UUID = "00000000-0000-0000-0000-000000000000";
+
+let is_hex_char = fn(ch) {
+    let code = ord(ch);
+    // '0'-'9': 48-57, 'a'-'f': 97-102, 'A'-'F': 65-70
+    if code >= 48 && code <= 57 {
+        return true;
+    }
+    if code >= 97 && code <= 102 {
+        return true;
+    }
+    if code >= 65 && code <= 70 {
+        return true;
+    }
+    return false;
+};
+
+// Generates an RFC 4122 version 4 UUID
+let v4 = fn() {
+    return uuid();
+};
+
+let new = fn() {
+    return uuid();
+};
+
+let nil_uuid = fn() {
+    return NIL_UUID;
+};
+
+let is_nil = fn(id) {
+    if id == null || type(id) != "STRING" {
+        return false;
+    }
+    return id == NIL_UUID;
+};
+
+// Validates whether string is a valid RFC 4122 UUID
+let validate = fn(id) {
+    if id == null || type(id) != "STRING" {
+        return false;
+    }
+    if len(id) != 36 {
+        return false;
+    }
+
+    let i = 0;
+    while i < 36 {
+        let ch = id[i];
+        if i == 8 || i == 13 || i == 18 || i == 23 {
+            if ch != "-" {
+                return false;
+            }
+        } else {
+            if !is_hex_char(ch) {
+                return false;
+            }
+        }
+        i += 1;
+    }
+
+    return true;
+};
+
+// Extracts UUID version number (e.g. 4 for RFC 4122 v4)
+let version = fn(id) {
+    if !validate(id) {
+        return -1;
+    }
+    let ver_char = id[14];
+    let code = ord(ver_char);
+    if code >= 48 && code <= 57 {
+        return code - 48;
+    }
+    return -1;
+};
+
+// Parses a UUID string into its canonical RFC 4122 components
+let parse = fn(id) {
+    if !validate(id) {
+        return {
+            "valid": false,
+            "error": "invalid UUID format",
+            "version": -1,
+            "variant": "invalid",
+            "time_low": "",
+            "time_mid": "",
+            "time_hi_and_version": "",
+            "clock_seq": "",
+            "node": "",
+            "raw": id
+        };
+    }
+
+    return {
+        "valid": true,
+        "error": null,
+        "version": version(id),
+        "variant": "RFC4122",
+        "time_low": id[0:8],
+        "time_mid": id[9:13],
+        "time_hi_and_version": id[14:18],
+        "clock_seq": id[19:23],
+        "node": id[24:36],
+        "raw": id
+    };
+};

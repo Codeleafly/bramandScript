@@ -354,6 +354,32 @@ fn handle_coord({ x, y }) {
     return sqrt(x * x + y * y)
 }</code></pre>
         </div>
+
+        <h3 class="text-xl font-semibold mt-8 mb-3">Array &amp; Hash Spread Expressions (<code class="font-mono">...</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 mb-2 leading-relaxed">
+          The spread operator (<code class="font-mono">...</code>) enables inline unpacking of array elements and deterministic dictionary merging with order preservation and key overrides:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — array and hash spread</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>// 1. Array Spread: In-line element unpacking
+let mid = [2, 3]
+let full = [1, ...mid, 4, 5]
+println("Full array:", full) // [1, 2, 3, 4, 5]
+
+// Multiple spreads & string character unpacking
+let parts = [..."ab", ...[10, 20]]
+println("Unpacked parts:", parts) // ["a", "b", 10, 20]
+
+// 2. Hash Spread: Progressive map merging & property override
+let defaults = { "host": "127.0.0.1", "port": 8080, "timeout": 30 }
+let server_config = { ...defaults, "port": 9000, "ssl": true }
+println("Server Port:", server_config.port) // 9000 (overridden!)
+println("Server Host:", server_config.host) // "127.0.0.1" (preserved!)</code></pre>
+        </div>
       </section>
 
       <!-- ================= CHAPTER 11 ================= -->

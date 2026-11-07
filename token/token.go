@@ -106,6 +106,7 @@ const (
 	CATCH    = "CATCH"
 	FINALLY  = "FINALLY"
 	THROW    = "THROW"
+	DEFER    = "DEFER"
 )
 
 var keywords = map[string]TokenType{
@@ -137,6 +138,7 @@ var keywords = map[string]TokenType{
 	"catch":    CATCH,
 	"finally":  FINALLY,
 	"throw":    THROW,
+	"defer":    DEFER,
 }
 
 func LookupIdent(ident string) TokenType {

@@ -118,6 +118,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
 	p.registerPrefix(token.YIELD, p.parseYieldExpression)
 	p.registerPrefix(token.FORMAT_STRING, p.parseInterpolatedStringLiteral)
+	p.registerPrefix(token.ELLIPSIS, p.parseSpreadExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PIPE_OP, p.parsePipeExpression)
@@ -518,16 +519,51 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 		return nil
 	}
 
-	params, destructStmts := p.parseFunctionParameters()
+	params, defaults, destructStmts := p.parseFunctionParameters()
 	lit.Parameters = params
+	lit.Defaults = defaults
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 
 	lit.Body = p.parseBlockStatement()
-	if lit.Body != nil && len(destructStmts) > 0 {
-		lit.Body.Statements = append(destructStmts, lit.Body.Statements...)
+	if lit.Body != nil {
+		var defaultStmts []ast.Statement
+		if len(defaults) > 0 {
+			for _, param := range lit.Parameters {
+				if defVal, ok := defaults[param.Value]; ok {
+					defaultStmt := &ast.ExpressionStatement{
+						Token: token.Token{Type: token.IF, Literal: "if", Line: param.Token.Line, Col: param.Token.Col},
+						Expression: &ast.IfExpression{
+							Token: token.Token{Type: token.IF, Literal: "if", Line: param.Token.Line, Col: param.Token.Col},
+							Condition: &ast.InfixExpression{
+								Token:    token.Token{Type: token.EQ, Literal: "=="},
+								Left:     param,
+								Operator: "==",
+								Right:    &ast.NullLiteral{Token: token.Token{Type: token.NULL, Literal: "null"}},
+							},
+							Consequence: &ast.BlockStatement{
+								Statements: []ast.Statement{
+									&ast.ReassignStatement{
+										Token:    token.Token{Type: token.ASSIGN, Literal: "="},
+										Name:     param,
+										Operator: "=",
+										Value:    defVal,
+									},
+								},
+							},
+						},
+					}
+					defaultStmts = append(defaultStmts, defaultStmt)
+				}
+			}
+		}
+
+		allPrepends := append(defaultStmts, destructStmts...)
+		if len(allPrepends) > 0 {
+			lit.Body.Statements = append(allPrepends, lit.Body.Statements...)
+		}
 	}
 
 	return lit
@@ -596,14 +632,15 @@ func (p *Parser) parseHashPattern() *ast.HashPattern {
 	return pattern
 }
 
-func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, []ast.Statement) {
+func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]ast.Expression, []ast.Statement) {
 	identifiers := []*ast.Identifier{}
+	defaults := make(map[string]ast.Expression)
 	destructStmts := []ast.Statement{}
 	seen := make(map[string]bool)
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
-		return identifiers, destructStmts
+		return identifiers, defaults, destructStmts
 	}
 
 	parseOneParam := func() {
@@ -639,6 +676,13 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, []ast.Statement) 
 			}
 			seen[ident.Value] = true
 			identifiers = append(identifiers, ident)
+
+			if p.peekTokenIs(token.ASSIGN) {
+				p.nextToken() // consume '='
+				p.nextToken() // move to default expr
+				defaultVal := p.parseExpression(LOWEST)
+				defaults[ident.Value] = defaultVal
+			}
 		}
 	}
 
@@ -650,10 +694,17 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, []ast.Statement) 
 	}
 
 	if !p.expectPeek(token.RPAREN) {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	return identifiers, destructStmts
+	return identifiers, defaults, destructStmts
+}
+
+func (p *Parser) parseSpreadExpression() ast.Expression {
+	expr := &ast.SpreadExpression{Token: p.curToken}
+	p.nextToken()
+	expr.Value = p.parseExpression(PREFIX)
+	return expr
 }
 
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
@@ -695,19 +746,28 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 func (p *Parser) parseHashLiteral() ast.Expression {
 	hash := &ast.HashLiteral{Token: p.curToken}
 	hash.Pairs = make(map[ast.Expression]ast.Expression)
+	hash.Entries = []ast.HashEntry{}
 
 	for !p.peekTokenIs(token.RBRACE) {
 		p.nextToken()
-		key := p.parseExpression(LOWEST)
 
-		if !p.expectPeek(token.COLON) {
-			return nil
+		if p.curTokenIs(token.ELLIPSIS) {
+			spreadExpr := p.parseSpreadExpression()
+			hash.Entries = append(hash.Entries, ast.HashEntry{Key: spreadExpr, Value: nil})
+			hash.Pairs[spreadExpr] = nil
+		} else {
+			key := p.parseExpression(LOWEST)
+
+			if !p.expectPeek(token.COLON) {
+				return nil
+			}
+
+			p.nextToken()
+			val := p.parseExpression(LOWEST)
+
+			hash.Entries = append(hash.Entries, ast.HashEntry{Key: key, Value: val})
+			hash.Pairs[key] = val
 		}
-
-		p.nextToken()
-		val := p.parseExpression(LOWEST)
-
-		hash.Pairs[key] = val
 
 		if !p.peekTokenIs(token.RBRACE) && !p.expectPeek(token.COMMA) {
 			return nil

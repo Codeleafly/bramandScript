@@ -9,13 +9,26 @@ import (
 )
 
 func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
-	elements := make([]object.Object, endIndex-startIndex)
+	elements := make([]object.Object, 0, endIndex-startIndex)
 	for i := startIndex; i < endIndex; i++ {
 		val := vm.stack[i]
 		if val == nil {
 			val = Null
 		}
-		elements[i-startIndex] = val
+		if sw, ok := val.(*object.SpreadWrapper); ok {
+			switch inner := sw.Value.(type) {
+			case *object.Array:
+				elements = append(elements, inner.Elements...)
+			case *object.String:
+				for _, r := range inner.Value {
+					elements = append(elements, &object.String{Value: string(r)})
+				}
+			default:
+				elements = append(elements, inner)
+			}
+		} else {
+			elements = append(elements, val)
+		}
 	}
 	return &object.Array{Elements: elements}
 }
@@ -31,6 +44,19 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 		}
 		if value == nil {
 			value = Null
+		}
+
+		if sw, ok := key.(*object.SpreadWrapper); ok {
+			if srcHash, isHash := sw.Value.(*object.Hash); isHash {
+				srcHash.Mu.RLock()
+				for hk, pair := range srcHash.Pairs {
+					hashedPairs[hk] = pair
+				}
+				srcHash.Mu.RUnlock()
+				continue
+			} else {
+				return nil, fmt.Errorf("cannot spread non-hash %s into hash literal", sw.Value.Type())
+			}
 		}
 
 		pair := object.HashPair{Key: key, Value: value}

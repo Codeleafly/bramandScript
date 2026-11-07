@@ -216,6 +216,23 @@ func (ts *ThrowStatement) String() string {
 	return out.String()
 }
 
+type DeferStatement struct {
+	Token token.Token // token.DEFER
+	Call  Expression
+}
+
+func (ds *DeferStatement) statementNode()       {}
+func (ds *DeferStatement) TokenLiteral() string { return ds.Token.Literal }
+func (ds *DeferStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("defer ")
+	if ds.Call != nil {
+		out.WriteString(ds.Call.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 type ImportStatement struct {
 	Token token.Token // token.IMPORT
 	Path  string
@@ -475,6 +492,7 @@ func (ie *IfExpression) String() string {
 type FunctionLiteral struct {
 	Token      token.Token // token.FUNCTION
 	Parameters []*Identifier
+	Defaults   map[string]Expression
 	Body       *BlockStatement
 	Name       string // optional named function: fn add(a, b) {...}
 }
@@ -485,6 +503,12 @@ func (fl *FunctionLiteral) String() string {
 	var out bytes.Buffer
 	var params []string
 	for _, p := range fl.Parameters {
+		if fl.Defaults != nil {
+			if defVal, ok := fl.Defaults[p.Value]; ok {
+				params = append(params, p.String()+" = "+defVal.String())
+				continue
+			}
+		}
 		params = append(params, p.String())
 	}
 	out.WriteString(fl.TokenLiteral())
@@ -538,9 +562,15 @@ func (al *ArrayLiteral) String() string {
 	return out.String()
 }
 
+type HashEntry struct {
+	Key   Expression
+	Value Expression // nil if spread entry
+}
+
 type HashLiteral struct {
-	Token token.Token // '{'
-	Pairs map[Expression]Expression
+	Token   token.Token // '{'
+	Pairs   map[Expression]Expression
+	Entries []HashEntry
 }
 
 func (hl *HashLiteral) expressionNode()      {}
@@ -548,13 +578,41 @@ func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
 func (hl *HashLiteral) String() string {
 	var out bytes.Buffer
 	var pairs []string
-	for key, value := range hl.Pairs {
-		pairs = append(pairs, key.String()+": "+value.String())
+	if len(hl.Entries) > 0 {
+		for _, entry := range hl.Entries {
+			if entry.Value == nil {
+				pairs = append(pairs, entry.Key.String())
+			} else {
+				pairs = append(pairs, entry.Key.String()+": "+entry.Value.String())
+			}
+		}
+	} else {
+		for key, value := range hl.Pairs {
+			if value == nil {
+				pairs = append(pairs, key.String())
+			} else {
+				pairs = append(pairs, key.String()+": "+value.String())
+			}
+		}
 	}
 	out.WriteString("{")
 	out.WriteString(strings.Join(pairs, ", "))
 	out.WriteString("}")
 	return out.String()
+}
+
+type SpreadExpression struct {
+	Token token.Token // token.ELLIPSIS
+	Value Expression
+}
+
+func (se *SpreadExpression) expressionNode()      {}
+func (se *SpreadExpression) TokenLiteral() string { return se.Token.Literal }
+func (se *SpreadExpression) String() string {
+	if se.Value != nil {
+		return "..." + se.Value.String()
+	}
+	return "..."
 }
 
 type IndexExpression struct {

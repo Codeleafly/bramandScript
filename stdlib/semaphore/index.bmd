@@ -1,0 +1,76 @@
+// BramandScript Standard Library :: Counting Semaphore (std/semaphore)
+// Concurrency limiter and permit manager for spawn tasks using buffered channels.
+
+let new = fn(capacity = 1) {
+    if capacity < 1 {
+        capacity = 1;
+    }
+
+    let tokens = chan(capacity);
+    let mu = mutex();
+    let current_permits = capacity;
+
+    // Pre-populate tokens channel
+    let i = 0;
+    while i < capacity {
+        tokens.send(true);
+        i += 1;
+    }
+
+    let acquire = fn() {
+        tokens.recv();
+        mu.lock();
+        current_permits -= 1;
+        mu.unlock();
+        return true;
+    };
+
+    let try_acquire = fn() {
+        let ok = tokens.try_recv();
+        if ok {
+            mu.lock();
+            current_permits -= 1;
+            mu.unlock();
+            return true;
+        }
+        return false;
+    };
+
+    let release = fn() {
+        mu.lock();
+        if current_permits < capacity {
+            current_permits += 1;
+            mu.unlock();
+            tokens.send(true);
+            return true;
+        }
+        mu.unlock();
+        return false;
+    };
+
+    let available = fn() {
+        mu.lock();
+        let avail = current_permits;
+        mu.unlock();
+        return avail;
+    };
+
+    let get_capacity = fn() {
+        return capacity;
+    };
+
+    let with_permit = fn(action) {
+        acquire();
+        defer release();
+        return action();
+    };
+
+    return {
+        "acquire": acquire,
+        "try_acquire": try_acquire,
+        "release": release,
+        "available": available,
+        "capacity": get_capacity,
+        "with_permit": with_permit
+    };
+};

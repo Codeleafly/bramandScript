@@ -19,6 +19,10 @@
 - [x] Production Hardening and Codebase Audit (Agent 3): Comprehensive audit and bug fixes for nested ternary precedence conflicts, string interpolation escape sequences, formatter operator handling (??=, ??, ?:), diagnostics multi-char operator spans, and object inspect nil-safety. (Includes: parser/parser.go, formatter/formatter.go, diagnostics/diagnostics.go, object/object.go, vm/ops_index.go, compiler/compile_statements.go, tests)
 ## Day 25
 
+- [x] LIFO Defer Statement Runtime: Implement AST, Lexer, Parser, Compiler, and VM execution for defer statements providing LIFO-ordered deferred cleanup on function returns, early returns, and exception unwinding. (Includes: token/token.go, ast/ast.go, parser/statements.go, compiler/compile_statements.go, code/code.go, vm/frame.go, vm/vm.go, tests)
+- [x] Default Parameter Values in Functions: Implement AST, Parser, and Compiler support for default parameter values in function declarations and function expressions (e.g., fn connect(host, port = 8080, timeout = 30)). (Includes: ast/ast.go, parser/parser.go, compiler/compiler.go, formatter/formatter.go, tests)
+- [x] Array and Hash Spread Expressions: Implement AST, Parser, Compiler, and VM execution for array and hash spread syntax ([1, ...items, 4] and { ...defaults, port: 9000 }) with order preservation and type safety. (Includes: ast/ast.go, parser/parser.go, compiler/compiler.go, code/code.go, vm/vm.go, tests)
+- [x] Enterprise Standard Library Modules (std/uuid, std/semaphore, std/circuitbreaker, std/pool): Implement production-grade standard library modules for RFC 4122 v4 UUIDs (std/uuid), counting semaphore limiter (std/semaphore), resilience circuit breaker pattern (std/circuitbreaker), and concurrent worker pool (std/pool). (Includes: stdlib/uuid/index.bmd, stdlib/semaphore/index.bmd, stdlib/circuitbreaker/index.bmd, stdlib/pool/index.bmd, tests, docs)
 ## Day 26
 
 ## Day 27

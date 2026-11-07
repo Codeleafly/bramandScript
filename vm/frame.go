@@ -10,11 +10,17 @@ type ExceptionHandler struct {
 	SP      int
 }
 
+type DeferredCall struct {
+	Callee object.Object
+	Args   []object.Object
+}
+
 type Frame struct {
 	cl          *object.Closure
 	ip          int
 	basePointer int
 	handlers    []ExceptionHandler
+	defers      []DeferredCall
 }
 
 func NewFrame(cl *object.Closure, basePointer int) *Frame {
@@ -40,4 +46,17 @@ func (f *Frame) PopHandler() (ExceptionHandler, bool) {
 	h := f.handlers[len(f.handlers)-1]
 	f.handlers = f.handlers[:len(f.handlers)-1]
 	return h, true
+}
+
+func (f *Frame) PushDefer(d DeferredCall) {
+	f.defers = append(f.defers, d)
+}
+
+func (f *Frame) PopDefer() (DeferredCall, bool) {
+	if len(f.defers) == 0 {
+		return DeferredCall{}, false
+	}
+	d := f.defers[len(f.defers)-1]
+	f.defers = f.defers[:len(f.defers)-1]
+	return d, true
 }

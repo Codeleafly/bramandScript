@@ -767,6 +767,113 @@ println("DB URL:", cfg.get(env, "DATABASE_URL", "sqlite://app.db")) // "sqlite:/
           </div>
         </div>
 
+        <!-- 11. std/uuid -->
+        <div id="ch-uuid" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">11.</span>
+            <span><code class="font-mono">std/uuid</code> — RFC 4122 v4 UUID Generator &amp; Parser</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Cryptographically secure RFC 4122 Version 4 UUID generation, full format validation, nil UUID checking, and component parsing (time_low, time_mid, time_hi_and_version, clock_seq, node).
+          </p>
+          <div class="code-block-wrapper mb-4">
+            <div class="code-block-header">
+              <span>bmd — std/uuid Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/uuid" as uuid
+
+let id = uuid.v4()
+println("UUID:", id) // "c4b69d4e-5e36-4071-87a2-7fa6203923c5"
+println("Valid:", uuid.validate(id)) // true
+println("Version:", uuid.version(id)) // 4
+
+let parsed = uuid.parse(id)
+println("Variant:", parsed.variant)   // "RFC4122"
+println("Time Low:", parsed.time_low) // "c4b69d4e"</code></pre>
+          </div>
+        </div>
+
+        <!-- 12. std/semaphore -->
+        <div id="ch-semaphore" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">12.</span>
+            <span><code class="font-mono">std/semaphore</code> — Counting Semaphore &amp; Concurrency Limiter</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Counting semaphore abstraction for bounding concurrent executions across <code class="font-mono">spawn</code> tasks, providing non-blocking <code class="font-mono">try_acquire()</code> and exception-safe <code class="font-mono">with_permit()</code> wrappers.
+          </p>
+          <div class="code-block-wrapper mb-4">
+            <div class="code-block-header">
+              <span>bmd — std/semaphore Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/semaphore" as sem_mod
+
+let sem = sem_mod.new(3) // Limit to 3 concurrent operations
+
+// Automatic permit acquire and deferred release
+let res = sem.with_permit(fn() {
+    println("Active permits in use. Available:", sem.available())
+    return "work done"
+})</code></pre>
+          </div>
+        </div>
+
+        <!-- 13. std/circuitbreaker -->
+        <div id="ch-circuitbreaker" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">13.</span>
+            <span><code class="font-mono">std/circuitbreaker</code> — Enterprise Microservice Resiliency</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Production-grade Circuit Breaker pattern with Closed, Open, and Half-Open states, automated reset timeout probe recovery, fallback delegation, and runtime metrics tracking.
+          </p>
+          <div class="code-block-wrapper mb-4">
+            <div class="code-block-header">
+              <span>bmd — std/circuitbreaker Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/circuitbreaker" as cb_mod
+
+let cb = cb_mod.new({
+    "failure_threshold": 3,
+    "reset_timeout": 5000,
+    "fallback": fn() { return {"cached": true, "data": []} }
+})
+
+let response = cb.execute(fn() {
+    return fetchRemoteService()
+})</code></pre>
+          </div>
+        </div>
+
+        <!-- 14. std/pool -->
+        <div id="ch-pool" class="pt-8 border-t border-slate-200 dark:border-slate-800">
+          <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-600 dark:text-blue-400">14.</span>
+            <span><code class="font-mono">std/pool</code> — High-Throughput Worker Pool</span>
+          </h3>
+          <p class="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+            Worker pool abstraction for parallelizing concurrent workloads with a fixed concurrency quota, ensuring thread-safe job distribution and input-order-preserving parallel <code class="font-mono">map()</code> operations.
+          </p>
+          <div class="code-block-wrapper mb-4">
+            <div class="code-block-header">
+              <span>bmd — std/pool Parallel Processing Example</span>
+              <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            </div>
+            <pre><code>import "std/pool" as pool_mod
+
+let pool = pool_mod.new(8) // 8 concurrent workers
+let urls = ["item1", "item2", "item3", "item4"]
+
+// Parallel map preserving exact output index order
+let results = pool.map(urls, fn(url) {
+    return processTask(url)
+})</code></pre>
+          </div>
+        </div>
+
       </section>
 
 

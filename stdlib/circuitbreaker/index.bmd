@@ -1,0 +1,190 @@
+// BramandScript Standard Library :: Enterprise Circuit Breaker (std/circuitbreaker)
+// Fault-tolerance and resiliency pattern managing Closed, Open, and Half-Open states.
+
+let STATE_CLOSED = "CLOSED";
+let STATE_OPEN = "OPEN";
+let STATE_HALF_OPEN = "HALF_OPEN";
+
+let new = fn(options = null) {
+    let failure_threshold = 5;
+    let reset_timeout = 3000; // ms
+    let half_open_success_threshold = 1;
+    let default_fallback = null;
+
+    if options != null {
+        if options["failure_threshold"] != null {
+            failure_threshold = options["failure_threshold"];
+        }
+        if options["reset_timeout"] != null {
+            reset_timeout = options["reset_timeout"];
+        }
+        if options["half_open_success_threshold"] != null {
+            half_open_success_threshold = options["half_open_success_threshold"];
+        }
+        if options["fallback"] != null {
+            default_fallback = options["fallback"];
+        }
+    }
+
+    let mu = mutex();
+    let current_state = STATE_CLOSED;
+    let consecutive_failures = 0;
+    let half_open_successes = 0;
+    let last_failure_time = 0;
+    let total_calls = 0;
+    let total_successes = 0;
+    let total_failures = 0;
+    let trip_count = 0;
+
+    let get_state = fn() {
+        mu.lock();
+        defer mu.unlock();
+
+        if current_state == STATE_OPEN {
+            let now = time_ms();
+            let elapsed = now - last_failure_time;
+            if elapsed >= reset_timeout {
+                current_state = STATE_HALF_OPEN;
+                half_open_successes = 0;
+            }
+        }
+        return current_state;
+    };
+
+    let trip = fn() {
+        mu.lock();
+        defer mu.unlock();
+        current_state = STATE_OPEN;
+        last_failure_time = time_ms();
+        trip_count += 1;
+    };
+
+    let reset = fn() {
+        mu.lock();
+        defer mu.unlock();
+        current_state = STATE_CLOSED;
+        consecutive_failures = 0;
+        half_open_successes = 0;
+    };
+
+    let execute = fn(operation, override_fallback = null) {
+        let active_state = get_state();
+
+        if active_state == STATE_OPEN {
+            let fb = override_fallback;
+            if fb == null {
+                fb = default_fallback;
+            }
+            if fb != null {
+                if type(fb) == "FUNCTION" || type(fb) == "CLOSURE" {
+                    return {
+                        "ok": true,
+                        "fallback_used": true,
+                        "result": fb(),
+                        "error": null,
+                        "circuit_open": true,
+                        "state": STATE_OPEN
+                    };
+                }
+                return {
+                    "ok": true,
+                    "fallback_used": true,
+                    "result": fb,
+                    "error": null,
+                    "circuit_open": true,
+                    "state": STATE_OPEN
+                };
+            }
+
+            return {
+                "ok": false,
+                "fallback_used": false,
+                "result": null,
+                "error": "circuit breaker is OPEN: downstream call blocked",
+                "circuit_open": true,
+                "state": STATE_OPEN
+            };
+        }
+
+        mu.lock();
+        total_calls += 1;
+        mu.unlock();
+
+        let succeeded = false;
+        let res = null;
+        let caught_err = null;
+
+        try {
+            res = operation();
+            succeeded = true;
+        } catch err {
+            caught_err = err;
+            succeeded = false;
+        }
+
+        mu.lock();
+        defer mu.unlock();
+
+        if succeeded {
+            total_successes += 1;
+            consecutive_failures = 0;
+
+            if current_state == STATE_HALF_OPEN {
+                half_open_successes += 1;
+                if half_open_successes >= half_open_success_threshold {
+                    current_state = STATE_CLOSED;
+                }
+            }
+
+            return {
+                "ok": true,
+                "fallback_used": false,
+                "result": res,
+                "error": null,
+                "circuit_open": false,
+                "state": current_state
+            };
+        } else {
+            total_failures += 1;
+            consecutive_failures += 1;
+            last_failure_time = time_ms();
+
+            if current_state == STATE_HALF_OPEN || consecutive_failures >= failure_threshold {
+                current_state = STATE_OPEN;
+                trip_count += 1;
+            }
+
+            return {
+                "ok": false,
+                "fallback_used": false,
+                "result": null,
+                "error": caught_err,
+                "circuit_open": (current_state == STATE_OPEN),
+                "state": current_state
+            };
+        }
+    };
+
+    let metrics = fn() {
+        mu.lock();
+        defer mu.unlock();
+        return {
+            "state": current_state,
+            "consecutive_failures": consecutive_failures,
+            "total_calls": total_calls,
+            "total_successes": total_successes,
+            "total_failures": total_failures,
+            "trips": trip_count,
+            "reset_timeout": reset_timeout,
+            "failure_threshold": failure_threshold
+        };
+    };
+
+    return {
+        "execute": execute,
+        "state": get_state,
+        "trip": trip,
+        "reset": reset,
+        "metrics": metrics
+    };
+};

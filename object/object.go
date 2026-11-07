@@ -40,6 +40,7 @@ const (
 	WS_SERVER_OBJ            = "WS_SERVER"
 	BYTES_OBJ                = "BYTES"
 	CELL_OBJ                 = "CELL"
+	SPREAD_WRAPPER_OBJ       = "SPREAD_WRAPPER"
 )
 
 type Object interface {
@@ -502,4 +503,17 @@ func (w *WaitGroup) Done() {
 
 func (w *WaitGroup) Wait() {
 	w.wg.Wait()
+}
+
+// ---------------- SpreadWrapper ----------------
+type SpreadWrapper struct {
+	Value Object
+}
+
+func (sw *SpreadWrapper) Type() ObjectType { return SPREAD_WRAPPER_OBJ }
+func (sw *SpreadWrapper) Inspect() string {
+	if sw.Value != nil {
+		return "..." + sw.Value.Inspect()
+	}
+	return "..."
 }

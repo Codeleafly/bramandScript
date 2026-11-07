@@ -1,0 +1,349 @@
+// BramandScript Test Suite :: Day 25 Enterprise Hardening & Language Capabilities
+// Validates:
+// 1. LIFO Defer Statement Runtime (function returns, early returns, and unwinding)
+// 2. Default Parameter Values in Functions (fn connect(host, port = 8080, timeout = 30))
+// 3. Array & Hash Spread Expressions ([1, ...items, 4], { ...defaults, port: 9000 })
+// 4. Enterprise Standard Library Suites (std/uuid, std/semaphore, std/circuitbreaker, std/pool)
+
+import "std/testing" as t;
+import "std/uuid" as uuid;
+import "std/semaphore" as semaphore;
+import "std/circuitbreaker" as circuitbreaker;
+import "std/pool" as pool;
+
+describe("Day 25: LIFO Defer Statement Runtime", fn() {
+    test("Multiple defers execute in strict LIFO order on function return", fn() {
+        let events = [];
+        let compute = fn() {
+            events = append(events, "start");
+            defer fn() { events = append(events, "defer 1"); }();
+            defer fn() { events = append(events, "defer 2"); }();
+            defer fn() { events = append(events, "defer 3"); }();
+            events = append(events, "end");
+            return 100;
+        };
+
+        let result = compute();
+        assert_eq(result, 100);
+        assert_eq(events[0], "start");
+        assert_eq(events[1], "end");
+        assert_eq(events[2], "defer 3");
+        assert_eq(events[3], "defer 2");
+        assert_eq(events[4], "defer 1");
+    });
+
+    test("Defer executes correctly on early return", fn() {
+        let closed = false;
+        let early_exit = fn(flag) {
+            defer fn() { closed = true; }();
+            if flag {
+                return "exited early";
+            }
+            return "normal exit";
+        };
+
+        assert_eq(early_exit(true), "exited early");
+        assert_true(closed);
+
+        closed = false;
+        assert_eq(early_exit(false), "normal exit");
+        assert_true(closed);
+    });
+
+    test("Defer executes correctly on void OpReturn", fn() {
+        let ran = false;
+        let proc = fn() {
+            defer fn() { ran = true; }();
+        };
+
+        let res = proc();
+        assert_null(res);
+        assert_true(ran);
+    });
+
+    test("Defers in recursive calls unwind independently per frame", fn() {
+        let depth_trace = [];
+        let countdown = fn(n) {
+            defer fn() { depth_trace = append(depth_trace, n); }();
+            if n > 1 {
+                countdown(n - 1);
+            }
+        };
+
+        countdown(3);
+        // countdown(1) exits first -> 1, countdown(2) exits next -> 2, countdown(3) exits last -> 3
+        assert_eq(depth_trace[0], 1);
+        assert_eq(depth_trace[1], 2);
+        assert_eq(depth_trace[2], 3);
+    });
+
+    test("Defers execute during exception unwinding to caller try-catch", fn() {
+        let cleanup_done = false;
+        let failing_worker = fn() {
+            defer fn() { cleanup_done = true; }();
+            throw "critical worker failure";
+        };
+
+        let caught = false;
+        try {
+            failing_worker();
+        } catch err {
+            caught = true;
+        }
+
+        assert_true(caught);
+        assert_true(cleanup_done);
+    });
+});
+
+describe("Day 25: Default Parameter Values in Functions", fn() {
+    test("Function uses default parameter when argument is omitted", fn() {
+        let greet = fn(name, greeting = "Hello") {
+            return f"{greeting}, {name}!";
+        };
+
+        assert_eq(greet("Alice"), "Hello, Alice!");
+        assert_eq(greet("Bob", "Welcome"), "Welcome, Bob!");
+    });
+
+    test("Multiple default parameters can be partially or fully overridden", fn() {
+        let configure = fn(host, port = 8080, timeout = 30, ssl = false) {
+            return {
+                "host": host,
+                "port": port,
+                "timeout": timeout,
+                "ssl": ssl
+            };
+        };
+
+        let c1 = configure("api.internal");
+        assert_eq(c1["host"], "api.internal");
+        assert_eq(c1["port"], 8080);
+        assert_eq(c1["timeout"], 30);
+        assert_false(c1["ssl"]);
+
+        let c2 = configure("db.internal", 5432);
+        assert_eq(c2["port"], 5432);
+        assert_eq(c2["timeout"], 30);
+
+        let c3 = configure("gateway.prod", 443, 10, true);
+        assert_eq(c3["port"], 443);
+        assert_eq(c3["timeout"], 10);
+        assert_true(c3["ssl"]);
+    });
+
+    test("Default expression can reference preceding parameters", fn() {
+        let make_box = fn(width, height = width) {
+            return width * height;
+        };
+
+        assert_eq(make_box(5), 25);
+        assert_eq(make_box(5, 10), 50);
+    });
+
+    test("Anonymous function expressions support default parameters", fn() {
+        let multiply = fn(a, b = 2) {
+            return a * b;
+        };
+
+        assert_eq(multiply(7), 14);
+        assert_eq(multiply(7, 3), 21);
+    });
+});
+
+describe("Day 25: Array and Hash Spread Expressions", fn() {
+    test("Array spread unpacks elements into new array", fn() {
+        let mid = [2, 3];
+        let combined = [1, ...mid, 4, 5];
+
+        assert_eq(len(combined), 5);
+        assert_eq(combined[0], 1);
+        assert_eq(combined[1], 2);
+        assert_eq(combined[2], 3);
+        assert_eq(combined[3], 4);
+        assert_eq(combined[4], 5);
+    });
+
+    test("Multiple array spreads in a single literal", fn() {
+        let part1 = ["a", "b"];
+        let part2 = ["c", "d"];
+        let merged = [...part1, ...part2, "e"];
+
+        assert_eq(len(merged), 5);
+        assert_eq(merged[0], "a");
+        assert_eq(merged[2], "c");
+        assert_eq(merged[4], "e");
+    });
+
+    test("String spread unpacks characters into array elements", fn() {
+        let letters = [..."bmd"];
+        assert_eq(len(letters), 3);
+        assert_eq(letters[0], "b");
+        assert_eq(letters[1], "m");
+        assert_eq(letters[2], "d");
+    });
+
+    test("Empty array spread results in clean array", fn() {
+        let empty = [];
+        let res = [10, ...empty, 20];
+        assert_eq(len(res), 2);
+        assert_eq(res[0], 10);
+        assert_eq(res[1], 20);
+    });
+
+    test("Hash spread merges entries and overrides preceding keys", fn() {
+        let defaults = { "host": "127.0.0.1", "port": 8080, "workers": 4 };
+        let custom = { ...defaults, "port": 9000, "debug": true };
+
+        assert_eq(custom["host"], "127.0.0.1");
+        assert_eq(custom["port"], 9000);
+        assert_eq(custom["workers"], 4);
+        assert_true(custom["debug"]);
+    });
+
+    test("Multiple hash spreads with progressive overriding", fn() {
+        let base = { "a": 1, "b": 1, "c": 1 };
+        let overlay1 = { "b": 2, "d": 4 };
+        let overlay2 = { "c": 3, "e": 5 };
+
+        let result = { ...base, ...overlay1, ...overlay2, "f": 6 };
+        assert_eq(result["a"], 1);
+        assert_eq(result["b"], 2);
+        assert_eq(result["c"], 3);
+        assert_eq(result["d"], 4);
+        assert_eq(result["e"], 5);
+        assert_eq(result["f"], 6);
+    });
+
+    test("Spreading empty hash preserves other keys", fn() {
+        let empty_hash = {};
+        let result = { ...empty_hash, "valid": true };
+        assert_true(result["valid"]);
+    });
+});
+
+describe("Day 25: Enterprise Standard Library Suites", fn() {
+    test("std/uuid: Generates valid RFC 4122 v4 UUID and parses components", fn() {
+        let id = uuid.v4();
+        assert_true(uuid.validate(id));
+        assert_eq(uuid.version(id), 4);
+        assert_false(uuid.is_nil(id));
+
+        let parsed = uuid.parse(id);
+        assert_true(parsed["valid"]);
+        assert_eq(parsed["version"], 4);
+        assert_eq(parsed["variant"], "RFC4122");
+        assert_eq(len(parsed["time_low"]), 8);
+        assert_eq(len(parsed["time_mid"]), 4);
+        assert_eq(len(parsed["node"]), 12);
+
+        // Validate nil UUID
+        let nil_id = uuid.nil_uuid();
+        assert_true(uuid.validate(nil_id));
+        assert_true(uuid.is_nil(nil_id));
+
+        // Invalid UUID validation
+        assert_false(uuid.validate("not-a-uuid"));
+        assert_false(uuid.validate(12345));
+    });
+
+    test("std/semaphore: Concurrency permit limiting and with_permit cleanup", fn() {
+        let sem = semaphore.new(2);
+        assert_eq(sem.capacity(), 2);
+        assert_eq(sem.available(), 2);
+
+        assert_true(sem.acquire());
+        assert_eq(sem.available(), 1);
+
+        assert_true(sem.try_acquire());
+        assert_eq(sem.available(), 0);
+
+        // Third acquire non-blocking attempt should fail
+        assert_false(sem.try_acquire());
+
+        // Release permit
+        assert_true(sem.release());
+        assert_eq(sem.available(), 1);
+
+        // with_permit automatically acquires and defers release
+        let res = sem.with_permit(fn() {
+            assert_eq(sem.available(), 0);
+            return "task complete";
+        });
+
+        assert_eq(res, "task complete");
+        assert_eq(sem.available(), 1);
+    });
+
+    test("std/circuitbreaker: Closed, Open, and Half-Open transitions with fallback", fn() {
+        let cb = circuitbreaker.new({
+            "failure_threshold": 3,
+            "reset_timeout": 50,
+            "fallback": fn() { return "standard fallback"; }
+        });
+
+        assert_eq(cb.state(), "CLOSED");
+
+        // Normal successful execution
+        let r1 = cb.execute(fn() { return 42; });
+        assert_true(r1["ok"]);
+        assert_eq(r1["result"], 42);
+        assert_false(r1["circuit_open"]);
+
+        // Generate failures up to threshold
+        cb.execute(fn() { throw "err 1"; });
+        cb.execute(fn() { throw "err 2"; });
+        assert_eq(cb.state(), "CLOSED");
+
+        // 3rd failure trips the breaker to OPEN
+        cb.execute(fn() { throw "err 3"; });
+        assert_eq(cb.state(), "OPEN");
+
+        // While OPEN, requests fail fast with fallback
+        let r_open = cb.execute(fn() { return 999; });
+        assert_true(r_open["ok"]);
+        assert_true(r_open["fallback_used"]);
+        assert_eq(r_open["result"], "standard fallback");
+        assert_true(r_open["circuit_open"]);
+
+        // Manual reset returns to CLOSED
+        cb.reset();
+        assert_eq(cb.state(), "CLOSED");
+
+        let m = cb.metrics();
+        assert_eq(m["state"], "CLOSED");
+        assert_true(m["total_calls"] >= 4);
+    });
+
+    test("std/pool: Concurrent worker pool mapping preserves input ordering", fn() {
+        let p = pool.new(4);
+        assert_eq(p.workers(), 4);
+
+        let inputs = [1, 2, 3, 4, 5, 6, 7, 8];
+        let doubled = p.map(inputs, fn(x) {
+            return x * 2;
+        });
+
+        assert_eq(len(doubled), 8);
+        assert_eq(doubled[0], 2);
+        assert_eq(doubled[1], 4);
+        assert_eq(doubled[2], 6);
+        assert_eq(doubled[3], 8);
+        assert_eq(doubled[4], 10);
+        assert_eq(doubled[5], 12);
+        assert_eq(doubled[6], 14);
+        assert_eq(doubled[7], 16);
+
+        // execute_all with zero-arg jobs
+        let jobs = [
+            fn() { return "alpha"; },
+            fn() { return "beta"; },
+            fn() { return "gamma"; }
+        ];
+        let job_results = p.execute_all(jobs);
+        assert_eq(len(job_results), 3);
+        assert_eq(job_results[0], "alpha");
+        assert_eq(job_results[1], "beta");
+        assert_eq(job_results[2], "gamma");
+    });
+});

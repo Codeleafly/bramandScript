@@ -473,21 +473,53 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		c.emit(code.OpArray, len(node.Elements))
 
+	case *ast.SpreadExpression:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpSpread)
+
 	case *ast.HashLiteral:
-		if len(node.Pairs)*2 > 65535 {
-			return c.makeError(node.Token.Line, node.Token.Col, "hash literal exceeds maximum size of 32767 pairs")
-		}
-		for k, v := range node.Pairs {
-			err := c.Compile(k)
-			if err != nil {
-				return err
+		if len(node.Entries) > 0 {
+			if len(node.Entries)*2 > 65535 {
+				return c.makeError(node.Token.Line, node.Token.Col, "hash literal exceeds maximum size of 32767 entries")
 			}
-			err = c.Compile(v)
-			if err != nil {
-				return err
+			for _, entry := range node.Entries {
+				err := c.Compile(entry.Key)
+				if err != nil {
+					return err
+				}
+				if entry.Value != nil {
+					err = c.Compile(entry.Value)
+					if err != nil {
+						return err
+					}
+				} else {
+					c.emit(code.OpNull)
+				}
 			}
+			c.emit(code.OpHash, len(node.Entries)*2)
+		} else {
+			if len(node.Pairs)*2 > 65535 {
+				return c.makeError(node.Token.Line, node.Token.Col, "hash literal exceeds maximum size of 32767 pairs")
+			}
+			for k, v := range node.Pairs {
+				err := c.Compile(k)
+				if err != nil {
+					return err
+				}
+				if v != nil {
+					err = c.Compile(v)
+					if err != nil {
+						return err
+					}
+				} else {
+					c.emit(code.OpNull)
+				}
+			}
+			c.emit(code.OpHash, len(node.Pairs)*2)
 		}
-		c.emit(code.OpHash, len(node.Pairs)*2)
 
 	case *ast.IndexExpression:
 		err := c.Compile(node.Left)

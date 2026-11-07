@@ -856,6 +856,31 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 		c.emit(code.OpThrow)
 
+	case *ast.DeferStatement:
+		c.currentLine = node.Token.Line
+		if node.Call == nil {
+			return true, c.makeError(node.Token.Line, node.Token.Col, "defer statement requires an expression or function call")
+		}
+		if call, ok := node.Call.(*ast.CallExpression); ok {
+			err := c.Compile(call.Function)
+			if err != nil {
+				return true, err
+			}
+			for _, arg := range call.Arguments {
+				err := c.Compile(arg)
+				if err != nil {
+					return true, err
+				}
+			}
+			c.emit(code.OpDefer, len(call.Arguments))
+		} else {
+			err := c.Compile(node.Call)
+			if err != nil {
+				return true, err
+			}
+			c.emit(code.OpDefer, 0)
+		}
+
 	default:
 		return false, nil
 	}

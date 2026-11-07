@@ -39,6 +39,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseTryCatchStatement()
 	case token.THROW:
 		return p.parseThrowStatement()
+	case token.DEFER:
+		return p.parseDeferStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -487,6 +489,16 @@ func (p *Parser) parseThrowStatement() *ast.ThrowStatement {
 	stmt := &ast.ThrowStatement{Token: p.curToken}
 	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseDeferStatement() *ast.DeferStatement {
+	stmt := &ast.DeferStatement{Token: p.curToken}
+	p.nextToken()
+	stmt.Call = p.parseExpression(LOWEST)
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}

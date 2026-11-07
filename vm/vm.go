@@ -203,6 +203,18 @@ func (vm *VM) setGlobal(index int, val object.Object) {
 	vm.globalsStore.data[index] = val
 }
 
+func (vm *VM) runDefers(frame *Frame) {
+	if frame == nil || len(frame.defers) == 0 {
+		return
+	}
+	defers := frame.defers
+	frame.defers = nil
+	for i := len(defers) - 1; i >= 0; i-- {
+		d := defers[i]
+		_, _ = ExecuteCallable(d.Callee, d.Args...)
+	}
+}
+
 func (vm *VM) handleException(errObj object.Object) bool {
 	if e, ok := errObj.(*object.Error); ok && len(e.StackTrace) == 0 {
 		e.StackTrace = vm.captureStackTrace()
@@ -221,7 +233,8 @@ func (vm *VM) handleException(errObj object.Object) bool {
 			return true
 		}
 		if vm.framesIndex > 1 {
-			vm.popFrame()
+			unwound := vm.popFrame()
+			vm.runDefers(unwound)
 		} else {
 			break
 		}
@@ -656,6 +669,26 @@ func (vm *VM) runLoop() error {
 				return fmt.Errorf("%s", val.Inspect())
 			}
 
+		case code.OpDefer:
+			numArgs := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
+			args := make([]object.Object, numArgs)
+			for i := numArgs - 1; i >= 0; i-- {
+				args[i] = vm.pop()
+			}
+			callee := vm.pop()
+			vm.currentFrame().PushDefer(DeferredCall{
+				Callee: callee,
+				Args:   args,
+			})
+
+		case code.OpSpread:
+			val := vm.pop()
+			err := vm.push(&object.SpreadWrapper{Value: val})
+			if err != nil {
+				return err
+			}
+
 		case code.OpSetLocal:
 			localIndex := int(binary.BigEndian.Uint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
@@ -786,6 +819,7 @@ func (vm *VM) runLoop() error {
 			}
 
 			frame := vm.popFrame()
+			vm.runDefers(frame)
 			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
 				frame.cl.Instance.Mu.Lock()
 				for i, name := range frame.cl.Fn.FreeNames {
@@ -820,6 +854,7 @@ func (vm *VM) runLoop() error {
 
 		case code.OpReturn:
 			frame := vm.popFrame()
+			vm.runDefers(frame)
 			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
 				frame.cl.Instance.Mu.Lock()
 				for i, name := range frame.cl.Fn.FreeNames {
@@ -1009,6 +1044,10 @@ func (vm *VM) runLoop() error {
 		if vm.profiler != nil {
 			vm.profiler.RecordOpcode(op, time.Since(t0))
 		}
+	}
+
+	if vm.framesIndex > 0 {
+		vm.runDefers(vm.frames[0])
 	}
 
 	return nil
