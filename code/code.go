@@ -83,6 +83,11 @@ const (
 	OpCurrentClosure
 	OpGetLocalCell
 	OpGetFreeCell
+
+	// Exception Handling
+	OpPushHandler
+	OpPopHandler
+	OpThrow
 )
 
 type Definition struct {
@@ -91,7 +96,7 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant:         {"OpConstant", []int{2}},
+	OpConstant:         {"OpConstant", []int{8}},
 	OpPop:              {"OpPop", []int{}},
 	OpAdd:              {"OpAdd", []int{}},
 	OpSub:              {"OpSub", []int{}},
@@ -110,10 +115,10 @@ var definitions = map[Opcode]*Definition{
 	OpBang:             {"OpBang", []int{}},
 	OpAnd:              {"OpAnd", []int{}},
 	OpOr:               {"OpOr", []int{}},
-	OpJumpNotTruthy:    {"OpJumpNotTruthy", []int{2}},
-	OpJump:             {"OpJump", []int{2}},
-	OpSetGlobal:        {"OpSetGlobal", []int{2}},
-	OpGetGlobal:        {"OpGetGlobal", []int{2}},
+	OpJumpNotTruthy:    {"OpJumpNotTruthy", []int{8}},
+	OpJump:             {"OpJump", []int{8}},
+	OpSetGlobal:        {"OpSetGlobal", []int{8}},
+	OpGetGlobal:        {"OpGetGlobal", []int{8}},
 	OpSetLocal:         {"OpSetLocal", []int{2}},
 	OpGetLocal:         {"OpGetLocal", []int{2}},
 	OpArray:            {"OpArray", []int{2}},
@@ -124,7 +129,7 @@ var definitions = map[Opcode]*Definition{
 	OpReturnValue:      {"OpReturnValue", []int{}},
 	OpReturn:           {"OpReturn", []int{}},
 	OpGetBuiltin:       {"OpGetBuiltin", []int{1}},
-	OpClosure:          {"OpClosure", []int{2, 1}},
+	OpClosure:          {"OpClosure", []int{8, 1}},
 	OpGetFree:          {"OpGetFree", []int{1}},
 	OpSetFree:          {"OpSetFree", []int{1}},
 	OpSpawn:            {"OpSpawn", []int{1}},
@@ -137,10 +142,13 @@ var definitions = map[Opcode]*Definition{
 	OpShiftRight:       {"OpShiftRight", []int{}},
 	OpBitNot:           {"OpBitNot", []int{}},
 	OpDup:              {"OpDup", []int{}},
-	OpJumpTruthy:       {"OpJumpTruthy", []int{2}},
+	OpJumpTruthy:       {"OpJumpTruthy", []int{8}},
 	OpCurrentClosure:   {"OpCurrentClosure", []int{}},
 	OpGetLocalCell:     {"OpGetLocalCell", []int{2}},
 	OpGetFreeCell:      {"OpGetFreeCell", []int{1}},
+	OpPushHandler:      {"OpPushHandler", []int{8}},
+	OpPopHandler:       {"OpPopHandler", []int{}},
+	OpThrow:            {"OpThrow", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -169,6 +177,8 @@ func Make(op Opcode, operands ...int) []byte {
 	for i, o := range operands {
 		width := def.OperandWidths[i]
 		switch width {
+		case 8:
+			binary.BigEndian.PutUint64(instruction[offset:], uint64(o))
 		case 4:
 			binary.BigEndian.PutUint32(instruction[offset:], uint32(o))
 		case 2:
@@ -191,6 +201,8 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 			return operands, offset
 		}
 		switch width {
+		case 8:
+			operands[i] = int(binary.BigEndian.Uint64(ins[offset:]))
 		case 4:
 			operands[i] = int(binary.BigEndian.Uint32(ins[offset:]))
 		case 2:

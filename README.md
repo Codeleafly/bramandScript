@@ -77,6 +77,19 @@
   - `std/compress`: Pure Go stdlib gzip, zlib, and POSIX tar archiving without external CLI tools.
 - **Terminal Visualizations (`std/tui/plot`)**:
   High-resolution 2x4 Braille dot-matrix mathematical function curves and Unicode box bar charts directly inside the terminal.
+- **64-Bit Opcode Virtual Machine**: Full 64-bit (`uint64`, 8-byte) operand encoding across constants (`OpConstant`), branch jumps (`OpJump`, `OpJumpNotTruthy`, `OpJumpTruthy`), globals (`OpSetGlobal`, `OpGetGlobal`), and closures (`OpClosure`), supporting unbounded programs with millions of instructions.
+- **Dynamic Stack & Configurable Call Frames**: Frames and value stack dynamically expand to accommodate deep recursions, with user-configurable bounds (`--max-frames <N>`, `--max-stack <N>`).
+- **Capability-Based Permission Guards**: Host environment security protecting subprocess execution (`--allow-run`), filesystem writes (`--allow-write`), and network listening (`--allow-net`), or complete capability access (`--allow-all`).
+- **Structured Exception Handling (try-catch-finally)**: First-class grammar statements for resilient error interception:
+  ```bmd
+  try {
+      let val = 100 / 0
+  } catch err {
+      println("Intercepted error:", err)
+  } finally {
+      println("Guaranteed cleanup")
+  }
+  ```
 - **AOT Constant Folding & Peephole Optimizer**:
   Compiler optimization pass (`bmd run -O script.bmd`, `bmd build -O app.bmd`) pre-evaluating constant arithmetic expressions and compacting bytecode opcodes.
 - **Modular Standard Library (`stdlib/`)**:
@@ -141,10 +154,21 @@ Commands inside the REPL:
 - `:help` — Comprehensive documentation and syntax guide
 - `:exit` — Quit REPL
 
-### 2. Execute a Source File
+### 2. Execute a Source File & Permission Options
 ```bash
+# Standard execution
 bmd run script.bmd
-# or shortcut:
+
+# Execute with explicit security permission flags
+bmd run --allow-all script.bmd          # Allow all permissions
+bmd run --allow-run script.bmd          # Allow exec()
+bmd run --allow-write script.bmd        # Allow write_file(), delete_file()
+bmd run --allow-net server.bmd          # Allow tcp_listen()
+
+# Custom call stack depth limit
+bmd run --max-frames 2048 deep.bmd
+
+# Direct shortcut execution
 bmd script.bmd
 ```
 

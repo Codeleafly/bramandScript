@@ -530,6 +530,34 @@ A total of **56 specific, concrete defects, edge-case bugs, missing validations,
   4. Added automated test suite `tests/19_native_tooling_test.bmd` verifying session evaluation, bytecode disassembly, package directory operations, and source formatting.
 - **Status**: `[RESOLVED]`
 
+### P75: 64-Bit Opcode Operands for Large Programs
+- **File/Location**: `code/code.go`, `compiler/compiler.go`, `compiler/optimizer.go`, `vm/vm.go`
+- **Description**: Opcode operands for constants (`OpConstant`), jump offsets (`OpJump`, `OpJumpNotTruthy`, `OpJumpTruthy`), global variable indices (`OpSetGlobal`, `OpGetGlobal`), and closure function indices (`OpClosure`) were previously encoded as 2-byte (`uint16`) values, limiting program scale to 65,535 items.
+- **Root Cause**: 16-bit legacy operand width definitions.
+- **Fix**: Upgraded operand widths to 8-byte (`uint64`) 64-bit BigEndian binary encoding. Updated `code.Make`, `code.ReadOperands`, compiler constant limit checks, peephole optimizer jump re-targeting, and VM opcode decode loop.
+- **Status**: `[RESOLVED]`
+
+### P76: Dynamic Stack Allocation & Configurable Call Frames
+- **File/Location**: `vm/vm.go`, `vm/frame.go`, `main.go`
+- **Description**: Call stack frames and value stack were statically bound to fixed sizes (`MaxFrames = 1024`, `StackSize = 65536`), causing premature stack overflow errors on deeply recursive algorithms.
+- **Root Cause**: Fixed slice allocations without dynamic growth or user configuration.
+- **Fix**: Converted frames and value stack into dynamically resizable slices starting with compact buffers and expanding up to configurable limits (`--max-frames <N>`, `--max-stack <N>`).
+- **Status**: `[RESOLVED]`
+
+### P77: Granular CLI Capability Permission Guards
+- **File/Location**: `vm/permissions.go`, `vm/builtins_io.go`, `vm/builtins_net.go`, `main.go`
+- **Description**: Critical host primitives (`exec`, `write_file`, `append_file`, `delete_file`, `tcp_listen`) executed without security checks, exposing the host system to arbitrary scripts.
+- **Root Cause**: Absence of capability security checking layer in VM execution.
+- **Fix**: Implemented capability permission guards with CLI flags (`--allow-all`, `--allow-run`, `--allow-write`, `--allow-net`, `--allow-read`) and raised clean `PermissionDenied` runtime errors when access is unauthorized.
+- **Status**: `[RESOLVED]`
+
+### P78: Structured Exception Handling Engine (try-catch-finally)
+- **File/Location**: `token/token.go`, `lexer/lexer.go`, `ast/ast.go`, `parser/statements.go`, `compiler/compile_statements.go`, `vm/vm.go`, `tests/20_day22_exceptions_permissions_test.bmd`
+- **Description**: BramandScript lacked language-level exception handling constructs (`try`, `catch`, `finally`, `throw`), causing unhandled runtime errors to terminate the entire process abruptly.
+- **Root Cause**: Absence of grammar exception AST nodes and VM exception unwinding stack.
+- **Fix**: Added `token.TRY`, `token.CATCH`, `token.FINALLY`, `token.THROW`, `ast.TryCatchStatement`, `ast.ThrowStatement`, parser statement rules, `OpPushHandler`, `OpPopHandler`, `OpThrow` opcodes, and call stack exception unwinding with error variable bindings.
+- **Status**: `[RESOLVED]`
+
 ---
 
 ## 7. Open Improvements & Future Roadmap (Week 2 Horizon)

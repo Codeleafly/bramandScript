@@ -97,6 +97,10 @@ const (
 	ENUM     = "ENUM"
 	EMBED    = "EMBED"
 	YIELD    = "YIELD"
+	TRY      = "TRY"
+	CATCH    = "CATCH"
+	FINALLY  = "FINALLY"
+	THROW    = "THROW"
 )
 
 var keywords = map[string]TokenType{
@@ -124,6 +128,10 @@ var keywords = map[string]TokenType{
 	"enum":     ENUM,
 	"embed":    EMBED,
 	"yield":    YIELD,
+	"try":      TRY,
+	"catch":    CATCH,
+	"finally":  FINALLY,
+	"throw":    THROW,
 }
 
 func LookupIdent(ident string) TokenType {

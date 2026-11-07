@@ -17,6 +17,9 @@ func init() {
 	RegisterBuiltins(map[string]*object.Builtin{
 		"tcp_listen": {
 			Fn: func(args ...object.Object) object.Object {
+				if err := CheckPermission(PermNet); err != nil {
+					return &object.Error{Message: err.Error()}
+				}
 				if len(args) != 1 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 				}

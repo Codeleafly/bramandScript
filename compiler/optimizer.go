@@ -243,12 +243,12 @@ func OptimizeBytecode(ins code.Instructions) code.Instructions {
 		for _, w := range def.OperandWidths {
 			insLen += w
 		}
-		if op == code.OpJump || op == code.OpJumpNotTruthy || op == code.OpJumpTruthy {
-			if j+3 <= len(out) {
-				oldTarget := int(binary.BigEndian.Uint16(out[j+1:]))
+		if op == code.OpJump || op == code.OpJumpNotTruthy || op == code.OpJumpTruthy || op == code.OpPushHandler {
+			if j+9 <= len(out) {
+				oldTarget := int(binary.BigEndian.Uint64(out[j+1:]))
 				if oldTarget <= len(ins) {
 					newTarget := offsetMap[oldTarget]
-					binary.BigEndian.PutUint16(out[j+1:], uint16(newTarget))
+					binary.BigEndian.PutUint64(out[j+1:], uint64(newTarget))
 				}
 			}
 		}

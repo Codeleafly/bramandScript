@@ -119,6 +119,18 @@ func init() {
 				return &object.Error{Message: fmt.Sprintf("Panic: %s", msg), Fatal: true}
 			},
 		},
+		"throw": {
+			Fn: func(args ...object.Object) object.Object {
+				msg := "runtime exception"
+				if len(args) > 0 {
+					msg = args[0].Inspect()
+					if s, ok := args[0].(*object.String); ok {
+						msg = s.Value
+					}
+				}
+				return &object.Error{Message: msg, Fatal: true}
+			},
+		},
 		"test": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) < 2 {

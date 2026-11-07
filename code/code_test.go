@@ -8,7 +8,7 @@ func TestMake(t *testing.T) {
 		operands []int
 		expected []byte
 	}{
-		{OpConstant, []int{65534}, []byte{byte(OpConstant), 255, 254}},
+		{OpConstant, []int{65534}, []byte{byte(OpConstant), 0, 0, 0, 0, 0, 0, 255, 254}},
 		{OpAdd, []int{}, []byte{byte(OpAdd)}},
 		{OpGetLocal, []int{255}, []byte{byte(OpGetLocal), 0, 255}},
 	}
@@ -41,7 +41,7 @@ func TestInstructionsString(t *testing.T) {
 	expected := `0000 OpAdd
 0001 OpGetLocal 1
 0004 OpConstant 2
-0007 OpConstant 65535
+0013 OpConstant 65535
 `
 
 	concatted := Instructions{}

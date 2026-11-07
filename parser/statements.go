@@ -35,6 +35,10 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseBreakStatement()
 	case token.CONTINUE:
 		return p.parseContinueStatement()
+	case token.TRY:
+		return p.parseTryCatchStatement()
+	case token.THROW:
+		return p.parseThrowStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -420,5 +424,61 @@ func (p *Parser) parseEnumStatement() *ast.EnumStatement {
 		p.nextToken()
 	}
 
+	return stmt
+}
+
+func (p *Parser) parseTryCatchStatement() *ast.TryCatchStatement {
+	stmt := &ast.TryCatchStatement{Token: p.curToken}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	stmt.Block = p.parseBlockStatement()
+
+	if p.peekTokenIs(token.CATCH) {
+		p.nextToken() // curToken is now CATCH
+
+		if p.peekTokenIs(token.LPAREN) {
+			p.nextToken() // LPAREN
+			if p.peekTokenIs(token.IDENT) {
+				p.nextToken()
+				stmt.CatchVar = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			}
+			if !p.expectPeek(token.RPAREN) {
+				return nil
+			}
+		} else if p.peekTokenIs(token.IDENT) {
+			p.nextToken()
+			stmt.CatchVar = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		}
+
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
+		stmt.CatchBlock = p.parseBlockStatement()
+	}
+
+	if p.peekTokenIs(token.FINALLY) {
+		p.nextToken() // FINALLY
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
+		stmt.FinallyBlock = p.parseBlockStatement()
+	}
+
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseThrowStatement() *ast.ThrowStatement {
+	stmt := &ast.ThrowStatement{Token: p.curToken}
+	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
 	return stmt
 }

@@ -1,0 +1,81 @@
+// BramandScript Test Suite :: Exceptions, 64-Bit VM & Permissions (tests/20_day22_exceptions_permissions_test.bmd)
+
+describe("Exception Handling: Try-Catch-Finally Statements", fn() {
+    test("Catches division by zero runtime error", fn() {
+        let caught = false;
+        let errMsg = "";
+        try {
+            let x = 10 / 0;
+        } catch err {
+            caught = true;
+            errMsg = str(err);
+        }
+        assert_true(caught);
+        assert_true(len(errMsg) > 0);
+    });
+
+    test("Catches explicit throw statement", fn() {
+        let caughtVal = "";
+        try {
+            throw "custom_critical_error";
+        } catch err {
+            caughtVal = err;
+        }
+        assert_eq(caughtVal, "custom_critical_error");
+    });
+
+    test("Bare catch block without error variable", fn() {
+        let reached = false;
+        try {
+            throw "ignored";
+        } catch {
+            reached = true;
+        }
+        assert_true(reached);
+    });
+
+    test("Try-Catch-Finally complete execution ordering", fn() {
+        let order = [];
+        try {
+            order = push(order, 1);
+            throw "fail";
+            order = push(order, 2);
+        } catch e {
+            order = push(order, 3);
+        } finally {
+            order = push(order, 4);
+        }
+        assert_eq(len(order), 3);
+        assert_eq(order[0], 1);
+        assert_eq(order[1], 3);
+        assert_eq(order[2], 4);
+    });
+
+    test("Multi-frame call stack unwinding to parent handler", fn() {
+        let deepFailure = fn() {
+            let helper = fn() {
+                throw "deep_failure_signal";
+            };
+            helper();
+        };
+
+        let caughtSignal = "";
+        try {
+            deepFailure();
+        } catch err {
+            caughtSignal = err;
+        }
+        assert_eq(caughtSignal, "deep_failure_signal");
+    });
+});
+
+describe("Dynamic Call Stack & Recursion Expansion", fn() {
+    test("Deep recursion across 150 call frames executes cleanly", fn() {
+        let rec = fn(n) {
+            if (n <= 1) { return 1; }
+            return rec(n - 1) + 1;
+        };
+        let val = rec(150);
+        assert_eq(val, 150);
+    });
+});

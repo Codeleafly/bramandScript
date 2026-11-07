@@ -357,7 +357,7 @@ bramand pkg init logger@0.1.0</code></pre>
         </div>
 
         <h3 class="text-xl font-semibold mt-8 mb-3">Instruction Set & Opcode Reference</h3>
-        <p class="text-slate-600 dark:text-slate-300 mb-2">Instructions are encoded as 1-byte opcodes followed by optional 1-byte or 2-byte BigEndian operands.</p>
+        <p class="text-slate-600 dark:text-slate-300 mb-2">Instructions are encoded as 1-byte opcodes followed by optional 1-byte, 2-byte, or 8-byte (64-bit) BigEndian operands to support unbounded 64-bit bytecode programs with millions of instructions, constants, and globals.</p>
 
         <div class="overflow-x-auto">
           <table class="doc-table">
@@ -372,9 +372,9 @@ bramand pkg init logger@0.1.0</code></pre>
             <tbody>
               <tr>
                 <td><code class="font-mono">OpConstant</code></td>
-                <td><code class="font-mono">[uint16]</code> index</td>
+                <td><code class="font-mono">[uint64]</code> index</td>
                 <td><code class="font-mono">--&gt; [val]</code></td>
-                <td>Loads constant from constant table and pushes to stack</td>
+                <td>Loads constant from 64-bit constant table and pushes to stack</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpPop</code></td>
@@ -396,33 +396,57 @@ bramand pkg init logger@0.1.0</code></pre>
               </tr>
               <tr>
                 <td><code class="font-mono">OpJump</code></td>
-                <td><code class="font-mono">[uint16]</code> offset</td>
+                <td><code class="font-mono">[uint64]</code> offset</td>
                 <td>none</td>
-                <td>Unconditional jump setting instruction pointer</td>
+                <td>Unconditional 64-bit jump setting instruction pointer</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpJumpNotTruthy</code></td>
-                <td><code class="font-mono">[uint16]</code> offset</td>
+                <td><code class="font-mono">[uint64]</code> offset</td>
                 <td><code class="font-mono">[cond] --&gt;</code></td>
-                <td>Pops condition; jumps if falsy (false or null)</td>
+                <td>Pops condition; jumps to 64-bit offset if falsy (false or null)</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpJumpTruthy</code></td>
+                <td><code class="font-mono">[uint64]</code> offset</td>
+                <td><code class="font-mono">[cond] --&gt;</code></td>
+                <td>Pops condition; jumps to 64-bit offset if truthy</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpSetGlobal / OpGetGlobal</code></td>
-                <td><code class="font-mono">[uint16]</code> globalIndex</td>
+                <td><code class="font-mono">[uint64]</code> globalIndex</td>
                 <td><code class="font-mono">[v] --&gt;</code> / <code class="font-mono">--&gt; [v]</code></td>
-                <td>Sets or retrieves variable from 65,536 globals table</td>
+                <td>Sets or retrieves variable from 64-bit dynamically scalable globals table</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpSetLocal / OpGetLocal</code></td>
-                <td><code class="font-mono">[uint8]</code> localIndex</td>
+                <td><code class="font-mono">[uint16]</code> localIndex</td>
                 <td><code class="font-mono">[v] --&gt;</code> / <code class="font-mono">--&gt; [v]</code></td>
                 <td>Sets or retrieves variable offset from frame base pointer</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpClosure</code></td>
-                <td><code class="font-mono">[uint16]</code> const, <code class="font-mono">[uint8]</code> free</td>
+                <td><code class="font-mono">[uint64]</code> const, <code class="font-mono">[uint8]</code> free</td>
                 <td><code class="font-mono">[free...] --&gt; [closure]</code></td>
-                <td>Creates closure wrapping compiled fn and free cells</td>
+                <td>Creates closure wrapping compiled fn from 64-bit constant pool and free cells</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpPushHandler</code></td>
+                <td><code class="font-mono">[uint64]</code> catchOffset</td>
+                <td>none</td>
+                <td>Pushes exception handler entry with current SP and target catch IP</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpPopHandler</code></td>
+                <td>none</td>
+                <td>none</td>
+                <td>Pops top exception handler upon successful try-block completion</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpThrow</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[val] --&gt;</code></td>
+                <td>Pops value and triggers call stack unwinding to nearest catch handler</td>
               </tr>
               <tr>
                 <td><code class="font-mono">OpCall</code></td>

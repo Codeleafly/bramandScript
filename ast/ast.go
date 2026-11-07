@@ -168,6 +168,53 @@ func (fis *ForInStatement) String() string {
 	return out.String()
 }
 
+type TryCatchStatement struct {
+	Token        token.Token // token.TRY
+	Block        *BlockStatement
+	CatchVar     *Identifier // optional error variable e.g. err
+	CatchBlock   *BlockStatement
+	FinallyBlock *BlockStatement // optional
+}
+
+func (tcs *TryCatchStatement) statementNode()       {}
+func (tcs *TryCatchStatement) TokenLiteral() string { return tcs.Token.Literal }
+func (tcs *TryCatchStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("try ")
+	if tcs.Block != nil {
+		out.WriteString(tcs.Block.String())
+	}
+	if tcs.CatchBlock != nil {
+		out.WriteString(" catch ")
+		if tcs.CatchVar != nil {
+			out.WriteString(tcs.CatchVar.String() + " ")
+		}
+		out.WriteString(tcs.CatchBlock.String())
+	}
+	if tcs.FinallyBlock != nil {
+		out.WriteString(" finally ")
+		out.WriteString(tcs.FinallyBlock.String())
+	}
+	return out.String()
+}
+
+type ThrowStatement struct {
+	Token token.Token // token.THROW
+	Value Expression
+}
+
+func (ts *ThrowStatement) statementNode()       {}
+func (ts *ThrowStatement) TokenLiteral() string { return ts.Token.Literal }
+func (ts *ThrowStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("throw ")
+	if ts.Value != nil {
+		out.WriteString(ts.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 type ImportStatement struct {
 	Token token.Token // token.IMPORT
 	Path  string

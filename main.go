@@ -23,6 +23,11 @@ const DIVIDER = "_______________________________________________________________
 const StandaloneSignature = "BMD_STANDALONE_1"
 const StandaloneFooterLen = 24
 
+var (
+	flagMaxFrames = 1024
+	flagMaxStack  = 1048576
+)
+
 func safeExit(code int) {
 	vm.RestoreTerm()
 	os.Exit(code)
@@ -71,23 +76,7 @@ func main() {
 		repl.Start(os.Stdin, os.Stdout)
 
 	case "run":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: bramand run [-O] <filename.bmd> [args...]")
-			safeExit(1)
-		}
-		optimize := false
-		argIdx := 2
-		if os.Args[argIdx] == "-O" || os.Args[argIdx] == "--optimize" {
-			optimize = true
-			argIdx++
-			if len(os.Args) <= argIdx {
-				fmt.Println("Usage: bramand run [-O] <filename.bmd> [args...]")
-				safeExit(1)
-			}
-		}
-		filename := os.Args[argIdx]
-		vm.SetProgramArgs(os.Args[argIdx+1:])
-		executeFileOpt(filename, optimize)
+		handleRunCommand(os.Args[2:])
 
 	case "-e":
 		if len(os.Args) < 3 {
@@ -165,10 +154,9 @@ func main() {
 		printHelp()
 
 	default:
-		// If argument ends with .bmd or is a file, run it directly
-		if _, err := os.Stat(command); err == nil {
-			vm.SetProgramArgs(os.Args[2:])
-			executeFile(command)
+		// If argument ends with .bmd or is a file, run it directly with full flag support
+		if _, err := os.Stat(command); err == nil || strings.HasSuffix(command, ".bmd") {
+			handleRunCommand(os.Args[1:])
 		} else {
 			fmt.Printf("Unknown command or file: %s\n", command)
 			printHelp()
@@ -433,6 +421,12 @@ func executeSourceOpt(source, filename string, optimize bool) {
 	}
 
 	machine := vm.New(comp.Bytecode())
+	if flagMaxFrames > 0 {
+		machine.SetMaxFrames(flagMaxFrames)
+	}
+	if flagMaxStack > 0 {
+		machine.SetMaxStackSize(flagMaxStack)
+	}
 	err = machine.Run()
 	if err != nil {
 		diag := diagnostics.Diagnostic{
@@ -456,13 +450,87 @@ func executeSourceOpt(source, filename string, optimize bool) {
 	}
 }
 
+func handleRunCommand(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: bramand run [options] <filename.bmd> [args...]")
+		safeExit(1)
+	}
+
+	optimize := false
+	var programArgs []string
+	filename := ""
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-O" || arg == "--optimize":
+			optimize = true
+		case arg == "--allow-all":
+			vm.GetPermissions().AllowAll = true
+		case arg == "--allow-run" || arg == "--allow-exec":
+			vm.GetPermissions().AllowRun = true
+		case arg == "--allow-write":
+			vm.GetPermissions().AllowWrite = true
+		case arg == "--allow-net":
+			vm.GetPermissions().AllowNet = true
+		case arg == "--allow-read":
+			vm.GetPermissions().AllowRead = true
+		case strings.HasPrefix(arg, "--max-frames="):
+			val := strings.TrimPrefix(arg, "--max-frames=")
+			var n int
+			fmt.Sscanf(val, "%d", &n)
+			if n > 0 {
+				flagMaxFrames = n
+			}
+		case arg == "--max-frames" && i+1 < len(args):
+			i++
+			var n int
+			fmt.Sscanf(args[i], "%d", &n)
+			if n > 0 {
+				flagMaxFrames = n
+			}
+		case strings.HasPrefix(arg, "--max-stack="):
+			val := strings.TrimPrefix(arg, "--max-stack=")
+			var n int
+			fmt.Sscanf(val, "%d", &n)
+			if n > 0 {
+				flagMaxStack = n
+			}
+		case arg == "--max-stack" && i+1 < len(args):
+			i++
+			var n int
+			fmt.Sscanf(args[i], "%d", &n)
+			if n > 0 {
+				flagMaxStack = n
+			}
+		case strings.HasPrefix(arg, "-"):
+			fmt.Printf("Unknown option: %s\n", arg)
+			safeExit(1)
+		default:
+			if filename == "" {
+				filename = arg
+				programArgs = args[i+1:]
+				i = len(args)
+			}
+		}
+	}
+
+	if filename == "" {
+		fmt.Println("Usage: bramand run [options] <filename.bmd> [args...]")
+		safeExit(1)
+	}
+
+	vm.SetProgramArgs(programArgs)
+	executeFileOpt(filename, optimize)
+}
+
 func printHelp() {
 	fmt.Printf("%s✦ BramandScript Language CLI (v%s)%s\n", diagnostics.ColorBold, VERSION, diagnostics.ColorReset)
 	fmt.Printf("%s%s%s\n\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
 	fmt.Println("Usage:")
 	fmt.Println("  bramand                   Start interactive REPL")
 	fmt.Println("  bramand repl              Start interactive REPL")
-	fmt.Println("  bramand run [-O] <file>   Run source file (optional -O for AOT optimizations)")
+	fmt.Println("  bramand run [opts] <file> Run source file with 64-bit bytecode VM")
 	fmt.Println("  bramand <file.bmd>        Direct execution shortcut")
 	fmt.Println("  bramand test [paths...]   Execute test suites (*_test.bmd)")
 	fmt.Println("  bramand fmt [paths...]    Format source code canonically")
@@ -476,6 +544,16 @@ func printHelp() {
 	fmt.Println("  bramand pkg init <name>   Initialize package scaffold")
 	fmt.Println("  bramand version           Show version")
 	fmt.Println("  bramand help              Show this help message")
+	fmt.Println()
+	fmt.Println("Execution & Permission Options:")
+	fmt.Println("  -O, --optimize            Enable Ahead-of-Time compiler optimizations")
+	fmt.Println("  --allow-all               Grant all execution, file system, and network permissions")
+	fmt.Println("  --allow-run               Grant external subprocess execution permission (exec)")
+	fmt.Println("  --allow-write             Grant file write, append, and deletion permission")
+	fmt.Println("  --allow-net               Grant network listening permission (tcp_listen)")
+	fmt.Println("  --allow-read              Grant file reading permission")
+	fmt.Println("  --max-frames <N>          Configure maximum call stack frames depth (default: 1024)")
+	fmt.Println("  --max-stack <N>           Configure maximum value stack size (default: 1048576)")
 	fmt.Println()
 	fmt.Println("REPL Commands:")
 	fmt.Println("  :editor                   Open multi-line editor mode")

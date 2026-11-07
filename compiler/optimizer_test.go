@@ -75,12 +75,12 @@ func TestInstructionReduction(t *testing.T) {
 func TestPeepholeOptimizer(t *testing.T) {
 	// Instructions with OpDup followed by OpPop
 	ins := code.Instructions{}
-	ins = append(ins, byte(code.OpConstant), 0, 0)
+	ins = append(ins, byte(code.OpConstant), 0, 0, 0, 0, 0, 0, 0, 0)
 	ins = append(ins, byte(code.OpDup))
 	ins = append(ins, byte(code.OpPop))
 
 	opt := OptimizeBytecode(ins)
-	expectedLen := 3 // only OpConstant remains
+	expectedLen := 9 // only OpConstant remains (1 opcode + 8-byte uint64 operand)
 	if len(opt) != expectedLen {
 		t.Fatalf("expected %d instructions after peephole, got %d", expectedLen, len(opt))
 	}

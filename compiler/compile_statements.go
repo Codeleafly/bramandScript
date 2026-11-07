@@ -674,6 +674,70 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			c.emit(code.OpReturnValue)
 		}
 
+	case *ast.TryCatchStatement:
+		c.currentLine = node.Token.Line
+		pushHandlerPos := c.emit(code.OpPushHandler, 9999)
+
+		err := c.Compile(node.Block)
+		if err != nil {
+			return true, err
+		}
+
+		c.emit(code.OpPopHandler)
+		jumpPastCatchPos := c.emit(code.OpJump, 9999)
+
+		catchTarget := len(c.currentInstructions())
+		c.changeOperand(pushHandlerPos, catchTarget)
+
+		if node.CatchVar != nil {
+			c.enterBlockScope()
+			symbol := c.symbolTable.Define(node.CatchVar.Value, false)
+			if symbol.Scope == GlobalScope {
+				c.emit(code.OpSetGlobal, symbol.Index)
+			} else {
+				c.emit(code.OpSetLocal, symbol.Index)
+			}
+		} else {
+			c.emit(code.OpPop)
+		}
+
+		if node.CatchBlock != nil {
+			for _, s := range node.CatchBlock.Statements {
+				err := c.Compile(s)
+				if err != nil {
+					if node.CatchVar != nil {
+						c.leaveBlockScope()
+					}
+					return true, err
+				}
+			}
+			if node.CatchVar != nil {
+				c.leaveBlockScope()
+			}
+		}
+
+		afterCatchPos := len(c.currentInstructions())
+		c.changeOperand(jumpPastCatchPos, afterCatchPos)
+
+		if node.FinallyBlock != nil {
+			err := c.Compile(node.FinallyBlock)
+			if err != nil {
+				return true, err
+			}
+		}
+
+	case *ast.ThrowStatement:
+		c.currentLine = node.Token.Line
+		if node.Value != nil {
+			err := c.Compile(node.Value)
+			if err != nil {
+				return true, err
+			}
+		} else {
+			c.emit(code.OpNull)
+		}
+		c.emit(code.OpThrow)
+
 	default:
 		return false, nil
 	}

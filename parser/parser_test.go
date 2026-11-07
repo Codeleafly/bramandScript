@@ -234,3 +234,39 @@ func TestSliceExpressionsWithStep(t *testing.T) {
 		}
 	}
 }
+
+func TestTryCatchParsing(t *testing.T) {
+	input := `
+	try {
+		let a = 10 / 0;
+	} catch err {
+		print(err);
+	} finally {
+		print("done");
+	}
+	`
+	l := lexer.New(input)
+	p := New(l)
+	prog := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(prog.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got=%d", len(prog.Statements))
+	}
+	tc, ok := prog.Statements[0].(*ast.TryCatchStatement)
+	if !ok {
+		t.Fatalf("expected *ast.TryCatchStatement, got=%T", prog.Statements[0])
+	}
+	if tc.CatchVar == nil || tc.CatchVar.Value != "err" {
+		t.Fatalf("expected catch var 'err', got=%v", tc.CatchVar)
+	}
+	if tc.Block == nil || len(tc.Block.Statements) != 1 {
+		t.Fatalf("expected 1 statement in try block, got=%v", tc.Block)
+	}
+	if tc.CatchBlock == nil || len(tc.CatchBlock.Statements) != 1 {
+		t.Fatalf("expected 1 statement in catch block, got=%v", tc.CatchBlock)
+	}
+	if tc.FinallyBlock == nil || len(tc.FinallyBlock.Statements) != 1 {
+		t.Fatalf("expected 1 statement in finally block, got=%v", tc.FinallyBlock)
+	}
+}

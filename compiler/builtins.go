@@ -166,6 +166,7 @@ var Builtins = []BuiltinDef{
 	{Name: "assert_eq"},
 	{Name: "assert_ne"},
 	{Name: "panic"},
+	{Name: "throw"},
 	{Name: "test"},
 	{Name: "describe"},
 	{Name: "time_now"},

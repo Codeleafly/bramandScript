@@ -17,6 +17,11 @@ const StackSize = 65536
 const GlobalsSize = 65536
 const MaxFrames = 1024
 
+const DefaultMaxFrames = 1024
+const InitialFrames = 64
+const InitialStackSize = 2048
+const DefaultMaxStackSize = 1048576
+
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
 var Null = &object.Null{}
@@ -64,6 +69,9 @@ type VM struct {
 	frames      []*Frame
 	framesIndex int
 
+	maxFrames    int
+	maxStackSize int
+
 	profiler *Profiler
 
 	MaxSteps  uint64
@@ -80,6 +88,14 @@ func (vm *VM) SetTimeout(d time.Duration) {
 	vm.Timeout = d
 }
 
+func (vm *VM) SetMaxFrames(max int) {
+	vm.maxFrames = max
+}
+
+func (vm *VM) SetMaxStackSize(max int) {
+	vm.maxStackSize = max
+}
+
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{
 		Instructions: bytecode.Instructions,
@@ -88,19 +104,21 @@ func New(bytecode *compiler.Bytecode) *VM {
 	mainClosure := &object.Closure{Fn: mainFn}
 	mainFrame := NewFrame(mainClosure, 0)
 
-	frames := make([]*Frame, MaxFrames)
+	frames := make([]*Frame, InitialFrames)
 	frames[0] = mainFrame
 
 	return &VM{
 		constants: bytecode.Constants,
 
-		stack: make([]object.Object, StackSize),
+		stack: make([]object.Object, InitialStackSize),
 		sp:    0,
 
-		globalsStore: &GlobalsStore{data: make([]object.Object, GlobalsSize)},
+		globalsStore: &GlobalsStore{data: make([]object.Object, 1024)},
 
-		frames:      frames,
-		framesIndex: 1,
+		frames:       frames,
+		framesIndex:  1,
+		maxFrames:    DefaultMaxFrames,
+		maxStackSize: DefaultMaxStackSize,
 	}
 }
 
@@ -110,16 +128,47 @@ func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
 	return vm
 }
 
-func (vm *VM) getGlobal(index uint16) object.Object {
+func (vm *VM) getGlobal(index int) object.Object {
 	vm.globalsStore.mu.RLock()
 	defer vm.globalsStore.mu.RUnlock()
+	if index < 0 || index >= len(vm.globalsStore.data) {
+		return Null
+	}
 	return vm.globalsStore.data[index]
 }
 
-func (vm *VM) setGlobal(index uint16, val object.Object) {
+func (vm *VM) setGlobal(index int, val object.Object) {
 	vm.globalsStore.mu.Lock()
 	defer vm.globalsStore.mu.Unlock()
+	if index >= len(vm.globalsStore.data) {
+		newCap := len(vm.globalsStore.data) * 2
+		if newCap <= index {
+			newCap = index + 1024
+		}
+		newData := make([]object.Object, newCap)
+		copy(newData, vm.globalsStore.data)
+		vm.globalsStore.data = newData
+	}
 	vm.globalsStore.data[index] = val
+}
+
+func (vm *VM) handleException(errObj object.Object) bool {
+	for vm.framesIndex > 0 {
+		frame := vm.currentFrame()
+		if len(frame.handlers) > 0 {
+			handler, _ := frame.PopHandler()
+			vm.sp = handler.SP
+			_ = vm.push(errObj)
+			frame.ip = handler.CatchIP - 1
+			return true
+		}
+		if vm.framesIndex > 1 {
+			vm.popFrame()
+		} else {
+			break
+		}
+	}
+	return false
 }
 
 func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
@@ -136,11 +185,11 @@ func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
 		cl.Instance.Mu.RUnlock()
 	}
 
-	childFrames := make([]*Frame, MaxFrames)
+	childFrames := make([]*Frame, InitialFrames)
 	frame := NewFrame(cl, 0)
 	childFrames[0] = frame
 
-	childStack := make([]object.Object, StackSize)
+	childStack := make([]object.Object, InitialStackSize)
 	for i, arg := range args {
 		childStack[i] = arg
 	}
@@ -157,6 +206,8 @@ func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
 		globalsStore: vm.globalsStore,
 		frames:       childFrames,
 		framesIndex:  1,
+		maxFrames:    vm.maxFrames,
+		maxStackSize: vm.maxStackSize,
 		profiler:     vm.profiler,
 	}
 }
@@ -187,17 +238,21 @@ func ExecuteCallable(callable object.Object, args ...object.Object) (object.Obje
 		var constants []object.Object
 		var globalsStore *GlobalsStore
 		var profiler *Profiler
+		maxFrames := DefaultMaxFrames
+		maxStackSize := DefaultMaxStackSize
 		if vm != nil {
 			constants = vm.constants
 			globalsStore = vm.globalsStore
 			profiler = vm.profiler
+			maxFrames = vm.maxFrames
+			maxStackSize = vm.maxStackSize
 		}
 
-		childFrames := make([]*Frame, MaxFrames)
+		childFrames := make([]*Frame, InitialFrames)
 		frame := NewFrame(fn, 0)
 		childFrames[0] = frame
 
-		childStack := make([]object.Object, StackSize)
+		childStack := make([]object.Object, InitialStackSize)
 		for i, arg := range args {
 			childStack[i] = arg
 		}
@@ -214,6 +269,8 @@ func ExecuteCallable(callable object.Object, args ...object.Object) (object.Obje
 			globalsStore: globalsStore,
 			frames:       childFrames,
 			framesIndex:  1,
+			maxFrames:    maxFrames,
+			maxStackSize: maxStackSize,
 			profiler:     profiler,
 		}
 		oldVM := vm
@@ -235,8 +292,21 @@ func (vm *VM) currentFrame() *Frame {
 }
 
 func (vm *VM) pushFrame(f *Frame) error {
-	if vm.framesIndex >= MaxFrames {
-		return fmt.Errorf("stack overflow: maximum call stack size of %d frames exceeded", MaxFrames)
+	limit := vm.maxFrames
+	if limit <= 0 {
+		limit = DefaultMaxFrames
+	}
+	if vm.framesIndex >= limit {
+		return fmt.Errorf("stack overflow: maximum call stack size of %d frames exceeded", limit)
+	}
+	if vm.framesIndex >= len(vm.frames) {
+		newCap := len(vm.frames) * 2
+		if newCap > limit {
+			newCap = limit
+		}
+		newFrames := make([]*Frame, newCap)
+		copy(newFrames, vm.frames)
+		vm.frames = newFrames
 	}
 	vm.frames[vm.framesIndex] = f
 	vm.framesIndex++
@@ -260,8 +330,21 @@ func (vm *VM) LastPoppedStackElem() object.Object {
 }
 
 func (vm *VM) push(o object.Object) error {
-	if vm.sp >= StackSize {
-		return fmt.Errorf("stack overflow")
+	limit := vm.maxStackSize
+	if limit <= 0 {
+		limit = DefaultMaxStackSize
+	}
+	if vm.sp >= limit {
+		return fmt.Errorf("stack overflow: maximum stack size of %d exceeded", limit)
+	}
+	if vm.sp >= len(vm.stack) {
+		newCap := len(vm.stack) * 2
+		if newCap > limit {
+			newCap = limit
+		}
+		newStack := make([]object.Object, newCap)
+		copy(newStack, vm.stack)
+		vm.stack = newStack
 	}
 
 	vm.stack[vm.sp] = o
@@ -331,11 +414,14 @@ func (vm *VM) runLoop() error {
 
 		switch op {
 		case code.OpConstant:
-			constIndex := binary.BigEndian.Uint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			constIndex := binary.BigEndian.Uint64(ins[ip+1:])
+			vm.currentFrame().ip += 8
 
 			err := vm.push(vm.constants[constIndex])
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -346,48 +432,72 @@ func (vm *VM) runLoop() error {
 			code.OpBitAnd, code.OpBitOr, code.OpBitXor, code.OpShiftLeft, code.OpShiftRight:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpTrue:
 			err := vm.push(True)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpFalse:
 			err := vm.push(False)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpNull:
 			err := vm.push(Null)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan, code.OpGreaterThanEqual:
 			err := vm.executeComparison(op)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpMinus:
 			err := vm.executeMinusOperator()
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpBang:
 			err := vm.executeBangOperator()
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpBitNot:
 			err := vm.executeBitNotOperator()
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -402,12 +512,12 @@ func (vm *VM) runLoop() error {
 			vm.push(nativeBoolToBooleanObject(isTruthy(left) || isTruthy(right)))
 
 		case code.OpJump:
-			pos := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			pos := int(binary.BigEndian.Uint64(ins[ip+1:]))
 			vm.currentFrame().ip = pos - 1
 
 		case code.OpJumpNotTruthy:
-			pos := int(binary.BigEndian.Uint16(ins[ip+1:]))
-			vm.currentFrame().ip += 2
+			pos := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
 
 			condition := vm.pop()
 			if !isTruthy(condition) {
@@ -415,8 +525,8 @@ func (vm *VM) runLoop() error {
 			}
 
 		case code.OpJumpTruthy:
-			pos := int(binary.BigEndian.Uint16(ins[ip+1:]))
-			vm.currentFrame().ip += 2
+			pos := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
 
 			condition := vm.pop()
 			if isTruthy(condition) {
@@ -429,17 +539,20 @@ func (vm *VM) runLoop() error {
 			}
 			err := vm.push(vm.stack[vm.sp-1])
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
 		case code.OpSetGlobal:
-			globalIndex := binary.BigEndian.Uint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			globalIndex := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
 			vm.setGlobal(globalIndex, vm.pop())
 
 		case code.OpGetGlobal:
-			globalIndex := binary.BigEndian.Uint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			globalIndex := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
 
 			val := vm.getGlobal(globalIndex)
 			if val == nil {
@@ -447,7 +560,24 @@ func (vm *VM) runLoop() error {
 			}
 			err := vm.push(val)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
+			}
+
+		case code.OpPushHandler:
+			catchIP := int(binary.BigEndian.Uint64(ins[ip+1:]))
+			vm.currentFrame().ip += 8
+			vm.currentFrame().PushHandler(catchIP, vm.sp)
+
+		case code.OpPopHandler:
+			vm.currentFrame().PopHandler()
+
+		case code.OpThrow:
+			val := vm.pop()
+			if !vm.handleException(val) {
+				return fmt.Errorf("%s", val.Inspect())
 			}
 
 		case code.OpSetLocal:
@@ -534,6 +664,9 @@ func (vm *VM) runLoop() error {
 
 			err := vm.executeIndexExpression(left, index)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -544,6 +677,9 @@ func (vm *VM) runLoop() error {
 
 			err := vm.executeSetIndex(left, index, value)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -553,6 +689,9 @@ func (vm *VM) runLoop() error {
 
 			err := vm.executeCall(numArgs)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 
@@ -708,12 +847,15 @@ func (vm *VM) runLoop() error {
 			}
 
 		case code.OpClosure:
-			constIndex := binary.BigEndian.Uint16(ins[ip+1:])
-			numFree := int(ins[ip+3])
-			vm.currentFrame().ip += 3
+			constIndex := binary.BigEndian.Uint64(ins[ip+1:])
+			numFree := int(ins[ip+9])
+			vm.currentFrame().ip += 9
 
 			err := vm.pushClosure(int(constIndex), numFree)
 			if err != nil {
+				if vm.handleException(&object.Error{Message: err.Error()}) {
+					continue
+				}
 				return err
 			}
 

@@ -698,11 +698,7 @@ func (c *Compiler) loadSymbol(s Symbol) {
 
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
-	pos := len(c.constants) - 1
-	if pos > 65535 && c.compileErr == nil {
-		c.compileErr = fmt.Errorf("constant pool limit exceeded (maximum 65535 constants)")
-	}
-	return pos
+	return len(c.constants) - 1
 }
 
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
