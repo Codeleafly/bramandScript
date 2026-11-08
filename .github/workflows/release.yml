@@ -1,4 +1,4 @@
-name: Cross-Platform Release Matrix
+name: Release
 
 on:
   push:
@@ -33,7 +33,6 @@ jobs:
             archive_format: tar.gz
           - goos: linux
             goarch: arm
-            goarm: 7
             artifact_name: bramand-linux-armv7
             archive_format: tar.gz
           - goos: linux
@@ -48,7 +47,6 @@ jobs:
             archive_format: tar.gz
           - goos: android
             goarch: arm
-            goarm: 7
             artifact_name: bramand-android-armv7
             archive_format: tar.gz
           - goos: android
@@ -94,10 +92,12 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
           CGO_ENABLED: 0
         run: |
           mkdir -p build_output
+          if [ "${{ matrix.goarch }}" = "arm" ]; then
+            export GOARM=7
+          fi
           if [ "${{ matrix.goos }}" = "windows" ]; then
             BINARY_NAME="bramand.exe"
             go build -ldflags="-s -w" -o "build_output/${BINARY_NAME}" main.go
@@ -115,7 +115,10 @@ jobs:
           mkdir -p dist
           TAG="${{ github.ref_name }}"
           if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
-            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="v0.1.0"
           fi
 
           cp -r stdlib build_output/
@@ -169,36 +172,41 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           if [ -z "$TAG" ] || [ "$TAG" = "master" ] || [ "$TAG" = "main" ]; then
-            TAG="${{ inputs.tag_name || 'v0.1.0' }}"
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="v0.1.0"
           fi
 
-          NOTES="✦ BramandScript ${TAG} Production Release ✦
+          cat << 'EOF' > release_notes.md
+✦ BramandScript Production Release ✦
 
 High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, and modular standard library in pure Go. Zero external dependencies.
 
 ### Key Capabilities in this Release:
-- **Enterprise Language Syntax**: Null-coalescing (\`??\`, \`??=\`), optional chaining (\`?.\`), ternary conditional (\`? :\`), string interpolation (\`f\"...\"\`, \`\` \`...\` \`\`), array/hash spread (\`...\`), default function parameters (\`fn f(a, b = 10)\`), LIFO \`defer\` statements.
-- **Granular Capability Security**: CLI permission flags (\`--allow-all\`, \`--allow-run\`, \`--allow-write\`, \`--allow-net\`).
-- **Dynamic VM Architecture**: 64-bit opcode operands, dynamic call frames (\`--max-frames\`), and configurable value stack (\`--max-stack\`).
-- **Enterprise Standard Library**: \`std/log\`, \`std/retry\`, \`std/config\`, \`std/uuid\`, \`std/semaphore\`, \`std/circuitbreaker\`, \`std/pool\`, and advanced \`std/collections\` primitives.
-- **Self-Contained Executable**: Standard library fully embedded inside native binary via Go \`embed.FS\`.
+- **Enterprise Language Syntax**: Null-coalescing (`??`, `??=`), optional chaining (`?.`), ternary conditional (`? :`), string interpolation (`f"..."`, template literals), array/hash spread (`...`), default function parameters (`fn f(a, b = 10)`), LIFO `defer` statements.
+- **Granular Capability Security**: CLI permission flags (`--allow-all`, `--allow-run`, `--allow-write`, `--allow-net`).
+- **Dynamic VM Architecture**: 64-bit opcode operands, dynamic call frames (`--max-frames`), and configurable value stack.
+- **Enterprise Standard Library**: `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, and advanced `std/collections` primitives.
+- **Self-Contained Executable**: Standard library fully embedded inside native binary via Go `embed.FS`.
 
 ### Available Binary Packages:
 - **Linux**: x86_64, aarch64 (ARM64), ARMv7, x86 (32-bit)
 - **Android Termux**: aarch64 (ARM64), ARMv7, x86_64
-- **macOS**: Apple Silicon (M1/M2/M3/M4 arm64), Intel (x86_64)
+- **macOS**: Apple Silicon (arm64), Intel (x86_64)
 - **Windows**: x86_64 (64-bit), ARM64, x86 (32-bit)
 
 ### Universal One-Liner Installer:
-\`\`\`bash
+```bash
 curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
-\`\`\`
+```
 
-All archive checksums are verified in \`checksums.txt\`."
+All archive checksums are verified in `checksums.txt`.
+EOF
 
           gh release create "$TAG" final_assets/* \
             --title "BramandScript ${TAG}" \
-            --notes "$NOTES" \
+            --notes-file release_notes.md \
             --draft=false \
             --prerelease=false || \
           gh release upload "$TAG" final_assets/* --clobber
