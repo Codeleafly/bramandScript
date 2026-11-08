@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag Name (e.g. v0.2.0)'
+        description: 'Release Tag Name (e.g. v0.1.1)'
         required: true
-        default: 'v0.2.0'
+        default: 'v0.1.1'
 
 permissions:
   contents: write
@@ -118,7 +118,7 @@ jobs:
             TAG="${{ github.event.inputs.tag_name }}"
           fi
           if [ -z "$TAG" ]; then
-            TAG="v0.2.0"
+            TAG="v0.1.1"
           fi
 
           cp -r stdlib build_output/
@@ -175,7 +175,7 @@ jobs:
             TAG="${{ github.event.inputs.tag_name }}"
           fi
           if [ -z "$TAG" ]; then
-            TAG="v0.2.0"
+            TAG="v0.1.1"
           fi
 
           cat << 'EOF' > release_notes.md
@@ -183,7 +183,7 @@ jobs:
 
           High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, Centralized Package Manager, and modular standard library in pure Go. Zero external dependencies.
 
-          ### Key Capabilities in this Release (v0.2.0):
+          ### Key Capabilities in this Release (v0.1.1):
           - **Centralized Package & Module Architecture**: Full-featured package manager (`bmd install`, `bmd get`, `bmd cache info/prune/verify`, `bmd pkg init`), multi-tier entrypoint fallbacks, inter-process file locks, and offline determinism.
           - **Supply-Chain Security & Permission Contracts**: Granular capability enforcement (`--allow-all`, `--allow-run`, `--allow-write`, `--allow-net`), checksum integrity verification, and package sandboxing.
           - **Single-Binary Bundler**: Package and compile dependencies directly into self-contained standalone binaries (`bmd build -s`).
