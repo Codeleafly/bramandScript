@@ -1,0 +1,65 @@
+// BramandScript Day 28: CLI Commands and Dependency Management Engine Test Suite
+// tests/24_package_manager_cli_test.bmd
+
+import "std/testing" as t;
+
+describe("Day 28: CLI Commands and Dependency Management Engine", fn() {
+
+    test("CLI Cache Commands: info, prune, verify execute cleanly", fn() {
+        // 1. bramand cache info
+        let info_res = exec("./bramand cache info");
+        assert_eq(info_res["exit_code"], 0);
+        assert_eq(contains(info_res["stdout"], "Centralized Cache"), true);
+        assert_eq(contains(info_res["stdout"], "[OK] Cache status healthy"), true);
+
+        // 2. bramand cache prune
+        let prune_res = exec("./bramand cache prune");
+        assert_eq(prune_res["exit_code"], 0);
+        assert_eq(contains(prune_res["stdout"], "[OK] Cache pruned successfully"), true);
+
+        // 3. bramand cache verify
+        let verify_res = exec("./bramand cache verify");
+        assert_eq(verify_res["exit_code"], 0);
+        assert_eq(contains(verify_res["stdout"], "[OK] All package checksums verified successfully"), true);
+    });
+
+    test("CLI Package Scaffolding: bmd pkg init creates bmdpkg.json and main.bmd", fn() {
+        let test_dir = "tests/fixtures/package_test/scaffold_test";
+        exec("rm -rf " + test_dir);
+        let init_res = exec("./bramand pkg init " + test_dir);
+        assert_eq(init_res["exit_code"], 0);
+        assert_eq(contains(init_res["stdout"], "[OK] Initialized package"), true);
+
+        let manifest_path = test_dir + "/bmdpkg.json";
+        let main_path = test_dir + "/main.bmd";
+        assert_eq(file_exists(manifest_path), true);
+        assert_eq(file_exists(main_path), true);
+
+        let manifest_content = read_file(manifest_path);
+        assert_eq(contains(manifest_content, "0.1.0"), true);
+        assert_eq(contains(manifest_content, "main.bmd"), true);
+
+        // Cleanup
+        exec("rm -rf " + test_dir);
+    });
+
+    test("CLI Local Install & Import: bmd install links package into registry", fn() {
+        let local_src = "tests/fixtures/package_test/tier1_manifest";
+        let install_res = exec("./bramand install " + local_src);
+        assert_eq(install_res["exit_code"], 0);
+        assert_eq(contains(install_res["stdout"], "[OK] Successfully installed"), true);
+
+        // Verify cache info now reflects installed package
+        let info_after = exec("./bramand cache info");
+        assert_eq(info_after["exit_code"], 0);
+        assert_eq(contains(info_after["stdout"], "[OK] Cache status healthy"), true);
+    });
+
+    test("CLI Dependency Management: bmd get inspects local bmdpkg.json", fn() {
+        let fixture_dir = "tests/fixtures/package_test/tier1_manifest";
+        let get_res = exec("./bramand get " + fixture_dir);
+        assert_eq(get_res["exit_code"], 0);
+        assert_eq(contains(get_res["stdout"], "bmd get"), true);
+        assert_eq(contains(get_res["stdout"], "[OK] Dependencies up to date"), true);
+    });
+});

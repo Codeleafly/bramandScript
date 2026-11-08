@@ -25,6 +25,33 @@ type Permissions struct {
 	Subprocess      bool `json:"subprocess"`
 }
 
+// SensitiveList returns any sensitive host permissions requested by the package:
+// network, filesystem_write, and subprocess.
+func (p Permissions) SensitiveList() []string {
+	var list []string
+	if p.Network {
+		list = append(list, "network")
+	}
+	if p.FilesystemWrite {
+		list = append(list, "filesystem_write")
+	}
+	if p.Subprocess {
+		list = append(list, "subprocess")
+	}
+	return list
+}
+
+// SecurityNotice generates a clean security warning banner if sensitive permissions are requested.
+// Complies with the zero-emoji policy and exact specification:
+// ✦ [SECURITY NOTICE] Package requests host permissions: ...
+func (p Permissions) SecurityNotice() string {
+	list := p.SensitiveList()
+	if len(list) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("✦ [SECURITY NOTICE] Package requests host permissions: %s", strings.Join(list, ", "))
+}
+
 // Compatibility specifies engine and hardware requirements.
 type Compatibility struct {
 	BmdMin       string   `json:"bmd_min,omitempty"`

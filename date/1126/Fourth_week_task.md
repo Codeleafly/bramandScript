@@ -31,3 +31,5 @@
 - [x] Centralized Package & Module Engine Specification: Implement core specification for Centralized Package & Module Engine including bmdpkg.json manifest, three-tier entrypoint fallback, runtime import resolution pipeline, and /data/data/com.termux/files/home/.bmd_libs structure. (Includes: pkg/bmdpkg.go, compiler/compile_statements.go, compiler/compiler.go, vm/vm.go, tests)
 ## Day 28
 
+
+- [x] CLI Commands and Dependency Management Engine (Agent 7): Implement CLI commands (bmd install, bmd get, bmd cache info, prune, verify) with tarball/archive download, integrity tracking, supply-chain security warnings, dependency resolution, and zero external dependencies. (Includes: pkg/installer.go, pkg/cache.go, main.go, tests)

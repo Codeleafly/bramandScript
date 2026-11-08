@@ -6,11 +6,11 @@ import (
 	"bramandscript/formatter"
 	"bramandscript/lexer"
 	"bramandscript/parser"
+	"bramandscript/pkg"
 	"bramandscript/repl"
 	"bramandscript/testrunner"
 	"bramandscript/vm"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -145,7 +145,16 @@ func main() {
 		handlePkgCommand(os.Args[2:])
 
 	case "install":
-		handlePkgCommand(append([]string{"install"}, os.Args[2:]...))
+		exitCode := pkg.InstallCLI(os.Args[2:])
+		safeExit(exitCode)
+
+	case "get":
+		exitCode := pkg.GetCLI(os.Args[2:])
+		safeExit(exitCode)
+
+	case "cache":
+		exitCode := pkg.CacheCLI(os.Args[2:])
+		safeExit(exitCode)
 
 	case "version", "-v", "--version":
 		fmt.Printf("BramandScript %s (%s-%s)\n", VERSION, runtime.GOARCH, runtime.GOOS)
@@ -538,10 +547,10 @@ func printHelp() {
 	fmt.Println("  bramand build [-O] <src>  Compile into standalone native binary (-O for optimized bytecode)")
 	fmt.Println("  bramand disasm [-O] <file> Disassemble source file to bytecode (-O for optimized)")
 	fmt.Println("  bramand profile <src.bmd> Profile execution with opcode timing hotspots")
-	fmt.Println("  bramand pkg list          List installed packages in ~/.bramand_libs")
-	fmt.Println("  bramand pkg install <src> Install package to centralized registry")
-	fmt.Println("  bramand pkg remove <name> Remove package from centralized registry")
-	fmt.Println("  bramand pkg init <name>   Initialize package scaffold")
+	fmt.Println("  bramand install <target>  Install package from GitHub, CDN/URL, or local directory")
+	fmt.Println("  bramand get               Install missing dependencies declared in bmdpkg.json")
+	fmt.Println("  bramand cache <cmd>       Manage cache and integrity (info, prune, verify)")
+	fmt.Println("  bramand pkg <cmd>         Package manager CLI commands")
 	fmt.Println("  bramand version           Show version")
 	fmt.Println("  bramand help              Show this help message")
 	fmt.Println()
@@ -662,17 +671,6 @@ func handleProfileCommand(filename string) {
 }
 
 func handlePkgCommand(args []string) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Could not determine user home directory: %s\n", err)
-		safeExit(1)
-	}
-	libsDir := filepath.Join(homeDir, ".bramand_libs")
-	if err := os.MkdirAll(libsDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Could not create library directory: %s\n", err)
-		safeExit(1)
-	}
-
 	if len(args) < 1 {
 		printPkgHelp()
 		return
@@ -680,102 +678,40 @@ func handlePkgCommand(args []string) {
 
 	subcommand := args[0]
 	switch subcommand {
+	case "install", "add":
+		exitCode := pkg.InstallCLI(args[1:])
+		safeExit(exitCode)
+
+	case "get":
+		exitCode := pkg.GetCLI(args[1:])
+		safeExit(exitCode)
+
+	case "cache":
+		exitCode := pkg.CacheCLI(args[1:])
+		safeExit(exitCode)
+
+	case "info":
+		exitCode := pkg.CacheInfoCLI(args[1:])
+		safeExit(exitCode)
+
+	case "prune":
+		exitCode := pkg.CachePruneCLI(args[1:])
+		safeExit(exitCode)
+
+	case "verify":
+		exitCode := pkg.CacheVerifyCLI(args[1:])
+		safeExit(exitCode)
+
 	case "path":
-		fmt.Println(libsDir)
+		fmt.Println(pkg.GetBmdLibsDir())
 
 	case "list", "ls":
-		if data, err := os.ReadFile("package.json"); err == nil {
-			fmt.Printf("%s✦ Local Project Dependencies (package.json)%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
-			var pkgInfo struct {
-				Name         string            `json:"name"`
-				Version      string            `json:"version"`
-				Dependencies map[string]string `json:"dependencies"`
-			}
-			if err := json.Unmarshal(data, &pkgInfo); err == nil {
-				fmt.Printf("Project: %s (v%s)\n", pkgInfo.Name, pkgInfo.Version)
-				if len(pkgInfo.Dependencies) > 0 {
-					for dep, ver := range pkgInfo.Dependencies {
-						fmt.Printf("  ❯ %s: %s\n", dep, ver)
-					}
-				} else {
-					fmt.Println("  (no dependencies declared in package.json)")
-				}
-			} else {
-				fmt.Println("  (package.json found)")
-			}
-			fmt.Println("──────────────────────────────────────────────────")
-		}
+		exitCode := pkg.PkgListCLI(args[1:])
+		safeExit(exitCode)
 
-		entries, err := os.ReadDir(libsDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Failed to list packages: %s\n", err)
-			safeExit(1)
-		}
-		fmt.Printf("%s✦ BramandScript Centralized Package Registry%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
-		fmt.Printf("Location: %s\n", libsDir)
-		fmt.Println("──────────────────────────────────────────────────")
-		count := 0
-		for _, e := range entries {
-			info, err := e.Info()
-			if err != nil {
-				continue
-			}
-			sizeStr := fmt.Sprintf("%d B", info.Size())
-			if e.IsDir() {
-				fmt.Printf("  ❯ %s (directory)\n", e.Name())
-			} else {
-				fmt.Printf("  ❯ %s (%s)\n", e.Name(), sizeStr)
-			}
-			count++
-		}
-		if count == 0 {
-			fmt.Println("  (no packages currently installed)")
-		}
-		fmt.Println("──────────────────────────────────────────────────")
-
-	case "install", "add":
-		if len(args) < 2 {
-			fmt.Println("Usage: bramand pkg install <source_file_or_dir> [name@version]")
-			safeExit(1)
-		}
-		src := args[1]
-		targetName := ""
-		if len(args) >= 3 {
-			targetName = args[2]
-		} else {
-			targetName = filepath.Base(src)
-			targetName = strings.TrimSuffix(targetName, ".bmd")
-		}
-
-		destDir := filepath.Join(libsDir, targetName)
-		srcInfo, err := os.Stat(src)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Source file or directory '%s' not found\n", src)
-			safeExit(1)
-		}
-
-		if srcInfo.IsDir() {
-			if err := copyDir(src, destDir); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Installation failed: %s\n", err)
-				safeExit(1)
-			}
-		} else {
-			if err := os.MkdirAll(destDir, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Could not create destination directory: %s\n", err)
-				safeExit(1)
-			}
-			destFile := filepath.Join(destDir, "index.bmd")
-			data, err := os.ReadFile(src)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Failed reading source: %s\n", err)
-				safeExit(1)
-			}
-			if err := os.WriteFile(destFile, data, 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing destination: %s\n", err)
-				safeExit(1)
-			}
-		}
-		fmt.Printf("[OK] Successfully installed '%s' to %s\n", targetName, destDir)
+	case "init":
+		exitCode := pkg.PkgInitCLI(args[1:])
+		safeExit(exitCode)
 
 	case "remove", "rm", "uninstall":
 		if len(args) < 2 {
@@ -783,6 +719,7 @@ func handlePkgCommand(args []string) {
 			safeExit(1)
 		}
 		pkgName := args[1]
+		libsDir := pkg.GetRegistryDir()
 		targetDir := filepath.Join(libsDir, pkgName)
 		targetFile := filepath.Join(libsDir, pkgName+".bmd")
 
@@ -801,52 +738,6 @@ func handlePkgCommand(args []string) {
 		} else {
 			fmt.Printf("[WARN] Package '%s' not found in %s\n", pkgName, libsDir)
 		}
-
-	case "init":
-		pkgName := "my-package"
-		targetDir := "."
-		if len(args) >= 2 && args[1] != "" && args[1] != "." {
-			pkgName = args[1]
-			targetDir = pkgName
-			if err := os.MkdirAll(targetDir, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Could not create directory '%s': %s\n", targetDir, err)
-				safeExit(1)
-			}
-		} else {
-			if cwd, err := os.Getwd(); err == nil {
-				base := filepath.Base(cwd)
-				if base != "" && base != "/" && base != "." {
-					pkgName = base
-				}
-			}
-		}
-
-		pkgJsonPath := filepath.Join(targetDir, "package.json")
-		if _, err := os.Stat(pkgJsonPath); os.IsNotExist(err) {
-			pkgJsonContent := fmt.Sprintf(`{
-  "name": "%s",
-  "version": "1.0.0",
-  "description": "BramandScript package",
-  "main": "index.bmd",
-  "license": "MIT",
-  "dependencies": {}
-}
-`, pkgName)
-			if err := os.WriteFile(pkgJsonPath, []byte(pkgJsonContent), 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing package.json: %s\n", err)
-				safeExit(1)
-			}
-		}
-
-		sampleFile := filepath.Join(targetDir, "index.bmd")
-		if _, err := os.Stat(sampleFile); os.IsNotExist(err) {
-			sampleContent := fmt.Sprintf("// BramandScript Package: %s\n\nfn info() {\n    return \"Package %s initialized\";\n}\n", pkgName, pkgName)
-			if err := os.WriteFile(sampleFile, []byte(sampleContent), 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] Failed writing index.bmd: %s\n", err)
-				safeExit(1)
-			}
-		}
-		fmt.Printf("[OK] Initialized package '%s' (package.json, index.bmd)\n", pkgName)
 
 	default:
 		printPkgHelp()
@@ -875,13 +766,17 @@ func copyDir(src, dst string) error {
 }
 
 func printPkgHelp() {
-	fmt.Printf("%s✦ BramandScript Package & Library Manager CLI%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
-	fmt.Println("Centralized package registry in $HOME/.bramand_libs/ (Deno-style zero node_modules)")
+	fmt.Printf("%s✦ BramandScript Centralized Package & Module Manager CLI%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
+	fmt.Println("Centralized package registry in $HOME/.bmd_libs/ (Zero node_modules, zero duplicate storage)")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  bramand pkg list                        List installed packages")
-	fmt.Println("  bramand pkg install <path> [name@ver]   Install package into centralized cache")
-	fmt.Println("  bramand pkg remove <name@ver>           Remove package from centralized cache")
-	fmt.Println("  bramand pkg path                        Show cache directory path")
-	fmt.Println("  bramand pkg init <name@ver>             Scaffold new package with index.bmd")
+	fmt.Println("  bmd install <target> [ver]     Install package from GitHub, CDN/URL, or local directory")
+	fmt.Println("  bmd get                        Install missing dependencies declared in bmdpkg.json")
+	fmt.Println("  bmd cache info                 Display centralized cache and registry metrics")
+	fmt.Println("  bmd cache prune                Clean orphaned tarballs while preserving registry trees")
+	fmt.Println("  bmd cache verify               Validate SHA-256 package checksums against integrity.db")
+	fmt.Println("  bmd pkg list                   List installed packages in centralized registry")
+	fmt.Println("  bmd pkg remove <name>          Remove package from centralized registry")
+	fmt.Println("  bmd pkg path                   Print centralized library directory path")
+	fmt.Println("  bmd pkg init [name]            Scaffold new package with bmdpkg.json and main.bmd")
 }
