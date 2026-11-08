@@ -186,13 +186,14 @@
             <li><a href="tooling.html#ch-testrunner" class="nav-link "><span>✦</span> Test Runner &amp; Assertions</a></li>
             <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
+            <li><a href="tooling.html#ch-pkg-manager" class="nav-link"><span>✦</span> Centralized Package Manager</a></li>
           </ul>
         </div>
 
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem &amp; Architecture</h3>
           <ul class="space-y-1">
-            <li><a href="architecture.html#ch14" class="nav-link active"><span>14.</span> Modules &amp; Package Store</a></li>
+            <li><a href="architecture.html#ch14" class="nav-link active"><span>14.</span> Import Pipeline &amp; Package Architecture</a></li>
             <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
             <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
             <li><a href="architecture.html#ch-disasm-profiler" class="nav-link pl-4 text-xs"><span>·</span> Disassembler &amp; Profiler</a></li>
@@ -217,71 +218,175 @@
         </p>
       </div>
   
-            <section id="ch14" class="section-anchor">
+      <section id="ch14" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-green">Chapter 14</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Modules & Centralized Package Architecture</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Import Resolution Pipeline &amp; Centralized Package Architecture</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          BramandScript implements a clean Deno-style module architecture. Modules are loaded via direct filesystem path or remote URL with deduplication and aliased namespace encapsulation.
+          BramandScript implements an enterprise-grade module architecture designed for zero disk duplication, offline determinism, and immutability. Module imports follow a deterministic 4-stage pipeline that transparently coordinates embedded binaries, local files, and the centralized package registry.
         </p>
 
-        <h3 class="text-xl font-semibold mt-6 mb-3">Module Syntax Modes</h3>
+        <!-- The 4-Stage Runtime Import Resolution Pipeline -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">The 4-Stage Runtime Import Resolution Pipeline</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Whenever the compiler encounters an <code class="font-mono">import "path" [as alias]</code> statement, the compiler's resolution engine (<code class="font-mono">compiler/compile_statements.go</code>) executes four sequential stages:
+        </p>
 
-        <div class="code-block-wrapper">
-          <div class="code-block-header">
-            <span>bramand — math_utils.bmd (module file)</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+        <div class="space-y-4 mb-8">
+          <!-- Stage 1 -->
+          <div class="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-slate-900 dark:text-white text-base">Stage 1: Embedded Standard Library (<code class="font-mono">embed:stdlib/</code>)</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">Fastest Resolution</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-2">
+              Imports starting with <code class="font-mono">"std/"</code> (e.g., <code class="font-mono">import "std/math"</code>, <code class="font-mono">import "std/json"</code>) or matching bare standard library module names are resolved directly against Go's embedded virtual filesystem (<code class="font-mono">embed.FS</code>).
+            </p>
+            <p class="text-xs text-slate-500">
+              ✦ 100% offline and standalone. No filesystem access or external paths are queried.
+            </p>
           </div>
-          <pre><code><span class="token-kw">const</span> <span class="token-fn">PI</span> <span class="token-op">=</span> <span class="token-num">3.1415926535</span>
 
-<span class="token-kw">fn</span> <span class="token-fn">hypot</span>(<span class="token-fn">a</span>, <span class="token-fn">b</span>) {
-    <span class="token-kw">return</span> ((<span class="token-fn">a</span> <span class="token-op">**</span> <span class="token-num">2</span>) <span class="token-op">+</span> (<span class="token-fn">b</span> <span class="token-op">**</span> <span class="token-num">2</span>)) <span class="token-op">**</span> <span class="token-num">0.5</span>
-}</code></pre>
+          <!-- Stage 2 -->
+          <div class="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-slate-900 dark:text-white text-base">Stage 2: Relative Local Filesystem Resolution</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">Local Project</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-2">
+              Paths beginning with <code class="font-mono">"./"</code> or <code class="font-mono">"../"</code>, or pointing to local project files, are resolved relative to the directory of the current file being compiled. If the target is a directory, the compiler invokes the <strong>Three-Tier Fallback Engine</strong>:
+            </p>
+            <ol class="text-xs text-slate-600 dark:text-slate-300 list-decimal list-inside space-y-1 pl-1">
+              <li>Inspect <code class="font-mono">bmdpkg.json</code> and resolve its declared <code class="font-mono">"entry"</code> file.</li>
+              <li>Check for <code class="font-mono">main.bmd</code> in the target directory.</li>
+              <li>Check for <code class="font-mono">index.bmd</code> in the target directory.</li>
+            </ol>
+          </div>
+
+          <!-- Stage 3 -->
+          <div class="p-4 rounded-xl border border-cyan-200 dark:border-cyan-900/60 bg-cyan-50/50 dark:bg-cyan-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-slate-900 dark:text-white text-base">Stage 3: Centralized Package Registry (<code class="font-mono">$HOME/.bmd_libs/registry/</code>)</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300">System Cache</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-2">
+              Non-relative, third-party package specifiers (such as <code class="font-mono">import "github.com/alice/json-tools"</code> or <code class="font-mono">import "local/utils@dev"</code>) are resolved against the centralized registry. The compiler scans version subdirectories, selects the highest compatible SemVer release, inspects transitive dependencies from enclosing package manifests, and falls back gracefully to legacy cache roots.
+            </p>
+          </div>
+
+          <!-- Stage 4 -->
+          <div class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-slate-900 dark:text-white text-base">Stage 4: In-Memory Module Singleton Table with <code class="font-mono">OpModule</code> &amp; Immutability</span>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">Runtime VM Engine</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-2">
+              When a module completes execution, the compiler emits an <code class="font-mono">OpModule</code> opcode. The VM pops the exported Hash map from the operand stack, marks the instance as <strong>immutable</strong> (<code class="font-mono">ReadOnly = true</code>), and stores it in the global <code class="font-mono">moduleTable</code>.
+            </p>
+            <p class="text-xs text-slate-500">
+              ✦ Any subsequent import of the same module in any file reuses the identical singleton hash, preventing redundant execution and state desynchronization.
+            </p>
+          </div>
         </div>
 
-        <div class="code-block-wrapper">
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — main.bmd</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+            <span>bmd — Module Import &amp; Immutability</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code><span class="token-comment">// 1. Direct namespace import (exports grouped into 'math' hash object)</span>
-<span class="token-kw">import</span> <span class="token-str">"./math_utils.bmd"</span> <span class="token-kw">as</span> <span class="token-fn">math</span>
-<span class="token-fn">print</span>(<span class="token-str">"PI ="</span>, <span class="token-fn">math</span>.<span class="token-fn">PI</span>)
-<span class="token-fn">print</span>(<span class="token-str">"Hypot(3, 4) ="</span>, <span class="token-fn">math</span>.<span class="token-fn">hypot</span>(<span class="token-num">3</span>, <span class="token-num">4</span>))
+          <pre><code><span class="token-comment">// Stage 1: Embedded Standard Library (embed:stdlib/math/index.bmd)</span>
+<span class="token-kw">import</span> <span class="token-str">"std/math"</span> <span class="token-kw">as</span> <span class="token-fn">math</span>
 
-<span class="token-comment">// 2. Global scope import (exports injected directly into current scope)</span>
-<span class="token-kw">import</span> <span class="token-str">"./math_utils.bmd"</span>
-<span class="token-fn">print</span>(<span class="token-str">"Direct hypot:"</span>, <span class="token-fn">hypot</span>(<span class="token-num">5</span>, <span class="token-num">12</span>))</code></pre>
+<span class="token-comment">// Stage 2: Relative local file</span>
+<span class="token-kw">import</span> <span class="token-str">"./config.bmd"</span> <span class="token-kw">as</span> <span class="token-fn">cfg</span>
+
+<span class="token-comment">// Stage 3: Centralized Registry ($HOME/.bmd_libs/registry/github.com/alice/json-tools/1.2.0/)</span>
+<span class="token-kw">import</span> <span class="token-str">"github.com/alice/json-tools"</span> <span class="token-kw">as</span> <span class="token-fn">jsonTools</span>
+
+<span class="token-comment">// Stage 4: Module exports are strictly read-only</span>
+<span class="token-fn">println</span>(<span class="token-fn">math</span>.<span class="token-fn">PI</span>)
+<span class="token-comment">// Attempting to mutate throws ReadOnlyHash error:</span>
+<span class="token-comment">// math.PI = 3.14 -&gt; [ERROR] cannot mutate read-only module export</span></code></pre>
         </div>
 
-        <h3 class="text-xl font-semibold mt-8 mb-3">Centralized Package Cache (<code class="font-mono">$HOME/.bramand_libs/</code>)</h3>
-        <p class="text-slate-600 dark:text-slate-300">
-          Remote and package modules are stored in a centralized cache directory at <code class="font-mono">$HOME/.bramand_libs/&lt;package&gt;@&lt;version&gt;/</code>. This eliminates bloat, preventing repeated downloads across distinct project roots.
+        <!-- Inter-Process Atomic File Locking & Integrity Transactions -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Inter-Process Atomic Locking &amp; Integrity Transactions</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          To ensure strict data integrity across concurrent terminal sessions, multi-threaded worker pools, and automated CI runners, BramandScript's package subsystem (<code class="font-mono">pkg/lock.go</code> and <code class="font-mono">pkg/integrity.go</code>) implements dual-tier atomic locking and transaction semantics:
         </p>
 
-        <h3 class="text-xl font-semibold mt-8 mb-3">Package Manager CLI (<code class="font-mono">bramand pkg</code>)</h3>
-        <p class="text-slate-600 dark:text-slate-300 mb-4">
-          Manage, install, and list packages globally in your environment using the unified CLI tool:
-        </p>
-
-        <div class="code-block-wrapper">
-          <div class="code-block-header">
-            <span>bash — Package Manager Commands</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Dual-Tier File Lock Architecture (<code class="font-mono">pkg/lock.go</code>)</h4>
+            <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside">
+              <li><strong>Tier 1 (In-Process Channel Lock):</strong> Synchronizes concurrent goroutines within the same VM process using Go channel locks with timeout protection.</li>
+              <li><strong>Tier 2 (Inter-Process OS Lock):</strong> Acquires exclusive kernel-level file locks (<code class="font-mono">syscall.Flock</code>) on POSIX systems, falling back to PID-based lease files with 30-second stale detection.</li>
+              <li>Guarantees zero archive extraction collisions or registry corruption when multiple <code class="font-mono">bmd install</code> processes execute concurrently.</li>
+            </ul>
           </div>
-          <pre><code><span class="token-comment"># List all installed global packages</span>
-bramand pkg list
 
-<span class="token-comment"># Install a package from local directory or file</span>
-bramand pkg install ./my_pkg math@1.0.0
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Atomic Transactions on <code class="font-mono">integrity.db</code></h4>
+            <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-2 list-disc list-inside">
+              <li>Stores cryptographic SHA-256 digests, file sizes, and verification timestamps for all packages and tarballs.</li>
+              <li>Updates are never written directly in-place. The engine writes records to an isolated temporary file (<code class="font-mono">integrity.db.tmp.&lt;pid&gt;</code>) and commits via atomic <code class="font-mono">os.Rename</code>.</li>
+              <li>Ensures zero-byte database corruption or partial state failures even if the process is killed abruptly.</li>
+            </ul>
+          </div>
+        </div>
 
-<span class="token-comment"># Remove package</span>
-bramand pkg remove math@1.0.0
+        <!-- SemVer Diamond Dependency Resolution & Zero Redundancy -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">SemVer Diamond Dependency Resolution &amp; Zero Redundancy</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Dependency graphs frequently encounter the classic <strong>Diamond Dependency Problem</strong>, where two intermediate libraries depend on different version constraints of the same underlying package:
+        </p>
 
-<span class="token-comment"># Scaffold new library package with index.bmd</span>
-bramand pkg init logger@0.1.0</code></pre>
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>graph — Diamond Dependency Resolution Model</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>        ┌──────────────────────┐
+        │     Root Project     │
+        └──────────┬───────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐
+│  LibA (^1.0.0)  │ │  LibB (^1.2.0)  │
+└────────┬────────┘ └────────┬────────┘
+         │                   │
+         └─────────┬─────────┘
+                   ▼
+┌─────────────────────────────────────┐
+│ Resolved: LibC (v1.2.0) [UNIFIED]   │
+│ Single shared registry installation │
+└─────────────────────────────────────┘</code></pre>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Highest Compatible SemVer Unification</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              When multiple packages depend on compatible SemVer releases (e.g. <code class="font-mono">^1.0.0</code> and <code class="font-mono">^1.2.0</code>), the resolver unifies the dependency request to the highest compatible SemVer (<code class="font-mono">1.2.0</code>), avoiding duplicate downloads and runtime conflicts.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Side-by-Side Major Isolation</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              When conflicting major versions are required (e.g. <code class="font-mono">1.x.x</code> vs <code class="font-mono">2.x.x</code>), both versions are stored side-by-side in distinct registry directories (<code class="font-mono">registry/.../1.0.0/</code> and <code class="font-mono">registry/.../2.0.0/</code>) without collision.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-tip mb-6">
+          <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Zero-Redundancy Cache Sharing</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            Unlike per-project dependency models that replicate identical packages across every project on disk, BramandScript's centralized registry installs each version exactly once. Every project on the host links directly against the centralized registry, conserving gigabytes of flash storage and minimizing internet bandwidth consumption.
+          </p>
         </div>
       </section>
 

@@ -189,7 +189,7 @@
             <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
             <li><a href="tooling.html#ch-disasm-profile" class="nav-link"><span>✦</span> Disassembler &amp; Profiler</a></li>
-            <li><a href="tooling.html#ch-registry" class="nav-link"><span>✦</span> Package Registry Server</a></li>
+            <li><a href="tooling.html#ch-pkg-manager" class="nav-link"><span>✦</span> Centralized Package Manager</a></li>
             <li><a href="tooling.html#ch-optimizer" class="nav-link"><span>✦</span> AOT Optimizer &amp; Benchmarks</a></li>
             <li><a href="tooling.html#ch-native-tooling" class="nav-link"><span>✦</span> Native Tooling Suite (.bmd)</a></li>
           </ul>
@@ -198,7 +198,7 @@
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem &amp; Architecture</h3>
           <ul class="space-y-1">
-            <li><a href="architecture.html#ch14" class="nav-link "><span>14.</span> Modules &amp; Package Store</a></li>
+            <li><a href="architecture.html#ch14" class="nav-link "><span>14.</span> Import Pipeline &amp; Package Store</a></li>
             <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
             <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
             <li><a href="architecture.html#ch18" class="nav-link"><span>18.</span> Contributing Guide</a></li>
@@ -463,25 +463,37 @@ bramand fmt examples/01_quickstart.bmd</code></pre>
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Standalone Compilation</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standalone Executable Compilation (<code class="font-mono">bramand build</code>)</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Standalone Executable Compilation (<code class="font-mono">bmd build</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Compile any BramandScript program into a completely self-contained native executable. The generated binary contains the zero-dependency Bramand bytecode engine and embedded program payload, capable of running instantly on target systems without requiring Go or Bramand to be installed:
+          Compile any BramandScript program into a completely self-contained, native executable. The generated binary contains the zero-dependency Bramand bytecode engine and an embedded virtual filesystem bundle (<code class="font-mono">BMD_BUNDLE_V2</code>), capable of running instantly on target systems without requiring Go or Bramand to be installed.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mt-6 mb-3">Single-Binary Embedding of Global Dependencies</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          When compiling a program with <code class="font-mono">bmd build</code>, the compiler recursively traverses all static and dynamic <code class="font-mono">import</code> statements across your project. It bundles not only local sibling source files, but also all resolved third-party packages from the centralized registry (<code class="font-mono">$HOME/.bmd_libs/registry/</code>) directly into the binary's compressed virtual filesystem.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bash — Standalone Binary Builder</span>
+            <span>bash — Standalone Single-Binary Builder</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code><span class="token-comment"># Build a standalone native binary for your platform</span>
-bramand build app.bmd -o my_app
+          <pre><code><span class="token-comment"># Build a standalone native binary bundling all dependencies</span>
+bmd build app.bmd -o my_app
 
-<span class="token-comment"># Explicit standalone packaging</span>
-bramand build app.bmd --standalone
+<span class="token-comment"># Build with Ahead-of-Time constant folding and opcode optimization</span>
+bmd build -O app.bmd -o my_app_optimized
 
-<span class="token-comment"># Run standalone executable directly (no interpreter or runtime needed!)</span>
+<span class="token-comment"># Execute standalone binary anywhere (no Go, no interpreter, zero dependencies!)</span>
 ./my_app</code></pre>
+        </div>
+
+        <div class="callout callout-tip mb-6">
+          <strong class="font-semibold text-emerald-700 dark:text-emerald-300">Self-Contained Virtual Filesystem (<code class="font-mono">embed:bundle/</code>)</strong>
+          <p class="text-sm mt-1 text-slate-700 dark:text-slate-300">
+            During standalone execution, the VM automatically intercepts imports matching bundled dependencies and resolves them transparently from the in-memory payload without requiring access to the host's <code class="font-mono">$HOME/.bmd_libs/</code> directory or any active network connection.
+          </p>
         </div>
       </section>
 
@@ -510,27 +522,312 @@ bramand profile app.bmd</code></pre>
         </div>
       </section>
 
-      <!-- ================= DEVELOPER TOOLING: PACKAGE REGISTRY SERVER ================= -->
-      <section id="ch-registry" class="section-anchor">
+      <!-- ================= DEVELOPER TOOLING: CENTRALIZED PACKAGE MANAGER ================= -->
+      <section id="ch-pkg-manager" class="section-anchor">
+        <div id="ch-registry"></div>
         <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-purple">Ecosystem Server</span>
+          <span class="badge badge-purple">Dependency &amp; Package Architecture</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Centralized Package Registry Server (<code class="font-mono">tools/registry_server.bmd</code>)</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Centralized Package Manager &amp; Dependency Engine (<code class="font-mono">bmd pkg</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          BramandScript includes a full-featured centralized package registry server written in pure BramandScript (<code class="font-mono">tools/registry_server.bmd</code>). It provides publish APIs, tarball artifact storage, semver resolution, and search endpoints:
+          BramandScript features a production-grade, centralized package management engine inspired by modern ecosystems like Go and Deno. Rather than littering disk storage with bloated, redundant per-project folders (<code class="font-mono">node_modules/</code>), all external modules, tarball archives, and versioned registries are stored in a single, system-wide centralized store at <code class="font-mono">$HOME/.bmd_libs/</code>.
+        </p>
+
+        <!-- Architecture Overview -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Centralized Storage Hierarchy (<code class="font-mono">$HOME/.bmd_libs/</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The centralized tree layout isolates immutable compressed tarballs, live unpacked registry packages, and cryptographic integrity locks:
         </p>
 
         <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bash — Run Registry Server</span>
+            <span>filesystem — ~/.bmd_libs Tree Layout</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>$HOME/.bmd_libs/
+├── cache/
+│   └── tarballs/               # Immutable downloaded archives (.tar.gz, .zip)
+│       ├── github_com_user_pkg_v1.0.0.tar.gz
+│       └── cdn_a8f3b9..._v2.1.0.tar.gz
+├── registry/                   # Unpacked module trees ready for runtime import
+│   ├── github.com/
+│   │   └── &lt;author&gt;/
+│   │       └── &lt;pkg&gt;/
+│   │           ├── 1.0.0/      # Versioned release directory
+│   │           │   ├── bmdpkg.json
+│   │           │   └── main.bmd
+│   │           └── 1.2.0/      # Co-existing release directory
+│   ├── cdn/
+│   │   └── &lt;domain_hash&gt;/
+│   │       └── &lt;version&gt;/
+│   └── local/                  # Local development package links
+│       └── &lt;name&gt;@dev/
+└── locks/
+    ├── integrity.db            # JSON registry of SHA-256 hashes, sizes & timestamps
+    └── *.lock                  # Inter-process atomic flock & channel lock files</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Environment Variable</th><th>Default</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">BMD_LIBS_DIR</code></td><td><code class="font-mono">$HOME/.bmd_libs</code></td><td>Custom directory location for the centralized cache, registry, and lock files.</td></tr>
+              <tr><td><code class="font-mono">BMD_OFFLINE</code></td><td><code class="font-mono">0</code></td><td>When set to <code class="font-mono">1</code> or <code class="font-mono">true</code>, enforces offline-first determinism; forbids all outbound network traffic.</td></tr>
+              <tr><td><code class="font-mono">BRAMAND_LIBS_DIR</code></td><td><code class="font-mono">$HOME/.bmd_libs</code></td><td>Legacy fallback variable for backwards compatibility.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- CLI Commands Reference -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Unified CLI Commands Reference</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The package manager provides high-speed, deterministic commands built directly into the unified <code class="font-mono">bmd</code> CLI with zero external dependencies:
+        </p>
+
+        <div class="space-y-6 mb-8">
+          <!-- Command 1: install -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>1. <code class="font-mono">bmd install &lt;target&gt; [version] [--offline]</code></span>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Downloads, verifies, and installs a package into the centralized registry. Supports GitHub repositories, direct CDN tarball URLs, local project directories, and local development links:
+            </p>
+            <div class="code-block-wrapper">
+              <pre><code><span class="token-comment"># Install from GitHub repository with optional SemVer tag</span>
+bmd install github.com/alice/json-tools
+bmd install github.com/alice/json-tools 1.2.0
+
+<span class="token-comment"># Install from remote CDN archive URL</span>
+bmd install https://cdn.bmd.io/packages/matrix-math.tar.gz
+
+<span class="token-comment"># Link local directory for active development</span>
+bmd install ./libs/my_utils
+bmd install local/my_utils@dev
+
+<span class="token-comment"># Strictly offline installation from local cache</span>
+bmd install --offline github.com/alice/json-tools 1.2.0</code></pre>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+              <strong>Zero-Redundancy Optimization:</strong> If the tarball archive already exists in <code class="font-mono">cache/tarballs/</code> and matches its SHA-256 hash in <code class="font-mono">integrity.db</code>, 0 bytes are downloaded.
+            </p>
+          </div>
+
+          <!-- Command 2: get -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>2. <code class="font-mono">bmd get [dir] [--offline]</code></span>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Synchronizes project dependencies declared in <code class="font-mono">bmdpkg.json</code>. Recursively inspects the dependency graph, resolves diamond dependencies to the highest compatible SemVer, and downloads only missing packages:
+            </p>
+            <div class="code-block-wrapper">
+              <pre><code><span class="token-comment"># Synchronize all dependencies for current project</span>
+bmd get
+
+<span class="token-comment"># Synchronize dependencies for another directory</span>
+bmd get ./services/api_gateway
+
+<span class="token-comment"># Offline synchronization using existing centralized registry</span>
+bmd get --offline</code></pre>
+            </div>
+          </div>
+
+          <!-- Command 3: cache info, prune, verify -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>3. Centralized Cache Maintenance (<code class="font-mono">bmd cache</code>)</span>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Monitor, clean, and verify cryptographic integrity across all cached tarballs and registry packages:
+            </p>
+            <div class="code-block-wrapper">
+              <pre><code><span class="token-comment"># Display storage metrics, tarball counts, and integrity database statistics</span>
+bmd cache info
+
+<span class="token-comment"># Prune orphaned tarball archives while safely keeping live registry trees</span>
+bmd cache prune
+
+<span class="token-comment"># Verify SHA-256 cryptographic checksums of all packages against integrity.db</span>
+bmd cache verify</code></pre>
+            </div>
+          </div>
+
+          <!-- Command 4: pkg init & list -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+            <div class="flex items-center gap-2 font-bold text-slate-900 dark:text-white mb-2">
+              <span class="text-blue-500 font-mono">✦</span>
+              <span>4. Package Scaffolding &amp; Listing (<code class="font-mono">bmd pkg init</code> &amp; <code class="font-mono">bmd pkg list</code>)</span>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+              Scaffold standardized package templates and view installed registry modules:
+            </p>
+            <div class="code-block-wrapper">
+              <pre><code><span class="token-comment"># Initialize a new package with bmdpkg.json manifest and main.bmd</span>
+bmd pkg init my-library
+
+<span class="token-comment"># List project dependencies and globally available registry packages</span>
+bmd pkg list</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manifest Specification -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Package Manifest Specification (<code class="font-mono">bmdpkg.json</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Every BramandScript package is described by a standardized JSON manifest named <code class="font-mono">bmdpkg.json</code> located in the root of the package directory:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>json — bmdpkg.json Specification</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>{
+  "name": "data-transformer",
+  "version": "1.4.2",
+  "description": "High-speed stream parsing and statistical transformation utilities",
+  "entry": "src/index.bmd",
+  "license": "MIT",
+  "authors": ["Codeleafly &lt;ziprecovery2024@gmail.com&gt;"],
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "subprocess": false
+  },
+  "dependencies": {
+    "github.com/alice/json-tools": "^1.2.0",
+    "github.com/bob/matrix-core": "&gt;=2.0.0"
+  },
+  "compatibility": {
+    "bmd_min": "0.1.0",
+    "architecture": ["arm64", "amd64"]
+  }
+}</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Field</th><th>Type</th><th>Requirement</th><th>Description &amp; Validation Rules</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">name</code></td><td>String</td><td>Required</td><td>Package identifier. Matches <code class="font-mono">^[a-zA-Z0-9_.\-]+(/[a-zA-Z0-9_.\-]+)*$</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">version</code></td><td>String</td><td>Required</td><td>Valid SemVer 2.0 version string (e.g., <code class="font-mono">1.4.2</code>) or <code class="font-mono">dev</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">description</code></td><td>String</td><td>Optional</td><td>Human-readable synopsis of package functionality.</td></tr>
+              <tr><td><code class="font-mono font-bold">entry</code></td><td>String</td><td>Optional</td><td>Primary entrypoint file relative to package root. Cannot traverse outside package root.</td></tr>
+              <tr><td><code class="font-mono font-bold">license</code></td><td>String</td><td>Optional</td><td>Standard SPDX license identifier (e.g., <code class="font-mono">MIT</code>, <code class="font-mono">Apache-2.0</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">authors</code></td><td>Array[String]</td><td>Optional</td><td>List of author names, usernames, or contact emails.</td></tr>
+              <tr><td><code class="font-mono font-bold">permissions</code></td><td>Object</td><td>Recommended</td><td>Explicit sandbox capability declarations (<code class="font-mono">network</code>, <code class="font-mono">filesystem_read</code>, <code class="font-mono">filesystem_write</code>, <code class="font-mono">subprocess</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">dependencies</code></td><td>Map[String]String</td><td>Optional</td><td>Direct dependencies mapped to SemVer constraints or versions.</td></tr>
+              <tr><td><code class="font-mono font-bold">compatibility</code></td><td>Object</td><td>Optional</td><td>Engine compatibility contract (<code class="font-mono">bmd_min</code> minimum Bramand version and target architectures).</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Three-Tier Fallback Engine -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Three-Tier Entrypoint Fallback Engine</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          When a package directory is imported without referencing an explicit subfile (e.g., <code class="font-mono">import "github.com/alice/json-tools" as json</code>), BramandScript's compiler executes the deterministic <strong>Three-Tier Fallback Engine</strong>:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Tier 1</span>
+            <h4 class="font-bold text-slate-900 dark:text-white mt-1 mb-2">Manifest Entry</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-400">
+              Inspects <code class="font-mono">bmdpkg.json</code>. If <code class="font-mono">"entry"</code> is defined, resolves to specified file (e.g. <code class="font-mono">src/index.bmd</code>). If defined file is missing, aborts immediately with <code class="font-mono">BrokenManifestError</code>.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tier 2</span>
+            <h4 class="font-bold text-slate-900 dark:text-white mt-1 mb-2">main.bmd Fallback</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-400">
+              If no <code class="font-mono">"entry"</code> is set or manifest is absent, looks for <code class="font-mono">main.bmd</code> in the package root. If present, resolves as module entrypoint.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-cyan-200 dark:border-cyan-900/60 bg-cyan-50/50 dark:bg-cyan-950/20">
+            <span class="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">Tier 3</span>
+            <h4 class="font-bold text-slate-900 dark:text-white mt-1 mb-2">index.bmd Fallback</h4>
+            <p class="text-xs text-slate-600 dark:text-slate-400">
+              If <code class="font-mono">main.bmd</code> does not exist, looks for <code class="font-mono">index.bmd</code>. If none of the 3 candidates exist, compiler halts with a clean diagnostic error.
+            </p>
+          </div>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>terminal — Diagnostic Output on Missing Entrypoint</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="text-red-500 font-bold">[ERROR]</span> No entrypoint found: package must define bmdpkg.json, main.bmd, or index.bmd: /home/user/.bmd_libs/registry/github.com/alice/broken-pkg/1.0.0</code></pre>
+        </div>
+
+        <!-- Supply-Chain Permission Contracts -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Supply-Chain Permission Contracts &amp; Sandboxing</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          To protect host systems from malicious supply-chain attacks, third-party packages must declare what capabilities they require in their <code class="font-mono">bmdpkg.json</code> manifest under the <code class="font-mono">"permissions"</code> object:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-center">
+            <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">network</span>
+            <p class="text-[11px] text-slate-500 mt-1">TCP / UDP / HTTP sockets</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-center">
+            <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">filesystem_read</span>
+            <p class="text-[11px] text-slate-500 mt-1">read_file, exists, stat</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-center">
+            <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">filesystem_write</span>
+            <p class="text-[11px] text-slate-500 mt-1">write_file, delete_file</p>
+          </div>
+          <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-center">
+            <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">subprocess</span>
+            <p class="text-[11px] text-slate-500 mt-1">exec, external processes</p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 mb-6">
+          <div class="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300 text-sm mb-1">
+            <span class="font-mono">✦</span>
+            <span>Install-Time Supply Chain Warning Notice</span>
+          </div>
+          <p class="text-xs text-amber-700 dark:text-amber-400 mb-2 leading-relaxed">
+            Whenever an installed package requests sensitive capabilities (<code class="font-mono">network</code>, <code class="font-mono">filesystem_write</code>, or <code class="font-mono">subprocess</code>), the package installer alerts the developer with a prominent security notice:
+          </p>
+          <pre class="text-xs font-mono bg-white/80 dark:bg-slate-950 p-2 rounded border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200">✦ [SECURITY NOTICE] Package requests host permissions: network, subprocess</pre>
+        </div>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+          <strong>VM Runtime Sandboxing (<code class="font-mono">OpEnterPackage</code> &amp; <code class="font-mono">OpLeavePackage</code>):</strong> During bytecode execution, the VM tracks the active package contract stack. Even if the user executes the host program with <code class="font-mono">--allow-all</code>, an imported package cannot invoke restricted operations unless those permissions were declared in its own <code class="font-mono">bmdpkg.json</code>. Any violation halts execution with a <code class="font-mono">PermissionDenied</code> runtime error.
+        </p>
+
+        <!-- Self-Hosted Registry Server -->
+        <h3 class="text-xl font-semibold mt-8 mb-3">Self-Hosted Package Registry Server (<code class="font-mono">tools/registry_server.bmd</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          For private enterprise deployments, offline air-gapped networks, or internal development teams, BramandScript includes a lightweight, self-contained package registry server authored in 100% pure BramandScript (<code class="font-mono">tools/registry_server.bmd</code>). It provides publish APIs, tarball archive storage, semver resolution, and package search:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — Run Private Registry Server</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
           <pre><code># Start package registry server on default port 8080
-bramand run tools/registry_server.bmd
+bmd run tools/registry_server.bmd
 
 # Run test suite for package publishing, searching, and versioning
-bramand test tests/15_day14_registry_test.bmd</code></pre>
+bmd test tests/15_day14_registry_test.bmd</code></pre>
         </div>
       </section>
       <!-- ================= AOT OPTIMIZER & BENCHMARKS ================= -->

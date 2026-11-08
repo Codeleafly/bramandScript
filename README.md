@@ -173,11 +173,14 @@
   - `import "std/io" as io` (`read_text`, `write_text`, `append_text`, `exists`, `remove`)
   - `import "std/json" as json` (`parse`, `stringify`, `safe_parse`)
   - `import "std/testing" as t` (`assert_true`, `assert_false`, `assert_null`)
-- **Deno-Style Centralized Module Architecture**:
-  - Standard library import: `import "std/math" as math`
-  - Direct file import: `import "helpers.bmd"`
-  - Namespaced local import: `import "calc.bmd" as calc`
-  - Centralized module caching at `$HOME/.bramand_libs/` avoiding `node_modules` per-project bloat.
+- **Centralized Package & Module Architecture (`$HOME/.bmd_libs/`)**:
+  - **Zero `node_modules` Bloat**: Shared system-wide store eliminating per-project disk waste.
+  - **4-Stage Import Resolution Pipeline**: Stage 1 (`embed:stdlib/`), Stage 2 (relative paths), Stage 3 (`~/.bmd_libs/registry/`), Stage 4 (immutable singleton exports with `OpModule`).
+  - **Three-Tier Fallback Engine**: `bmdpkg.json` "entry" -> `main.bmd` -> `index.bmd` -> diagnostic failure.
+  - **SemVer Diamond Resolution**: Unifies compatible dependency versions to highest SemVer with side-by-side major version isolation.
+  - **Supply-Chain Permission Contracts**: Sandboxing declared host permissions (`network`, `filesystem_read`, `filesystem_write`, `subprocess`) with install-time security alerts.
+  - **Single-Binary Embedding (`bmd build`)**: Direct embedding of global dependencies into self-contained standalone binaries.
+  - **Offline-First Determinism**: Complete offline operation via `--offline` flag and `BMD_OFFLINE=1`.
 - **Rust/Clang-Style 10-Line Diagnostic Engine**: Exact column and line pointer (`--> file:line:col`), exactly 5 lines of contextual code above and 5 below, caret token underlining (`^~~~`), intelligent suggestions (`[Hint: ...]`), and zero ASCII box borders.
 - **In-Terminal Multi-Line Editor (`:editor`)**: Multi-line coding, running, and saving directly to disk from inside the interactive REPL.
 
@@ -244,9 +247,90 @@ bmd run --max-frames 2048 deep.bmd
 bmd script.bmd
 ```
 
-### 3. Run All Automated Unit Tests
+### 3. Centralized Package Manager (`bmd pkg`, `bmd install`, `bmd get`, `bmd cache`)
+
+BramandScript provides a unified, offline-first package manager with centralized storage in `$HOME/.bmd_libs/`:
+
 ```bash
+# Install package from GitHub (version tag or latest)
+bmd install github.com/alice/json-tools
+bmd install github.com/alice/json-tools 1.2.0
+
+# Install from remote CDN archive URL
+bmd install https://cdn.bmd.io/packages/matrix-math.tar.gz
+
+# Link local development directory
+bmd install ./libs/my_utils
+bmd install local/my_utils@dev
+
+# Synchronize project dependencies declared in bmdpkg.json
+bmd get
+
+# Offline dependency synchronization (strictly local/cache)
+bmd get --offline
+
+# Inspect centralized storage metrics and counts
+bmd cache info
+
+# Prune orphaned tarball archives while preserving registry trees
+bmd cache prune
+
+# Cryptographically verify all installed packages against integrity.db
+bmd cache verify
+
+# Initialize a new package with bmdpkg.json manifest and main.bmd
+bmd pkg init my-library
+
+# List project dependencies and globally available registry packages
+bmd pkg list
+
+# Compile standalone executable embedding global dependencies
+bmd build app.bmd -o my_app
+```
+
+#### Package Manifest (`bmdpkg.json`)
+```json
+{
+  "name": "my-service",
+  "version": "1.0.0",
+  "description": "High-throughput microservice in BramandScript",
+  "entry": "src/main.bmd",
+  "license": "MIT",
+  "authors": ["Codeleafly <ziprecovery2024@gmail.com>"],
+  "permissions": {
+    "network": true,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "subprocess": false
+  },
+  "dependencies": {
+    "github.com/alice/json-tools": "^1.2.0"
+  },
+  "compatibility": {
+    "bmd_min": "0.1.0"
+  }
+}
+```
+
+#### CLI Command Cheat Sheet
+| Command | Arguments | Purpose & Functionality |
+| :--- | :--- | :--- |
+| `bmd install` | `<target> [version] [--offline]` | Installs package from GitHub, CDN, or local path into `~/.bmd_libs/registry/` |
+| `bmd get` | `[dir] [--offline]` | Resolves and downloads missing project dependencies from `bmdpkg.json` |
+| `bmd cache info` | *(none)* | Displays disk usage, tarball archive count, and registry package count |
+| `bmd cache prune` | *(none)* | Reclaims space by removing orphaned tarballs while preserving registry trees |
+| `bmd cache verify` | *(none)* | Validates SHA-256 cryptographic checksums against `locks/integrity.db` |
+| `bmd pkg init` | `[name]` | Scaffolds a new package directory with `bmdpkg.json` and `main.bmd` |
+| `bmd pkg list` | *(none)* | Lists dependencies in current project and all globally installed packages |
+| `bmd build` | `<file.bmd> -o <exe>` | Compiles self-contained executable embedding dependencies from `~/.bmd_libs/` |
+
+### 4. Run All Automated Unit Tests
+```bash
+# Pure Go test suite
 go test ./... -v
+
+# BramandScript test suite
+bmd test tests/
 ```
 
 ---
@@ -304,8 +388,8 @@ The documentation is organized into dedicated, fast-loading modular guides:
 - [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight tasks (`spawn`), channels, mutexes, counting semaphores (`std/semaphore`), worker pools (`std/pool`), and file I/O.
 - [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 21 embedded modules: `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
 - [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, resilient network requests, AI streaming, and vector search.
-- [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
-- [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 64-bit opcode VM pipeline, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.
+- [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Centralized package manager (`bmd install`, `bmd get`, `bmd cache`), test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
+- [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 4-stage runtime import resolution pipeline, inter-process atomic locking, SemVer diamond dependency resolution, 64-bit opcode VM, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.
 
 ---
 
