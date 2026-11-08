@@ -1,0 +1,193 @@
+// tic_tac_toe.bmd
+// BramandScript Fast Arcade Tic-Tac-Toe Game
+// Demonstrates: Terminal Raw Mode (single-key instant input without Enter),
+// in-place ANSI screen clearing, state tracking, and replay loop.
+
+fn clear_screen() {
+    // \033[2J clears the terminal screen; \033[H repositions cursor to top-left (1,1)
+    print("\033[2J\033[H");
+}
+
+fn format_cell(val) {
+    if val == "X" {
+        return color("green", "X");
+    }
+    if val == "O" {
+        return color("yellow", "O");
+    }
+    return color("gray", val);
+}
+
+// Waits for a single keypress using terminal raw mode without blocking CPU
+fn get_single_key() {
+    while true {
+        let k = read_key(50);
+        if k != "" {
+            return to_lower(k);
+        }
+    }
+}
+
+fn render_board(board, current_player, score_x, score_o, draws, status_msg) {
+    clear_screen();
+
+    println(color("cyan", "✦ BRAMAND SCRIPT :: FAST ARCADE TIC-TAC-TOE ✦"));
+    println("──────────────────────────────────────────────────");
+    println("Score: " + color("green", "Player X: " + str(score_x)) + "  │  " + 
+            color("yellow", "Player O: " + str(score_o)) + "  │  " + 
+            color("gray", "Draws: " + str(draws)));
+    println("──────────────────────────────────────────────────\n");
+
+    println("                 ┌───┬───┬───┐");
+    println("                 │ " + format_cell(board[0]) + " │ " + format_cell(board[1]) + " │ " + format_cell(board[2]) + " │");
+    println("                 ├───┼───┼───┤");
+    println("                 │ " + format_cell(board[3]) + " │ " + format_cell(board[4]) + " │ " + format_cell(board[5]) + " │");
+    println("                 ├───┼───┼───┤");
+    println("                 │ " + format_cell(board[6]) + " │ " + format_cell(board[7]) + " │ " + format_cell(board[8]) + " │");
+    println("                 └───┴───┴───┘\n");
+
+    if status_msg != "" {
+        println("  " + status_msg);
+    } else {
+        println("  Turn: Player " + format_cell(current_player) + " (Press key [1-9])");
+    }
+    println("──────────────────────────────────────────────────");
+    println(color("gray", "Direct keypress mode (No Enter required) │ [Q] Quit"));
+}
+
+fn check_winner(board, p) {
+    // 8 winning combinations: 3 rows, 3 columns, 2 diagonals
+    let win_lines = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+    ];
+
+    for line in win_lines {
+        if board[line[0]] == p && board[line[1]] == p && board[line[2]] == p {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn check_draw(board) {
+    for cell in board {
+        if cell != "X" && cell != "O" {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn main_game() {
+    // Put terminal into raw mode for single keypress capture without Enter
+    term_raw(true);
+
+    let score_x = 0;
+    let score_o = 0;
+    let draws = 0;
+    let keep_playing = true;
+
+    while keep_playing {
+        let board = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+        let current_player = "X";
+        let status_msg = "";
+        let round_active = true;
+
+        while round_active {
+            render_board(board, current_player, score_x, score_o, draws, status_msg);
+            status_msg = "";
+
+            let key = get_single_key();
+
+            // Direct Quit check
+            if key == "q" || key == "ctrl_c" || key == "esc" {
+                round_active = false;
+                keep_playing = false;
+                break;
+            }
+
+            // Valid numeric cell check (1 to 9)
+            if key >= "1" && key <= "9" {
+                let idx = int(key) - 1;
+
+                if board[idx] == "X" || board[idx] == "O" {
+                    status_msg = color("red", "[WARN] Cell " + key + " is already occupied! Choose another cell.");
+                    continue;
+                }
+
+                // Place move on the board
+                board[idx] = current_player;
+
+                // Win verification
+                if check_winner(board, current_player) {
+                    if current_player == "X" {
+                        score_x = score_x + 1;
+                    } else {
+                        score_o = score_o + 1;
+                    }
+
+                    render_board(board, current_player, score_x, score_o, draws, 
+                        color("green", "✦ CONGRATULATIONS! Player " + current_player + " WINS! ✦"));
+                    round_active = false;
+                    break;
+                }
+
+                // Draw verification
+                if check_draw(board) {
+                    draws = draws + 1;
+                    render_board(board, current_player, score_x, score_o, draws, 
+                        color("yellow", "[MATCH DRAW] The board is full. It's a draw!"));
+                    round_active = false;
+                    break;
+                }
+
+                // Switch turn between Player X and Player O
+                if current_player == "X" {
+                    current_player = "O";
+                } else {
+                    current_player = "X";
+                }
+            } else {
+                status_msg = color("red", "[ERROR] Invalid key! Please press a number from 1 to 9.");
+            }
+        }
+
+        // If player chose to quit during an active round
+        if !keep_playing {
+            break;
+        }
+
+        // Prompt for rematch without exiting
+        println("\n" + color("cyan", "✦ Would you like to play again?"));
+        println("  Press " + color("green", "[Y]") + " New Match  │  " + color("red", "[N / Q]") + " Exit Game");
+
+        while true {
+            let next_action = get_single_key();
+            if next_action == "y" {
+                // Starts a new round
+                break;
+            }
+            if next_action == "n" || next_action == "q" || next_action == "ctrl_c" || next_action == "esc" {
+                keep_playing = false;
+                break;
+            }
+        }
+    }
+
+    // Restore terminal to standard canonical/cooked mode
+    term_raw(false);
+    clear_screen();
+
+    println(color("cyan", "✦ GAME FINISHED ✦"));
+    println("──────────────────────────────────────────");
+    println("Final Match Scores:");
+    println("  " + color("green", "Player X Wins : " + str(score_x)));
+    println("  " + color("yellow", "Player O Wins : " + str(score_o)));
+    println("  " + color("gray", "Total Draws   : " + str(draws)));
+    println("──────────────────────────────────────────");
+    println("Thank you for playing BramandScript Tic-Tac-Toe! [OK]\n");
+}
+
+main_game();
