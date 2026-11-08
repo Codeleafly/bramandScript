@@ -16,9 +16,10 @@ permissions:
 
 jobs:
   build-release:
-    name: Build & Release (${{ matrix.goos }}/${{ matrix.goarch }})
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           # Linux
@@ -30,11 +31,29 @@ jobs:
             goarch: arm64
             artifact_name: bramand-linux-arm64
             archive_format: tar.gz
+          - goos: linux
+            goarch: arm
+            goarm: 7
+            artifact_name: bramand-linux-armv7
+            archive_format: tar.gz
+          - goos: linux
+            goarch: 386
+            artifact_name: bramand-linux-386
+            archive_format: tar.gz
 
-          # Android Termux
+          # Android (Termux)
           - goos: android
             goarch: arm64
             artifact_name: bramand-android-arm64
+            archive_format: tar.gz
+          - goos: android
+            goarch: arm
+            goarm: 7
+            artifact_name: bramand-android-armv7
+            archive_format: tar.gz
+          - goos: android
+            goarch: amd64
+            artifact_name: bramand-android-amd64
             archive_format: tar.gz
 
           # macOS (Darwin)
@@ -56,9 +75,13 @@ jobs:
             goarch: arm64
             artifact_name: bramand-windows-arm64
             archive_format: zip
+          - goos: windows
+            goarch: 386
+            artifact_name: bramand-windows-386
+            archive_format: zip
 
     steps:
-      - name: Check out code
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Go
@@ -71,15 +94,20 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
           CGO_ENABLED: 0
         run: |
-          BINARY_NAME="bramand"
+          mkdir -p build_output
           if [ "${{ matrix.goos }}" = "windows" ]; then
             BINARY_NAME="bramand.exe"
+            go build -ldflags="-s -w" -o "build_output/${BINARY_NAME}" main.go
+            cp "build_output/${BINARY_NAME}" "build_output/bmd.exe"
+          else
+            BINARY_NAME="bramand"
+            go build -ldflags="-s -w" -o "build_output/${BINARY_NAME}" main.go
+            cp "build_output/${BINARY_NAME}" "build_output/bmd"
+            chmod +x "build_output/${BINARY_NAME}" "build_output/bmd"
           fi
-          
-          mkdir -p build_output
-          go build -ldflags="-s -w" -o "build_output/${BINARY_NAME}" main.go
 
       - name: Package Release Archive
         id: package
@@ -114,7 +142,7 @@ jobs:
           path: ${{ steps.package.outputs.archive_path }}
 
   publish-release:
-    name: Publish GitHub Release
+    name: Publish Release to GitHub
     needs: build-release
     runs-on: ubuntu-latest
     steps:
@@ -135,7 +163,7 @@ jobs:
           cat checksums.txt
           cd ..
 
-      - name: Publish Release to GitHub
+      - name: Publish Release via GitHub CLI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -144,23 +172,29 @@ jobs:
             TAG="${{ inputs.tag_name || 'v0.1.0' }}"
           fi
 
-          # Create release notes
-          NOTES="BramandScript ${TAG} Standalone Release
+          NOTES="✦ BramandScript ${TAG} Production Release ✦
 
-          High-performance, general-purpose programming language built with a Stack-Based Bytecode VM in pure Go standard library. Zero external dependencies.
+High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, and modular standard library in pure Go. Zero external dependencies.
 
-          ### Platforms Available:
-          - Linux (x86_64, arm64)
-          - Android Termux (arm64)
-          - macOS (Intel & Apple Silicon)
-          - Windows (x86_64, arm64)
+### Key Capabilities in this Release:
+- **Enterprise Language Syntax**: Null-coalescing (\`??\`, \`??=\`), optional chaining (\`?.\`), ternary conditional (\`? :\`), string interpolation (\`f\"...\"\`, \`\` \`...\` \`\`), array/hash spread (\`...\`), default function parameters (\`fn f(a, b = 10)\`), LIFO \`defer\` statements.
+- **Granular Capability Security**: CLI permission flags (\`--allow-all\`, \`--allow-run\`, \`--allow-write\`, \`--allow-net\`).
+- **Dynamic VM Architecture**: 64-bit opcode operands, dynamic call frames (\`--max-frames\`), and configurable value stack (\`--max-stack\`).
+- **Enterprise Standard Library**: \`std/log\`, \`std/retry\`, \`std/config\`, \`std/uuid\`, \`std/semaphore\`, \`std/circuitbreaker\`, \`std/pool\`, and advanced \`std/collections\` primitives.
+- **Self-Contained Executable**: Standard library fully embedded inside native binary via Go \`embed.FS\`.
 
-          ### Smart One-Liner Install:
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
-          \`\`\`
+### Available Binary Packages:
+- **Linux**: x86_64, aarch64 (ARM64), ARMv7, x86 (32-bit)
+- **Android Termux**: aarch64 (ARM64), ARMv7, x86_64
+- **macOS**: Apple Silicon (M1/M2/M3/M4 arm64), Intel (x86_64)
+- **Windows**: x86_64 (64-bit), ARM64, x86 (32-bit)
 
-          Verify checksums via \`checksums.txt\`."
+### Universal One-Liner Installer:
+\`\`\`bash
+curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
+\`\`\`
+
+All archive checksums are verified in \`checksums.txt\`."
 
           gh release create "$TAG" final_assets/* \
             --title "BramandScript ${TAG}" \
