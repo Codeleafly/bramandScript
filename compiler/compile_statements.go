@@ -517,6 +517,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			NumParameters: len(node.Embeds) + len(node.Fields),
 			SourceMap:     sourceLines,
 			FreeNames:     freeNames,
+			Contract:      c.currentContract,
 		}
 
 		fnIndex := c.addConstant(compiledFn)
@@ -578,28 +579,65 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
 		}
 
-		if c.importingModules[filePath] {
+		canonicalKey := filePath
+		if !strings.HasPrefix(filePath, "embed:") {
+			if abs, err := filepath.Abs(filePath); err == nil {
+				canonicalKey = filepath.Clean(abs)
+			} else {
+				canonicalKey = filepath.Clean(filePath)
+			}
+		}
+
+		if c.importingModules[canonicalKey] {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "circular import detected: module '%s' is already being imported", node.Path)
 		}
 
 		// Stage 4: In-Memory Module Singleton Table
-		singletonSym, isCached := c.moduleSingletons[filePath]
+		singletonSym, isCached := c.moduleSingletons[canonicalKey]
 		if !isCached {
-			c.importingModules[filePath] = true
+			c.importingModules[canonicalKey] = true
 			defer func() {
-				delete(c.importingModules, filePath)
+				delete(c.importingModules, canonicalKey)
 			}()
-			c.importedModules[filePath] = true
+			c.importedModules[canonicalKey] = true
 
 			var data []byte
 			var err error
 			if strings.HasPrefix(filePath, "embed:stdlib/") {
 				data, err = stdlib.ReadFile(filePath)
+			} else if strings.HasPrefix(filePath, "embed:bundle/") {
+				data, err = pkg.ReadActiveBundleFile(filePath)
 			} else {
 				data, err = os.ReadFile(filePath)
 			}
 			if err != nil {
 				return true, c.makeError(node.Token.Line, node.Token.Col, "cannot import module '%s': %s", node.Path, err)
+			}
+
+			// Track in compiler bundle discovery tables
+			if c.importedModulePaths != nil {
+				c.importedModulePaths[node.Path] = canonicalKey
+			}
+			if c.importedModuleSources != nil {
+				c.importedModuleSources[canonicalKey] = data
+			}
+
+			// Discover and record package manifest & permission contract
+			manifest, _ := pkg.FindPackageManifest(filePath)
+			if manifest != nil && c.importedModuleManifests != nil {
+				c.importedModuleManifests[canonicalKey] = manifest
+			}
+
+			var contract *object.PackageContract
+			if manifest != nil {
+				contract = &object.PackageContract{
+					PackageName:     manifest.Name,
+					Network:         manifest.Permissions.Network,
+					FilesystemRead:  manifest.Permissions.FilesystemRead,
+					FilesystemWrite: manifest.Permissions.FilesystemWrite,
+					Subprocess:      manifest.Permissions.Subprocess,
+					Declared:        true,
+				}
 			}
 
 			l := lexer.New(string(data))
@@ -612,17 +650,35 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			prevBaseDir := c.BaseDir
 			if strings.HasPrefix(filePath, "embed:stdlib/") {
 				c.BaseDir = filepath.ToSlash(filepath.Dir(filePath))
+			} else if strings.HasPrefix(filePath, "embed:bundle/") {
+				c.BaseDir = filepath.ToSlash(filepath.Dir(filePath))
 			} else {
 				c.BaseDir = filepath.Dir(filePath)
 			}
 
 			prevFile := c.currentFile
 			prevSource := c.currentSource
-			c.SetCurrentFile(filePath, string(data))
+			prevContract := c.currentContract
+
+			c.SetCurrentFile(canonicalKey, string(data))
+			c.currentContract = contract
+
+			// Emit OpEnterPackage if a package contract is active
+			var enteredContract bool
+			if contract != nil {
+				contractIdx := c.addConstant(contract)
+				c.emit(code.OpEnterPackage, contractIdx)
+				enteredContract = true
+			}
 
 			restoreFileCtx := func() {
+				if enteredContract {
+					c.emit(code.OpLeavePackage)
+					enteredContract = false
+				}
 				c.BaseDir = prevBaseDir
 				c.SetCurrentFile(prevFile, prevSource)
+				c.currentContract = prevContract
 			}
 
 			exportedNames := []string{}
@@ -686,7 +742,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 				}
 			}
 			restoreFileCtx()
-			c.moduleExports[filePath] = exportedNames
+			c.moduleExports[canonicalKey] = exportedNames
 
 			// Construct immutable module singleton export hash ONCE
 			for _, name := range exportedNames {
@@ -701,14 +757,14 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			c.emit(code.OpHash, len(exportedNames)*2)
 
 			// Mark as immutable module and register in VM module singleton table
-			modPathConst := c.addConstant(&object.String{Value: filePath})
+			modPathConst := c.addConstant(&object.String{Value: canonicalKey})
 			c.emit(code.OpModule, modPathConst)
 
 			// Define global singleton symbol to hold the immutable hash
 			singletonName := fmt.Sprintf("__mod_singleton_%d", len(c.moduleSingletons))
 			singletonSym = c.symbolTable.DefineGlobal(singletonName, true)
 			c.emit(code.OpSetGlobal, singletonSym.Index)
-			c.moduleSingletons[filePath] = singletonSym
+			c.moduleSingletons[canonicalKey] = singletonSym
 		}
 
 		if node.Alias != "" {
@@ -903,6 +959,18 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 }
 
 func (c *Compiler) resolveModulePath(importPath string) (string, error) {
+	// Stage 0: Standalone Embedded Bundle (zero-dependency self-contained executables)
+	if pkg.HasActiveBundle() {
+		if bundlePath, _, ok := pkg.ResolveBundleModule(importPath, c.BaseDir); ok {
+			return bundlePath, nil
+		}
+	}
+	if strings.HasPrefix(filepath.ToSlash(c.BaseDir), "embed:bundle/") {
+		if bundlePath, _, ok := pkg.ResolveBundleModule(importPath, c.BaseDir); ok {
+			return bundlePath, nil
+		}
+	}
+
 	// Stage 1: Embedded Standard Library ("std/...", "stdlib/...")
 	var stdSubpath string
 	if strings.HasPrefix(importPath, "std/") {
@@ -1065,6 +1133,25 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 			return regEntry, nil
 		} else if _, isBroken := err.(*pkg.BrokenManifestError); isBroken {
 			return "", err
+		}
+
+		// Check transitive dependencies from enclosing package manifest
+		if c.currentFile != "" {
+			if manifest, _ := pkg.FindPackageManifest(c.currentFile); manifest != nil && manifest.Dependencies != nil {
+				if depTarget, ok := manifest.Dependencies[importPath]; ok {
+					// depTarget can be a version (e.g. "1.0.0") or full spec (e.g. "github.com/user/pkg@1.0.0")
+					candidates := []string{
+						depTarget,
+						importPath + "@" + depTarget,
+						importPath + "/" + depTarget,
+					}
+					for _, cand := range candidates {
+						if regEntry, err := pkg.ResolveRegistryPackage(cand); err == nil {
+							return regEntry, nil
+						}
+					}
+				}
+			}
 		}
 
 		// Legacy cache check ($HOME/.bmd_libs and $HOME/.bramand_libs)

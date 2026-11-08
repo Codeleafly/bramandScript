@@ -8,8 +8,18 @@ import (
 
 // InstallCLI handles the `bmd install <target>` CLI command.
 func InstallCLI(args []string) int {
-	if len(args) < 1 {
-		fmt.Println("Usage: bmd install <target> [version]")
+	offline := os.Getenv("BMD_OFFLINE") == "1" || os.Getenv("BMD_OFFLINE") == "true"
+	var positional []string
+	for _, a := range args {
+		if a == "--offline" || a == "-offline" {
+			offline = true
+		} else {
+			positional = append(positional, a)
+		}
+	}
+
+	if len(positional) < 1 {
+		fmt.Println("Usage: bmd install [--offline] <target> [version]")
 		fmt.Println("       bmd install github.com/user/project[@version]")
 		fmt.Println("       bmd install https://cdn.bmd.io/package.tar.gz")
 		fmt.Println("       bmd install ./local_dir")
@@ -17,13 +27,14 @@ func InstallCLI(args []string) int {
 		return 1
 	}
 
-	target := args[0]
+	target := positional[0]
 	explicitVer := ""
-	if len(args) > 1 {
-		explicitVer = args[1]
+	if len(positional) > 1 {
+		explicitVer = positional[1]
 	}
 
 	inst := NewInstaller()
+	inst.Offline = offline
 	res, err := inst.Install(target, explicitVer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Installation failed: %s\n", err)
@@ -55,9 +66,18 @@ func InstallCLI(args []string) int {
 
 // GetCLI handles the `bmd get` CLI command.
 func GetCLI(args []string) int {
+	offline := os.Getenv("BMD_OFFLINE") == "1" || os.Getenv("BMD_OFFLINE") == "true"
 	targetDir := "."
-	if len(args) > 0 && args[0] != "" {
-		targetDir = args[0]
+	for _, a := range args {
+		if a == "--offline" || a == "-offline" {
+			offline = true
+		} else if targetDir == "." {
+			targetDir = a
+		}
+	}
+
+	if offline {
+		_ = os.Setenv("BMD_OFFLINE", "1")
 	}
 
 	res, err := Get(targetDir)

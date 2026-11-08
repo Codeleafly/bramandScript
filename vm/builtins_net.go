@@ -18,7 +18,7 @@ func init() {
 		"tcp_listen": {
 			Fn: func(args ...object.Object) object.Object {
 				if err := CheckPermission(PermNet); err != nil {
-					return &object.Error{Message: err.Error()}
+					return &object.Error{Message: err.Error(), Fatal: true}
 				}
 				if len(args) != 1 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
@@ -38,6 +38,9 @@ func init() {
 		},
 		"tcp_connect": {
 			Fn: func(args ...object.Object) object.Object {
+				if err := CheckPermission(PermNet); err != nil {
+					return &object.Error{Message: err.Error(), Fatal: true}
+				}
 				if len(args) < 1 || len(args) > 2 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}
 				}
@@ -64,7 +67,7 @@ func init() {
 		"udp_listen": {
 			Fn: func(args ...object.Object) object.Object {
 				if err := CheckPermission(PermNet); err != nil {
-					return &object.Error{Message: err.Error()}
+					return &object.Error{Message: err.Error(), Fatal: true}
 				}
 				if len(args) != 1 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
@@ -249,7 +252,7 @@ func init() {
 		"ws_server": {
 			Fn: func(args ...object.Object) object.Object {
 				if err := CheckPermission(PermNet); err != nil {
-					return &object.Error{Message: err.Error()}
+					return &object.Error{Message: err.Error(), Fatal: true}
 				}
 				if len(args) < 1 || len(args) > 2 {
 					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want 1 or 2", len(args))}

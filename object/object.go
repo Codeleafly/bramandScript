@@ -41,6 +41,7 @@ const (
 	BYTES_OBJ                = "BYTES"
 	CELL_OBJ                 = "CELL"
 	SPREAD_WRAPPER_OBJ       = "SPREAD_WRAPPER"
+	PACKAGE_CONTRACT_OBJ     = "PACKAGE_CONTRACT"
 )
 
 type Object interface {
@@ -200,11 +201,28 @@ type CompiledFunction struct {
 	NumParameters int
 	SourceMap     []int
 	FreeNames     []string
+	Contract      *PackageContract
 }
 
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
 func (cf *CompiledFunction) Inspect() string {
 	return fmt.Sprintf("CompiledFunction[%p]", cf)
+}
+
+// ---------------- PackageContract ----------------
+type PackageContract struct {
+	PackageName     string
+	Network         bool
+	FilesystemRead  bool
+	FilesystemWrite bool
+	Subprocess      bool
+	Declared        bool
+}
+
+func (p *PackageContract) Type() ObjectType { return PACKAGE_CONTRACT_OBJ }
+func (p *PackageContract) Inspect() string {
+	return fmt.Sprintf("PackageContract[%s: net=%t, fs_r=%t, fs_w=%t, subproc=%t]",
+		p.PackageName, p.Network, p.FilesystemRead, p.FilesystemWrite, p.Subprocess)
 }
 
 // ---------------- Closure ----------------

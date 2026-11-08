@@ -15,6 +15,9 @@ import (
 func init() {
 	RegisterBuiltin("read_file", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermRead); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
 			if len(args) != 1 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
 			}
@@ -33,7 +36,7 @@ func init() {
 	RegisterBuiltin("write_file", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := CheckPermission(PermWrite); err != nil {
-				return &object.Error{Message: err.Error()}
+				return &object.Error{Message: err.Error(), Fatal: true}
 			}
 			if len(args) != 2 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
@@ -60,7 +63,7 @@ func init() {
 	RegisterBuiltin("append_file", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := CheckPermission(PermWrite); err != nil {
-				return &object.Error{Message: err.Error()}
+				return &object.Error{Message: err.Error(), Fatal: true}
 			}
 			if len(args) != 2 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
@@ -91,7 +94,7 @@ func init() {
 	RegisterBuiltin("delete_file", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := CheckPermission(PermWrite); err != nil {
-				return &object.Error{Message: err.Error()}
+				return &object.Error{Message: err.Error(), Fatal: true}
 			}
 			if len(args) != 1 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
@@ -147,7 +150,7 @@ func init() {
 	RegisterBuiltin("chmod", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := CheckPermission(PermWrite); err != nil {
-				return &object.Error{Message: err.Error()}
+				return &object.Error{Message: err.Error(), Fatal: true}
 			}
 			if len(args) != 2 {
 				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
@@ -233,7 +236,7 @@ func init() {
 	RegisterBuiltin("exec", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := CheckPermission(PermRun); err != nil {
-				return &object.Error{Message: err.Error()}
+				return &object.Error{Message: err.Error(), Fatal: true}
 			}
 			if len(args) == 0 {
 				return &object.Error{Message: "exec requires at least 1 argument"}

@@ -1,0 +1,127 @@
+// BramandScript Day 28 (Agent 8): Single-Binary Bundler, Supply-Chain Security & Offline Determinism Test Suite
+// tests/25_bundler_and_supply_chain_security_test.bmd
+
+import "std/testing" as t;
+
+describe("Day 28 (Agent 8): Single-Binary Bundler, Supply-Chain Security & Offline Determinism", fn() {
+
+    test("Feature B: Single-Binary Embedding of Global Dependencies (bmd build)", fn() {
+        let work_dir = "tests/fixtures/package_test/bundle_test";
+        exec("rm -rf " + work_dir);
+        exec("mkdir -p " + work_dir + "/helpers");
+
+        // 1. Create helper module
+        let helper_src = "let multiply = fn(a, b) { a * b };";
+        write_file(work_dir + "/helpers/math_helper.bmd", helper_src);
+
+        // 2. Create main program importing relative helper
+        let main_src = "import \"./helpers/math_helper.bmd\" as mh;\n" +
+                       "let res = mh.multiply(6, 7);\n" +
+                       "println(\"RESULT:\" + str(res));\n";
+        write_file(work_dir + "/main.bmd", main_src);
+
+        // 3. Compile standalone binary with bramand build
+        let out_binary = work_dir + "/bundled_app";
+        let build_res = exec("./bramand build " + work_dir + "/main.bmd -o " + out_binary);
+        assert_eq(build_res["exit_code"], 0);
+        assert_eq(contains(build_res["stdout"], "Standalone Executable Builder"), true);
+        assert_eq(contains(build_res["stdout"], "[OK] Standalone executable created successfully"), true);
+
+        // 4. Verify output executable runs cleanly
+        let run_res = exec(out_binary);
+        assert_eq(run_res["exit_code"], 0);
+        assert_eq(contains(run_res["stdout"], "RESULT:42"), true);
+
+        // Cleanup
+        exec("rm -rf " + work_dir);
+    });
+
+    test("Feature A: Runtime Supply-Chain Permission Contract Enforcement", fn() {
+        let sec_dir = "tests/fixtures/package_test/sec_test";
+        exec("rm -rf " + sec_dir);
+        exec("mkdir -p " + sec_dir);
+
+        // Manifest declaring subprocess: false
+        let manifest = "{\n" +
+                       "  \"name\": \"sec_restricted\",\n" +
+                       "  \"version\": \"1.0.0\",\n" +
+                       "  \"entry\": \"main.bmd\",\n" +
+                       "  \"permissions\": {\n" +
+                       "    \"network\": false,\n" +
+                       "    \"filesystem_write\": false,\n" +
+                       "    \"subprocess\": false\n" +
+                       "  }\n" +
+                       "}";
+        write_file(sec_dir + "/bmdpkg.json", manifest);
+
+        let lib_code = "let try_exec = fn() {\n" +
+                       "  return exec(\"echo bad\");\n" +
+                       "};\n";
+        write_file(sec_dir + "/main.bmd", lib_code);
+
+        // Install the package locally
+        let inst_res = exec("./bramand install " + sec_dir);
+        assert_eq(inst_res["exit_code"], 0);
+
+        // User script calling the restricted method
+        let user_script = sec_dir + "/user_runner.bmd";
+        write_file(user_script, "import \"local/sec_restricted@1.0.0\" as r;\n" +
+                                "let res = r.try_exec();\n");
+
+        let run_res = exec("./bramand run --allow-all " + user_script);
+        assert_eq(run_res["exit_code"] != 0, true);
+        assert_eq(contains(run_res["stderr"], "SecurityError"), true);
+        assert_eq(contains(run_res["stderr"], "subprocess: false"), true);
+
+        // Cleanup
+        exec("rm -rf " + sec_dir);
+    });
+
+    test("Feature C: Offline-First Determinism with --offline flag", fn() {
+        let offline_dir = "tests/fixtures/package_test/offline_fixture";
+        exec("rm -rf " + offline_dir);
+        exec("mkdir -p " + offline_dir);
+
+        let manifest = "{\n" +
+                       "  \"name\": \"offline_pkg\",\n" +
+                       "  \"version\": \"1.0.0\",\n" +
+                       "  \"entry\": \"main.bmd\",\n" +
+                       "  \"permissions\": {}\n" +
+                       "}";
+        write_file(offline_dir + "/bmdpkg.json", manifest);
+        write_file(offline_dir + "/main.bmd", "let greeting = \"offline_ok\";");
+
+        // Install with --offline flag
+        let inst_res = exec("./bramand install --offline " + offline_dir);
+        assert_eq(inst_res["exit_code"], 0);
+        assert_eq(contains(inst_res["stdout"], "[OK] Successfully installed"), true);
+
+        // Verify cache integrity remains 100% healthy
+        let verify_res = exec("./bramand cache verify");
+        assert_eq(verify_res["exit_code"], 0);
+        assert_eq(contains(verify_res["stdout"], "[OK] All package checksums verified"), true);
+
+        // Cleanup
+        exec("rm -rf " + offline_dir);
+    });
+
+    test("Transitive Dependencies & Circular Import Hardening", fn() {
+        let circ_dir = "tests/fixtures/package_test/circ_test";
+        exec("rm -rf " + circ_dir);
+        exec("mkdir -p " + circ_dir);
+
+        // modA imports modB, modB imports modA
+        write_file(circ_dir + "/modA.bmd", "import \"./modB.bmd\" as b;\nlet a = 1;");
+        write_file(circ_dir + "/modB.bmd", "import \"./modA.bmd\" as a;\nlet b = 2;");
+
+        let test_script = circ_dir + "/test.bmd";
+        write_file(test_script, "import \"./modA.bmd\" as a;");
+
+        let run_res = exec("./bramand run " + test_script);
+        assert_eq(run_res["exit_code"] != 0, true);
+        assert_eq(contains(run_res["stderr"], "circular import detected"), true);
+
+        // Cleanup
+        exec("rm -rf " + circ_dir);
+    });
+});

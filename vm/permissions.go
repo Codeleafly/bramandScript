@@ -52,6 +52,13 @@ func isTestMode() bool {
 }
 
 func CheckPermission(perm PermissionType) error {
+	// First check package supply-chain contracts on the active VM (enforced strictly in all modes)
+	if active := GetActiveVM(); active != nil {
+		if err := active.checkPackageContracts(perm); err != nil {
+			return err
+		}
+	}
+
 	globalPermissions.mu.RLock()
 	defer globalPermissions.mu.RUnlock()
 

@@ -168,6 +168,8 @@ type VM struct {
 
 	profiler *Profiler
 
+	activeContracts []*object.PackageContract
+
 	MaxSteps  uint64
 	StepCount uint64
 	Timeout   time.Duration
@@ -341,9 +343,10 @@ func (vm *VM) newChildVM(cl *object.Closure, args []object.Object) *VM {
 		globalsStore: vm.globalsStore,
 		frames:       childFrames,
 		framesIndex:  1,
-		maxFrames:    vm.maxFrames,
-		maxStackSize: vm.maxStackSize,
-		profiler:     vm.profiler,
+		maxFrames:       vm.maxFrames,
+		maxStackSize:    vm.maxStackSize,
+		profiler:        vm.profiler,
+		activeContracts: append([]*object.PackageContract(nil), vm.activeContracts...),
 	}
 }
 
@@ -362,6 +365,52 @@ func GetActiveVM() *VM {
 	activeVMMu.RLock()
 	defer activeVMMu.RUnlock()
 	return activeVM
+}
+
+func (vm *VM) checkPackageContracts(perm PermissionType) error {
+	checkOne := func(c *object.PackageContract) error {
+		if c == nil {
+			return nil
+		}
+		switch perm {
+		case PermRun:
+			if !c.Subprocess {
+				return fmt.Errorf("SecurityError: Package '%s' violated supply-chain permission contract: process execution is undeclared (subprocess: false in bmdpkg.json)", c.PackageName)
+			}
+		case PermNet:
+			if !c.Network {
+				return fmt.Errorf("SecurityError: Package '%s' violated supply-chain permission contract: network access is undeclared (network: false in bmdpkg.json)", c.PackageName)
+			}
+		case PermWrite:
+			if !c.FilesystemWrite {
+				return fmt.Errorf("SecurityError: Package '%s' violated supply-chain permission contract: filesystem write access is undeclared (filesystem_write: false in bmdpkg.json)", c.PackageName)
+			}
+		case PermRead:
+			if !c.FilesystemRead {
+				return fmt.Errorf("SecurityError: Package '%s' violated supply-chain permission contract: filesystem read access is undeclared (filesystem_read: false in bmdpkg.json)", c.PackageName)
+			}
+		}
+		return nil
+	}
+
+	// 1. Check active contracts (for top-level module code currently initializing)
+	for i := len(vm.activeContracts) - 1; i >= 0; i-- {
+		if err := checkOne(vm.activeContracts[i]); err != nil {
+			return err
+		}
+	}
+
+	// 2. Check call stack frames
+	for i := vm.framesIndex - 1; i >= 0; i-- {
+		frame := vm.frames[i]
+		if frame != nil && frame.contract != nil {
+			if err := checkOne(frame.contract); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func ExecuteCallable(callable object.Object, args ...object.Object) (object.Object, error) {
@@ -771,6 +820,20 @@ func (vm *VM) runLoop() error {
 						vm.globalsStore.moduleTable.Register(modPath, h)
 					}
 				}
+			}
+
+		case code.OpEnterPackage:
+			constIdx := binary.BigEndian.Uint64(ins[ip+1:])
+			vm.currentFrame().ip += 8
+
+			contractObj := vm.constants[constIdx]
+			if c, ok := contractObj.(*object.PackageContract); ok {
+				vm.activeContracts = append(vm.activeContracts, c)
+			}
+
+		case code.OpLeavePackage:
+			if len(vm.activeContracts) > 0 {
+				vm.activeContracts = vm.activeContracts[:len(vm.activeContracts)-1]
 			}
 
 		case code.OpSetLocal:

@@ -99,6 +99,8 @@ const (
 
 	// Centralized Package & Module Engine Opcodes
 	OpModule
+	OpEnterPackage
+	OpLeavePackage
 )
 
 type Definition struct {
@@ -165,6 +167,8 @@ var definitions = map[Opcode]*Definition{
 	OpDefer:            {"OpDefer", []int{2}},
 	OpSpread:           {"OpSpread", []int{}},
 	OpModule:           {"OpModule", []int{8}},
+	OpEnterPackage:     {"OpEnterPackage", []int{8}},
+	OpLeavePackage:     {"OpLeavePackage", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

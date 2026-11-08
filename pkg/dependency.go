@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -65,6 +66,9 @@ func Get(projectDir string, baseDir ...string) (*GetResult, error) {
 	sort.Strings(depKeys)
 
 	inst := NewInstaller(base)
+	if os.Getenv("BMD_OFFLINE") == "1" || os.Getenv("BMD_OFFLINE") == "true" {
+		inst.Offline = true
+	}
 
 	for _, depName := range depKeys {
 		depVer := manifest.Dependencies[depName]

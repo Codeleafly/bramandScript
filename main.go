@@ -213,6 +213,19 @@ func checkEmbeddedStandalone() bool {
 	}
 
 	vm.SetProgramArgs(os.Args[1:])
+
+	// Check if payload is a self-contained dependency bundle
+	if pkg.IsBundleData(payload) {
+		bundle, err := pkg.DeserializeBundle(payload)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] Corrupted standalone bundle: %s\n", err)
+			safeExit(1)
+		}
+		pkg.RegisterActiveBundle(bundle)
+		executeSource(bundle.MainSource, exePath)
+		return true
+	}
+
 	executeSource(string(payload), exePath)
 	return true
 }
@@ -300,6 +313,20 @@ func handleBuildCommand(args []string) {
 		}
 	}
 
+	bundle, bundleBytes, err := pkg.BuildBundle(
+		inputFile,
+		source,
+		comp.ImportedModulePaths(),
+		comp.ImportedModuleSources(),
+		comp.ImportedModuleManifests(),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed to construct standalone bundle: %s\n", err)
+		safeExit(1)
+	}
+
+	payload := bundleBytes
+
 	outF, err := os.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Could not create output file '%s': %s\n", outputFile, err)
@@ -312,13 +339,13 @@ func handleBuildCommand(args []string) {
 		safeExit(1)
 	}
 
-	if _, err := outF.Write(data); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing source payload: %s\n", err)
+	if _, err := outF.Write(payload); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed writing bundle payload: %s\n", err)
 		safeExit(1)
 	}
 
 	footer := make([]byte, StandaloneFooterLen)
-	binary.BigEndian.PutUint64(footer[0:8], uint64(len(data)))
+	binary.BigEndian.PutUint64(footer[0:8], uint64(len(payload)))
 	copy(footer[8:24], []byte(StandaloneSignature))
 
 	if _, err := outF.Write(footer); err != nil {
@@ -326,12 +353,28 @@ func handleBuildCommand(args []string) {
 		safeExit(1)
 	}
 
-	totalSize := int64(len(exeBytes) + len(data) + StandaloneFooterLen)
+	totalSize := int64(len(exeBytes) + len(payload) + StandaloneFooterLen)
 	fmt.Printf("\n%s✦ BramandScript Standalone Executable Builder%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
 	fmt.Println("──────────────────────────────────────────────────")
 	fmt.Printf("Source File:  %s\n", inputFile)
 	fmt.Printf("Target Exe:   %s\n", outputFile)
-	fmt.Printf("Payload Size: %d bytes\n", len(data))
+	if len(bundle.Files) > 0 {
+		fmt.Printf("Dependencies: %d embedded module(s)\n", len(bundle.Files))
+		for impPath, f := range bundle.Files {
+			origin := "Local"
+			if strings.Contains(impPath, "github.com") || strings.Contains(impPath, "cdn") {
+				origin = "Registry"
+			}
+			if f.PackageName != "" {
+				fmt.Printf("  ❯ %s [%s: %s]\n", impPath, origin, f.PackageName)
+			} else {
+				fmt.Printf("  ❯ %s [%s]\n", impPath, origin)
+			}
+		}
+	} else {
+		fmt.Println("Dependencies: 0 (pure standalone script)")
+	}
+	fmt.Printf("Payload Size: %d bytes (compressed bundle)\n", len(payload))
 	fmt.Printf("Total Binary: %.2f MB\n", float64(totalSize)/(1024*1024))
 	fmt.Println("──────────────────────────────────────────────────")
 	fmt.Printf("%s[OK] Standalone executable created successfully: %s%s\n\n", diagnostics.ColorGreen, outputFile, diagnostics.ColorReset)

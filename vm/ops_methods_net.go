@@ -371,7 +371,7 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
 					if err := CheckPermission(PermNet); err != nil {
-						return &object.Error{Message: err.Error()}
+						return &object.Error{Message: err.Error(), Fatal: true}
 					}
 					if len(args) < 1 {
 						return &object.Error{Message: "listen requires at least 1 argument (port or addr)"}

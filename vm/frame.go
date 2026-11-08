@@ -21,13 +21,19 @@ type Frame struct {
 	basePointer int
 	handlers    []ExceptionHandler
 	defers      []DeferredCall
+	contract    *object.PackageContract
 }
 
 func NewFrame(cl *object.Closure, basePointer int) *Frame {
+	var contract *object.PackageContract
+	if cl != nil && cl.Fn != nil {
+		contract = cl.Fn.Contract
+	}
 	return &Frame{
 		cl:          cl,
 		ip:          -1,
 		basePointer: basePointer,
+		contract:    contract,
 	}
 }
 

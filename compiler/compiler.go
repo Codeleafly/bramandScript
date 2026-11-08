@@ -6,6 +6,7 @@ import (
 	"bramandscript/ast"
 	"bramandscript/code"
 	"bramandscript/object"
+	"bramandscript/pkg"
 )
 
 type CompilerError struct {
@@ -65,6 +66,23 @@ type Compiler struct {
 	currentFile      string
 	currentSource    string
 	Optimize         bool
+
+	currentContract         *object.PackageContract
+	importedModulePaths     map[string]string
+	importedModuleSources   map[string][]byte
+	importedModuleManifests map[string]*pkg.Manifest
+}
+
+func (c *Compiler) ImportedModulePaths() map[string]string {
+	return c.importedModulePaths
+}
+
+func (c *Compiler) ImportedModuleSources() map[string][]byte {
+	return c.importedModuleSources
+}
+
+func (c *Compiler) ImportedModuleManifests() map[string]*pkg.Manifest {
+	return c.importedModuleManifests
 }
 
 func (c *Compiler) SetBaseDir(dir string) {
@@ -110,8 +128,11 @@ func New() *Compiler {
 		currentLine:      1,
 		importedModules:  make(map[string]bool),
 		importingModules: make(map[string]bool),
-		moduleExports:    make(map[string][]string),
-		moduleSingletons: make(map[string]Symbol),
+		moduleExports:           make(map[string][]string),
+		moduleSingletons:        make(map[string]Symbol),
+		importedModulePaths:     make(map[string]string),
+		importedModuleSources:   make(map[string][]byte),
+		importedModuleManifests: make(map[string]*pkg.Manifest),
 	}
 }
 
@@ -812,6 +833,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			NumParameters: len(node.Parameters),
 			SourceMap:     sourceLines,
 			FreeNames:     freeNames,
+			Contract:      c.currentContract,
 		}
 
 		fnIndex := c.addConstant(compiledFn)

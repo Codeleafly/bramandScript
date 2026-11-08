@@ -33,3 +33,4 @@
 
 
 - [x] CLI Commands and Dependency Management Engine (Agent 7): Implement CLI commands (bmd install, bmd get, bmd cache info, prune, verify) with tarball/archive download, integrity tracking, supply-chain security warnings, dependency resolution, and zero external dependencies. (Includes: pkg/installer.go, pkg/cache.go, main.go, tests)
+- [x] Single-Binary Bundler, Supply-Chain Security & Offline Determinism (Agent 8): Implement single-binary dependency bundling for bmd build, runtime supply-chain permission contract enforcement in VM, offline-first determinism verification, transitive dependency resolution, and circular import protection (Includes: pkg/bundle.go, pkg/manifest.go, compiler/compile_statements.go, vm/permissions.go, vm/vm.go, main.go, tests)
