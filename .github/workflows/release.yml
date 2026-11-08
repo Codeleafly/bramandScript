@@ -178,7 +178,7 @@ jobs:
             TAG="v0.1.0"
           fi
 
-          cat << '          EOF' | sed -e 's/^[ ]\{10\}//' > release_notes.md
+          cat << 'EOF' > release_notes.md
           ✦ BramandScript Production Release ✦
 
           High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, and modular standard library in pure Go. Zero external dependencies.
