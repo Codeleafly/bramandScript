@@ -113,6 +113,8 @@ func CachePrune(baseDir ...string) (*CachePruneResult, error) {
 
 		// Determine if corresponding package exists in registry
 		canRemove := false
+		var candKey string
+		var candDir string
 
 		// Pattern: github.com_<user>_<repo>_<ver>.tar.gz
 		if strings.HasPrefix(name, "github.com_") {
@@ -124,7 +126,8 @@ func CachePrune(baseDir ...string) (*CachePruneResult, error) {
 				user := parts[0]
 				repo := parts[1]
 				ver := parts[2]
-				candDir := RegistryGithubPath(user, repo, ver, base)
+				candDir = RegistryGithubPath(user, repo, ver, base)
+				candKey = fmt.Sprintf("github.com/%s/%s/%s", user, repo, ver)
 				if isDirWithEntrypoint(candDir) {
 					canRemove = true
 				}
@@ -138,7 +141,8 @@ func CachePrune(baseDir ...string) (*CachePruneResult, error) {
 			if len(parts) >= 2 {
 				domainHash := parts[0]
 				ver := parts[1]
-				candDir := RegistryCdnPath(domainHash, ver, base)
+				candDir = RegistryCdnPath(domainHash, ver, base)
+				candKey = fmt.Sprintf("cdn/%s/%s", domainHash, ver)
 				if isDirWithEntrypoint(candDir) {
 					canRemove = true
 				}
@@ -154,6 +158,9 @@ func CachePrune(baseDir ...string) (*CachePruneResult, error) {
 				res.FreedBytes += info.Size()
 				if db != nil {
 					_ = db.Delete("tarballs/" + name)
+					if candKey != "" && candDir != "" && isDirWithEntrypoint(candDir) {
+						db.Set(candKey, computeDirHash(candDir), 0)
+					}
 				}
 			}
 		}
@@ -315,10 +322,12 @@ func locateRecordPath(key, base string) string {
 		if len(parts) >= 2 {
 			domainHash := parts[0]
 			ver := parts[1]
+			// Try tarball first
 			tarCand := filepath.Join(tarballsDir, fmt.Sprintf("cdn_%s_%s.tar.gz", domainHash, ver))
 			if fileExists(tarCand) {
 				return tarCand
 			}
+			// Fallback to registry directory
 			regCand := RegistryCdnPath(domainHash, ver, base)
 			if pathExists(regCand) {
 				return regCand

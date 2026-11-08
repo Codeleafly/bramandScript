@@ -1,0 +1,217 @@
+// BramandScript Day 28: Exhaustive End-to-End Package Manager System Verification
+// tests/27_package_manager_e2e_verification_test.bmd
+
+import "std/testing" as t;
+
+describe("Day 28 (Agent 11): Centralized Package Manager End-to-End System Verification", fn() {
+
+    test("E2E Verification 1: bmd install with local directory and archive", fn() {
+        let work_dir = "tests/fixtures/package_test/e2e_inst_test";
+        exec("rm -rf " + work_dir);
+        exec("mkdir -p " + work_dir + "/dir_pkg");
+        exec("mkdir -p " + work_dir + "/arch_src");
+
+        // 1. Local directory package
+        let dir_manifest = "{\n  \"name\": \"e2e_dir_pkg\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\"\n}";
+        write_file(work_dir + "/dir_pkg/bmdpkg.json", dir_manifest);
+        write_file(work_dir + "/dir_pkg/main.bmd", "let get_val = fn() { return 100; };");
+
+        let inst_dir_res = exec("./bramand install " + work_dir + "/dir_pkg");
+        assert_eq(inst_dir_res["exit_code"], 0);
+        assert_eq(contains(inst_dir_res["stdout"], "[OK] Successfully installed 'e2e_dir_pkg@1.0.0'"), true);
+
+        // 2. Local archive package (.tar.gz)
+        let arch_manifest = "{\n  \"name\": \"e2e_arch_pkg\",\n  \"version\": \"2.0.0\",\n  \"entry\": \"main.bmd\"\n}";
+        write_file(work_dir + "/arch_src/bmdpkg.json", arch_manifest);
+        write_file(work_dir + "/arch_src/main.bmd", "let get_val = fn() { return 200; };");
+
+        let tar_cmd = "tar -czf " + work_dir + "/arch.tar.gz -C " + work_dir + "/arch_src .";
+        exec(tar_cmd);
+        assert_eq(file_exists(work_dir + "/arch.tar.gz"), true);
+
+        let inst_arch_res = exec("./bramand install " + work_dir + "/arch.tar.gz");
+        assert_eq(inst_arch_res["exit_code"], 0);
+        assert_eq(contains(inst_arch_res["stdout"], "[OK] Successfully installed 'e2e_arch_pkg@2.0.0'"), true);
+
+        // 3. User runner importing both packages
+        let runner_file = work_dir + "/run_imported.bmd";
+        write_file(runner_file, "import \"local/e2e_dir_pkg\" as d;\n" +
+                                "import \"local/e2e_arch_pkg\" as a;\n" +
+                                "println(\"SUM:\" + str(d.get_val() + a.get_val()));\n");
+
+        let run_res = exec("./bramand run " + runner_file);
+        assert_eq(run_res["exit_code"], 0);
+        assert_eq(contains(run_res["stdout"], "SUM:300"), true);
+
+        // Cleanup
+        exec("rm -rf " + work_dir);
+    });
+
+    test("E2E Verification 2: bmd get in consumer project with bmdpkg.json", fn() {
+        let consumer_dir = "tests/fixtures/package_test/e2e_get_consumer";
+        exec("rm -rf " + consumer_dir);
+        exec("mkdir -p " + consumer_dir);
+
+        let manifest = "{\n" +
+                       "  \"name\": \"consumer_app\",\n" +
+                       "  \"version\": \"1.0.0\",\n" +
+                       "  \"entry\": \"main.bmd\",\n" +
+                       "  \"dependencies\": {\n" +
+                       "    \"local/e2e_dir_pkg\": \"1.0.0\",\n" +
+                       "    \"local/e2e_arch_pkg\": \"2.0.0\"\n" +
+                       "  }\n" +
+                       "}";
+        write_file(consumer_dir + "/bmdpkg.json", manifest);
+        write_file(consumer_dir + "/main.bmd", "import \"local/e2e_dir_pkg\" as d;\nprintln(\"CONSUMER_OK:\" + str(d.get_val()));\n");
+
+        let get_res = exec("./bramand get " + consumer_dir);
+        assert_eq(get_res["exit_code"], 0);
+        assert_eq(contains(get_res["stdout"], "bmd get"), true);
+        assert_eq(contains(get_res["stdout"], "[OK] Dependencies up to date"), true);
+
+        let run_res = exec("./bramand run " + consumer_dir + "/main.bmd");
+        assert_eq(run_res["exit_code"], 0);
+        assert_eq(contains(run_res["stdout"], "CONSUMER_OK:100"), true);
+
+        // Cleanup
+        exec("rm -rf " + consumer_dir);
+    });
+
+    test("E2E Verification 3: bmd cache info, prune, and verify integrity operations", fn() {
+        // Cache info
+        let info_res = exec("./bramand cache info");
+        assert_eq(info_res["exit_code"], 0);
+        assert_eq(contains(info_res["stdout"], "Centralized Cache & Registry Overview"), true);
+        assert_eq(contains(info_res["stdout"], "[OK] Cache status healthy"), true);
+
+        // Cache verify
+        let verify_res = exec("./bramand cache verify");
+        assert_eq(verify_res["exit_code"], 0);
+        assert_eq(contains(verify_res["stdout"], "Package Integrity Verification"), true);
+        assert_eq(contains(verify_res["stdout"], "[OK] All package checksums verified successfully"), true);
+
+        // Cache prune
+        let prune_res = exec("./bramand cache prune");
+        assert_eq(prune_res["exit_code"], 0);
+        assert_eq(contains(prune_res["stdout"], "[OK] Cache pruned successfully"), true);
+    });
+
+    test("E2E Verification 4: bmd build standalone binary execution in isolated environment", fn() {
+        let build_dir = "tests/fixtures/package_test/e2e_isolated_build";
+        exec("rm -rf " + build_dir);
+        exec("mkdir -p " + build_dir + "/submod");
+
+        // Submodule
+        write_file(build_dir + "/submod/calc.bmd", "let factor = 7;\nlet multiply = fn(x) { return x * factor; };\n");
+
+        // Main app importing submodule
+        let app_src = "import \"./submod/calc.bmd\" as c;\n" +
+                      "println(\"CALC:\" + str(c.multiply(6)));\n";
+        write_file(build_dir + "/app.bmd", app_src);
+
+        // Build standalone single binary
+        let out_bin = build_dir + "/my_standalone_app";
+        let build_res = exec("./bramand build " + build_dir + "/app.bmd -o " + out_bin);
+        assert_eq(build_res["exit_code"], 0);
+        assert_eq(contains(build_res["stdout"], "[OK] Standalone executable created successfully"), true);
+        assert_eq(file_exists(out_bin), true);
+
+        // Execute in an isolated sandbox environment with empty HOME and no source files
+        let iso_sandbox = "/data/data/com.termux/files/usr/tmp/bmd_e2e_sandbox";
+        exec("rm -rf " + iso_sandbox);
+        exec("mkdir -p " + iso_sandbox + "/empty_home");
+        exec("cp " + out_bin + " " + iso_sandbox + "/app_bin");
+        exec("chmod +x " + iso_sandbox + "/app_bin");
+
+        // Create isolated launcher script
+        let launcher = iso_sandbox + "/run.sh";
+        write_file(launcher, "#!/bin/sh\ncd " + iso_sandbox + "\nHOME=" + iso_sandbox + "/empty_home ./app_bin\n");
+        exec("chmod +x " + launcher);
+
+        // Run isolated binary from outside the project directory with empty HOME
+        let iso_res = exec("sh " + launcher);
+        assert_eq(iso_res["exit_code"], 0);
+        assert_eq(contains(iso_res["stdout"], "CALC:42"), true);
+
+        // Cleanup
+        exec("rm -rf " + build_dir);
+        exec("rm -rf " + iso_sandbox);
+    });
+
+    test("E2E Verification 5: Offline determinism with --offline flag and BMD_OFFLINE=1", fn() {
+        // Attempting to install an uncached remote package with --offline must fail deterministically
+        let off_res = exec("./bramand install --offline github.com/nonexistent_agent11/repo@1.0.0");
+        assert_eq(off_res["exit_code"] != 0, true);
+        assert_eq(contains(off_res["stderr"], "offline mode"), true);
+        assert_eq(contains(off_res["stderr"], "tarball not cached"), true);
+
+        // Attempting with BMD_OFFLINE=1 environment variable
+        set_env("BMD_OFFLINE", "1");
+        let env_res = exec("./bramand install github.com/nonexistent_agent11/repo@1.0.0");
+        set_env("BMD_OFFLINE", "");
+        assert_eq(env_res["exit_code"] != 0, true);
+        assert_eq(contains(env_res["stderr"], "offline mode"), true);
+        assert_eq(contains(env_res["stderr"], "tarball not cached"), true);
+    });
+
+    test("E2E Verification 6: Supply-Chain Permission Contract violations caught at runtime", fn() {
+        let sec_dir = "tests/fixtures/package_test/e2e_contract_test";
+        exec("rm -rf " + sec_dir);
+        exec("mkdir -p " + sec_dir + "/subproc_denied");
+        exec("mkdir -p " + sec_dir + "/net_denied");
+        exec("mkdir -p " + sec_dir + "/write_denied");
+        exec("mkdir -p " + sec_dir + "/toplevel_denied");
+
+        // 1. Subprocess restriction
+        write_file(sec_dir + "/subproc_denied/bmdpkg.json", "{\n  \"name\": \"contract_run\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"permissions\": {\"subprocess\": false}\n}");
+        write_file(sec_dir + "/subproc_denied/main.bmd", "let run = fn() { exec(\"echo evil\"); };");
+        let inst_sub = exec("./bramand install " + sec_dir + "/subproc_denied");
+        assert_eq(inst_sub["exit_code"], 0);
+
+        write_file(sec_dir + "/test_sub.bmd", "import \"local/contract_run\" as c; c.run();");
+        let run_sub = exec("./bramand run --allow-all " + sec_dir + "/test_sub.bmd");
+        assert_eq(run_sub["exit_code"] != 0, true);
+        assert_eq(contains(run_sub["stderr"], "SecurityError"), true);
+        assert_eq(contains(run_sub["stderr"], "subprocess: false"), true);
+
+        // 2. Network restriction
+        write_file(sec_dir + "/net_denied/bmdpkg.json", "{\n  \"name\": \"contract_net\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"permissions\": {\"network\": false}\n}");
+        write_file(sec_dir + "/net_denied/main.bmd", "let run = fn() { tcp_listen(\"127.0.0.1:0\"); };");
+        let inst_net = exec("./bramand install " + sec_dir + "/net_denied");
+        assert_eq(inst_net["exit_code"], 0);
+
+        write_file(sec_dir + "/test_net.bmd", "import \"local/contract_net\" as c; c.run();");
+        let run_net = exec("./bramand run --allow-all " + sec_dir + "/test_net.bmd");
+        assert_eq(run_net["exit_code"] != 0, true);
+        assert_eq(contains(run_net["stderr"], "SecurityError"), true);
+        assert_eq(contains(run_net["stderr"], "network: false"), true);
+
+        // 3. Filesystem write restriction
+        write_file(sec_dir + "/write_denied/bmdpkg.json", "{\n  \"name\": \"contract_write\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"permissions\": {\"filesystem_write\": false}\n}");
+        write_file(sec_dir + "/write_denied/main.bmd", "let run = fn() { write_file(\"illegal.txt\", \"data\"); };");
+        let inst_wr = exec("./bramand install " + sec_dir + "/write_denied");
+        assert_eq(inst_wr["exit_code"], 0);
+
+        write_file(sec_dir + "/test_wr.bmd", "import \"local/contract_write\" as c; c.run();");
+        let run_wr = exec("./bramand run --allow-all " + sec_dir + "/test_wr.bmd");
+        assert_eq(run_wr["exit_code"] != 0, true);
+        assert_eq(contains(run_wr["stderr"], "SecurityError"), true);
+        assert_eq(contains(run_wr["stderr"], "filesystem_write: false"), true);
+
+        // 4. Sneaky top-level execution restriction
+        write_file(sec_dir + "/toplevel_denied/bmdpkg.json", "{\n  \"name\": \"contract_top\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"permissions\": {\"subprocess\": false}\n}");
+        write_file(sec_dir + "/toplevel_denied/main.bmd", "exec(\"echo sneaky\");");
+        let inst_top = exec("./bramand install " + sec_dir + "/toplevel_denied");
+        assert_eq(inst_top["exit_code"], 0);
+
+        write_file(sec_dir + "/test_top.bmd", "import \"local/contract_top\" as c;");
+        let run_top = exec("./bramand run --allow-all " + sec_dir + "/test_top.bmd");
+        assert_eq(run_top["exit_code"] != 0, true);
+        assert_eq(contains(run_top["stderr"], "SecurityError"), true);
+        assert_eq(contains(run_top["stderr"], "subprocess: false"), true);
+
+        // Cleanup
+        exec("rm -rf " + sec_dir);
+    });
+
+});
