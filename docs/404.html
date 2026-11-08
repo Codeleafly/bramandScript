@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found · BramandScript Documentation</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full text-center space-y-6 bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700">
+    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-mono text-2xl font-bold">
+      404
+    </div>
+    <div class="space-y-2">
+      <h1 class="text-2xl font-bold tracking-tight">Documentation Page Not Found</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        The requested documentation page could not be located. You can navigate back to the documentation homepage.
+      </p>
+    </div>
+    <div class="pt-2">
+      <a href="index.html" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm transition-colors shadow-sm">
+        <span>Go to Documentation Portal</span>
+        <span>&rarr;</span>
+      </a>
+    </div>
+  </div>
+  <script>
+    // Auto-redirect if accessed from an incorrect case-sensitive subpath
+    const path = window.location.pathname;
+    if (path.includes('bramandscript') || path.endsWith('/docs') || path.endsWith('/docs/')) {
+      window.location.replace('https://codeleafly.github.io/bramandScript/');
+    }
+  </script>
+</body>
+</html>
