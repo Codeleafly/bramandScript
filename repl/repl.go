@@ -25,7 +25,7 @@ func Start(in io.Reader, out io.Writer) {
 
 	scanner := bufio.NewScanner(in)
 
-	fmt.Fprintf(out, "%s✦ %sBramandScript 0.1.0%s %s(%s-%s) · High-Performance Bytecode VM%s\n",
+	fmt.Fprintf(out, "%s✦ %sBramandScript 0.2.0%s %s(%s-%s) · High-Performance Bytecode VM%s\n",
 		diagnostics.ColorCyan, diagnostics.ColorBold, diagnostics.ColorReset,
 		diagnostics.ColorDim, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
 	fmt.Fprintf(out, "%s  Type %s:help%s for documentation, %s:editor%s for multi-line, %s:exit%s to quit.%s\n\n",

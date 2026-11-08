@@ -180,7 +180,7 @@ let run_editor_mode = fn(sess) {
 };
 
 let start_repl = fn() {
-    println(c_cyan("✦ ") + c_bold("BramandScript 0.1.0") + c_dim(" · High-Performance Native Bytecode VM"));
+    println(c_cyan("✦ ") + c_bold("BramandScript 0.2.0") + c_dim(" · High-Performance Native Bytecode VM"));
     println(c_dim("  Type :help for commands, :editor for multi-line, :exit to quit.\n"));
 
     let sess = create_session();

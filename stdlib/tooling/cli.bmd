@@ -17,7 +17,7 @@ let c_dim = fn(t) { return color.DIM + str(t) + color.RESET; };
 let c_bold = fn(t) { return color.BOLD + str(t) + color.RESET; };
 
 let print_version = fn() {
-    println(c_cyan("✦ ") + c_bold("BramandScript 0.1.0") + c_dim(" (pure Go runtime & native .bmd toolchain)"));
+    println(c_cyan("✦ ") + c_bold("BramandScript 0.2.0") + c_dim(" (pure Go runtime & native .bmd toolchain)"));
     println("Standard Library: 16 core modules (math, net, db, ml, tui, json, crypto, etc.)");
     println("Zero External Dependencies · 100% Offline Capable");
 };

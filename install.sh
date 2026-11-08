@@ -129,7 +129,7 @@ else
   TAG="$(echo "$LATEST_JSON" | grep '"tag_name":' | head -n1 | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)"
 
   if [ -z "$TAG" ]; then
-    TAG="v0.1.0"
+    TAG="v0.2.0"
     warn "Could not determine latest release tag via GitHub API. Falling back to tag ${TAG}."
   fi
 

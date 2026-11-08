@@ -1,4 +1,4 @@
-# BramandScript Windows PowerShell Installer
+﻿# BramandScript Windows PowerShell Installer
 # Usage: irm https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
@@ -22,7 +22,7 @@ try {
     $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
     $Tag = $Release.tag_name
 } catch {
-    $Tag = "v0.1.0"
+    $Tag = "v0.2.0"
 }
 
 $ArchiveName = "bramand-windows-$Arch-$Tag.zip"
