@@ -36,7 +36,7 @@ jobs:
             artifact_name: bramand-linux-armv7
             archive_format: tar.gz
           - goos: linux
-            goarch: 386
+            goarch: '386'
             artifact_name: bramand-linux-386
             archive_format: tar.gz
 
@@ -74,7 +74,7 @@ jobs:
             artifact_name: bramand-windows-arm64
             archive_format: zip
           - goos: windows
-            goarch: 386
+            goarch: '386'
             artifact_name: bramand-windows-386
             archive_format: zip
 
@@ -178,31 +178,31 @@ jobs:
             TAG="v0.1.0"
           fi
 
-          cat << 'EOF' > release_notes.md
-✦ BramandScript Production Release ✦
+          cat << '          EOF' | sed -e 's/^[ ]\{10\}//' > release_notes.md
+          ✦ BramandScript Production Release ✦
 
-High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, and modular standard library in pure Go. Zero external dependencies.
+          High-performance, general-purpose programming language built from scratch with a Stack-based 64-bit Bytecode Virtual Machine, Pratt Parser, and modular standard library in pure Go. Zero external dependencies.
 
-### Key Capabilities in this Release:
-- **Enterprise Language Syntax**: Null-coalescing (`??`, `??=`), optional chaining (`?.`), ternary conditional (`? :`), string interpolation (`f"..."`, template literals), array/hash spread (`...`), default function parameters (`fn f(a, b = 10)`), LIFO `defer` statements.
-- **Granular Capability Security**: CLI permission flags (`--allow-all`, `--allow-run`, `--allow-write`, `--allow-net`).
-- **Dynamic VM Architecture**: 64-bit opcode operands, dynamic call frames (`--max-frames`), and configurable value stack.
-- **Enterprise Standard Library**: `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, and advanced `std/collections` primitives.
-- **Self-Contained Executable**: Standard library fully embedded inside native binary via Go `embed.FS`.
+          ### Key Capabilities in this Release:
+          - **Enterprise Language Syntax**: Null-coalescing (`??`, `??=`), optional chaining (`?.`), ternary conditional (`? :`), string interpolation (`f"..."`, template literals), array/hash spread (`...`), default function parameters (`fn f(a, b = 10)`), LIFO `defer` statements.
+          - **Granular Capability Security**: CLI permission flags (`--allow-all`, `--allow-run`, `--allow-write`, `--allow-net`).
+          - **Dynamic VM Architecture**: 64-bit opcode operands, dynamic call frames (`--max-frames`), and configurable value stack.
+          - **Enterprise Standard Library**: `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, and advanced `std/collections` primitives.
+          - **Self-Contained Executable**: Standard library fully embedded inside native binary via Go `embed.FS`.
 
-### Available Binary Packages:
-- **Linux**: x86_64, aarch64 (ARM64), ARMv7, x86 (32-bit)
-- **Android Termux**: aarch64 (ARM64), ARMv7, x86_64
-- **macOS**: Apple Silicon (arm64), Intel (x86_64)
-- **Windows**: x86_64 (64-bit), ARM64, x86 (32-bit)
+          ### Available Binary Packages:
+          - **Linux**: x86_64, aarch64 (ARM64), ARMv7, x86 (32-bit)
+          - **Android Termux**: aarch64 (ARM64), ARMv7, x86_64
+          - **macOS**: Apple Silicon (arm64), Intel (x86_64)
+          - **Windows**: x86_64 (64-bit), ARM64, x86 (32-bit)
 
-### Universal One-Liner Installer:
-```bash
-curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
-```
+          ### Universal One-Liner Installer:
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/Codeleafly/bramandScript/main/install.sh | bash
+          ```
 
-All archive checksums are verified in `checksums.txt`.
-EOF
+          All archive checksums are verified in `checksums.txt`.
+          EOF
 
           gh release create "$TAG" final_assets/* \
             --title "BramandScript ${TAG}" \
