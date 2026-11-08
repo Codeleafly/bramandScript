@@ -1,0 +1,238 @@
+package pkg
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"sync"
+	"time"
+)
+
+// IntegrityRecord represents a single package or tarball checksum entry.
+type IntegrityRecord struct {
+	Checksum  string `json:"checksum"`  // SHA-256 hex string
+	Algorithm string `json:"algorithm"` // Always "sha256"
+	Size      int64  `json:"size"`      // Content size in bytes
+	Timestamp int64  `json:"timestamp"` // Unix epoch timestamp
+}
+
+// IntegrityDB represents a thread-safe registry of SHA-256 package checksums.
+type IntegrityDB struct {
+	mu      sync.RWMutex
+	path    string
+	Records map[string]IntegrityRecord `json:"records"`
+}
+
+// ComputeSHA256 returns the hex-encoded SHA-256 checksum of data.
+func ComputeSHA256(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+// ComputeFileSHA256 returns the hex-encoded SHA-256 checksum and size of a file on disk.
+func ComputeFileSHA256(filePath string) (string, int64, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+
+	hasher := sha256.New()
+	size, err := io.Copy(hasher, f)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), size, nil
+}
+
+// NewIntegrityDB creates an empty IntegrityDB.
+func NewIntegrityDB(dbPath ...string) *IntegrityDB {
+	p := ""
+	if len(dbPath) > 0 && dbPath[0] != "" {
+		p = dbPath[0]
+	} else {
+		p = GetIntegrityDBPath()
+	}
+	return &IntegrityDB{
+		path:    p,
+		Records: make(map[string]IntegrityRecord),
+	}
+}
+
+// LoadIntegrityDB loads or initializes the integrity database from disk.
+// If the database file does not exist, an empty database is returned.
+func LoadIntegrityDB(customPath ...string) (*IntegrityDB, error) {
+	dbPath := ""
+	if len(customPath) > 0 && customPath[0] != "" {
+		dbPath = customPath[0]
+	} else {
+		dbPath = GetIntegrityDBPath()
+	}
+
+	db := &IntegrityDB{
+		path:    dbPath,
+		Records: make(map[string]IntegrityRecord),
+	}
+
+	data, err := os.ReadFile(dbPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return db, nil
+		}
+		return nil, fmt.Errorf("failed to read integrity.db: %w", err)
+	}
+
+	if len(data) == 0 {
+		return db, nil
+	}
+
+	if err := json.Unmarshal(data, &db.Records); err != nil {
+		// Fallback for wrapped format {"records": {...}}
+		var wrapper struct {
+			Records map[string]IntegrityRecord `json:"records"`
+		}
+		if err2 := json.Unmarshal(data, &wrapper); err2 == nil && wrapper.Records != nil {
+			db.Records = wrapper.Records
+			return db, nil
+		}
+		return nil, fmt.Errorf("failed to parse integrity.db: %w", err)
+	}
+
+	return db, nil
+}
+
+// Save serializes the integrity database to disk.
+func (db *IntegrityDB) Save(customPath ...string) error {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	targetPath := db.path
+	if len(customPath) > 0 && customPath[0] != "" {
+		targetPath = customPath[0]
+	}
+	if targetPath == "" {
+		targetPath = GetIntegrityDBPath()
+	}
+
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(db.Records, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to serialize integrity.db: %w", err)
+	}
+
+	return os.WriteFile(targetPath, data, 0644)
+}
+
+// Set records or updates a checksum entry in the integrity database.
+func (db *IntegrityDB) Set(key, checksum string, size int64) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	db.Records[key] = IntegrityRecord{
+		Checksum:  checksum,
+		Algorithm: "sha256",
+		Size:      size,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
+// RecordFile calculates the file's SHA-256 and registers it in the database.
+func (db *IntegrityDB) RecordFile(key, filePath string) (IntegrityRecord, error) {
+	chk, size, err := ComputeFileSHA256(filePath)
+	if err != nil {
+		return IntegrityRecord{}, err
+	}
+	rec := IntegrityRecord{
+		Checksum:  chk,
+		Algorithm: "sha256",
+		Size:      size,
+		Timestamp: time.Now().Unix(),
+	}
+
+	db.mu.Lock()
+	db.Records[key] = rec
+	db.mu.Unlock()
+
+	return rec, nil
+}
+
+// Get retrieves a record for the specified key.
+func (db *IntegrityDB) Get(key string) (IntegrityRecord, bool) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	rec, ok := db.Records[key]
+	return rec, ok
+}
+
+// Has checks if a key exists in the database.
+func (db *IntegrityDB) Has(key string) bool {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	_, ok := db.Records[key]
+	return ok
+}
+
+// Delete removes a key from the database.
+func (db *IntegrityDB) Delete(key string) bool {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	if _, ok := db.Records[key]; ok {
+		delete(db.Records, key)
+		return true
+	}
+	return false
+}
+
+// Keys returns all registered keys sorted alphabetically.
+func (db *IntegrityDB) Keys() []string {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	keys := make([]string, 0, len(db.Records))
+	for k := range db.Records {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// Verify checks whether data matches the registered checksum for key.
+func (db *IntegrityDB) Verify(key string, data []byte) (bool, error) {
+	rec, ok := db.Get(key)
+	if !ok {
+		return false, fmt.Errorf("integrity record not found for '%s'", key)
+	}
+	computed := ComputeSHA256(data)
+	if computed != rec.Checksum {
+		return false, fmt.Errorf("checksum mismatch for '%s': expected %s, got %s", key, rec.Checksum, computed)
+	}
+	return true, nil
+}
+
+// VerifyFile checks whether the file at filePath matches the registered checksum for key.
+func (db *IntegrityDB) VerifyFile(key, filePath string) (bool, error) {
+	rec, ok := db.Get(key)
+	if !ok {
+		return false, fmt.Errorf("integrity record not found for '%s'", key)
+	}
+	computed, size, err := ComputeFileSHA256(filePath)
+	if err != nil {
+		return false, err
+	}
+	if rec.Size > 0 && size != rec.Size {
+		return false, fmt.Errorf("size mismatch for '%s': expected %d bytes, got %d bytes", key, rec.Size, size)
+	}
+	if computed != rec.Checksum {
+		return false, fmt.Errorf("checksum mismatch for '%s': expected %s, got %s", key, rec.Checksum, computed)
+	}
+	return true, nil
+}

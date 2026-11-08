@@ -1,0 +1,11 @@
+{
+  "name": "tier1",
+  "version": "1.0.0",
+  "entry": "src/engine.bmd",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "subprocess": false
+  }
+}

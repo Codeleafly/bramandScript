@@ -11,6 +11,7 @@ import (
 	"bramandscript/lexer"
 	"bramandscript/object"
 	"bramandscript/parser"
+	"bramandscript/pkg"
 	"bramandscript/stdlib"
 	"bramandscript/token"
 )
@@ -581,7 +582,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "circular import detected: module '%s' is already being imported", node.Path)
 		}
 
-		if !c.importedModules[filePath] {
+		// Stage 4: In-Memory Module Singleton Table
+		singletonSym, isCached := c.moduleSingletons[filePath]
+		if !isCached {
 			c.importingModules[filePath] = true
 			defer func() {
 				delete(c.importingModules, filePath)
@@ -684,10 +687,8 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			}
 			restoreFileCtx()
 			c.moduleExports[filePath] = exportedNames
-		}
 
-		if node.Alias != "" {
-			exportedNames := c.moduleExports[filePath]
+			// Construct immutable module singleton export hash ONCE
 			for _, name := range exportedNames {
 				c.emit(code.OpConstant, c.addConstant(&object.String{Value: name}))
 				sym, ok := c.symbolTable.Resolve(name)
@@ -699,6 +700,19 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			}
 			c.emit(code.OpHash, len(exportedNames)*2)
 
+			// Mark as immutable module and register in VM module singleton table
+			modPathConst := c.addConstant(&object.String{Value: filePath})
+			c.emit(code.OpModule, modPathConst)
+
+			// Define global singleton symbol to hold the immutable hash
+			singletonName := fmt.Sprintf("__mod_singleton_%d", len(c.moduleSingletons))
+			singletonSym = c.symbolTable.DefineGlobal(singletonName, true)
+			c.emit(code.OpSetGlobal, singletonSym.Index)
+			c.moduleSingletons[filePath] = singletonSym
+		}
+
+		if node.Alias != "" {
+			c.loadSymbol(singletonSym)
 			aliasSym := c.symbolTable.Define(node.Alias, false)
 			if aliasSym.Scope == GlobalScope {
 				c.emit(code.OpSetGlobal, aliasSym.Index)
@@ -889,7 +903,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 }
 
 func (c *Compiler) resolveModulePath(importPath string) (string, error) {
-	// 0. Standard library resolution ("std/...", "stdlib/...")
+	// Stage 1: Embedded Standard Library ("std/...", "stdlib/...")
 	var stdSubpath string
 	if strings.HasPrefix(importPath, "std/") {
 		stdSubpath = strings.TrimPrefix(importPath, "std/")
@@ -921,6 +935,7 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 			stdlibRoots = append(stdlibRoots,
 				filepath.Join(homeDir, ".bramand", "stdlib"),
 				filepath.Join(homeDir, ".bramand_libs", "stdlib"),
+				filepath.Join(homeDir, ".bmd_libs", "stdlib"),
 			)
 		}
 
@@ -956,53 +971,133 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 		}
 	}
 
-	candidates := []string{}
+	// Also check if bare name matches embedded stdlib (e.g. import "math" or import "json")
+	if embeddedPath, ok := stdlib.ResolveEmbeddedPath(importPath); ok {
+		return "embed:stdlib/" + embeddedPath, nil
+	}
 
-	// 1. Check relative to c.BaseDir if specified
-	if c.BaseDir != "" {
-		if strings.HasSuffix(importPath, ".bmd") {
-			candidates = append(candidates, filepath.Join(c.BaseDir, importPath))
-		} else {
-			candidates = append(candidates,
-				filepath.Join(c.BaseDir, importPath+".bmd"),
-				filepath.Join(c.BaseDir, importPath, "index.bmd"))
+	// Stage 2: Relative Local Paths (starts with "./" or "../") or local file
+	isExplicitRel := strings.HasPrefix(importPath, "./") || strings.HasPrefix(importPath, "../")
+
+	// Helper to resolve directory entrypoint using Three-Tier Fallback Engine
+	checkDirEntrypoint := func(dir string) (string, bool, error) {
+		fi, err := os.Stat(dir)
+		if err == nil && fi.IsDir() {
+			entry, err := pkg.ResolvePackageEntrypoint(dir)
+			if err != nil {
+				return "", true, err
+			}
+			return entry, true, nil
 		}
+		return "", false, nil
 	}
 
-	// 2. Check local path directly (relative to current working directory)
-	if strings.HasSuffix(importPath, ".bmd") {
-		candidates = append(candidates, importPath)
-	} else {
-		candidates = append(candidates, importPath+".bmd", filepath.Join(importPath, "index.bmd"))
-	}
-
-	for _, cand := range candidates {
+	// Helper to check file candidates
+	checkFileCandidate := func(cand string) (string, bool) {
 		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
 			abs, err := filepath.Abs(cand)
 			if err == nil {
-				return abs, nil
+				return abs, true
 			}
-			return cand, nil
+			return cand, true
+		}
+		return "", false
+	}
+
+	// If BaseDir is set:
+	if c.BaseDir != "" {
+		target := filepath.Join(c.BaseDir, importPath)
+		// Check if it's a directory package with Three-Tier fallback
+		if entry, isDir, err := checkDirEntrypoint(target); isDir {
+			if err != nil {
+				return "", err
+			}
+			return entry, nil
+		}
+		// Check file candidates
+		if strings.HasSuffix(target, ".bmd") {
+			if resolved, ok := checkFileCandidate(target); ok {
+				return resolved, nil
+			}
+		} else {
+			if resolved, ok := checkFileCandidate(target + ".bmd"); ok {
+				return resolved, nil
+			}
+			if resolved, ok := checkFileCandidate(filepath.Join(target, "main.bmd")); ok {
+				return resolved, nil
+			}
+			if resolved, ok := checkFileCandidate(filepath.Join(target, "index.bmd")); ok {
+				return resolved, nil
+			}
 		}
 	}
 
-	// 2. Centralized package cache check ($HOME/.bramand_libs)
-	homeDir, err := os.UserHomeDir()
-	if err == nil {
-		libsDir := filepath.Join(homeDir, ".bramand_libs")
-		libCandidates := []string{
-			filepath.Join(libsDir, importPath, "index.bmd"),
-			filepath.Join(libsDir, importPath+".bmd"),
-			filepath.Join(libsDir, importPath),
+	// Check relative to current working directory:
+	if isExplicitRel || c.BaseDir == "" || !filepath.IsAbs(importPath) {
+		target := importPath
+		if entry, isDir, err := checkDirEntrypoint(target); isDir {
+			if err != nil {
+				return "", err
+			}
+			return entry, nil
 		}
-		for _, cand := range libCandidates {
-			if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
-				return cand, nil
+		if strings.HasSuffix(target, ".bmd") {
+			if resolved, ok := checkFileCandidate(target); ok {
+				return resolved, nil
+			}
+		} else {
+			if resolved, ok := checkFileCandidate(target + ".bmd"); ok {
+				return resolved, nil
+			}
+			if resolved, ok := checkFileCandidate(filepath.Join(target, "main.bmd")); ok {
+				return resolved, nil
+			}
+			if resolved, ok := checkFileCandidate(filepath.Join(target, "index.bmd")); ok {
+				return resolved, nil
 			}
 		}
 	}
 
-	return "", fmt.Errorf("module '%s' not found locally or in ~/.bramand_libs", importPath)
+	// Stage 3: Global Centralized Cache ($HOME/.bmd_libs/)
+	// Check centralized registry using Three-Tier Fallback Engine
+	if !isExplicitRel {
+		if regEntry, err := pkg.ResolveRegistryPackage(importPath); err == nil {
+			return regEntry, nil
+		} else if _, isBroken := err.(*pkg.BrokenManifestError); isBroken {
+			return "", err
+		}
+
+		// Legacy cache check ($HOME/.bmd_libs and $HOME/.bramand_libs)
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			legacyRoots := []string{
+				filepath.Join(homeDir, ".bmd_libs"),
+				filepath.Join(homeDir, ".bramand_libs"),
+			}
+			for _, libsDir := range legacyRoots {
+				targetDir := filepath.Join(libsDir, importPath)
+				if entry, isDir, err := checkDirEntrypoint(targetDir); isDir && err == nil {
+					return entry, nil
+				}
+				libCandidates := []string{
+					filepath.Join(libsDir, importPath, "main.bmd"),
+					filepath.Join(libsDir, importPath, "index.bmd"),
+					filepath.Join(libsDir, importPath+".bmd"),
+					filepath.Join(libsDir, importPath),
+				}
+				for _, cand := range libCandidates {
+					if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+						if abs, err := filepath.Abs(cand); err == nil {
+							return abs, nil
+						}
+						return cand, nil
+					}
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("module '%s' not found locally or in ~/.bmd_libs", importPath)
 }
 
 func (c *Compiler) compileDestructuring(pattern ast.Node, value ast.Expression, isConst bool, tok token.Token) error {

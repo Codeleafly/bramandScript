@@ -155,6 +155,9 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 		}
 		l.Mu.Lock()
 		defer l.Mu.Unlock()
+		if l.ReadOnly {
+			return fmt.Errorf("TypeError: cannot mutate read-only array")
+		}
 		i := idx.Value
 		if i < 0 || i >= int64(len(l.Elements)) {
 			return fmt.Errorf("index out of bounds: %d (array length is %d)", i, len(l.Elements))
@@ -168,8 +171,11 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 			return fmt.Errorf("unusable as hash key: %s", index.Type())
 		}
 		l.Mu.Lock()
+		defer l.Mu.Unlock()
+		if l.ReadOnly {
+			return fmt.Errorf("TypeError: cannot mutate read-only module namespace")
+		}
 		l.Pairs[key.HashKey()] = object.HashPair{Key: index, Value: value}
-		l.Mu.Unlock()
 		return nil
 
 	case *object.Bytes:

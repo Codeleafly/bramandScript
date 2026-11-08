@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -103,9 +104,52 @@ func (vm *VM) wrapError(err error) error {
 	return &RuntimeError{Line: line, Col: 1, Message: err.Error(), StackTrace: frames}
 }
 
+// ModuleTable manages the in-memory singleton registry of loaded modules.
+type ModuleTable struct {
+	mu      sync.RWMutex
+	modules map[string]*object.Hash
+}
+
+func NewModuleTable() *ModuleTable {
+	return &ModuleTable{
+		modules: make(map[string]*object.Hash),
+	}
+}
+
+func (mt *ModuleTable) Register(path string, mod *object.Hash) {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+	mt.modules[path] = mod
+}
+
+func (mt *ModuleTable) Get(path string) (*object.Hash, bool) {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	mod, ok := mt.modules[path]
+	return mod, ok
+}
+
+func (mt *ModuleTable) Count() int {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	return len(mt.modules)
+}
+
+func (mt *ModuleTable) Names() []string {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	names := make([]string, 0, len(mt.modules))
+	for k := range mt.modules {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
 type GlobalsStore struct {
-	mu   sync.RWMutex
-	data []object.Object
+	mu          sync.RWMutex
+	data        []object.Object
+	moduleTable *ModuleTable
 }
 
 type VM struct {
@@ -146,6 +190,26 @@ func (vm *VM) SetMaxStackSize(max int) {
 	vm.maxStackSize = max
 }
 
+func (vm *VM) ModuleTable() *ModuleTable {
+	if vm.globalsStore != nil {
+		return vm.globalsStore.moduleTable
+	}
+	return nil
+}
+
+func (vm *VM) GetModule(path string) (*object.Hash, bool) {
+	if vm.globalsStore != nil && vm.globalsStore.moduleTable != nil {
+		return vm.globalsStore.moduleTable.Get(path)
+	}
+	return nil, false
+}
+
+func (vm *VM) RegisterModule(path string, mod *object.Hash) {
+	if vm.globalsStore != nil && vm.globalsStore.moduleTable != nil {
+		vm.globalsStore.moduleTable.Register(path, mod)
+	}
+}
+
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{
 		Name:         "<main>",
@@ -164,7 +228,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		stack: make([]object.Object, InitialStackSize),
 		sp:    0,
 
-		globalsStore: &GlobalsStore{data: make([]object.Object, 1024)},
+		globalsStore: &GlobalsStore{data: make([]object.Object, 1024), moduleTable: NewModuleTable()},
 
 		frames:       frames,
 		framesIndex:  1,
@@ -175,7 +239,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 
 func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
 	vm := New(bytecode)
-	vm.globalsStore = &GlobalsStore{data: s}
+	vm.globalsStore = &GlobalsStore{data: s, moduleTable: NewModuleTable()}
 	return vm
 }
 
@@ -687,6 +751,26 @@ func (vm *VM) runLoop() error {
 			err := vm.push(&object.SpreadWrapper{Value: val})
 			if err != nil {
 				return err
+			}
+
+		case code.OpModule:
+			constIdx := binary.BigEndian.Uint64(ins[ip+1:])
+			vm.currentFrame().ip += 8
+
+			pathObj := vm.constants[constIdx]
+			modPath := ""
+			if s, ok := pathObj.(*object.String); ok {
+				modPath = s.Value
+			}
+
+			if vm.sp > 0 {
+				top := vm.stack[vm.sp-1]
+				if h, ok := top.(*object.Hash); ok {
+					h.ReadOnly = true
+					if modPath != "" && vm.globalsStore != nil && vm.globalsStore.moduleTable != nil {
+						vm.globalsStore.moduleTable.Register(modPath, h)
+					}
+				}
 			}
 
 		case code.OpSetLocal:

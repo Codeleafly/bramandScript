@@ -28,5 +28,6 @@
 - [x] Comprehensive Documentation Portal & Release Readiness Audit: Audit and synchronize all 8 modular HTML documentation portals, README.md, cross-page navigation links, code snippets, zero emoji adherence, and end-to-end test verification (Includes: docs/*, README.md, tests/*)
 ## Day 27
 
+- [x] Centralized Package & Module Engine Specification: Implement core specification for Centralized Package & Module Engine including bmdpkg.json manifest, three-tier entrypoint fallback, runtime import resolution pipeline, and /data/data/com.termux/files/home/.bmd_libs structure. (Includes: pkg/bmdpkg.go, compiler/compile_statements.go, compiler/compiler.go, vm/vm.go, tests)
 ## Day 28
 

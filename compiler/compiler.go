@@ -59,6 +59,7 @@ type Compiler struct {
 	importedModules  map[string]bool
 	importingModules map[string]bool
 	moduleExports    map[string][]string
+	moduleSingletons map[string]Symbol
 	compileErr       error
 	BaseDir          string
 	currentFile      string
@@ -110,6 +111,7 @@ func New() *Compiler {
 		importedModules:  make(map[string]bool),
 		importingModules: make(map[string]bool),
 		moduleExports:    make(map[string][]string),
+		moduleSingletons: make(map[string]Symbol),
 	}
 }
 

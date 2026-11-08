@@ -1,0 +1,55 @@
+// BramandScript Day 27: Centralized Package & Module Engine Test Suite
+// tests/23_centralized_package_engine_test.bmd
+
+import "std/testing" as t;
+
+describe("Day 27: Centralized Package & Module Engine", fn() {
+
+    test("Stage 1: Embedded Standard Library imports share singleton", fn() {
+        import "std/math" as m1;
+        import "std/math" as m2;
+
+        assert_eq(m1 == m2, true);
+        assert_eq(m1.PI > 3.14, true);
+        assert_eq(m2.PI > 3.14, true);
+    });
+
+    test("Stage 2: Relative local package resolution with Three-Tier fallback", fn() {
+        // Tier 1: bmdpkg.json specifying entrypoint 'src/engine.bmd'
+        import "./fixtures/package_test/tier1_manifest" as t1;
+        assert_eq(t1.answer, 42);
+        assert_eq(t1.get_answer(), 42);
+
+        // Tier 2: main.bmd fallback
+        import "./fixtures/package_test/tier2_main" as t2;
+        assert_eq(t2.greeting, "hello main");
+        assert_eq(t2.get_greeting(), "hello main");
+
+        // Tier 3: index.bmd fallback
+        import "./fixtures/package_test/tier3_index" as t3;
+        assert_eq(t3.status, "ok index");
+        assert_eq(t3.get_status(), "ok index");
+    });
+
+    test("Stage 4: In-Memory Module Singleton Table and Immutability", fn() {
+        import "std/strings" as s1;
+
+        let fetch_inner = fn() {
+            import "std/strings" as s2;
+            return s2;
+        };
+
+        let s2 = fetch_inner();
+        // Exact pointer equality across scopes
+        assert_eq(s1 == s2, true);
+
+        // Immutability: attempting to mutate module namespace throws error
+        let threw = false;
+        try {
+            s1["custom_prop"] = 12345;
+        } catch err {
+            threw = true;
+        }
+        assert_eq(threw, true);
+    });
+});

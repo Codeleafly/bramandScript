@@ -1,0 +1,2 @@
+let status = "ok index";
+let get_status = fn() { return status; };

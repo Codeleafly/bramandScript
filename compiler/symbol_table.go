@@ -97,6 +97,26 @@ func (s *SymbolTable) Define(name string, isConst bool) Symbol {
 	return symbol
 }
 
+func (s *SymbolTable) DefineGlobal(name string, isConst bool) Symbol {
+	root := s
+	for root.Outer != nil {
+		root = root.Outer
+	}
+	if sym, ok := root.store[name]; ok {
+		return sym
+	}
+	sym := Symbol{
+		Name:    name,
+		Scope:   GlobalScope,
+		Index:   root.numDefinitions,
+		IsConst: isConst,
+		File:    root.CurrentFile,
+	}
+	root.numDefinitions++
+	root.store[name] = sym
+	return sym
+}
+
 func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol {
 	symbol := Symbol{Name: name, Index: index, Scope: BuiltinScope}
 	s.store[name] = symbol

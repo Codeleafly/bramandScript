@@ -1,0 +1,2 @@
+let greeting = "hello main";
+let get_greeting = fn() { return greeting; };

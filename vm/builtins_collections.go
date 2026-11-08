@@ -535,6 +535,10 @@ func init() {
 					return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", args[1].Type())}
 				}
 				hash.Mu.Lock()
+				if hash.ReadOnly {
+					hash.Mu.Unlock()
+					return &object.Error{Message: "TypeError: cannot delete property from read-only module namespace"}
+				}
 				delete(hash.Pairs, key.HashKey())
 				hash.Mu.Unlock()
 				return Null

@@ -249,6 +249,7 @@ func (b *Builtin) Inspect() string  { return "builtin function" }
 type Array struct {
 	Elements []Object
 	Mu       sync.RWMutex
+	ReadOnly bool
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
@@ -288,8 +289,9 @@ type HashPair struct {
 }
 
 type Hash struct {
-	Mu    sync.RWMutex
-	Pairs map[HashKey]HashPair
+	Mu       sync.RWMutex
+	Pairs    map[HashKey]HashPair
+	ReadOnly bool
 }
 
 func (h *Hash) Type() ObjectType { return HASH_OBJ }

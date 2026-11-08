@@ -96,6 +96,9 @@ const (
 	// Enterprise Defer & Spread Opcodes
 	OpDefer
 	OpSpread
+
+	// Centralized Package & Module Engine Opcodes
+	OpModule
 )
 
 type Definition struct {
@@ -161,6 +164,7 @@ var definitions = map[Opcode]*Definition{
 	OpJumpNull:         {"OpJumpNull", []int{8}},
 	OpDefer:            {"OpDefer", []int{2}},
 	OpSpread:           {"OpSpread", []int{}},
+	OpModule:           {"OpModule", []int{8}},
 }
 
 func Lookup(op byte) (*Definition, error) {
