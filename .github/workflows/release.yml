@@ -45,11 +45,11 @@ jobs:
             goarch: arm64
             artifact_name: bramand-android-arm64
             archive_format: tar.gz
-          - goos: android
+          - goos: linux
             goarch: arm
             artifact_name: bramand-android-armv7
             archive_format: tar.gz
-          - goos: android
+          - goos: linux
             goarch: amd64
             artifact_name: bramand-android-amd64
             archive_format: tar.gz
