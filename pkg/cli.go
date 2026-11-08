@@ -103,8 +103,25 @@ func GetCLI(args []string) int {
 			case "ERROR":
 				fmt.Printf("  ❯ %s@%s [ERROR] %s\n", dep.Name, dep.Version, dep.Error)
 			}
+			if dep.DiamondResolved {
+				fmt.Printf("    ✦ Diamond resolution: unified from requests %v\n", dep.RequestedFrom)
+			}
 			if dep.SecurityNotice != "" {
 				fmt.Printf("    %s\n", dep.SecurityNotice)
+			}
+		}
+	}
+
+	if len(res.DiamondResolutions) > 0 {
+		fmt.Println("──────────────────────────────────────────────────")
+		fmt.Println("✦ Diamond Dependency Conflict Resolutions:")
+		for _, dr := range res.DiamondResolutions {
+			if dr.IsCompatible {
+				fmt.Printf("  [OK] %s: unified %v -> %s (highest compatible SemVer)\n",
+					dr.PackageName, dr.Requested, dr.ResolvedVersion)
+			} else {
+				fmt.Printf("  [WARN] %s: incompatible major versions %v -> installed side-by-side in registry\n",
+					dr.PackageName, dr.SideBySide)
 			}
 		}
 	}

@@ -10,25 +10,36 @@ import (
 
 // DependencyItem describes the resolution and installation state of a dependency.
 type DependencyItem struct {
-	Name           string
-	Version        string
-	Status         string // "CACHED", "FETCHED", "ERROR"
-	RegistryDir    string
-	SecurityNotice string
-	Error          error
+	Name            string   `json:"name"`
+	Version         string   `json:"version"`
+	ResolvedVersion string   `json:"resolved_version,omitempty"`
+	Status          string   `json:"status"` // "CACHED", "FETCHED", "ERROR"
+	RegistryDir     string   `json:"registry_dir,omitempty"`
+	SecurityNotice  string   `json:"security_notice,omitempty"`
+	Error           error    `json:"error,omitempty"`
+	DiamondResolved bool     `json:"diamond_resolved,omitempty"`
+	RequestedFrom   []string `json:"requested_from,omitempty"`
 }
 
 // GetResult details the overall outcome of `bmd get`.
 type GetResult struct {
-	ManifestPath   string
-	Dependencies   []DependencyItem
-	CachedCount    int
-	FetchedCount   int
-	FailedCount    int
+	ManifestPath       string              `json:"manifest_path"`
+	Dependencies       []DependencyItem    `json:"dependencies"`
+	DiamondResolutions []DiamondResolution `json:"diamond_resolutions,omitempty"`
+	CachedCount        int                 `json:"cached_count"`
+	FetchedCount       int                 `json:"fetched_count"`
+	FailedCount        int                 `json:"failed_count"`
+}
+
+type depRequestInfo struct {
+	name          string
+	version       string
+	requestedFrom string
 }
 
 // Get inspects the bmdpkg.json file in projectDir, verifies if each dependency
-// is already present in the centralized registry, and only downloads missing dependencies.
+// (including transitive dependencies and diamond dependencies) is already present
+// in the centralized registry, and only downloads missing dependencies.
 func Get(projectDir string, baseDir ...string) (*GetResult, error) {
 	base := resolveBaseDir(baseDir)
 	if err := EnsureDirectoryStructure(base); err != nil {
@@ -58,62 +69,176 @@ func Get(projectDir string, baseDir ...string) (*GetResult, error) {
 		return res, nil
 	}
 
-	// Sort dependency keys for deterministic processing
-	depKeys := make([]string, 0, len(manifest.Dependencies))
-	for k := range manifest.Dependencies {
-		depKeys = append(depKeys, k)
-	}
-	sort.Strings(depKeys)
-
 	inst := NewInstaller(base)
 	if os.Getenv("BMD_OFFLINE") == "1" || os.Getenv("BMD_OFFLINE") == "true" {
 		inst.Offline = true
 	}
 
-	for _, depName := range depKeys {
-		depVer := manifest.Dependencies[depName]
-		item := DependencyItem{
-			Name:    depName,
-			Version: depVer,
+	// 1. Collect all dependency requests (direct & transitive)
+	allRequests := make(map[string][]depRequestInfo)
+	queue := make([]depRequestInfo, 0)
+
+	// Enqueue direct dependencies
+	for depName, depVer := range manifest.Dependencies {
+		req := depRequestInfo{
+			name:          depName,
+			version:       depVer,
+			requestedFrom: "root",
+		}
+		queue = append(queue, req)
+	}
+
+	visitedDirs := make(map[string]bool)
+
+	// Process queue to discover transitive dependencies
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		allRequests[current.name] = append(allRequests[current.name], current)
+
+		// Check if package is already in registry or local path
+		regDir, ok := locateDependencyRegistryDir(current.name, current.version, projectDir, base)
+		if ok && regDir != "" && !visitedDirs[regDir] {
+			visitedDirs[regDir] = true
+			// Inspect transitive dependencies
+			subManifestPath := filepath.Join(regDir, "bmdpkg.json")
+			if subM, err := ReadManifest(subManifestPath); err == nil && len(subM.Dependencies) > 0 {
+				for subName, subVer := range subM.Dependencies {
+					queue = append(queue, depRequestInfo{
+						name:          subName,
+						version:       subVer,
+						requestedFrom: current.name,
+					})
+				}
+			}
+		}
+	}
+
+	// 2. Sort package names for deterministic processing
+	var pkgNames []string
+	for k := range allRequests {
+		pkgNames = append(pkgNames, k)
+	}
+	sort.Strings(pkgNames)
+
+	// 3. Resolve and install each package
+	for _, pkgName := range pkgNames {
+		requests := allRequests[pkgName]
+
+		var versionsRequested []string
+		var callers []string
+		for _, r := range requests {
+			versionsRequested = append(versionsRequested, r.version)
+			callers = append(callers, r.requestedFrom)
+		}
+		versionsRequested = uniqueStrings(versionsRequested)
+		callers = uniqueStrings(callers)
+
+		if len(versionsRequested) > 1 {
+			// Diamond dependency detected!
+			diamond, err := ResolveDiamondConflict(pkgName, versionsRequested)
+			if err == nil {
+				res.DiamondResolutions = append(res.DiamondResolutions, *diamond)
+
+				if diamond.IsCompatible {
+					// Install single highest compatible version
+					resolvedVer := diamond.ResolvedVersion
+					item := inst.installOrCheckDependency(pkgName, resolvedVer, projectDir, base)
+					item.DiamondResolved = true
+					item.RequestedFrom = callers
+					item.ResolvedVersion = resolvedVer
+
+					if item.Status == "CACHED" {
+						res.CachedCount++
+					} else if item.Status == "FETCHED" {
+						res.FetchedCount++
+					} else {
+						res.FailedCount++
+					}
+					res.Dependencies = append(res.Dependencies, item)
+					continue
+				} else {
+					// Incompatible: Install side-by-side versions in registry
+					for _, ver := range diamond.SideBySide {
+						item := inst.installOrCheckDependency(pkgName, ver, projectDir, base)
+						item.DiamondResolved = true
+						item.RequestedFrom = callers
+						item.ResolvedVersion = ver
+
+						if item.Status == "CACHED" {
+							res.CachedCount++
+						} else if item.Status == "FETCHED" {
+							res.FetchedCount++
+						} else {
+							res.FailedCount++
+						}
+						res.Dependencies = append(res.Dependencies, item)
+					}
+					continue
+				}
+			}
 		}
 
-		// 1. Check if dependency already exists in registry
-		isCached, regDir, secNotice := checkRegistryDependency(depName, depVer, projectDir, base)
-		if isCached {
-			item.Status = "CACHED"
-			item.RegistryDir = regDir
-			item.SecurityNotice = secNotice
+		// Single version requested
+		targetVer := versionsRequested[0]
+		item := inst.installOrCheckDependency(pkgName, targetVer, projectDir, base)
+		item.RequestedFrom = callers
+		if item.Status == "CACHED" {
 			res.CachedCount++
-			res.Dependencies = append(res.Dependencies, item)
-			continue
-		}
-
-		// 2. Not cached: fetch and install missing dependency
-		target := depName
-		if strings.HasPrefix(depName, "./") || strings.HasPrefix(depName, "../") {
-			target = filepath.Join(projectDir, depName)
-		} else if strings.HasPrefix(depName, "github.com/") && !strings.Contains(depName, "@") {
-			target = depName + "@" + depVer
-		} else if strings.HasPrefix(depName, "local/") && !strings.Contains(depName, "@") {
-			target = depName + "@" + depVer
-		}
-
-		installRes, err := inst.Install(target, depVer)
-		if err != nil {
-			item.Status = "ERROR"
-			item.Error = err
-			res.FailedCount++
-		} else {
-			item.Status = "FETCHED"
-			item.RegistryDir = installRes.RegistryDir
-			item.SecurityNotice = installRes.SecurityNotice
+		} else if item.Status == "FETCHED" {
 			res.FetchedCount++
+		} else {
+			res.FailedCount++
 		}
-
 		res.Dependencies = append(res.Dependencies, item)
 	}
 
 	return res, nil
+}
+
+func (inst *Installer) installOrCheckDependency(depName, depVer, projectDir, base string) DependencyItem {
+	item := DependencyItem{
+		Name:    depName,
+		Version: depVer,
+	}
+
+	isCached, regDir, secNotice := checkRegistryDependency(depName, depVer, projectDir, base)
+	if isCached {
+		item.Status = "CACHED"
+		item.RegistryDir = regDir
+		item.SecurityNotice = secNotice
+		return item
+	}
+
+	target := depName
+	if strings.HasPrefix(depName, "./") || strings.HasPrefix(depName, "../") {
+		target = filepath.Join(projectDir, depName)
+	} else if strings.HasPrefix(depName, "github.com/") && !strings.Contains(depName, "@") {
+		target = depName + "@" + depVer
+	} else if strings.HasPrefix(depName, "local/") && !strings.Contains(depName, "@") {
+		target = depName + "@" + depVer
+	}
+
+	installRes, err := inst.Install(target, depVer)
+	if err != nil {
+		item.Status = "ERROR"
+		item.Error = err
+	} else {
+		item.Status = "FETCHED"
+		item.RegistryDir = installRes.RegistryDir
+		item.SecurityNotice = installRes.SecurityNotice
+	}
+
+	return item
+}
+
+func locateDependencyRegistryDir(depName, depVer, projectDir, base string) (string, bool) {
+	isCached, regDir, _ := checkRegistryDependency(depName, depVer, projectDir, base)
+	if isCached {
+		return regDir, true
+	}
+	return "", false
 }
 
 func checkRegistryDependency(depName, depVer, projectDir, base string) (bool, string, string) {

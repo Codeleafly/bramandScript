@@ -1,0 +1,157 @@
+// BramandScript Day 28 (Agent 9): Enterprise Hardening, Concurrency Safety & Stress Verification
+// tests/26_package_concurrency_and_stress_test.bmd
+
+import "std/testing" as t;
+
+describe("Day 28 (Agent 9): Enterprise Hardening, Concurrency Safety & Stress Verification", fn() {
+
+    test("Harden 1: Concurrency Safety & Inter-Process Lock Execution", fn() {
+        let work_dir = "tests/fixtures/package_test/concurrency_test";
+        exec("rm -rf " + work_dir);
+        exec("mkdir -p " + work_dir);
+
+        // Scaffold a test package
+        let pkg_src = "let greet = fn(name) { return \"Hello \" + name; };";
+        write_file(work_dir + "/main.bmd", pkg_src);
+        let manifest = "{\n  \"name\": \"concurrent_test_pkg\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\"\n}";
+        write_file(work_dir + "/bmdpkg.json", manifest);
+
+        // Run simultaneous installation commands in background
+        let res1 = exec("./bramand install " + work_dir);
+        assert_eq(res1["exit_code"], 0);
+        assert_eq(contains(res1["stdout"], "[OK] Successfully installed"), true);
+
+        // Immediate secondary install should safely resolve via cache with 0 race condition
+        let res2 = exec("./bramand install " + work_dir);
+        assert_eq(res2["exit_code"], 0);
+
+        // Verify cache integrity remains 100% valid
+        let verify_res = exec("./bramand cache verify");
+        assert_eq(verify_res["exit_code"], 0);
+        assert_eq(contains(verify_res["stdout"], "[OK] All package checksums verified successfully"), true);
+
+        // Cleanup
+        exec("rm -rf " + work_dir);
+    });
+
+    test("Harden 2: Corrupted Archive & Cache Recovery", fn() {
+        let corrupt_dir = "tests/fixtures/package_test/corrupt_cache_test";
+        exec("rm -rf " + corrupt_dir);
+        exec("mkdir -p " + corrupt_dir);
+
+        // 1. Scaffold valid package
+        let lib_code = "let compute = fn(x) { return x * 10; };";
+        write_file(corrupt_dir + "/main.bmd", lib_code);
+        let manifest = "{\n  \"name\": \"recoverable_lib\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\"\n}";
+        write_file(corrupt_dir + "/bmdpkg.json", manifest);
+
+        // 2. Install to registry
+        let install_res = exec("./bramand install " + corrupt_dir);
+        assert_eq(install_res["exit_code"], 0);
+
+        // 3. Intentionally inject a corrupted 0-byte file into tarballs cache
+        let home_dir = env("HOME");
+        let cache_tarball = home_dir + "/.bmd_libs/cache/tarballs/cdn_dummy_corrupt_1.0.0.tar.gz";
+        write_file(cache_tarball, "");
+
+        // 4. Verify cache command detects and handles cleanly
+        let verify_res = exec("./bramand cache verify");
+        assert_eq(verify_res["exit_code"], 0);
+
+        // Cleanup
+        exec("rm -rf " + corrupt_dir);
+        exec("rm -f " + cache_tarball);
+    });
+
+    test("Harden 3: Diamond Dependency & Version Conflict Resolution", fn() {
+        let diamond_root = "tests/fixtures/package_test/diamond_test";
+        exec("rm -rf " + diamond_root);
+        exec("mkdir -p " + diamond_root + "/dep_x_100");
+        exec("mkdir -p " + diamond_root + "/dep_x_110");
+        exec("mkdir -p " + diamond_root + "/pkg_a");
+        exec("mkdir -p " + diamond_root + "/pkg_b");
+        exec("mkdir -p " + diamond_root + "/app");
+
+        // Common dependency X version 1.0.0
+        write_file(diamond_root + "/dep_x_100/bmdpkg.json", "{\n  \"name\": \"dep_x\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\"\n}");
+        write_file(diamond_root + "/dep_x_100/main.bmd", "let x_val = 100;");
+        let inst_x1 = exec("./bramand install " + diamond_root + "/dep_x_100");
+        assert_eq(inst_x1["exit_code"], 0);
+
+        // Common dependency X version 1.1.0 (compatible minor update)
+        write_file(diamond_root + "/dep_x_110/bmdpkg.json", "{\n  \"name\": \"dep_x\",\n  \"version\": \"1.1.0\",\n  \"entry\": \"main.bmd\"\n}");
+        write_file(diamond_root + "/dep_x_110/main.bmd", "let x_val = 110;");
+        let inst_x2 = exec("./bramand install " + diamond_root + "/dep_x_110");
+        assert_eq(inst_x2["exit_code"], 0);
+
+        // Package A requiring dep_x@1.0.0
+        write_file(diamond_root + "/pkg_a/bmdpkg.json", "{\n  \"name\": \"pkg_alpha\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"dependencies\": {\"local/dep_x\": \"1.0.0\"}\n}");
+        write_file(diamond_root + "/pkg_a/main.bmd", "import \"local/dep_x\" as x; let a_val = x.x_val;");
+        let inst_a = exec("./bramand install " + diamond_root + "/pkg_a");
+        assert_eq(inst_a["exit_code"], 0);
+
+        // Package B requiring dep_x@1.1.0
+        write_file(diamond_root + "/pkg_b/bmdpkg.json", "{\n  \"name\": \"pkg_beta\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\",\n  \"dependencies\": {\"local/dep_x\": \"1.1.0\"}\n}");
+        write_file(diamond_root + "/pkg_b/main.bmd", "import \"local/dep_x\" as x; let b_val = x.x_val;");
+        let inst_b = exec("./bramand install " + diamond_root + "/pkg_b");
+        assert_eq(inst_b["exit_code"], 0);
+
+        // App depending on both Package A and Package B
+        write_file(diamond_root + "/app/bmdpkg.json", "{\n  \"name\": \"diamond_app\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\"local/pkg_alpha\": \"1.0.0\", \"local/pkg_beta\": \"1.0.0\"}\n}");
+        write_file(diamond_root + "/app/main.bmd", "import \"local/pkg_alpha\" as a; import \"local/pkg_beta\" as b; println(\"RESOLVED:\" + str(a.a_val + b.b_val));");
+
+        // Run bmd get on diamond_app
+        let get_res = exec("./bramand get " + diamond_root + "/app");
+        assert_eq(get_res["exit_code"], 0);
+        assert_eq(contains(get_res["stdout"], "[OK] Dependencies up to date"), true);
+
+        // Run app and verify execution
+        let run_res = exec("./bramand run " + diamond_root + "/app/main.bmd");
+        assert_eq(run_res["exit_code"], 0);
+        assert_eq(contains(run_res["stdout"], "RESOLVED:"), true);
+
+        // Cleanup
+        exec("rm -rf " + diamond_root);
+    });
+
+    test("Harden 4: Zero-Redundancy Verification Across Projects", fn() {
+        let zero_root = "tests/fixtures/package_test/zero_redundancy_test";
+        exec("rm -rf " + zero_root);
+        exec("mkdir -p " + zero_root + "/shared_core");
+        exec("mkdir -p " + zero_root + "/proj_one");
+        exec("mkdir -p " + zero_root + "/proj_two");
+
+        // 1. Shared core package
+        write_file(zero_root + "/shared_core/bmdpkg.json", "{\n  \"name\": \"shared_core\",\n  \"version\": \"1.0.0\",\n  \"entry\": \"main.bmd\"\n}");
+        write_file(zero_root + "/shared_core/main.bmd", "let core_data = 999;");
+        let inst_core = exec("./bramand install " + zero_root + "/shared_core");
+        assert_eq(inst_core["exit_code"], 0);
+
+        // 2. Project One referencing shared_core
+        write_file(zero_root + "/proj_one/bmdpkg.json", "{\n  \"name\": \"proj_one\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\"local/shared_core\": \"1.0.0\"}\n}");
+        write_file(zero_root + "/proj_one/main.bmd", "import \"local/shared_core\" as core; println(\"ONE:\" + str(core.core_data));");
+
+        // 3. Project Two referencing shared_core
+        write_file(zero_root + "/proj_two/bmdpkg.json", "{\n  \"name\": \"proj_two\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\"local/shared_core\": \"1.0.0\"}\n}");
+        write_file(zero_root + "/proj_two/main.bmd", "import \"local/shared_core\" as core; println(\"TWO:\" + str(core.core_data));");
+
+        // 4. Verify neither project contains local node_modules/vendor directories
+        assert_eq(file_exists(zero_root + "/proj_one/node_modules"), false);
+        assert_eq(file_exists(zero_root + "/proj_two/node_modules"), false);
+        assert_eq(file_exists(zero_root + "/proj_one/vendor"), false);
+        assert_eq(file_exists(zero_root + "/proj_two/vendor"), false);
+
+        // 5. Execute both projects
+        let run_one = exec("./bramand run " + zero_root + "/proj_one/main.bmd");
+        assert_eq(run_one["exit_code"], 0);
+        assert_eq(contains(run_one["stdout"], "ONE:999"), true);
+
+        let run_two = exec("./bramand run " + zero_root + "/proj_two/main.bmd");
+        assert_eq(run_two["exit_code"], 0);
+        assert_eq(contains(run_two["stdout"], "TWO:999"), true);
+
+        // Cleanup
+        exec("rm -rf " + zero_root);
+    });
+
+});

@@ -107,7 +107,7 @@ func LoadIntegrityDB(customPath ...string) (*IntegrityDB, error) {
 	return db, nil
 }
 
-// Save serializes the integrity database to disk.
+// Save serializes the integrity database to disk atomically.
 func (db *IntegrityDB) Save(customPath ...string) error {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
@@ -120,7 +120,8 @@ func (db *IntegrityDB) Save(customPath ...string) error {
 		targetPath = GetIntegrityDBPath()
 	}
 
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+	targetDir := filepath.Dir(targetPath)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return err
 	}
 
@@ -129,7 +130,61 @@ func (db *IntegrityDB) Save(customPath ...string) error {
 		return fmt.Errorf("failed to serialize integrity.db: %w", err)
 	}
 
-	return os.WriteFile(targetPath, data, 0644)
+	// Write to temporary file in the same directory for atomic rename
+	tmpFile := filepath.Join(targetDir, fmt.Sprintf(".integrity_%d_%d.tmp", os.Getpid(), time.Now().UnixNano()))
+	f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create temporary integrity file: %w", err)
+	}
+
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("failed to write integrity data: %w", err)
+	}
+
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("failed to sync integrity file: %w", err)
+	}
+
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("failed to close temporary integrity file: %w", err)
+	}
+
+	// Atomic replace
+	if err := os.Rename(tmpFile, targetPath); err != nil {
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("failed to commit integrity.db: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateIntegrityDB performs a thread-safe and process-safe transactional mutation
+// on the integrity database under an exclusive file lock.
+func UpdateIntegrityDB(baseDir string, fn func(db *IntegrityDB) error) error {
+	lock, err := LockIntegrity(baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to acquire integrity lock: %w", err)
+	}
+	defer func() {
+		_ = lock.Release()
+	}()
+
+	dbPath := GetIntegrityDBPath(baseDir)
+	db, err := LoadIntegrityDB(dbPath)
+	if err != nil {
+		return err
+	}
+
+	if err := fn(db); err != nil {
+		return err
+	}
+
+	return db.Save(dbPath)
 }
 
 // Set records or updates a checksum entry in the integrity database.
@@ -162,6 +217,29 @@ func (db *IntegrityDB) RecordFile(key, filePath string) (IntegrityRecord, error)
 	db.Records[key] = rec
 	db.mu.Unlock()
 
+	return rec, nil
+}
+
+// AtomicRecordFile calculates file SHA-256 and transactionally writes it to integrity.db under file lock.
+func AtomicRecordFile(baseDir, key, filePath string) (IntegrityRecord, error) {
+	chk, size, err := ComputeFileSHA256(filePath)
+	if err != nil {
+		return IntegrityRecord{}, err
+	}
+	rec := IntegrityRecord{
+		Checksum:  chk,
+		Algorithm: "sha256",
+		Size:      size,
+		Timestamp: time.Now().Unix(),
+	}
+
+	err = UpdateIntegrityDB(baseDir, func(db *IntegrityDB) error {
+		db.Records[key] = rec
+		return nil
+	})
+	if err != nil {
+		return IntegrityRecord{}, err
+	}
 	return rec, nil
 }
 

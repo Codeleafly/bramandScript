@@ -78,6 +78,15 @@ func (inst *Installer) Install(target string, versionOverride ...string) (*Insta
 		explicitVer = versionOverride[0]
 	}
 
+	// Acquire package-level file lock to prevent concurrent installation race conditions
+	lock, err := LockPackage(trimmed, inst.BaseDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire package lock for '%s': %w", trimmed, err)
+	}
+	defer func() {
+		_ = lock.Release()
+	}()
+
 	// 1. Check if target is a local directory or file archive
 	if isLocalPath(trimmed) {
 		return inst.installLocal(trimmed, explicitVer)
@@ -192,10 +201,11 @@ func (inst *Installer) installLocalDirectory(dirPath string, explicitVer string)
 
 	// Compute checksum of the package contents to record in integrity.db
 	recordKey := fmt.Sprintf("local/%s@%s", pkgName, version)
-	db, _ := LoadIntegrityDB(GetIntegrityDBPath(inst.BaseDir))
 	hash := computeDirHash(targetDir)
-	db.Set(recordKey, hash, 0)
-	_ = db.Save()
+	_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+		db.Set(recordKey, hash, 0)
+		return nil
+	})
 
 	var secNotice string
 	if manifest != nil {
@@ -308,7 +318,7 @@ func (inst *Installer) installGitHub(target string, explicitVer string) (*Instal
 	integrityKey := fmt.Sprintf("github.com/%s/%s/%s", user, project, ver)
 
 	// Check if already extracted in registry
-	if fi, err := os.Stat(registryDir); err == nil && fi.IsDir() {
+	if isDirWithEntrypoint(registryDir) {
 		var m *Manifest
 		if mf, err := ReadManifest(filepath.Join(registryDir, "bmdpkg.json")); err == nil {
 			m = mf
@@ -327,13 +337,13 @@ func (inst *Installer) installGitHub(target string, explicitVer string) (*Instal
 			Manifest:       m,
 			SecurityNotice: sec,
 		}, nil
+	} else if pathExists(registryDir) {
+		// Existing registry directory has no valid entrypoint (incomplete or corrupted)
+		_ = os.RemoveAll(registryDir)
 	}
 
-	// Check if cached tarball exists on disk
-	cachedTarball := false
-	if fi, err := os.Stat(tarballPath); err == nil && fi.Size() > 0 {
-		cachedTarball = true
-	}
+	// Check if cached tarball exists on disk and validate its integrity
+	cachedTarball := inst.checkAndValidateCachedArchive(tarballPath, integrityKey)
 
 	if !cachedTarball {
 		if inst.Offline {
@@ -364,12 +374,9 @@ func (inst *Installer) installGitHub(target string, explicitVer string) (*Instal
 		}
 	}
 
-	// Verify integrity and record in integrity.db
-	db, err := LoadIntegrityDB(GetIntegrityDBPath(inst.BaseDir))
-	if err == nil {
-		_, _ = db.RecordFile(integrityKey, tarballPath)
-		_ = db.Save()
-	}
+	// Verify integrity and record in integrity.db atomically
+	_, _ = AtomicRecordFile(inst.BaseDir, integrityKey, tarballPath)
+	_, _ = AtomicRecordFile(inst.BaseDir, "tarballs/"+tarballName, tarballPath)
 
 	// Extract to registry
 	if err := os.MkdirAll(registryDir, 0755); err != nil {
@@ -377,6 +384,14 @@ func (inst *Installer) installGitHub(target string, explicitVer string) (*Instal
 	}
 
 	if err := ExtractTarGz(tarballPath, registryDir); err != nil {
+		// Extraction error: prune corrupted tarball and registry directory
+		_ = os.Remove(tarballPath)
+		_ = os.RemoveAll(registryDir)
+		_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+			db.Delete(integrityKey)
+			db.Delete("tarballs/" + tarballName)
+			return nil
+		})
 		return nil, fmt.Errorf("failed to extract tarball to '%s': %w", registryDir, err)
 	}
 
@@ -455,11 +470,10 @@ func (inst *Installer) installRemoteOrCDN(target string, explicitVer string) (*I
 
 	tarballName := fmt.Sprintf("cdn_%s_%s.tar.gz", domainHash, version)
 	tarballPath := filepath.Join(GetCacheTarballsDir(inst.BaseDir), tarballName)
+	integrityKey := fmt.Sprintf("cdn/%s/%s", domainHash, version)
 
-	cachedTarball := false
-	if fi, err := os.Stat(tarballPath); err == nil && fi.Size() > 0 {
-		cachedTarball = true
-	}
+	// Validate cached tarball if present
+	cachedTarball := inst.checkAndValidateCachedArchive(tarballPath, integrityKey)
 
 	if !cachedTarball {
 		if inst.Offline {
@@ -479,6 +493,12 @@ func (inst *Installer) installRemoteOrCDN(target string, explicitVer string) (*I
 	defer os.RemoveAll(tempDir)
 
 	if err := ExtractArchive(tarballPath, tempDir); err != nil {
+		_ = os.Remove(tarballPath)
+		_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+			db.Delete(integrityKey)
+			db.Delete("tarballs/" + tarballName)
+			return nil
+		})
 		return nil, fmt.Errorf("failed to extract downloaded archive '%s': %w", tarballPath, err)
 	}
 
@@ -488,6 +508,8 @@ func (inst *Installer) installRemoteOrCDN(target string, explicitVer string) (*I
 		manifest = m
 		if version == "1.0.0" && m.Version != "" && explicitVer == "" {
 			version = m.Version
+			// Update integrityKey if version was revised from manifest
+			integrityKey = fmt.Sprintf("cdn/%s/%s", domainHash, version)
 		}
 	}
 
@@ -500,13 +522,9 @@ func (inst *Installer) installRemoteOrCDN(target string, explicitVer string) (*I
 		return nil, fmt.Errorf("failed moving CDN package contents to registry: %w", err)
 	}
 
-	// Record integrity
-	integrityKey := fmt.Sprintf("cdn/%s/%s", domainHash, version)
-	db, err := LoadIntegrityDB(GetIntegrityDBPath(inst.BaseDir))
-	if err == nil {
-		_, _ = db.RecordFile(integrityKey, tarballPath)
-		_ = db.Save()
-	}
+	// Record integrity atomically
+	_, _ = AtomicRecordFile(inst.BaseDir, integrityKey, tarballPath)
+	_, _ = AtomicRecordFile(inst.BaseDir, "tarballs/"+tarballName, tarballPath)
 
 	var secNotice string
 	if manifest != nil {
@@ -523,6 +541,66 @@ func (inst *Installer) installRemoteOrCDN(target string, explicitVer string) (*I
 		Manifest:       manifest,
 		SecurityNotice: secNotice,
 	}, nil
+}
+
+// checkAndValidateCachedArchive checks whether a cached archive exists and is structurally and cryptographically valid.
+// If it is truncated, corrupt, or fails SHA-256 verification against integrity.db, it prunes the file and cleans the record.
+func (inst *Installer) checkAndValidateCachedArchive(tarballPath, integrityKey string) bool {
+	fi, err := os.Stat(tarballPath)
+	if err != nil || fi.IsDir() {
+		return false
+	}
+
+	tarballName := filepath.Base(tarballPath)
+
+	if fi.Size() == 0 {
+		fmt.Printf("[WARN] Cached archive '%s' is empty (0 bytes). Pruning corrupted cache...\n", tarballName)
+		_ = os.Remove(tarballPath)
+		_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+			db.Delete(integrityKey)
+			db.Delete("tarballs/" + tarballName)
+			return nil
+		})
+		return false
+	}
+
+	// 1. Structural and decompression integrity test
+	if err := TestArchiveIntegrity(tarballPath); err != nil {
+		fmt.Printf("[WARN] Cached archive '%s' is corrupted (%v). Pruning corrupted cache...\n", tarballName, err)
+		_ = os.Remove(tarballPath)
+		_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+			db.Delete(integrityKey)
+			db.Delete("tarballs/" + tarballName)
+			return nil
+		})
+		return false
+	}
+
+	// 2. Cryptographic SHA-256 validation if record exists in integrity.db
+	db, err := LoadIntegrityDB(GetIntegrityDBPath(inst.BaseDir))
+	if err == nil && db != nil {
+		recKey := integrityKey
+		rec, ok := db.Get(recKey)
+		if !ok {
+			recKey = "tarballs/" + tarballName
+			rec, ok = db.Get(recKey)
+		}
+		if ok && rec.Checksum != "" {
+			actualChk, _, err := ComputeFileSHA256(tarballPath)
+			if err != nil || actualChk != rec.Checksum {
+				fmt.Printf("[WARN] Cached archive '%s' failed SHA-256 validation (expected %s, got %s). Pruning corrupted cache...\n", tarballName, rec.Checksum, actualChk)
+				_ = os.Remove(tarballPath)
+				_ = UpdateIntegrityDB(inst.BaseDir, func(db *IntegrityDB) error {
+					db.Delete(integrityKey)
+					db.Delete("tarballs/" + tarballName)
+					return nil
+				})
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func (inst *Installer) downloadFile(rawURL, destPath string) error {
@@ -555,15 +633,22 @@ func (inst *Installer) downloadFile(rawURL, destPath string) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpFile.Name())
+	tmpName := tmpFile.Name()
+	defer os.Remove(tmpName)
 
 	_, err = io.Copy(tmpFile, resp.Body)
-	tmpFile.Close()
+	_ = tmpFile.Sync()
+	_ = tmpFile.Close()
 	if err != nil {
 		return err
 	}
 
-	return os.Rename(tmpFile.Name(), destPath)
+	// Validate downloaded archive before committing to destPath
+	if err := TestArchiveIntegrity(tmpName, destPath); err != nil {
+		return fmt.Errorf("downloaded archive failed integrity validation: %w", err)
+	}
+
+	return os.Rename(tmpName, destPath)
 }
 
 func extractVersionFromURL(targetURL string) string {

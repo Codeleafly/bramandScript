@@ -298,3 +298,91 @@ func CreateTarGz(sourceDir, destTarGzPath string) error {
 		return err
 	})
 }
+
+// TestArchiveIntegrity verifies that archivePath exists, has non-zero size,
+// and can be decompressed and read without unexpected EOF or checksum errors.
+func TestArchiveIntegrity(archivePath string, formatHint ...string) error {
+	fi, err := os.Stat(archivePath)
+	if err != nil {
+		return err
+	}
+	if fi.Size() == 0 {
+		return fmt.Errorf("archive file is empty (0 bytes)")
+	}
+
+	hint := ""
+	if len(formatHint) > 0 {
+		hint = strings.ToLower(formatHint[0])
+	}
+	lower := strings.ToLower(archivePath)
+
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var header [4]byte
+	n, _ := io.ReadFull(f, header[:])
+	_, _ = f.Seek(0, 0)
+
+	isGzip := n >= 2 && header[0] == 0x1f && header[1] == 0x8b
+	isZip := n >= 4 && header[0] == 0x50 && header[1] == 0x4b && header[2] == 0x03 && header[3] == 0x04
+
+	if isGzip || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz") || strings.HasSuffix(hint, ".tar.gz") || strings.HasSuffix(hint, ".tgz") {
+		gzr, err := gzip.NewReader(f)
+		if err != nil {
+			return fmt.Errorf("invalid gzip header: %w", err)
+		}
+		defer gzr.Close()
+
+		tr := tar.NewReader(gzr)
+		count := 0
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("corrupted tar entry: %w", err)
+			}
+			if hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA {
+				if _, err := io.Copy(io.Discard, tr); err != nil {
+					return fmt.Errorf("truncated tar entry content: %w", err)
+				}
+			}
+			count++
+		}
+		if count == 0 {
+			return fmt.Errorf("archive contains no entries")
+		}
+		return nil
+	}
+
+	if isZip || strings.HasSuffix(lower, ".zip") || strings.HasSuffix(hint, ".zip") {
+		_ = f.Close()
+		zr, err := zip.OpenReader(archivePath)
+		if err != nil {
+			return fmt.Errorf("corrupted zip archive: %w", err)
+		}
+		defer zr.Close()
+
+		if len(zr.File) == 0 {
+			return fmt.Errorf("zip archive contains no entries")
+		}
+		for _, zf := range zr.File {
+			rc, err := zf.Open()
+			if err != nil {
+				return fmt.Errorf("failed opening zip entry '%s': %w", zf.Name, err)
+			}
+			_, err = io.Copy(io.Discard, rc)
+			_ = rc.Close()
+			if err != nil {
+				return fmt.Errorf("truncated zip entry content for '%s': %w", zf.Name, err)
+			}
+		}
+		return nil
+	}
+
+	return fmt.Errorf("unsupported archive format: %s", archivePath)
+}
