@@ -2026,6 +2026,133 @@ println(bar_chart)</code></pre>
         </div>
       </section>
 
+      <!-- ================= DATETIME ================= -->
+
+      <section id="ch-datetime" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Enterprise Stdlib</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Date, Time &amp; Calendar Engine (<code class="font-mono">std/datetime</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Production-grade Date and Time management supporting ISO 8601 formatting, RFC 3339, Unix epoch milliseconds, leap year calculations, calendar arithmetic (<code class="font-mono">add_days</code>, <code class="font-mono">add_hours</code>), and duration diffs.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Date and Calendar Operations</span>
+          </div>
+          <pre><code class="language-bramand">import "std/datetime" as dt
+
+let d = dt.new(2026, 11, 9, 14, 30, 0)
+println("ISO 8601:", d.to_iso()) // 2026-11-09T14:30:00Z
+println("Is leap year:", d.is_leap_year()) // false
+
+let future = d.add_days(10)
+println("Future date:", future.to_iso())
+
+let diff = future.diff(d)
+println("Difference in days:", diff.days) // 10</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= FS & PATH ================= -->
+
+      <section id="ch-fs-path" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Enterprise Stdlib</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">File System &amp; Path Engine (<code class="font-mono">std/fs</code> &amp; <code class="font-mono">std/path</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Recursive directory walks, glob pattern matching, temp file creation, directory tree inspection, and cross-platform path normalization.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — FS and Path operations</span>
+          </div>
+          <pre><code class="language-bramand">import "std/path" as path
+import "std/fs" as fs
+
+let full_path = path.join(["/var", "log", "app.log"])
+println("Base:", path.base(full_path)) // app.log
+println("Ext:", path.ext(full_path))   // .log
+println("Dir:", path.dir(full_path))   // /var/log
+
+// Recursive Walk with extension filter
+let bmd_files = fs.walk("./src", ".bmd")
+for file in bmd_files {
+    println("Source file:", file)
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= ENCODING ================= -->
+
+      <section id="ch-encoding" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-amber">Enterprise Stdlib</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Universal Data Encoding Suite (<code class="font-mono">std/encoding</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          RFC 4180 compliant CSV serialization/parsing, Hexadecimal encoding and decoding, and URL query parameter builders/parsers.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — CSV and Hex encoding</span>
+          </div>
+          <pre><code class="language-bramand">import "std/encoding" as enc
+
+// Hex Encode / Decode
+let hex = enc.hex_encode("BramandScript")
+println("Hex:", hex)
+println("Decoded:", enc.hex_decode(hex))
+
+// CSV Records Parsing
+let csv_data = "name,role,level\nAlice,dev,senior\nBob,lead,principal"
+let records = enc.csv_parse_records(csv_data)
+println("Parsed rows:", len(records)) // 3</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= MONADIC SAFETY ================= -->
+
+      <section id="ch-monads" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Monadic Safety</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Monadic Safety (<code class="font-mono">Result</code>, <code class="font-mono">Option</code> &amp; <code class="font-mono">?</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Eliminate uncaught exceptions and boilerplate error checks using algebraic <code class="font-mono">Ok(v)</code>, <code class="font-mono">Err(e)</code>, <code class="font-mono">Some(v)</code>, <code class="font-mono">None()</code> types and the postfix <code class="font-mono">?</code> try-propagation operator.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Monadic Result and ? Operator</span>
+          </div>
+          <pre><code class="language-bramand">let divide = fn(a, b) {
+    if b == 0 {
+        return Err("division by zero")
+    }
+    return Ok(a / b)
+}
+
+let compute = fn(x, y) {
+    let result = divide(x, y)? // Unwraps Ok, or early-returns Err!
+    return Ok(result * 100)
+}
+
+let res = compute(10, 2)
+if res.is_ok() {
+    println("Answer:", res.unwrap()) // 500
+}</code></pre>
+        </div>
+      </section>
+
       <section id="ch15" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Chapter 15</span>

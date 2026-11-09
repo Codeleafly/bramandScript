@@ -1,0 +1,9 @@
+// BramandScript Standard Library :: Structured Task Group (std/concurrency/task_group)
+// Structured concurrency coordinator supporting parallel branch execution,
+// wait_all(), wait_any(), and cascade cancellation on failure.
+
+let _tg = task_group;
+
+let new = fn() {
+    return _tg();
+};

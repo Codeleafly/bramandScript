@@ -178,6 +178,17 @@
   - **4-Stage Import Resolution Pipeline**: Stage 1 (`embed:stdlib/`), Stage 2 (relative paths), Stage 3 (`~/.bmd_libs/registry/`), Stage 4 (immutable singleton exports with `OpModule`).
   - **Three-Tier Fallback Engine**: `bmdpkg.json` "entry" -> `main.bmd` -> `index.bmd` -> diagnostic failure.
   - **SemVer Diamond Resolution**: Unifies compatible dependency versions to highest SemVer with side-by-side major version isolation.
+- **Enterprise Concurrency, Actors & Monadic Safety (Week 5)**:
+  - **Date, Time & Calendar Suite (`std/datetime`)**: High-performance Date, Time, Duration, Timestamp, Unix milliseconds, ISO 8601 / RFC 3339 parsing and formatting, calendar arithmetic (`add_days`, `add_hours`, `diff`), timezone offsets, and leap year checks.
+  - **Enterprise File System & Path (`std/fs` & `std/path`)**: Recursive directory traversal (`fs_walk`), glob matching, temp file creation, and path manipulation (`join`, `clean`, `base`, `dir`, `ext`, `abs`, `split`).
+  - **Universal Data Encoding Suite (`std/encoding`)**: CSV parsing/formatting with headers and custom delimiters, Hex encoding/decoding, and URL query encoding/decoding.
+  - **Lightweight Actor Model & Supervision Trees (`actor`, `std/actor`)**: `actor` keyword, FIFO mailboxes, async `act.send(msg)`, synchronous `act.ask(msg, timeout_ms)`, global registry (`actor_register`, `actor_whereis`), and supervision trees (`one_for_one`, `one_for_all`, `rest_for_one`).
+  - **Monadic Safety (`Result` & `Option`)**: `Ok(v)`, `Err(e)`, `Some(v)`, `None()` runtime object types with methods (`.unwrap()`, `.unwrap_or()`, `.is_ok()`, `.is_err()`, `.map()`, `.flat_map()`).
+  - **Try-Propagation Operator (`?`)**: Postfix `?` unwraps `Ok`/`Some` or early-returns `Err`/`None` from enclosing functions.
+  - **Fixed Tuples & Destructuring**: Immutable `(a, b, c)` tuple runtime object with literal syntax, `OpTuple` opcode, and multi-variable destructuring (`let (x, y, z) = point`).
+  - **Deep Pattern Matching with Guard Expressions**: Extended `match-case` with nested tuple, array, and hash/struct destructuring and `if <condition>` guard clauses.
+  - **Uncolored Async/Await Coroutines**: `async fn` and `await` compiling to suspendable VM call frames allowing any caller to await without function coloring.
+  - **Cooperative Scheduler & Structured Task Groups (`task_group`, `std/concurrency`)**: `yield` voluntary time-slicing and `task_group()` coordinator supporting parallel branch execution, `wait_all()`, `wait_any()`, and cascade cancellation on failure.
   - **Supply-Chain Permission Contracts**: Sandboxing declared host permissions (`network`, `filesystem_read`, `filesystem_write`, `subprocess`) with install-time security alerts.
   - **Single-Binary Embedding (`bmd build`)**: Direct embedding of global dependencies into self-contained standalone binaries.
   - **Offline-First Determinism**: Complete offline operation via `--offline` flag and `BMD_OFFLINE=1`.

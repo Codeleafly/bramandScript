@@ -502,6 +502,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		c.emit(code.OpArray, len(node.Elements))
 
+	case *ast.TupleLiteral:
+		if len(node.Elements) > 65535 {
+			return c.makeError(node.Token.Line, node.Token.Col, "tuple literal exceeds maximum size of 65535 elements")
+		}
+		for _, el := range node.Elements {
+			err := c.Compile(el)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpTuple, len(node.Elements))
+
 	case *ast.SpreadExpression:
 		err := c.Compile(node.Value)
 		if err != nil {
@@ -727,6 +739,277 @@ func (c *Compiler) Compile(node ast.Node) error {
 				continue
 			}
 
+			var nextCaseJumps []int
+
+			if len(clause.Values) == 1 {
+				val := clause.Values[0]
+				if tup, ok := val.(*ast.TupleLiteral); ok && isPatternWithBindings(tup) {
+					typeBuiltin, _ := c.symbolTable.Resolve("type")
+					c.loadSymbol(typeBuiltin)
+					c.loadSymbol(subjSym)
+					c.emit(code.OpCall, 1)
+					c.emit(code.OpConstant, c.addConstant(&object.String{Value: "TUPLE"}))
+					c.emit(code.OpEqual)
+
+					lenBuiltin, _ := c.symbolTable.Resolve("len")
+					c.loadSymbol(lenBuiltin)
+					c.loadSymbol(subjSym)
+					c.emit(code.OpCall, 1)
+					c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(len(tup.Elements))}))
+					c.emit(code.OpEqual)
+					c.emit(code.OpAnd)
+
+					nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+
+					c.enterBlockScope()
+					for i, el := range tup.Elements {
+						if ident, ok := el.(*ast.Identifier); ok {
+							if ident.Value != "_" {
+								c.loadSymbol(subjSym)
+								c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+								c.emit(code.OpIndex)
+								sym := c.symbolTable.Define(ident.Value, false)
+								if sym.Scope == GlobalScope {
+									c.emit(code.OpSetGlobal, sym.Index)
+								} else {
+									c.emit(code.OpSetLocal, sym.Index)
+								}
+							}
+						} else {
+							c.loadSymbol(subjSym)
+							c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+							c.emit(code.OpIndex)
+							err := c.Compile(el)
+							if err != nil {
+								c.leaveBlockScope()
+								return err
+							}
+							c.emit(code.OpEqual)
+							nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+						}
+					}
+
+					if clause.Guard != nil {
+						err := c.Compile(clause.Guard)
+						if err != nil {
+							c.leaveBlockScope()
+							return err
+						}
+						nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+					}
+
+					err := c.Compile(clause.Body)
+					if err != nil {
+						c.leaveBlockScope()
+						return err
+					}
+					if c.lastInstructionIs(code.OpPop) {
+						c.removeLastPop()
+					}
+					c.leaveBlockScope()
+
+					endJump := c.emit(code.OpJump, 9999)
+					endJumps = append(endJumps, endJump)
+
+					for _, j := range nextCaseJumps {
+						c.changeOperand(j, len(c.currentInstructions()))
+					}
+					continue
+
+				} else if arr, ok := val.(*ast.ArrayLiteral); ok && isPatternWithBindings(arr) {
+					typeBuiltin, _ := c.symbolTable.Resolve("type")
+					c.loadSymbol(typeBuiltin)
+					c.loadSymbol(subjSym)
+					c.emit(code.OpCall, 1)
+					c.emit(code.OpConstant, c.addConstant(&object.String{Value: "ARRAY"}))
+					c.emit(code.OpEqual)
+
+					lenBuiltin, _ := c.symbolTable.Resolve("len")
+					c.loadSymbol(lenBuiltin)
+					c.loadSymbol(subjSym)
+					c.emit(code.OpCall, 1)
+					c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(len(arr.Elements))}))
+					c.emit(code.OpEqual)
+					c.emit(code.OpAnd)
+
+					nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+
+					c.enterBlockScope()
+					for i, el := range arr.Elements {
+						if ident, ok := el.(*ast.Identifier); ok {
+							if ident.Value != "_" {
+								c.loadSymbol(subjSym)
+								c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+								c.emit(code.OpIndex)
+								sym := c.symbolTable.Define(ident.Value, false)
+								if sym.Scope == GlobalScope {
+									c.emit(code.OpSetGlobal, sym.Index)
+								} else {
+									c.emit(code.OpSetLocal, sym.Index)
+								}
+							}
+						} else {
+							c.loadSymbol(subjSym)
+							c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+							c.emit(code.OpIndex)
+							err := c.Compile(el)
+							if err != nil {
+								c.leaveBlockScope()
+								return err
+							}
+							c.emit(code.OpEqual)
+							nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+						}
+					}
+
+					if clause.Guard != nil {
+						err := c.Compile(clause.Guard)
+						if err != nil {
+							c.leaveBlockScope()
+							return err
+						}
+						nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+					}
+
+					err := c.Compile(clause.Body)
+					if err != nil {
+						c.leaveBlockScope()
+						return err
+					}
+					if c.lastInstructionIs(code.OpPop) {
+						c.removeLastPop()
+					}
+					c.leaveBlockScope()
+
+					endJump := c.emit(code.OpJump, 9999)
+					endJumps = append(endJumps, endJump)
+
+					for _, j := range nextCaseJumps {
+						c.changeOperand(j, len(c.currentInstructions()))
+					}
+					continue
+
+				} else if hash, ok := val.(*ast.HashLiteral); ok && isPatternWithBindings(hash) {
+					typeBuiltin, _ := c.symbolTable.Resolve("type")
+					c.loadSymbol(typeBuiltin)
+					c.loadSymbol(subjSym)
+					c.emit(code.OpCall, 1)
+					c.emit(code.OpConstant, c.addConstant(&object.String{Value: "HASH"}))
+					c.emit(code.OpEqual)
+
+					nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+
+					c.enterBlockScope()
+					entries := hash.Entries
+					if len(entries) == 0 && len(hash.Pairs) > 0 {
+						for k, v := range hash.Pairs {
+							entries = append(entries, ast.HashEntry{Key: k, Value: v})
+						}
+					}
+					for _, entry := range entries {
+						keyExpr := entry.Key
+						valExpr := entry.Value
+						if valExpr == nil {
+							valExpr = keyExpr
+						}
+						if ident, ok := valExpr.(*ast.Identifier); ok {
+							if ident.Value != "_" {
+								c.loadSymbol(subjSym)
+								err := c.Compile(keyExpr)
+								if err != nil {
+									c.leaveBlockScope()
+									return err
+								}
+								c.emit(code.OpIndex)
+								sym := c.symbolTable.Define(ident.Value, false)
+								if sym.Scope == GlobalScope {
+									c.emit(code.OpSetGlobal, sym.Index)
+								} else {
+									c.emit(code.OpSetLocal, sym.Index)
+								}
+							}
+						} else {
+							c.loadSymbol(subjSym)
+							err := c.Compile(keyExpr)
+							if err != nil {
+								c.leaveBlockScope()
+								return err
+							}
+							c.emit(code.OpIndex)
+							err = c.Compile(valExpr)
+							if err != nil {
+								c.leaveBlockScope()
+								return err
+							}
+							c.emit(code.OpEqual)
+							nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+						}
+					}
+
+					if clause.Guard != nil {
+						err := c.Compile(clause.Guard)
+						if err != nil {
+							c.leaveBlockScope()
+							return err
+						}
+						nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+					}
+
+					err := c.Compile(clause.Body)
+					if err != nil {
+						c.leaveBlockScope()
+						return err
+					}
+					if c.lastInstructionIs(code.OpPop) {
+						c.removeLastPop()
+					}
+					c.leaveBlockScope()
+
+					endJump := c.emit(code.OpJump, 9999)
+					endJumps = append(endJumps, endJump)
+
+					for _, j := range nextCaseJumps {
+						c.changeOperand(j, len(c.currentInstructions()))
+					}
+					continue
+
+				} else if ident, ok := val.(*ast.Identifier); ok && clause.Guard != nil {
+					c.enterBlockScope()
+					c.loadSymbol(subjSym)
+					sym := c.symbolTable.Define(ident.Value, false)
+					if sym.Scope == GlobalScope {
+						c.emit(code.OpSetGlobal, sym.Index)
+					} else {
+						c.emit(code.OpSetLocal, sym.Index)
+					}
+
+					err := c.Compile(clause.Guard)
+					if err != nil {
+						c.leaveBlockScope()
+						return err
+					}
+					nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+
+					err = c.Compile(clause.Body)
+					if err != nil {
+						c.leaveBlockScope()
+						return err
+					}
+					if c.lastInstructionIs(code.OpPop) {
+						c.removeLastPop()
+					}
+					c.leaveBlockScope()
+
+					endJump := c.emit(code.OpJump, 9999)
+					endJumps = append(endJumps, endJump)
+
+					for _, j := range nextCaseJumps {
+						c.changeOperand(j, len(c.currentInstructions()))
+					}
+					continue
+				}
+			}
+
 			for i, val := range clause.Values {
 				c.loadSymbol(subjSym)
 				err := c.Compile(val)
@@ -739,7 +1022,15 @@ func (c *Compiler) Compile(node ast.Node) error {
 				}
 			}
 
-			nextCaseJump := c.emit(code.OpJumpNotTruthy, 9999)
+			nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+
+			if clause.Guard != nil {
+				err := c.Compile(clause.Guard)
+				if err != nil {
+					return err
+				}
+				nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
+			}
 
 			err := c.Compile(clause.Body)
 			if err != nil {
@@ -752,7 +1043,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 			endJump := c.emit(code.OpJump, 9999)
 			endJumps = append(endJumps, endJump)
 
-			c.changeOperand(nextCaseJump, len(c.currentInstructions()))
+			for _, j := range nextCaseJumps {
+				c.changeOperand(j, len(c.currentInstructions()))
+			}
 		}
 
 		if defaultClause != nil {
@@ -840,6 +1133,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			SourceMap:     sourceLines,
 			FreeNames:     freeNames,
 			Contract:      c.currentContract,
+			IsAsync:       node.IsAsync,
 		}
 
 		fnIndex := c.addConstant(compiledFn)
@@ -936,6 +1230,55 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 			c.emit(code.OpSpawn, 0)
 		}
+
+	case *ast.ActorExpression:
+		c.currentLine = node.Token.Line
+		spawnBuiltin, ok := c.symbolTable.Resolve("actor_spawn")
+		if !ok {
+			return fmt.Errorf("undefined builtin 'actor_spawn'")
+		}
+		c.emit(code.OpGetBuiltin, spawnBuiltin.Index)
+
+		err := c.Compile(node.Handler)
+		if err != nil {
+			return err
+		}
+
+		if node.InitialState != nil {
+			err = c.Compile(node.InitialState)
+			if err != nil {
+				return err
+			}
+		} else {
+			c.emit(code.OpNull)
+		}
+
+		numArgs := 2
+		if node.Name != nil {
+			err = c.Compile(node.Name)
+			if err != nil {
+				return err
+			}
+			numArgs = 3
+		}
+
+		c.emit(code.OpCall, numArgs)
+
+	case *ast.TryExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpTryPropagate)
+
+	case *ast.AwaitExpression:
+		c.currentLine = node.Token.Line
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpAwait)
 	}
 
 	return c.compileErr
@@ -1054,4 +1397,30 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Constants:    c.constants,
 		SourceMap:    c.scopes[c.scopeIndex].sourceLines,
 	}
+}
+
+func isPatternWithBindings(expr ast.Expression) bool {
+	switch e := expr.(type) {
+	case *ast.TupleLiteral:
+		for _, el := range e.Elements {
+			if _, ok := el.(*ast.Identifier); ok {
+				return true
+			}
+			if isPatternWithBindings(el) {
+				return true
+			}
+		}
+	case *ast.ArrayLiteral:
+		for _, el := range e.Elements {
+			if _, ok := el.(*ast.Identifier); ok {
+				return true
+			}
+			if isPatternWithBindings(el) {
+				return true
+			}
+		}
+	case *ast.HashLiteral:
+		return len(e.Entries) > 0 || len(e.Pairs) > 0
+	}
+	return false
 }

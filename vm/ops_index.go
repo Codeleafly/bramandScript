@@ -33,6 +33,29 @@ func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
 	return &object.Array{Elements: elements}
 }
 
+func (vm *VM) buildTuple(startIndex, endIndex int) object.Object {
+	elements := make([]object.Object, 0, endIndex-startIndex)
+	for i := startIndex; i < endIndex; i++ {
+		val := vm.stack[i]
+		if val == nil {
+			val = Null
+		}
+		if sw, ok := val.(*object.SpreadWrapper); ok {
+			switch inner := sw.Value.(type) {
+			case *object.Array:
+				elements = append(elements, inner.Elements...)
+			case *object.Tuple:
+				elements = append(elements, inner.Elements...)
+			default:
+				elements = append(elements, inner)
+			}
+		} else {
+			elements = append(elements, val)
+		}
+	}
+	return &object.Tuple{Elements: elements}
+}
+
 func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 	hashedPairs := make(map[object.HashKey]object.HashPair)
 
@@ -196,6 +219,9 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 		l.Value[i] = byte(val.Value)
 		return nil
 
+	case *object.Tuple:
+		return fmt.Errorf("TypeError: cannot mutate immutable Tuple")
+
 	default:
 		return fmt.Errorf("index assignment not supported for type: %s", left.Type())
 	}
@@ -233,6 +259,16 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 	switch {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
 		return vm.executeArrayIndex(left, index)
+	case left.Type() == object.TUPLE_OBJ && index.Type() == object.INTEGER_OBJ:
+		tup := left.(*object.Tuple)
+		i := index.(*object.Integer).Value
+		if i < 0 {
+			i = int64(len(tup.Elements)) + i
+		}
+		if i < 0 || i >= int64(len(tup.Elements)) {
+			return vm.push(Null)
+		}
+		return vm.push(tup.Elements[i])
 	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
 		return vm.executeStringIndex(left, index)
 	case left.Type() == object.BYTES_OBJ && index.Type() == object.INTEGER_OBJ:
@@ -259,6 +295,57 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 				frameObjs = append(frameObjs, &object.Hash{Pairs: m})
 			}
 			return vm.push(&object.Array{Elements: frameObjs})
+		}
+		return vm.push(Null)
+	case left.Type() == object.RESULT_OBJ && index.Type() == object.STRING_OBJ:
+		if handled, err := vm.executeResultMethod(left, index); handled {
+			return err
+		}
+		return vm.push(Null)
+	case left.Type() == object.OPTION_OBJ && index.Type() == object.STRING_OBJ:
+		if handled, err := vm.executeOptionMethod(left, index); handled {
+			return err
+		}
+		return vm.push(Null)
+	case left.Type() == object.FUTURE_OBJ && index.Type() == object.STRING_OBJ:
+		fut := left.(*object.Future)
+		prop := index.(*object.String).Value
+		switch prop {
+		case "is_done":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					fut.Mu.RLock()
+					done := fut.Status != "pending"
+					fut.Mu.RUnlock()
+					return nativeBoolToBooleanObject(done)
+				},
+			})
+		case "result":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					fut.Mu.RLock()
+					defer fut.Mu.RUnlock()
+					if fut.Status == "resolved" {
+						return fut.Value
+					} else if fut.Status == "rejected" {
+						return &object.Error{Message: fut.Err.Error()}
+					}
+					return Null
+				},
+			})
+		case "await":
+			return vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					res, err := fut.Await()
+					if err != nil {
+						return &object.Error{Message: err.Error()}
+					}
+					if res == nil {
+						return Null
+					}
+					return res
+				},
+			})
 		}
 		return vm.push(Null)
 	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ || left.Type() == object.BYTES_OBJ) && index.Type() == object.STRING_OBJ:
@@ -296,6 +383,179 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		}
 		return fmt.Errorf("index operator not supported: %s[%s]", left.Type(), index.Type())
 	}
+}
+
+func (vm *VM) executeResultMethod(left, index object.Object) (bool, error) {
+	res, ok := left.(*object.Result)
+	if !ok {
+		return false, nil
+	}
+	prop, ok := index.(*object.String)
+	if !ok {
+		return false, nil
+	}
+
+	switch prop.Value {
+	case "is_ok":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				return nativeBoolToBooleanObject(res.IsOk)
+			},
+		})
+	case "is_err":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				return nativeBoolToBooleanObject(!res.IsOk)
+			},
+		})
+	case "unwrap":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if res.IsOk {
+					return res.Value
+				}
+				errMsg := "unwrap called on Err"
+				if res.Err != nil {
+					errMsg = fmt.Sprintf("unwrap called on Err: %s", res.Err.Inspect())
+				}
+				return &object.Error{Message: errMsg}
+			},
+		})
+	case "unwrap_or":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "unwrap_or expects 1 argument"}
+				}
+				if res.IsOk {
+					return res.Value
+				}
+				return args[0]
+			},
+		})
+	case "unwrap_err":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if !res.IsOk {
+					return res.Err
+				}
+				return &object.Error{Message: "called unwrap_err on Ok"}
+			},
+		})
+	case "map":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "map expects 1 argument (callable)"}
+				}
+				if !res.IsOk {
+					return res
+				}
+				mapped, err := ExecuteCallable(args[0], res.Value)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return object.NewOk(mapped)
+			},
+		})
+	case "flat_map":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "flat_map expects 1 argument (callable)"}
+				}
+				if !res.IsOk {
+					return res
+				}
+				mapped, err := ExecuteCallable(args[0], res.Value)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return mapped
+			},
+		})
+	}
+	return false, nil
+}
+
+func (vm *VM) executeOptionMethod(left, index object.Object) (bool, error) {
+	opt, ok := left.(*object.Option)
+	if !ok {
+		return false, nil
+	}
+	prop, ok := index.(*object.String)
+	if !ok {
+		return false, nil
+	}
+
+	switch prop.Value {
+	case "is_some":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				return nativeBoolToBooleanObject(opt.HasValue)
+			},
+		})
+	case "is_none":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				return nativeBoolToBooleanObject(!opt.HasValue)
+			},
+		})
+	case "unwrap":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if opt.HasValue {
+					return opt.Value
+				}
+				return &object.Error{Message: "called Option.unwrap() on None"}
+			},
+		})
+	case "unwrap_or":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "unwrap_or expects 1 argument"}
+				}
+				if opt.HasValue {
+					return opt.Value
+				}
+				return args[0]
+			},
+		})
+	case "map":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "map expects 1 argument (callable)"}
+				}
+				if !opt.HasValue {
+					return opt
+				}
+				mapped, err := ExecuteCallable(args[0], opt.Value)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return object.NewSome(mapped)
+			},
+		})
+	case "flat_map":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: "flat_map expects 1 argument (callable)"}
+				}
+				if !opt.HasValue {
+					return opt
+				}
+				mapped, err := ExecuteCallable(args[0], opt.Value)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return mapped
+			},
+		})
+	}
+	return false, nil
 }
 
 func (vm *VM) executeBytesMethod(left, index object.Object) (bool, error) {

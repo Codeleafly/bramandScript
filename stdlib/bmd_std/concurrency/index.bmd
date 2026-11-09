@@ -1,0 +1,12 @@
+// BramandScript Standard Library :: Concurrency Suite (std/concurrency)
+// Core multitasking primitives, structured task groups, and voluntary time-slicing.
+
+let _tg = task_group;
+
+let task_group = fn() {
+    return _tg();
+};
+
+let new_task_group = fn() {
+    return _tg();
+};

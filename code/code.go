@@ -101,6 +101,11 @@ const (
 	OpModule
 	OpEnterPackage
 	OpLeavePackage
+
+	// Day 30 & Day 31 Advanced Opcodes
+	OpTryPropagate
+	OpTuple
+	OpAwait
 )
 
 type Definition struct {
@@ -169,6 +174,9 @@ var definitions = map[Opcode]*Definition{
 	OpModule:           {"OpModule", []int{8}},
 	OpEnterPackage:     {"OpEnterPackage", []int{8}},
 	OpLeavePackage:     {"OpLeavePackage", []int{}},
+	OpTryPropagate:     {"OpTryPropagate", []int{}},
+	OpTuple:            {"OpTuple", []int{2}},
+	OpAwait:            {"OpAwait", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

@@ -12,6 +12,121 @@ import (
 
 func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.Object) (bool, error) {
 	switch {
+	case left.Type() == object.ACTOR_OBJ && index.Type() == object.STRING_OBJ:
+		act := left.(*object.Actor)
+		prop := index.(*object.String).Value
+		switch prop {
+		case "send":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 1 {
+						return &object.Error{Message: fmt.Sprintf("send expects 1 argument, got %d", len(args))}
+					}
+					if act.Send(args[0]) {
+						return True
+					}
+					return False
+				},
+			})
+		case "ask":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) < 1 || len(args) > 2 {
+						return &object.Error{Message: fmt.Sprintf("ask expects 1 or 2 arguments, got %d", len(args))}
+					}
+					timeout := 5000 * time.Millisecond
+					if len(args) == 2 {
+						if to, ok := args[1].(*object.Integer); ok {
+							timeout = time.Duration(to.Value) * time.Millisecond
+						}
+					}
+					reply, err := act.Ask(args[0], timeout)
+					if err != nil {
+						return &object.Error{Message: err.Error()}
+					}
+					if reply == nil {
+						return Null
+					}
+					return reply
+				},
+			})
+		case "stop":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Stop()
+					return Null
+				},
+			})
+		case "status":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Mu.RLock()
+					st := act.Status
+					act.Mu.RUnlock()
+					return &object.String{Value: st}
+				},
+			})
+		case "state":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Mu.RLock()
+					st := act.State
+					act.Mu.RUnlock()
+					if st == nil {
+						return Null
+					}
+					return st
+				},
+			})
+		case "is_alive":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Mu.RLock()
+					alive := act.Status == "running"
+					act.Mu.RUnlock()
+					return nativeBoolToBooleanObject(alive)
+				},
+			})
+		case "restart":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					var newState object.Object
+					if len(args) > 0 {
+						newState = args[0]
+					}
+					act.Restart(newState)
+					return Null
+				},
+			})
+		case "name":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Mu.RLock()
+					nm := act.Name
+					act.Mu.RUnlock()
+					return &object.String{Value: nm}
+				},
+			})
+		case "id":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.String{Value: act.ID}
+				},
+			})
+		case "last_error":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					act.Mu.RLock()
+					e := act.LastError
+					act.Mu.RUnlock()
+					if e == "" {
+						return Null
+					}
+					return &object.String{Value: e}
+				},
+			})
+		}
+
 	case left.Type() == object.MUTEX_OBJ && index.Type() == object.STRING_OBJ:
 		mtx := left.(*object.Mutex)
 		prop := index.(*object.String).Value

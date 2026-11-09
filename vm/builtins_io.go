@@ -486,4 +486,353 @@ func init() {
 			return &object.String{Value: t.Format(layout)}
 		},
 	})
+
+	RegisterBuiltin("path_join", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			parts := make([]string, len(args))
+			for i, a := range args {
+				parts[i] = a.Inspect()
+				if s, ok := a.(*object.String); ok {
+					parts[i] = s.Value
+				}
+			}
+			return &object.String{Value: filepath.ToSlash(filepath.Join(parts...))}
+		},
+	})
+
+	RegisterBuiltin("path_clean", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_clean expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			return &object.String{Value: filepath.ToSlash(filepath.Clean(p))}
+		},
+	})
+
+	RegisterBuiltin("path_base", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_base expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			return &object.String{Value: filepath.Base(p)}
+		},
+	})
+
+	RegisterBuiltin("path_dir", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_dir expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			return &object.String{Value: filepath.ToSlash(filepath.Dir(p))}
+		},
+	})
+
+	RegisterBuiltin("path_ext", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_ext expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			return &object.String{Value: filepath.Ext(p)}
+		},
+	})
+
+	RegisterBuiltin("path_abs", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_abs expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("path_abs failed: %s", err)}
+			}
+			return &object.String{Value: filepath.ToSlash(abs)}
+		},
+	})
+
+	RegisterBuiltin("path_is_abs", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_is_abs expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			return nativeBoolToBooleanObject(filepath.IsAbs(p))
+		},
+	})
+
+	RegisterBuiltin("path_split", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("path_split expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			dir, file := filepath.Split(p)
+			return &object.Array{Elements: []object.Object{
+				&object.String{Value: filepath.ToSlash(dir)},
+				&object.String{Value: file},
+			}}
+		},
+	})
+
+	RegisterBuiltin("fs_walk", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermRead); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
+			if len(args) < 1 || len(args) > 2 {
+				return &object.Error{Message: fmt.Sprintf("fs_walk expects 1 or 2 arguments, got %d", len(args))}
+			}
+			root := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				root = s.Value
+			}
+			extFilter := ""
+			if len(args) == 2 {
+				if s, ok := args[1].(*object.String); ok {
+					extFilter = s.Value
+				}
+			}
+
+			var entries []object.Object
+			err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+				if err != nil {
+					return nil // Continue walking
+				}
+				if extFilter != "" && !d.IsDir() && filepath.Ext(path) != extFilter {
+					return nil
+				}
+				info, _ := d.Info()
+				size := int64(0)
+				if info != nil {
+					size = info.Size()
+				}
+				pMap := make(map[object.HashKey]object.HashPair)
+				set := func(k string, v object.Object) {
+					keyObj := &object.String{Value: k}
+					pMap[keyObj.HashKey()] = object.HashPair{Key: keyObj, Value: v}
+				}
+				set("path", &object.String{Value: filepath.ToSlash(path)})
+				set("name", &object.String{Value: d.Name()})
+				set("is_dir", nativeBoolToBooleanObject(d.IsDir()))
+				set("size", &object.Integer{Value: size})
+				entries = append(entries, &object.Hash{Pairs: pMap})
+				return nil
+			})
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_walk failed: %s", err)}
+			}
+			return &object.Array{Elements: entries}
+		},
+	})
+
+	RegisterBuiltin("fs_glob", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermRead); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("fs_glob expects 1 argument, got %d", len(args))}
+			}
+			pattern := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				pattern = s.Value
+			}
+			matches, err := filepath.Glob(pattern)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_glob error: %s", err)}
+			}
+			res := make([]object.Object, len(matches))
+			for i, m := range matches {
+				res[i] = &object.String{Value: filepath.ToSlash(m)}
+			}
+			return &object.Array{Elements: res}
+		},
+	})
+
+	RegisterBuiltin("fs_temp_file", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermWrite); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
+			prefix := "bmd_tmp_"
+			ext := ""
+			if len(args) >= 1 {
+				if s, ok := args[0].(*object.String); ok {
+					prefix = s.Value
+				}
+			}
+			if len(args) >= 2 {
+				if s, ok := args[1].(*object.String); ok {
+					ext = s.Value
+				}
+			}
+			f, err := os.CreateTemp("", prefix+"*"+ext)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_temp_file failed: %s", err)}
+			}
+			path := filepath.ToSlash(f.Name())
+			f.Close()
+
+			pairs := make(map[object.HashKey]object.HashPair)
+			kPath := &object.String{Value: "path"}
+			pairs[kPath.HashKey()] = object.HashPair{Key: kPath, Value: &object.String{Value: path}}
+			kName := &object.String{Value: "name"}
+			pairs[kName.HashKey()] = object.HashPair{Key: kName, Value: &object.String{Value: filepath.Base(path)}}
+			return &object.Hash{Pairs: pairs}
+		},
+	})
+
+	var buildTree func(dirPath string, currentDepth, maxDepth int) (*object.Hash, error)
+	buildTree = func(dirPath string, currentDepth, maxDepth int) (*object.Hash, error) {
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return nil, err
+		}
+		var children []object.Object
+		for _, e := range entries {
+			childPath := filepath.Join(dirPath, e.Name())
+			fi, _ := e.Info()
+			size := int64(0)
+			if fi != nil {
+				size = fi.Size()
+			}
+			childMap := make(map[object.HashKey]object.HashPair)
+			setField := func(k string, v object.Object) {
+				ko := &object.String{Value: k}
+				childMap[ko.HashKey()] = object.HashPair{Key: ko, Value: v}
+			}
+			setField("name", &object.String{Value: e.Name()})
+			setField("path", &object.String{Value: filepath.ToSlash(childPath)})
+			setField("is_dir", nativeBoolToBooleanObject(e.IsDir()))
+			setField("size", &object.Integer{Value: size})
+
+			if e.IsDir() && (maxDepth < 0 || currentDepth < maxDepth) {
+				subTree, err := buildTree(childPath, currentDepth+1, maxDepth)
+				if err == nil {
+					keyChildren := (&object.String{Value: "children"}).HashKey()
+					subTree.Mu.RLock()
+					if cp, ok := subTree.Pairs[keyChildren]; ok {
+						setField("children", cp.Value)
+					}
+					subTree.Mu.RUnlock()
+				}
+			}
+			children = append(children, &object.Hash{Pairs: childMap})
+		}
+
+		resMap := make(map[object.HashKey]object.HashPair)
+		kPath := &object.String{Value: "path"}
+		resMap[kPath.HashKey()] = object.HashPair{Key: kPath, Value: &object.String{Value: filepath.ToSlash(dirPath)}}
+		kChildren := &object.String{Value: "children"}
+		resMap[kChildren.HashKey()] = object.HashPair{Key: kChildren, Value: &object.Array{Elements: children}}
+		return &object.Hash{Pairs: resMap}, nil
+	}
+
+	RegisterBuiltin("fs_tree", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermRead); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
+			dir := "."
+			maxDepth := -1
+			if len(args) >= 1 {
+				if s, ok := args[0].(*object.String); ok {
+					dir = s.Value
+				}
+			}
+			if len(args) >= 2 {
+				if i, ok := args[1].(*object.Integer); ok {
+					maxDepth = int(i.Value)
+				}
+			}
+			tree, err := buildTree(dir, 0, maxDepth)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_tree failed: %s", err)}
+			}
+			return tree
+		},
+	})
+
+	RegisterBuiltin("fs_mkdir", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermWrite); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
+			if len(args) < 1 {
+				return &object.Error{Message: "fs_mkdir expects at least 1 argument"}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			recursive := true
+			if len(args) >= 2 {
+				if b, ok := args[1].(*object.Boolean); ok {
+					recursive = b.Value
+				}
+			}
+			var err error
+			if recursive {
+				err = os.MkdirAll(p, 0755)
+			} else {
+				err = os.Mkdir(p, 0755)
+			}
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_mkdir failed: %s", err)}
+			}
+			return True
+		},
+	})
+
+	RegisterBuiltin("fs_stat", &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("fs_stat expects 1 argument, got %d", len(args))}
+			}
+			p := args[0].Inspect()
+			if s, ok := args[0].(*object.String); ok {
+				p = s.Value
+			}
+			fi, err := os.Stat(p)
+			if err != nil {
+				return &object.Error{Message: fmt.Sprintf("fs_stat failed: %s", err)}
+			}
+			pairs := make(map[object.HashKey]object.HashPair)
+			set := func(k string, v object.Object) {
+				ko := &object.String{Value: k}
+				pairs[ko.HashKey()] = object.HashPair{Key: ko, Value: v}
+			}
+			set("path", &object.String{Value: filepath.ToSlash(p)})
+			set("name", &object.String{Value: fi.Name()})
+			set("is_dir", nativeBoolToBooleanObject(fi.IsDir()))
+			set("size", &object.Integer{Value: fi.Size()})
+			set("mode", &object.Integer{Value: int64(fi.Mode())})
+			return &object.Hash{Pairs: pairs}
+		},
+	})
 }

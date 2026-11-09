@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -54,6 +55,11 @@ func getBuiltinByName(name string) *object.Builtin {
 		return b
 	}
 	return nil
+}
+
+// GetBuiltin retrieves a builtin object by its identifier name.
+func GetBuiltin(name string) *object.Builtin {
+	return getBuiltinByName(name)
 }
 
 // SetProgramArgs configures argv / args accessible from BramandScript.
@@ -127,6 +133,8 @@ func init() {
 					arg.Mu.RLock()
 					defer arg.Mu.RUnlock()
 					return &object.Integer{Value: int64(len(arg.Value))}
+				case *object.Tuple:
+					return &object.Integer{Value: int64(len(arg.Elements))}
 				default:
 					return &object.Error{Message: fmt.Sprintf("argument to `len` not supported, got %s", args[0].Type())}
 				}
@@ -230,6 +238,7 @@ func init() {
 		},
 		"yield": {
 			Fn: func(args ...object.Object) object.Object {
+				runtime.Gosched()
 				if len(args) == 0 {
 					return Null
 				}

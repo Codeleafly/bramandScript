@@ -1,0 +1,95 @@
+// BramandScript Standard Library :: Data Encoding & Serialization Suite (std/encoding)
+// Robust encoders and decoders for CSV, Hex, URL Query, and Base64.
+
+let _hex_enc = hex_encode;
+let _hex_dec = hex_decode;
+let _url_enc = url_encode;
+let _url_dec = url_decode;
+let _url_pq = url_parse_query;
+let _url_bq = url_build_query;
+let _b64_enc = base64_encode;
+let _b64_dec = base64_decode;
+let _b64_url_enc = base64_url_encode;
+let _b64_url_dec = base64_url_decode;
+
+let hex_encode = fn(data) {
+    return _hex_enc(data);
+};
+
+let hex_decode = fn(hex_str) {
+    return _hex_dec(hex_str);
+};
+
+let url_encode = fn(str_val) {
+    return _url_enc(str_val);
+};
+
+let url_decode = fn(str_val) {
+    return _url_dec(str_val);
+};
+
+let url_parse_query = fn(query_str) {
+    return _url_pq(query_str);
+};
+
+let url_build_query = fn(hash_obj) {
+    return _url_bq(hash_obj);
+};
+
+let base64_encode = fn(data) {
+    return _b64_enc(data);
+};
+
+let base64_decode = fn(b64_str) {
+    return _b64_dec(b64_str);
+};
+
+let base64_url_encode = fn(data) {
+    return _b64_url_enc(data);
+};
+
+let base64_url_decode = fn(b64_str) {
+    return _b64_url_dec(b64_str);
+};
+
+let base64_chunk = fn(b64_str, line_len) {
+    if line_len == null || line_len <= 0 {
+        line_len = 64;
+    }
+    let n = len(b64_str);
+    let out = "";
+    let i = 0;
+    while (i < n) {
+        let end_idx = i + line_len;
+        if (end_idx > n) {
+            end_idx = n;
+        }
+        out = out + substring(b64_str, i, end_idx);
+        if (end_idx < n) {
+            out = out + "\n";
+        }
+        i = end_idx;
+    }
+    return out;
+};
+
+let csv_parse = fn(raw_str, delim, has_headers) {
+    if delim == null {
+        delim = ",";
+    }
+    if has_headers == null {
+        has_headers = false;
+    }
+    return csv_parse_records(raw_str, delim, has_headers);
+};
+
+let csv_parse_records = csv_parse;
+
+let csv_stringify = fn(records, delim, headers) {
+    if delim == null {
+        delim = ",";
+    }
+    return csv_format_records(records, delim, headers);
+};
+
+let csv_format_records = csv_stringify;

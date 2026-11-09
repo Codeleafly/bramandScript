@@ -507,6 +507,45 @@ func (vm *VM) popFrame() *Frame {
 	return vm.frames[vm.framesIndex]
 }
 
+func (vm *VM) executeReturnValue(returnValue object.Object) error {
+	if cell, ok := returnValue.(*object.Cell); ok {
+		cell.Mu.RLock()
+		returnValue = cell.Value
+		cell.Mu.RUnlock()
+	}
+
+	frame := vm.popFrame()
+	vm.runDefers(frame)
+	if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
+		frame.cl.Instance.Mu.Lock()
+		for i, name := range frame.cl.Fn.FreeNames {
+			if i < len(frame.cl.Free) {
+				strObj := &object.String{Value: name}
+				hk := strObj.HashKey()
+				if _, exists := frame.cl.Instance.Pairs[hk]; exists {
+					freeVal := frame.cl.Free[i]
+					if cell, ok := freeVal.(*object.Cell); ok {
+						cell.Mu.RLock()
+						freeVal = cell.Value
+						cell.Mu.RUnlock()
+					}
+					frame.cl.Instance.Pairs[hk] = object.HashPair{Key: strObj, Value: freeVal}
+				}
+			}
+		}
+		frame.cl.Instance.Mu.Unlock()
+	}
+	if vm.framesIndex == 0 {
+		return nil
+	}
+	for i := frame.basePointer; i < vm.sp; i++ {
+		vm.stack[i] = nil
+	}
+	vm.sp = frame.basePointer - 1
+
+	return vm.push(returnValue)
+}
+
 func (vm *VM) StackTop() object.Object {
 	if vm.sp == 0 {
 		return nil
@@ -904,6 +943,52 @@ func (vm *VM) runLoop() error {
 				return err
 			}
 
+		case code.OpTuple:
+			numElements := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
+
+			tuple := vm.buildTuple(vm.sp-numElements, vm.sp)
+			vm.sp = vm.sp - numElements
+
+			err := vm.push(tuple)
+			if err != nil {
+				return err
+			}
+
+		case code.OpAwait:
+			val := vm.pop()
+			switch v := val.(type) {
+			case *object.Future:
+				res, err := v.Await()
+				if err != nil {
+					if vm.handleException(&object.Error{Message: err.Error()}) {
+						continue
+					}
+					return err
+				}
+				if res == nil {
+					res = Null
+				}
+				err = vm.push(res)
+				if err != nil {
+					return err
+				}
+			case *object.Channel:
+				res, ok := v.Recv()
+				if !ok {
+					res = Null
+				}
+				err := vm.push(res)
+				if err != nil {
+					return err
+				}
+			default:
+				err := vm.push(val)
+				if err != nil {
+					return err
+				}
+			}
+
 		case code.OpHash:
 			numElements := int(binary.BigEndian.Uint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
@@ -964,44 +1049,75 @@ func (vm *VM) runLoop() error {
 
 		case code.OpReturnValue:
 			returnValue := vm.pop()
-			if cell, ok := returnValue.(*object.Cell); ok {
-				cell.Mu.RLock()
-				returnValue = cell.Value
-				cell.Mu.RUnlock()
-			}
-
-			frame := vm.popFrame()
-			vm.runDefers(frame)
-			if frame.cl != nil && frame.cl.Instance != nil && len(frame.cl.Fn.FreeNames) > 0 {
-				frame.cl.Instance.Mu.Lock()
-				for i, name := range frame.cl.Fn.FreeNames {
-					if i < len(frame.cl.Free) {
-						strObj := &object.String{Value: name}
-						hk := strObj.HashKey()
-						if _, exists := frame.cl.Instance.Pairs[hk]; exists {
-							freeVal := frame.cl.Free[i]
-							if cell, ok := freeVal.(*object.Cell); ok {
-								cell.Mu.RLock()
-								freeVal = cell.Value
-								cell.Mu.RUnlock()
-							}
-							frame.cl.Instance.Pairs[hk] = object.HashPair{Key: strObj, Value: freeVal}
-						}
-					}
-				}
-				frame.cl.Instance.Mu.Unlock()
+			err := vm.executeReturnValue(returnValue)
+			if err != nil {
+				return err
 			}
 			if vm.framesIndex == 0 {
 				return nil
 			}
-			for i := frame.basePointer; i < vm.sp; i++ {
-				vm.stack[i] = nil
-			}
-			vm.sp = frame.basePointer - 1
 
-			err := vm.push(returnValue)
-			if err != nil {
-				return err
+		case code.OpTryPropagate:
+			val := vm.pop()
+			switch v := val.(type) {
+			case *object.Result:
+				if v.IsOk {
+					err := vm.push(v.Value)
+					if err != nil {
+						return err
+					}
+				} else {
+					if vm.framesIndex > 1 {
+						err := vm.executeReturnValue(v)
+						if err != nil {
+							return err
+						}
+						if vm.framesIndex == 0 {
+							return nil
+						}
+					} else {
+						_ = vm.push(v)
+						return nil
+					}
+				}
+			case *object.Option:
+				if v.HasValue {
+					err := vm.push(v.Value)
+					if err != nil {
+						return err
+					}
+				} else {
+					if vm.framesIndex > 1 {
+						err := vm.executeReturnValue(v)
+						if err != nil {
+							return err
+						}
+						if vm.framesIndex == 0 {
+							return nil
+						}
+					} else {
+						_ = vm.push(v)
+						return nil
+					}
+				}
+			case *object.Error:
+				if vm.framesIndex > 1 {
+					err := vm.executeReturnValue(v)
+					if err != nil {
+						return err
+					}
+					if vm.framesIndex == 0 {
+						return nil
+					}
+				} else {
+					_ = vm.push(v)
+					return nil
+				}
+			default:
+				err := vm.push(val)
+				if err != nil {
+					return err
+				}
 			}
 
 		case code.OpReturn:
@@ -1329,6 +1445,38 @@ func objectsEqualDepth(left, right object.Object, depth int) bool {
 			if !objectsEqualDepth(l.Elements[i], r.Elements[i], depth+1) {
 				return false
 			}
+		}
+		return true
+	case *object.Tuple:
+		r := right.(*object.Tuple)
+		if l == r {
+			return true
+		}
+		if len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if !objectsEqualDepth(l.Elements[i], r.Elements[i], depth+1) {
+				return false
+			}
+		}
+		return true
+	case *object.Result:
+		r := right.(*object.Result)
+		if l.IsOk != r.IsOk {
+			return false
+		}
+		if l.IsOk {
+			return objectsEqualDepth(l.Value, r.Value, depth+1)
+		}
+		return objectsEqualDepth(l.Err, r.Err, depth+1)
+	case *object.Option:
+		r := right.(*object.Option)
+		if l.HasValue != r.HasValue {
+			return false
+		}
+		if l.HasValue {
+			return objectsEqualDepth(l.Value, r.Value, depth+1)
 		}
 		return true
 	case *object.Hash:

@@ -42,6 +42,11 @@ const (
 	CELL_OBJ                 = "CELL"
 	SPREAD_WRAPPER_OBJ       = "SPREAD_WRAPPER"
 	PACKAGE_CONTRACT_OBJ     = "PACKAGE_CONTRACT"
+	ACTOR_OBJ                = "ACTOR"
+	RESULT_OBJ               = "RESULT"
+	OPTION_OBJ               = "OPTION"
+	TUPLE_OBJ                = "TUPLE"
+	FUTURE_OBJ               = "FUTURE"
 )
 
 type Object interface {
@@ -202,6 +207,7 @@ type CompiledFunction struct {
 	SourceMap     []int
 	FreeNames     []string
 	Contract      *PackageContract
+	IsAsync       bool
 }
 
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }

@@ -1,0 +1,69 @@
+// BramandScript Standard Library :: Enterprise File System (std/fs)
+// Directory traversal, recursive walking, pattern matching, temporary files, and stats.
+
+let walk = fn(path, ext_filter) {
+    return fs_walk(path, ext_filter);
+};
+
+let glob = fn(pattern) {
+    return fs_glob(pattern);
+};
+
+let temp_file = fn(prefix, ext) {
+    return fs_temp_file(prefix, ext);
+};
+
+let tree = fn(dir, max_depth) {
+    return fs_tree(dir, max_depth);
+};
+
+let mkdir = fn(path, recursive) {
+    if recursive == null {
+        recursive = true;
+    }
+    return fs_mkdir(path, recursive);
+};
+
+let stat = fn(path) {
+    return fs_stat(path);
+};
+
+let read_text = fn(path) {
+    return read_file(path);
+};
+
+let write_text = fn(path, content) {
+    return write_file(path, content);
+};
+
+let write_file = write_text;
+
+let append_text = fn(path, content) {
+    return append_file(path, content);
+};
+
+let append_file = append_text;
+
+let read_text = fn(path) {
+    return read_file(path);
+};
+
+let read_file = read_text;
+
+let list_directory = fn(path) {
+    return list_dir(path);
+};
+
+let is_directory = fn(path) {
+    return is_dir(path);
+};
+
+let exists = fn(path) {
+    return file_exists(path);
+};
+
+let remove = fn(path) {
+    return delete_file(path);
+};
+
+let delete = remove;

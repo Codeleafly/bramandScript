@@ -1,0 +1,23 @@
+// BramandScript Standard Library :: Actor Model Suite (std/actor)
+// Actor creation, mailboxes, asynchronous send, synchronous ask, and supervisor.
+
+import "./supervisor.bmd" as sup_mod;
+
+let spawn_actor = fn(handler, initial_state, name) {
+    return actor_spawn(handler, initial_state, name);
+};
+
+let register = fn(name, act) {
+    return actor_register(name, act);
+};
+
+let whereis = fn(name) {
+    return actor_whereis(name);
+};
+
+let unregister = fn(name) {
+    return actor_unregister(name);
+};
+
+let supervisor = sup_mod.supervisor;
+let new_supervisor = sup_mod.supervisor;

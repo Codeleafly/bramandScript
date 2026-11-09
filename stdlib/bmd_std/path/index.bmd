@@ -1,0 +1,52 @@
+// BramandScript Standard Library :: Path Engine (std/path)
+// Cross-platform path manipulation, normalization, and component extraction.
+
+let join = fn(a, b, c, d, e) {
+    if type(a) == "ARRAY" {
+        let res = "";
+        let i = 0;
+        while (i < len(a)) {
+            if (i == 0) {
+                res = a[i];
+            } else {
+                res = path_join(res, a[i]);
+            }
+            i = i + 1;
+        }
+        return res;
+    }
+    if e != null { return path_join(a, b, c, d, e); }
+    if d != null { return path_join(a, b, c, d); }
+    if c != null { return path_join(a, b, c); }
+    if b != null { return path_join(a, b); }
+    if a != null { return path_join(a); }
+    return "";
+};
+
+let clean = fn(p) {
+    return path_clean(p);
+};
+
+let base = fn(p) {
+    return path_base(p);
+};
+
+let dir = fn(p) {
+    return path_dir(p);
+};
+
+let ext = fn(p) {
+    return path_ext(p);
+};
+
+let abs = fn(p) {
+    return path_abs(p);
+};
+
+let is_abs = fn(p) {
+    return path_is_abs(p);
+};
+
+let split = fn(p) {
+    return path_split(p);
+};

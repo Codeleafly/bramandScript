@@ -498,6 +498,82 @@ println("First summary:", summaries[0]["endpoint"]) // Guaranteed to match endpo
         </div>
       </section>
 
+      <!-- ================= ACTOR MODEL & SUPERVISION ================= -->
+
+      <section id="ch-actors" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Actor Model</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Lightweight Actors &amp; Supervision Trees (<code class="font-mono">actor</code> &amp; <code class="font-mono">std/actor</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript introduces an Erlang-inspired Lightweight Actor primitive with isolated mutable state, FIFO mailboxes, asynchronous <code class="font-mono">act.send(msg)</code>, and synchronous <code class="font-mono">act.ask(msg, timeout_ms)</code>.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Actor model and request-reply</span>
+          </div>
+          <pre><code class="language-bramand">let counter = actor(fn(msg, state) {
+    if msg["type"] == "inc" {
+        return state + msg["value"]
+    }
+    if msg["type"] == "get" {
+        return state
+    }
+    return state
+}, 0, "counter_actor")
+
+// Asynchronous message send
+counter.send({ "type": "inc", "value": 10 })
+
+// Synchronous request-reply with timeout
+let current = counter.ask({ "type": "get" }, 1000)
+println("Current counter:", current) // 10
+
+// Global Process Discovery
+let found = actor_whereis("counter_actor")
+println("Found actor:", found.id)
+counter.stop()</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= ASYNC/AWAIT & TASK GROUPS ================= -->
+
+      <section id="ch-async-taskgroup" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Async &amp; Structured Concurrency</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Uncolored Async/Await &amp; Structured Task Groups</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          With uncolored <code class="font-mono">async fn</code> and <code class="font-mono">await</code>, any caller can await without viral function coloring. Structured Task Groups (<code class="font-mono">task_group()</code>) provide coordinated branch execution with automatic cascade cancellation upon failures.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Async/Await and Task Groups</span>
+          </div>
+          <pre><code class="language-bramand">let fetch_data = async fn(endpoint) {
+    return "response from " + endpoint
+}
+
+// Uncolored await
+let data = await fetch_data("api/users")
+println("Received:", data)
+
+// Structured Task Group with Parallel Wait-All & Cascade Cancellation
+let tg = task_group()
+tg.spawn(fn() { return 10 })
+tg.spawn(fn() { return 20 })
+
+let res = tg.wait_all()
+if res.is_ok() {
+    println("Results:", res.unwrap()) // [10, 20]
+}</code></pre>
+        </div>
+      </section>
+
       <!-- ================= FILE I/O & PROCESS EXEC ================= -->
 
       <section id="ch-fileio" class="section-anchor">

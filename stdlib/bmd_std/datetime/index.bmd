@@ -1,0 +1,149 @@
+// BramandScript Standard Library :: Date, Time & Calendar Engine (std/datetime)
+// Complete date, time, duration, timezone, and calendar arithmetic suite.
+
+let now_ms = fn() {
+    return datetime_now();
+};
+
+let now_iso = fn() {
+    return datetime_now_iso();
+};
+
+let is_leap_year = fn(year) {
+    return datetime_is_leap_year(year);
+};
+
+let days_in_month = fn(year, month) {
+    return datetime_days_in_month(year, month);
+};
+
+let timezone_offset = fn() {
+    return datetime_timezone_offset();
+};
+
+let format = fn(val, layout) {
+    if layout == null {
+        layout = "YYYY-MM-DD HH:mm:ss";
+    }
+    return datetime_format(val, layout);
+};
+
+let diff = fn(t1, t2, unit) {
+    if unit == null {
+        unit = "ms";
+    }
+    return datetime_diff(t1, t2, unit);
+};
+
+let add = fn(val, amt, unit) {
+    return datetime_add(val, amt, unit);
+};
+
+let add_days = fn(val, days) {
+    return datetime_add(val, days, "days");
+};
+
+let add_hours = fn(val, hours) {
+    return datetime_add(val, hours, "hours");
+};
+
+let add_minutes = fn(val, mins) {
+    return datetime_add(val, mins, "minutes");
+};
+
+let add_seconds = fn(val, secs) {
+    return datetime_add(val, secs, "seconds");
+};
+
+let duration = fn(ms) {
+    let s = ms / 1000;
+    let m = s / 60;
+    let h = m / 60;
+    let d = h / 24;
+
+    return {
+        "ms": ms,
+        "total_seconds": s,
+        "total_minutes": m,
+        "total_hours": h,
+        "total_days": d
+    };
+};
+
+let from_ms = fn(ms) {
+    let p = datetime_parts(ms);
+    if type(p) == "ERROR" {
+        return p;
+    }
+
+    p["format"] = fn(layout) {
+        return format(p["unix_ms"], layout);
+    };
+    p["to_iso"] = fn() {
+        return p["iso"];
+    };
+    p["add_days"] = fn(days) {
+        return from_ms(datetime_add(p["unix_ms"], days, "days"));
+    };
+    p["add_hours"] = fn(hours) {
+        return from_ms(datetime_add(p["unix_ms"], hours, "hours"));
+    };
+    p["diff"] = fn(other, unit) {
+        let other_ms = type(other) == "HASH" ? other["unix_ms"] : other;
+        let d_ms = diff(p["unix_ms"], other_ms, "ms");
+        if unit != null {
+            return diff(p["unix_ms"], other_ms, unit);
+        }
+        return {
+            "ms": d_ms,
+            "days": d_ms / 86400000,
+            "hours": d_ms / 3600000,
+            "minutes": d_ms / 60000,
+            "seconds": d_ms / 1000
+        };
+    };
+    p["is_leap_year"] = fn() {
+        return is_leap_year(p["year"]);
+    };
+
+    return p;
+};
+
+let now = fn() {
+    return from_ms(datetime_now());
+};
+
+let parse = fn(raw_str, layout) {
+    let p = datetime_parse(raw_str, layout);
+    if type(p) == "ERROR" {
+        return p;
+    }
+    return from_ms(p["unix_ms"]);
+};
+
+let new = fn(year, month, day, hour = 0, minute = 0, second = 0) {
+    let pad = fn(n) {
+        let s = str(n);
+        if len(s) == 1 {
+            return "0" + s;
+        }
+        return s;
+    };
+    let isoStr = str(year) + "-" + pad(month) + "-" + pad(day) + "T" + pad(hour) + ":" + pad(minute) + ":" + pad(second) + "Z";
+    return parse(isoStr);
+};
+
+let Date = fn(year, month, day) {
+    return new(year, month, day, 0, 0, 0);
+};
+
+let Time = fn(hour, minute, second, ms) {
+    if second == null { second = 0; }
+    if ms == null { ms = 0; }
+    return {
+        "hour": hour,
+        "minute": minute,
+        "second": second,
+        "millisecond": ms
+    };
+};

@@ -1,0 +1,253 @@
+// BramandScript System Verification :: Week 5 Days 29-31 Test Suite
+// Validates Production-Grade Date/Time, Enterprise FS/Path, Universal Encoding,
+// Lightweight Actor Model, Supervision Trees, Monadic Result/Option, Try-Propagation (?),
+// Fixed Tuples, Deep Pattern Matching with Guards, Uncolored Async/Await, and Task Groups.
+
+import "std/datetime" as dt;
+import "std/path" as path;
+import "std/fs" as fs;
+import "std/encoding" as enc;
+import "std/actor" as act_mod;
+import "std/concurrency" as conc;
+
+describe("Day 29: Production-Grade Date, Time & Calendar Engine (std/datetime)", fn() {
+    test("creates datetime and formats to ISO 8601", fn() {
+        let d = dt.new(2026, 11, 9, 12, 30, 45);
+        let iso = d.to_iso();
+        assert_eq(iso, "2026-11-09T12:30:45Z");
+        assert_eq(d.year, 2026);
+        assert_eq(d.month, 11);
+        assert_eq(d.day, 9);
+    });
+
+    test("performs calendar arithmetic and leap year checks", fn() {
+        let d = dt.new(2024, 2, 28);
+        assert_true(d.is_leap_year());
+        let next_day = d.add_days(1);
+        assert_eq(next_day.day, 29);
+
+        let d2 = dt.new(2024, 3, 5);
+        let diff = d2.diff(d);
+        assert_eq(diff.days, 6);
+    });
+});
+
+describe("Day 29: Enterprise File System & Path Engine (std/fs & std/path)", fn() {
+    test("manipulates filesystem paths", fn() {
+        let p = path.join(["/var", "log", "app.log"]);
+        assert_eq(path.base(p), "app.log");
+        assert_eq(path.ext(p), ".log");
+        assert_eq(path.dir(p), "/var/log");
+    });
+
+    test("creates temp files and inspects files", fn() {
+        let tmp = fs.temp_file("bmd_test", ".txt");
+        let tmp_path = tmp["path"];
+        assert_true(len(tmp_path) > 0);
+        fs.write_file(tmp_path, "BramandScript Enterprise Test");
+        let content = fs.read_file(tmp_path);
+        assert_eq(content, "BramandScript Enterprise Test");
+        fs.remove(tmp_path);
+    });
+});
+
+describe("Day 29: Universal Data Encoding Suite (std/encoding)", fn() {
+    test("encodes and decodes hex and url queries", fn() {
+        let h = enc.hex_encode("BramandScript");
+        assert_eq(enc.hex_decode(h), "BramandScript");
+
+        let q = enc.url_build_query({ "lang": "bramand", "ver": "2" });
+        let parsed = enc.url_parse_query(q);
+        assert_eq(parsed["lang"], "bramand");
+        assert_eq(parsed["ver"], "2");
+    });
+
+    test("encodes and parses CSV records", fn() {
+        let records = [
+            ["name", "role", "dept"],
+            ["alice", "engineer", "dev"],
+            ["bob", "lead", "arch"]
+        ];
+        let csv_text = enc.csv_format_records(records);
+        let parsed_records = enc.csv_parse_records(csv_text);
+        assert_eq(len(parsed_records), 3);
+        assert_eq(parsed_records[1][0], "alice");
+        assert_eq(parsed_records[2][1], "lead");
+    });
+});
+
+describe("Day 29 & Day 30: Lightweight Actor Model & Supervision", fn() {
+    test("creates actor, sends async messages, and asks sync responses", fn() {
+        let act = actor(fn(msg, state) {
+            if msg["type"] == "inc" {
+                return state + msg["value"];
+            }
+            if msg["type"] == "get" {
+                return state;
+            }
+            return state;
+        }, 100);
+
+        act.send({ "type": "inc", "value": 50 });
+        let current = act.ask({ "type": "get" }, 1000);
+        assert_eq(current, 150);
+        act.stop();
+    });
+
+    test("registers and discovers actor by name", fn() {
+        let act = actor(fn(msg, state) {
+            return msg;
+        }, 0, "echo_actor");
+
+        let found = actor_whereis("echo_actor");
+        assert_true(found != null);
+        let res = found.ask("hello", 1000);
+        assert_eq(res, "hello");
+        act.stop();
+        actor_unregister("echo_actor");
+    });
+
+    test("supervises child actors with auto-recovery", fn() {
+        let sup = act_mod.new_supervisor({
+            "strategy": "one_for_one",
+            "max_restarts": 3,
+            "children": [
+                {
+                    "id": "worker",
+                    "start": fn() {
+                        return actor(fn(state, msg) {
+                            if msg == "crash" {
+                                panic("simulated crash");
+                            }
+                            return state + 1;
+                        }, 0);
+                    }
+                }
+            ]
+        });
+
+        let child = sup.get_child("worker");
+        assert_true(child != null);
+        sup.stop();
+    });
+});
+
+describe("Day 30: Monadic Safety & Try-Propagation Operator (?)", fn() {
+    test("handles Ok and Err with monadic unwrap and map", fn() {
+        let ok_res = Ok(42);
+        assert_true(ok_res.is_ok());
+        assert_eq(ok_res.unwrap(), 42);
+
+        let mapped = ok_res.map(fn(v) { return v * 2; });
+        assert_eq(mapped.unwrap(), 84);
+
+        let err_res = Err("disk failure");
+        assert_true(err_res.is_err());
+        assert_eq(err_res.unwrap_or(999), 999);
+    });
+
+    test("handles Some and None options", fn() {
+        let some_val = Some("bmd");
+        assert_true(some_val.is_some());
+        assert_eq(some_val.unwrap(), "bmd");
+
+        let none_val = None();
+        assert_true(none_val.is_none());
+        assert_eq(none_val.unwrap_or("default"), "default");
+    });
+
+    test("unwraps Ok via ? operator and early returns on Err", fn() {
+        let safe_divide = fn(a, b) {
+            if b == 0 {
+                return Err("zero division");
+            }
+            return Ok(a / b);
+        };
+
+        let calculate = fn(x, y) {
+            let res = safe_divide(x, y)?;
+            return Ok(res + 10);
+        };
+
+        let success = calculate(100, 2);
+        assert_true(success.is_ok());
+        assert_eq(success.unwrap(), 60);
+
+        let failure = calculate(100, 0);
+        assert_true(failure.is_err());
+    });
+});
+
+describe("Day 31: Fixed Tuples & Deep Pattern Matching", fn() {
+    test("constructs tuples and supports multi-variable destructuring", fn() {
+        let point = (10, 20, 30);
+        assert_eq(len(point), 3);
+        assert_eq(point[0], 10);
+        assert_eq(point[1], 20);
+        assert_eq(point[2], 30);
+
+        let (x, y, z) = point;
+        assert_eq(x, 10);
+        assert_eq(y, 20);
+        assert_eq(z, 30);
+    });
+
+    test("matches patterns with guards and destructuring", fn() {
+        let classify = fn(item) {
+            return match item {
+                case (0, 0) => { "origin" }
+                case (0, y) => { "y-axis: " + str(y) }
+                case (x, 0) => { "x-axis: " + str(x) }
+                case (x, y) if x == y => { "diagonal" }
+                case (x, y) => { "point" }
+                default => { "other" }
+            };
+        };
+
+        assert_eq(classify((0, 0)), "origin");
+        assert_eq(classify((0, 5)), "y-axis: 5");
+        assert_eq(classify((7, 0)), "x-axis: 7");
+        assert_eq(classify((4, 4)), "diagonal");
+        assert_eq(classify((2, 9)), "point");
+    });
+});
+
+describe("Day 31: Uncolored Async/Await & Structured Task Groups", fn() {
+    test("awaits async fn coroutines and uncolored values", fn() {
+        let fetch = async fn(val) {
+            return val * 10;
+        };
+
+        let res = await fetch(5);
+        assert_eq(res, 50);
+
+        let direct = await "uncolored_data";
+        assert_eq(direct, "uncolored_data");
+    });
+
+    test("executes task group with parallel wait_all and wait_any", fn() {
+        let tg = conc.task_group();
+        tg.spawn(fn() { return 100; });
+        tg.spawn(fn() { return 200; });
+        assert_eq(tg.count(), 2);
+
+        let all_res = tg.wait_all();
+        assert_true(all_res.is_ok());
+        let results = all_res.unwrap();
+        assert_eq(results[0] + results[1], 300);
+    });
+
+    test("cascades cancellation on task failure", fn() {
+        let tg = conc.task_group();
+        tg.spawn(fn() {
+            panic("failure");
+        });
+        tg.spawn(fn() {
+            sleep(50);
+            return "done";
+        });
+
+        let res = tg.wait_all();
+        assert_true(res.is_err());
+    });
+});

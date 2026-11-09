@@ -114,6 +114,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
 	p.registerPrefix(token.MATCH, p.parseMatchExpression)
 	p.registerPrefix(token.SPAWN, p.parseSpawnExpression)
+	p.registerPrefix(token.ACTOR, p.parseActorExpression)
+	p.registerPrefix(token.ASYNC, p.parseAsyncFunctionLiteral)
+	p.registerPrefix(token.AWAIT, p.parseAwaitExpression)
 	p.registerPrefix(token.SEND_RECV, p.parsePrefixExpression)
 	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
 	p.registerPrefix(token.YIELD, p.parseYieldExpression)
@@ -217,9 +220,11 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 func (p *Parser) parseDotExpression(left ast.Expression) ast.Expression {
 	dotToken := p.curToken
-	if !p.expectPeek(token.IDENT) {
+	if !p.peekTokenIs(token.IDENT) && !token.IsKeyword(p.peekToken.Type) {
+		p.peekError(token.IDENT)
 		return nil
 	}
+	p.nextToken()
 	field := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	return &ast.DotExpression{Token: dotToken, Left: left, Field: field}
 }
@@ -275,6 +280,12 @@ func (p *Parser) parseMatchExpression() ast.Expression {
 			clause.Values = append(clause.Values, p.parseExpression(LOWEST))
 		}
 
+		if p.peekTokenIs(token.IF) {
+			p.nextToken() // curToken is now 'if'
+			p.nextToken() // move to guard expression
+			clause.Guard = p.parseExpression(LOWEST)
+		}
+
 		if !p.expectPeek(token.ARROW) {
 			return nil
 		}
@@ -295,6 +306,32 @@ func (p *Parser) parseSpawnExpression() ast.Expression {
 	expr := &ast.SpawnExpression{Token: p.curToken}
 	p.nextToken()
 	expr.Call = p.parseExpression(PREFIX)
+	return expr
+}
+
+func (p *Parser) parseActorExpression() ast.Expression {
+	expr := &ast.ActorExpression{Token: p.curToken}
+	if p.peekTokenIs(token.LPAREN) {
+		p.nextToken() // curToken is now LPAREN
+		p.nextToken() // curToken is start of handler
+		expr.Handler = p.parseExpression(LOWEST)
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // curToken is COMMA
+			p.nextToken() // curToken is start of initial state
+			expr.InitialState = p.parseExpression(LOWEST)
+		}
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // curToken is COMMA
+			p.nextToken() // curToken is start of name
+			expr.Name = p.parseExpression(LOWEST)
+		}
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+		return expr
+	}
+	p.nextToken()
+	expr.Handler = p.parseExpression(PREFIX)
 	return expr
 }
 
@@ -433,8 +470,32 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseGroupedExpression() ast.Expression {
+	lparenToken := p.curToken
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken() // consume ')'
+		return &ast.TupleLiteral{Token: lparenToken, Elements: []ast.Expression{}}
+	}
+
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
+
+	if p.peekTokenIs(token.COMMA) {
+		elements := []ast.Expression{exp}
+		for p.peekTokenIs(token.COMMA) {
+			p.nextToken() // curToken is now COMMA
+			if p.peekTokenIs(token.RPAREN) {
+				// Trailing comma like (a,)
+				break
+			}
+			p.nextToken() // start of next expression
+			elements = append(elements, p.parseExpression(LOWEST))
+		}
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+		return &ast.TupleLiteral{Token: lparenToken, Elements: elements}
+	}
+
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
@@ -604,6 +665,48 @@ func (p *Parser) parseArrayPattern() *ast.ArrayPattern {
 	return pattern
 }
 
+func (p *Parser) parseTuplePattern() *ast.TuplePattern {
+	pattern := &ast.TuplePattern{Token: p.curToken, Elements: []ast.Expression{}}
+
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return pattern
+	}
+
+	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
+		p.nextToken()
+		if p.curTokenIs(token.ELLIPSIS) {
+			ellipsisTok := p.curToken
+			if !p.expectPeek(token.IDENT) {
+				return nil
+			}
+			target := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			pattern.Elements = append(pattern.Elements, &ast.RestPattern{Token: ellipsisTok, Target: target})
+		} else if p.curTokenIs(token.IDENT) {
+			ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+			pattern.Elements = append(pattern.Elements, ident)
+		} else if p.curTokenIs(token.RPAREN) {
+			break
+		}
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.peekTokenIs(token.RPAREN) {
+			p.nextToken()
+			break
+		}
+	}
+
+	return pattern
+}
+
+func (p *Parser) parseAwaitExpression() ast.Expression {
+	expr := &ast.AwaitExpression{Token: p.curToken}
+	p.nextToken()
+	expr.Value = p.parseExpression(PREFIX)
+	return expr
+}
+
 func (p *Parser) parseHashPattern() *ast.HashPattern {
 	pattern := &ast.HashPattern{Token: p.curToken, Keys: []*ast.Identifier{}}
 
@@ -630,6 +733,20 @@ func (p *Parser) parseHashPattern() *ast.HashPattern {
 	}
 
 	return pattern
+}
+
+func (p *Parser) parseAsyncFunctionLiteral() ast.Expression {
+	asyncToken := p.curToken
+	if !p.expectPeek(token.FUNCTION) {
+		return nil
+	}
+	lit := p.parseFunctionLiteral()
+	if fnLit, ok := lit.(*ast.FunctionLiteral); ok {
+		fnLit.IsAsync = true
+		fnLit.Token = asyncToken
+		return fnLit
+	}
+	return lit
 }
 
 func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]ast.Expression, []ast.Statement) {
@@ -897,7 +1014,46 @@ func (p *Parser) parseYieldExpression() ast.Expression {
 	return exp
 }
 
+func (p *Parser) hasMatchingColonAhead() bool {
+	l := *p.l
+	depth := 0
+	questionCount := 0
+	for {
+		tok := l.NextToken()
+		if tok.Type == token.EOF || tok.Type == token.SEMICOLON {
+			return false
+		}
+		if tok.Type == token.LPAREN || tok.Type == token.LBRACKET || tok.Type == token.LBRACE {
+			depth++
+		} else if tok.Type == token.RPAREN || tok.Type == token.RBRACKET || tok.Type == token.RBRACE {
+			if depth == 0 {
+				return false
+			}
+			depth--
+		} else if depth == 0 {
+			if tok.Type == token.QUESTION {
+				questionCount++
+			} else if tok.Type == token.COLON {
+				if questionCount > 0 {
+					questionCount--
+				} else {
+					return true
+				}
+			}
+		}
+	}
+}
+
 func (p *Parser) parseTernaryExpression(condition ast.Expression) ast.Expression {
+	if p.peekTokenIs(token.SEMICOLON) || p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.RBRACKET) ||
+		p.peekTokenIs(token.RBRACE) || p.peekTokenIs(token.COMMA) || p.peekTokenIs(token.COLON) ||
+		!p.hasMatchingColonAhead() {
+		return &ast.TryExpression{
+			Token: p.curToken,
+			Value: condition,
+		}
+	}
+
 	exp := &ast.TernaryExpression{
 		Token:     p.curToken,
 		Condition: condition,
@@ -925,7 +1081,7 @@ func (p *Parser) parseNullCoalesceExpression(left ast.Expression) ast.Expression
 
 func (p *Parser) parseOptionalChainExpression(left ast.Expression) ast.Expression {
 	dotToken := p.curToken // '?.'
-	if p.peekTokenIs(token.IDENT) {
+	if p.peekTokenIs(token.IDENT) || token.IsKeyword(p.peekToken.Type) {
 		p.nextToken()
 		field := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 		return &ast.OptionalDotExpression{Token: dotToken, Left: left, Field: field}

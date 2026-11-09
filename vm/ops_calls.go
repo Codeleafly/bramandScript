@@ -50,6 +50,27 @@ func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 		numArgs++
 	}
 
+	if cl.Fn.IsAsync {
+		args := make([]object.Object, numArgs)
+		for i := numArgs - 1; i >= 0; i-- {
+			args[i] = vm.pop()
+		}
+		_ = vm.pop()
+
+		fut := object.NewFuture()
+		go func(closure *object.Closure, taskArgs []object.Object, future *object.Future) {
+			childVM := vm.newChildVM(closure, taskArgs)
+			err := childVM.Run()
+			if err != nil {
+				future.Reject(err)
+			} else {
+				future.Resolve(childVM.LastPoppedStackElem())
+			}
+		}(cl, args, fut)
+
+		return vm.push(fut)
+	}
+
 	if cl.Instance == nil && vm.framesIndex > 0 {
 		parentFrame := vm.currentFrame()
 		if parentFrame != nil && parentFrame.cl != nil && parentFrame.cl.Instance != nil {

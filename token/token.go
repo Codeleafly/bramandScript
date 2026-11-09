@@ -107,6 +107,9 @@ const (
 	FINALLY  = "FINALLY"
 	THROW    = "THROW"
 	DEFER    = "DEFER"
+	ACTOR    = "ACTOR"
+	ASYNC    = "ASYNC"
+	AWAIT    = "AWAIT"
 )
 
 var keywords = map[string]TokenType{
@@ -139,6 +142,9 @@ var keywords = map[string]TokenType{
 	"finally":  FINALLY,
 	"throw":    THROW,
 	"defer":    DEFER,
+	"actor":    ACTOR,
+	"async":    ASYNC,
+	"await":    AWAIT,
 }
 
 func LookupIdent(ident string) TokenType {
@@ -146,4 +152,13 @@ func LookupIdent(ident string) TokenType {
 		return tok
 	}
 	return IDENT
+}
+
+func IsKeyword(tok TokenType) bool {
+	for _, kw := range keywords {
+		if kw == tok {
+			return true
+		}
+	}
+	return false
 }

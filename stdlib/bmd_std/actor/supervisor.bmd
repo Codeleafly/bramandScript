@@ -1,0 +1,182 @@
+// BramandScript Standard Library :: Fault-Tolerant Supervision Tree Engine (std/actor/supervisor)
+// Strategies: one_for_one, one_for_all, rest_for_one with auto-recovery and panic isolation.
+
+let supervisor = fn(config) {
+    let strategy = config["strategy"];
+    if strategy == null {
+        strategy = "one_for_one";
+    }
+
+    let max_restarts = config["max_restarts"];
+    if max_restarts == null {
+        max_restarts = 3;
+    }
+
+    let time_window = config["time_window"];
+    if time_window == null {
+        time_window = 5000;
+    }
+
+    let child_specs = config["children"];
+    if child_specs == null {
+        child_specs = [];
+    }
+
+    // Active child actors map and restart timestamps
+    let active_children = [];
+    let restart_history = [];
+    let is_running = true;
+
+    // Start all initial child specifications
+    let i = 0;
+    while (i < len(child_specs)) {
+        let spec = child_specs[i];
+        let start_fn = spec["start"];
+        let act = start_fn();
+        let child_id = spec["id"];
+        if child_id == null {
+            child_id = "child_" + str(i);
+        }
+        push(active_children, {
+            "id": child_id,
+            "spec": spec,
+            "actor": act
+        });
+        i = i + 1;
+    }
+
+    let restart_child_at = fn(idx) {
+        let entry = active_children[idx];
+        let spec = entry["spec"];
+        let old_act = entry["actor"];
+        if old_act != null && old_act.is_alive() {
+            old_act.stop();
+        }
+        let start_fn = spec["start"];
+        let new_act = start_fn();
+        entry["actor"] = new_act;
+    };
+
+    let check_and_recover = fn() {
+        if (!is_running) {
+            return null;
+        }
+
+        let now_t = time_ms();
+        let idx = 0;
+        while (idx < len(active_children)) {
+            let entry = active_children[idx];
+            let act = entry["actor"];
+            let st = act.status();
+
+            if (st == "failed") {
+                // Record restart timestamp
+                push(restart_history, now_t);
+
+                // Prune old restart timestamps outside time_window
+                let pruned = [];
+                let p = 0;
+                while (p < len(restart_history)) {
+                    if (now_t - restart_history[p] <= time_window) {
+                        push(pruned, restart_history[p]);
+                    }
+                    p = p + 1;
+                }
+                restart_history = pruned;
+
+                // Check restart budget
+                if (len(restart_history) > max_restarts) {
+                    is_running = false;
+                    // Stop all children on supervisor shutdown
+                    let c = 0;
+                    while (c < len(active_children)) {
+                        active_children[c]["actor"].stop();
+                        c = c + 1;
+                    }
+                    return null;
+                }
+
+                // Apply strategy
+                if (strategy == "one_for_one") {
+                    restart_child_at(idx);
+                } else if (strategy == "one_for_all") {
+                    let k = 0;
+                    while (k < len(active_children)) {
+                        restart_child_at(k);
+                        k = k + 1;
+                    }
+                } else if (strategy == "rest_for_one") {
+                    let k = idx;
+                    while (k < len(active_children)) {
+                        restart_child_at(k);
+                        k = k + 1;
+                    }
+                }
+            }
+            idx = idx + 1;
+        }
+    };
+
+    // Spawn supervisor background monitor thread
+    spawn fn() {
+        while (is_running) {
+            check_and_recover();
+            sleep(15);
+        }
+    }();
+
+    let which_children = fn() {
+        let res = [];
+        let j = 0;
+        while (j < len(active_children)) {
+            let entry = active_children[j];
+            push(res, {
+                "id": entry["id"],
+                "actor": entry["actor"],
+                "status": entry["actor"].status()
+            });
+            j = j + 1;
+        }
+        return res;
+    };
+
+    let count_children = fn() {
+        return len(active_children);
+    };
+
+    let stop = fn() {
+        is_running = false;
+        let j = 0;
+        while (j < len(active_children)) {
+            active_children[j]["actor"].stop();
+            j = j + 1;
+        }
+    };
+
+    let status = fn() {
+        if (!is_running) {
+            return "stopped";
+        }
+        return "running";
+    };
+
+    let get_child = fn(id) {
+        let j = 0;
+        while (j < len(active_children)) {
+            if (active_children[j]["id"] == id) {
+                return active_children[j]["actor"];
+            }
+            j = j + 1;
+        }
+        return null;
+    };
+
+    return {
+        "which_children": which_children,
+        "count_children": count_children,
+        "get_child": get_child,
+        "stop": stop,
+        "status": status,
+        "check_and_recover": check_and_recover
+    };
+};

@@ -495,6 +495,7 @@ type FunctionLiteral struct {
 	Defaults   map[string]Expression
 	Body       *BlockStatement
 	Name       string // optional named function: fn add(a, b) {...}
+	IsAsync    bool
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}
@@ -559,6 +560,28 @@ func (al *ArrayLiteral) String() string {
 	out.WriteString("[")
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteString("]")
+	return out.String()
+}
+
+type TupleLiteral struct {
+	Token    token.Token // '('
+	Elements []Expression
+}
+
+func (tl *TupleLiteral) expressionNode()      {}
+func (tl *TupleLiteral) TokenLiteral() string { return tl.Token.Literal }
+func (tl *TupleLiteral) String() string {
+	var out bytes.Buffer
+	var elements []string
+	for _, el := range tl.Elements {
+		elements = append(elements, el.String())
+	}
+	out.WriteString("(")
+	out.WriteString(strings.Join(elements, ", "))
+	if len(tl.Elements) == 1 {
+		out.WriteString(",")
+	}
+	out.WriteString(")")
 	return out.String()
 }
 
@@ -677,6 +700,7 @@ func (de *DotExpression) String() string {
 
 type MatchClause struct {
 	Values []Expression // nil indicates default
+	Guard  Expression   // optional if <condition>
 	Body   *BlockStatement
 }
 
@@ -718,6 +742,39 @@ func (se *SpawnExpression) String() string {
 		return "spawn " + se.Call.String()
 	}
 	return "spawn"
+}
+
+type ActorExpression struct {
+	Token        token.Token // token.ACTOR
+	Handler      Expression
+	InitialState Expression
+	Name         Expression
+}
+
+func (ae *ActorExpression) expressionNode()      {}
+func (ae *ActorExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *ActorExpression) String() string {
+	if ae.Handler != nil {
+		if ae.InitialState != nil {
+			return "actor(" + ae.Handler.String() + ", " + ae.InitialState.String() + ")"
+		}
+		return "actor " + ae.Handler.String()
+	}
+	return "actor"
+}
+
+type TryExpression struct {
+	Token token.Token // token.QUESTION
+	Value Expression
+}
+
+func (te *TryExpression) expressionNode()      {}
+func (te *TryExpression) TokenLiteral() string { return te.Token.Literal }
+func (te *TryExpression) String() string {
+	if te.Value != nil {
+		return te.Value.String() + "?"
+	}
+	return "?"
 }
 
 type PipeExpression struct {
@@ -782,6 +839,42 @@ func (hp *HashPattern) String() string {
 	out.WriteString(strings.Join(keys, ", "))
 	out.WriteString(" }")
 	return out.String()
+}
+
+type TuplePattern struct {
+	Token    token.Token // token.LPAREN
+	Elements []Expression // *Identifier or *RestPattern or nested patterns
+}
+
+func (tp *TuplePattern) expressionNode()      {}
+func (tp *TuplePattern) TokenLiteral() string { return tp.Token.Literal }
+func (tp *TuplePattern) String() string {
+	var out bytes.Buffer
+	var elements []string
+	for _, el := range tp.Elements {
+		elements = append(elements, el.String())
+	}
+	out.WriteString("(")
+	out.WriteString(strings.Join(elements, ", "))
+	if len(tp.Elements) == 1 {
+		out.WriteString(",")
+	}
+	out.WriteString(")")
+	return out.String()
+}
+
+type AwaitExpression struct {
+	Token token.Token // token.AWAIT
+	Value Expression
+}
+
+func (ae *AwaitExpression) expressionNode()      {}
+func (ae *AwaitExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AwaitExpression) String() string {
+	if ae.Value != nil {
+		return "await " + ae.Value.String()
+	}
+	return "await"
 }
 
 type YieldExpression struct {

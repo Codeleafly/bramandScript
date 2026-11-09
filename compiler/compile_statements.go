@@ -705,6 +705,14 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 							for _, key := range pat.Keys {
 								exportedNames = append(exportedNames, key.Value)
 							}
+						case *ast.TuplePattern:
+							for _, el := range pat.Elements {
+								if rp, ok := el.(*ast.RestPattern); ok && rp.Target != nil {
+									exportedNames = append(exportedNames, rp.Target.Value)
+								} else if ident, ok := el.(*ast.Identifier); ok {
+									exportedNames = append(exportedNames, ident.Value)
+								}
+							}
 						}
 					}
 				case *ast.ConstStatement:
@@ -723,6 +731,14 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 						case *ast.HashPattern:
 							for _, key := range pat.Keys {
 								exportedNames = append(exportedNames, key.Value)
+							}
+						case *ast.TuplePattern:
+							for _, el := range pat.Elements {
+								if rp, ok := el.(*ast.RestPattern); ok && rp.Target != nil {
+									exportedNames = append(exportedNames, rp.Target.Value)
+								} else if ident, ok := el.(*ast.Identifier); ok {
+									exportedNames = append(exportedNames, ident.Value)
+								}
 							}
 						}
 					}
@@ -1260,6 +1276,40 @@ func (c *Compiler) compileDestructuring(pattern ast.Node, value ast.Expression, 
 				c.emit(code.OpSetGlobal, sym.Index)
 			} else {
 				c.emit(code.OpSetLocal, sym.Index)
+			}
+		}
+
+	case *ast.TuplePattern:
+		for i, el := range pat.Elements {
+			if rp, ok := el.(*ast.RestPattern); ok {
+				sliceBuiltin, ok := c.symbolTable.Resolve("slice")
+				if !ok {
+					return fmt.Errorf("undefined builtin 'slice'")
+				}
+				c.loadSymbol(sliceBuiltin)
+				c.loadSymbol(tmpSym)
+				c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+				c.emit(code.OpNull)
+				c.emit(code.OpNull)
+				c.emit(code.OpCall, 4)
+
+				targetSym := c.symbolTable.Define(rp.Target.Value, isConst)
+				if targetSym.Scope == GlobalScope {
+					c.emit(code.OpSetGlobal, targetSym.Index)
+				} else {
+					c.emit(code.OpSetLocal, targetSym.Index)
+				}
+			} else if ident, ok := el.(*ast.Identifier); ok {
+				c.loadSymbol(tmpSym)
+				c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: int64(i)}))
+				c.emit(code.OpIndex)
+
+				sym := c.symbolTable.Define(ident.Value, isConst)
+				if sym.Scope == GlobalScope {
+					c.emit(code.OpSetGlobal, sym.Index)
+				} else {
+					c.emit(code.OpSetLocal, sym.Index)
+				}
 			}
 		}
 	}

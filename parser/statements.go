@@ -120,6 +120,9 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	} else if p.peekTokenIs(token.LBRACE) {
 		p.nextToken()
 		stmt.Pattern = p.parseHashPattern()
+	} else if p.peekTokenIs(token.LPAREN) {
+		p.nextToken()
+		stmt.Pattern = p.parseTuplePattern()
 	} else if p.peekTokenIs(token.IDENT) {
 		p.nextToken()
 		stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
@@ -151,6 +154,9 @@ func (p *Parser) parseConstStatement() *ast.ConstStatement {
 	} else if p.peekTokenIs(token.LBRACE) {
 		p.nextToken()
 		stmt.Pattern = p.parseHashPattern()
+	} else if p.peekTokenIs(token.LPAREN) {
+		p.nextToken()
+		stmt.Pattern = p.parseTuplePattern()
 	} else if p.peekTokenIs(token.IDENT) {
 		p.nextToken()
 		stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}

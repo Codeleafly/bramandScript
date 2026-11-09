@@ -253,4 +253,62 @@ var Builtins = []BuiltinDef{
 	{Name: "ensure_newline"},
 	{Name: "error"},
 	{Name: "yield"},
+
+	// Day 29 Production-Grade Date, Time & Calendar Engine
+	{Name: "datetime_now"},
+	{Name: "datetime_now_iso"},
+	{Name: "datetime_parse"},
+	{Name: "datetime_format"},
+	{Name: "datetime_parts"},
+	{Name: "datetime_is_leap_year"},
+	{Name: "datetime_days_in_month"},
+	{Name: "datetime_add"},
+	{Name: "datetime_diff"},
+	{Name: "datetime_timezone_offset"},
+
+	// Day 29 Enterprise File System & Path Manipulation Engine (std/fs & std/path)
+	{Name: "path_join"},
+	{Name: "path_clean"},
+	{Name: "path_base"},
+	{Name: "path_dir"},
+	{Name: "path_ext"},
+	{Name: "path_abs"},
+	{Name: "path_is_abs"},
+	{Name: "path_split"},
+	{Name: "fs_walk"},
+	{Name: "fs_glob"},
+	{Name: "fs_temp_file"},
+	{Name: "fs_tree"},
+	{Name: "fs_mkdir"},
+	{Name: "fs_stat"},
+
+	// Day 29 Universal Data Encoding & Serialization Suite (std/encoding)
+	{Name: "hex_encode"},
+	{Name: "hex_decode"},
+	{Name: "url_encode"},
+	{Name: "url_decode"},
+	{Name: "url_parse_query"},
+	{Name: "url_build_query"},
+	{Name: "csv_parse_records"},
+	{Name: "csv_format_records"},
+
+	// Day 29 & Day 30 Actor Model & Process Registry
+	{Name: "actor"},
+	{Name: "actor_spawn"},
+	{Name: "actor_register"},
+	{Name: "actor_whereis"},
+	{Name: "actor_unregister"},
+
+	// Day 30 Monadic Safety & Algebraic Data Types (Result & Option)
+	{Name: "Ok"},
+	{Name: "Err"},
+	{Name: "Some"},
+	{Name: "None"},
+	{Name: "is_ok"},
+	{Name: "is_err"},
+	{Name: "is_some"},
+	{Name: "is_none"},
+
+	// Day 31 Cooperative Multitasking Scheduler & Structured Task Groups
+	{Name: "task_group"},
 }
