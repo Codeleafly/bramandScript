@@ -39,6 +39,38 @@ func TestTupleLiteralsAndIndexing(t *testing.T) {
 			input:    `let t = (1, 2); t == (1, 3);`,
 			expected: false,
 		},
+		{
+			input:    `let t = (10, 20, 30); t.len;`,
+			expected: 3,
+		},
+		{
+			input:    `let t = (10, 20, 30); t.length;`,
+			expected: 3,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestTupleAsHashKey(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let m = {};
+			m[(1, 2)] = "coord";
+			m[(1, 2)];
+			`,
+			expected: "coord",
+		},
+		{
+			input: `
+			let m = {};
+			let key = ("user", 42);
+			m[key] = 100;
+			m[("user", 42)];
+			`,
+			expected: 100,
+		},
 	}
 
 	runVmTests(t, tests)
@@ -269,6 +301,44 @@ func TestDeepPatternMatchingHashAndGuards(t *testing.T) {
 			check_user({ "name": "bob", "age": 15 });
 			`,
 			expected: "bob_minor",
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestWildcardAndVariablePatternMatching(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+			let m = match 99 {
+				case 1 => { "one" }
+				case _ => { "wildcard" }
+			};
+			m;
+			`,
+			expected: "wildcard",
+		},
+		{
+			input: `
+			let m = match 42 {
+				case 1 => { "one" }
+				case val => { "bound_" + str(val) }
+			};
+			m;
+			`,
+			expected: "bound_42",
+		},
+		{
+			input: `
+			let m = match 15 {
+				case 1 => { "one" }
+				case x if x > 10 => { "large" }
+				case _ => { "other" }
+			};
+			m;
+			`,
+			expected: "large",
 		},
 	}
 

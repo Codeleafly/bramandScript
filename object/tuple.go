@@ -33,3 +33,24 @@ func (t *Tuple) Inspect() string {
 func NewTuple(elements ...Object) *Tuple {
 	return &Tuple{Elements: elements}
 }
+
+func (t *Tuple) HashKey() HashKey {
+	var h uint64 = 14695981039346656037
+	for _, el := range t.Elements {
+		if hashable, ok := el.(Hashable); ok {
+			hk := hashable.HashKey()
+			h ^= hk.Value
+			h *= 1099511628211
+		} else {
+			str := ""
+			if el != nil {
+				str = el.Inspect()
+			}
+			for i := 0; i < len(str); i++ {
+				h ^= uint64(str[i])
+				h *= 1099511628211
+			}
+		}
+	}
+	return HashKey{Type: t.Type(), Value: h}
+}

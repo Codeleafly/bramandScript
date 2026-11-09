@@ -363,17 +363,45 @@ c.inc()
 c.inc()
 print("Counter value:", c.val)
 
-// Pattern matching & Destructuring
-let [head, ...tail] = [10, 20, 30, 40]
-let { name, role } = { "name": "Bramand", "role": "Architect" }
-
-let status = 200
-let response = match status {
-    case 200 => { "Success" }
-    case 404 => { "Not Found" }
-    default => { "Unknown" }
+// Pattern matching with guards & Destructuring
+let (x, y) = (10, 20)
+let coord_type = match (x, y) {
+    case (0, 0) => { "origin" }
+    case (a, b) if a == b => { "diagonal" }
+    case (a, b) => { "point" }
+    case _ => { "other" }
 }
-print("Status:", response)
+print("Coord type:", coord_type)
+
+// Actor Model with request-reply
+let counter = actor(fn(msg, state) {
+    if msg["type"] == "inc" { return state + msg["value"] }
+    if msg["type"] == "get" { return state }
+    return state
+}, 0)
+counter.send({ "type": "inc", "value": 42 })
+print("Actor count:", counter.ask({ "type": "get" }, 1000)) // 42
+counter.stop()
+
+// Monadic Result & Try-Propagation (?)
+let divide = fn(a, b) {
+    if b == 0 { return Err("division by zero") }
+    return Ok(a / b)
+}
+let calc = fn(x, y) {
+    let q = divide(x, y)? // Unwraps Ok, or early-returns Err!
+    return Ok(q * 10)
+}
+let answer = calc(100, 5)
+print("Monadic answer:", answer.unwrap()) // 200
+
+// Uncolored Async/Await & Structured Task Groups
+let fetch = async fn(url) {
+    sleep(10)
+    return "response from " + url
+}
+let resp = await fetch("api/data")
+print("Fetched:", resp)
 
 // Pipeline Operator (|>)
 let inc = fn(x) { return x + 1; }
@@ -394,14 +422,14 @@ for i, item in fruits {
 
 The documentation is organized into dedicated, fast-loading modular guides:
 - [Getting Started & Overview](https://codeleafly.github.io/bramandScript/) — Installation, CLI commands, permission flags, and REPL `:editor` mode.
-- [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, operators (null-coalescing `??`, optional chaining `?.`, ternary `?:`), default parameters, LIFO `defer`, and `try-catch-finally` exceptions.
-- [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, spread operators (`...`), enums, and pattern matching.
-- [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight tasks (`spawn`), channels, mutexes, counting semaphores (`std/semaphore`), worker pools (`std/pool`), and file I/O.
-- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 21 embedded modules: `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
+- [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, operators (`??`, `?.`, `?:`, `?`), default parameters, fixed tuples `(a, b)`, `async fn`, LIFO `defer`, and `try-catch-finally` exceptions.
+- [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, fixed immutable tuples, hashable tuple keys, and deep pattern matching with guards (`match-case ... if ...`).
+- [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight actors & mailboxes, supervision trees (`one_for_one`, `one_for_all`, `rest_for_one`), uncolored async/await, continuation frames, cooperative multitasking (`yield`), structured task groups (`task_group`), channels, mutexes, semaphores, and worker pools.
+- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 25 embedded modules: `std/datetime`, `std/fs`, `std/path`, `std/encoding`, `std/actor`, `std/concurrency`, `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
 - [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, resilient network requests, AI streaming, and vector search.
 - [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Centralized package manager (`bmd install`, `bmd get`, `bmd cache`), test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
 - [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 4-stage runtime import resolution pipeline, inter-process atomic locking, SemVer diamond dependency resolution, 64-bit opcode VM, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.
-- [Runtime & Diagnostics Reference](https://codeleafly.github.io/bramandScript/errors.html) — Complete error catalog (`SyntaxError`, `CompileError`, `RuntimeError`, `PermissionDenied`, `ConcurrencyError`, `PackageManagerError`), visual diagnostic anatomy, and defensive recovery strategies.
+- [Runtime & Diagnostics Reference](https://codeleafly.github.io/bramandScript/errors.html) — Algebraic monads (`Result: Ok/Err`, `Option: Some/None`), try-propagation operator (`?`), visual diagnostic anatomy, and error catalog.
 
 ---
 

@@ -138,6 +138,7 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Defensive Engineering</h3>
           <ul class="space-y-1">
             <li><a href="#err-recovery" class="nav-link"><span>✦</span> Try-Catch &amp; Defer Recovery</a></li>
+            <li><a href="#err-monadic" class="nav-link"><span>✦</span> Monadic Safety &amp; ? Operator</a></li>
             <li><a href="#err-patterns" class="nav-link"><span>✦</span> Safe Nav &amp; Nullish Operators</a></li>
             <li><a href="#err-resilience" class="nav-link"><span>✦</span> Retry, Circuit Breakers &amp; Log</a></li>
             <li><a href="#err-matrix" class="nav-link"><span>✦</span> Quick Reference Matrix</a></li>
@@ -804,6 +805,105 @@ spawn(fn() {
             <div class="text-slate-700 dark:text-slate-300 font-sans mb-2">Nullish Assignment</div>
             <p class="text-slate-500 font-sans">Assigns fallback value only if target property is currently null.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- Section: Monadic Safety & ? Operator -->
+      <section id="err-monadic" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Monadic Safety &amp; The Try-Propagation Operator (<code class="font-mono text-purple-500">?</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          While <code class="font-mono">try / catch</code> is suited for unrecoverable infrastructure crashes, application domain logic in BramandScript is designed around first-class <span class="font-bold text-slate-900 dark:text-white">Algebraic Monads</span> (<code class="font-mono">Result</code> and <code class="font-mono">Option</code>). Combining monadic containers with the postfix <code class="font-mono">?</code> operator enables zero-overhead error propagation without viral try-catch wrapping.
+        </p>
+
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">1. Result Monad: <code class="font-mono">Ok(v)</code> and <code class="font-mono">Err(e)</code></h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">
+          Functions that may fail return a <code class="font-mono">Result</code> container. Callers can unwrap safely, provide default fallbacks, or transform the inner value via functional chaining:
+        </p>
+
+        <div class="table-container mb-6">
+          <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-800 rounded-lg">
+            <thead class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th class="p-2 font-semibold">Method</th>
+                <th class="p-2 font-semibold">Signature</th>
+                <th class="p-2 font-semibold">Behavior</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 font-mono">
+              <tr><td class="p-2 text-blue-500">is_ok</td><td class="p-2">res.is_ok()</td><td class="p-2 font-sans">Returns true if result contains Ok value.</td></tr>
+              <tr><td class="p-2 text-blue-500">is_err</td><td class="p-2">res.is_err()</td><td class="p-2 font-sans">Returns true if result contains Err error.</td></tr>
+              <tr><td class="p-2 text-blue-500">unwrap</td><td class="p-2">res.unwrap()</td><td class="p-2 font-sans">Extracts inner value if Ok; raises error if called on Err.</td></tr>
+              <tr><td class="p-2 text-blue-500">unwrap_or</td><td class="p-2">res.unwrap_or(default)</td><td class="p-2 font-sans">Extracts inner value if Ok, otherwise returns default without panicking.</td></tr>
+              <tr><td class="p-2 text-blue-500">unwrap_err</td><td class="p-2">res.unwrap_err()</td><td class="p-2 font-sans">Extracts the error object from an Err container.</td></tr>
+              <tr><td class="p-2 text-blue-500">map</td><td class="p-2">res.map(fn(v) { ... })</td><td class="p-2 font-sans">Applies transform function to value if Ok; passes Err through untouched.</td></tr>
+              <tr><td class="p-2 text-blue-500">flat_map</td><td class="p-2">res.flat_map(fn(v) { ... })</td><td class="p-2 font-sans">Chains operations returning Result, flattening the nested monadic layer.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">2. Option Monad: <code class="font-mono">Some(v)</code> and <code class="font-mono">None()</code></h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">
+          Nullable or optional values are represented by <code class="font-mono">Option</code>. Calling <code class="font-mono">.is_some()</code>, <code class="font-mono">.is_none()</code>, or <code class="font-mono">.unwrap_or(default)</code> avoids unexpected null pointer runtime bugs:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-header">
+            <span class="code-lang">Option Monad Usage</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">let find_user = fn(id) {
+    if id == 42 {
+        return Some({ "id": 42, "name": "Kiran" });
+    }
+    return None();
+};
+
+let user_opt = find_user(100);
+println("User exists:", user_opt.is_some()); // false
+
+let fallback_user = user_opt.unwrap_or({ "id": 0, "name": "Guest" });
+println("Active user:", fallback_user["name"]); // "Guest"</code></pre>
+        </div>
+
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">3. The Postfix Try-Propagation Operator (<code class="font-mono text-purple-500">?</code>)</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          In BramandScript, the <code class="font-mono">?</code> operator evaluates expressions containing <code class="font-mono">Result</code> or <code class="font-mono">Option</code>. If the value is <code class="font-mono">Ok(v)</code> or <code class="font-mono">Some(v)</code>, it extracts <code class="font-mono">v</code> and execution proceeds sequentially. If the value is <code class="font-mono">Err(e)</code> or <code class="font-mono">None()</code>, the current frame unwinds immediately and returns the failure to the caller:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-header">
+            <span class="code-lang">Clean Propagation with ? Operator</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">let read_port = fn(raw_str) {
+    if len(raw_str) == 0 {
+        return Err("empty port string");
+    }
+    let p = int(raw_str);
+    if p &lt; 1 || p &gt; 65535 {
+        return Err("port out of range [1, 65535]");
+    }
+    return Ok(p);
+};
+
+let load_server_config = fn(port_str) {
+    // If read_port fails, load_server_config immediately returns the Err!
+    let port = read_port(port_str)?;
+    
+    return Ok({
+        "host": "0.0.0.0",
+        "port": port,
+        "ready": true
+    });
+};
+
+let valid_conf = load_server_config("8080");
+println("Port configured:", valid_conf.unwrap()["port"]); // 8080
+
+let invalid_conf = load_server_config("99999");
+println("Error caught:", invalid_conf.unwrap_err()); // "port out of range [1, 65535]"</code></pre>
         </div>
       </section>
 

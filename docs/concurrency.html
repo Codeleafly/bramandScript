@@ -153,6 +153,8 @@
             <li><a href="concurrency.html#ch-channels" class="nav-link"><span>✦</span> Channels &amp; Message Passing</a></li>
             <li><a href="concurrency.html#ch-mutex" class="nav-link"><span>✦</span> Mutex &amp; Synchronization</a></li>
             <li><a href="concurrency.html#ch-semaphores-pools" class="nav-link"><span>✦</span> Semaphores &amp; Worker Pools</a></li>
+            <li><a href="concurrency.html#ch-actors" class="nav-link"><span>✦</span> Actor Model &amp; Supervision</a></li>
+            <li><a href="concurrency.html#ch-async-taskgroup" class="nav-link"><span>✦</span> Async/Await &amp; Task Groups</a></li>
             <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
           </ul>
         </div>
@@ -503,18 +505,27 @@ println("First summary:", summaries[0]["endpoint"]) // Guaranteed to match endpo
       <section id="ch-actors" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-blue">Actor Model</span>
+          <span class="badge badge-emerald">Fault Tolerance</span>
         </div>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Lightweight Actors &amp; Supervision Trees (<code class="font-mono">actor</code> &amp; <code class="font-mono">std/actor</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          BramandScript introduces an Erlang-inspired Lightweight Actor primitive with isolated mutable state, FIFO mailboxes, asynchronous <code class="font-mono">act.send(msg)</code>, and synchronous <code class="font-mono">act.ask(msg, timeout_ms)</code>.
+          BramandScript provides a first-class, Erlang/OTP-inspired Lightweight Actor primitive. Each actor encapsulates its own private mutable state, processes incoming messages sequentially from an asynchronous FIFO mailbox, and completely isolates execution errors and panics from calling threads.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Actor Architecture &amp; Lifecycle</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Actors run independently in lightweight VM goroutines. When a message is sent to an actor via <code class="font-mono">act.send(msg)</code>, it is appended to the actor's non-blocking mailbox. If a synchronous reply is required, <code class="font-mono">act.ask(msg, timeout_ms)</code> delivers the message with a private one-shot channel and awaits the actor's response with dead-letter protection.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — Actor model and request-reply</span>
+            <span>bramand — State-mutating actor with request-reply</span>
           </div>
-          <pre><code class="language-bramand">let counter = actor(fn(msg, state) {
+          <pre><code class="language-bramand">import "std/actor" as act_mod
+
+// Define an actor with private counter state
+let counter = actor(fn(msg, state) {
     if msg["type"] == "inc" {
         return state + msg["value"]
     }
@@ -522,19 +533,104 @@ println("First summary:", summaries[0]["endpoint"]) // Guaranteed to match endpo
         return state
     }
     return state
-}, 0, "counter_actor")
+}, 100, "metrics_counter")
 
-// Asynchronous message send
-counter.send({ "type": "inc", "value": 10 })
+// Asynchronous fire-and-forget message
+counter.send({ "type": "inc", "value": 50 })
 
-// Synchronous request-reply with timeout
+// Synchronous request-reply with timeout (in ms)
 let current = counter.ask({ "type": "get" }, 1000)
-println("Current counter:", current) // 10
+println("Current counter:", current) // 150
 
-// Global Process Discovery
-let found = actor_whereis("counter_actor")
-println("Found actor:", found.id)
+// Inspect mailbox queue depth &amp; state
+println("Mailbox depth:", counter.mailbox_len())
+println("Actor status:", counter.status()) // "running"
 counter.stop()</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Actor Instance Methods Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">send</code></td><td><code class="font-mono">act.send(payload)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Pushes a message asynchronously to the actor's mailbox; non-blocking.</td></tr>
+              <tr><td><code class="font-mono">ask</code></td><td><code class="font-mono">act.ask(payload, [timeout_ms = 5000])</code></td><td><code class="font-mono">OBJECT</code></td><td>Sends message synchronously and waits for response or timeout error.</td></tr>
+              <tr><td><code class="font-mono">stop</code></td><td><code class="font-mono">act.stop()</code></td><td><code class="font-mono">NULL</code></td><td>Signals the actor loop to cleanly terminate and transitions status to <code class="font-mono">"stopped"</code>.</td></tr>
+              <tr><td><code class="font-mono">status</code></td><td><code class="font-mono">act.status()</code></td><td><code class="font-mono">STRING</code></td><td>Returns current execution status: <code class="font-mono">"running"</code>, <code class="font-mono">"stopped"</code>, or <code class="font-mono">"failed"</code>.</td></tr>
+              <tr><td><code class="font-mono">state</code></td><td><code class="font-mono">act.state()</code></td><td><code class="font-mono">OBJECT</code></td><td>Reads current internal private state snapshot under read lock.</td></tr>
+              <tr><td><code class="font-mono">is_alive</code></td><td><code class="font-mono">act.is_alive()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the actor status is currently <code class="font-mono">"running"</code>.</td></tr>
+              <tr><td><code class="font-mono">restart</code></td><td><code class="font-mono">act.restart([new_state])</code></td><td><code class="font-mono">NULL</code></td><td>Clears error status and restarts actor processing loop with optional new state.</td></tr>
+              <tr><td><code class="font-mono">name</code></td><td><code class="font-mono">act.name()</code></td><td><code class="font-mono">STRING</code></td><td>Returns the registered human-readable name, or empty string.</td></tr>
+              <tr><td><code class="font-mono">id</code></td><td><code class="font-mono">act.id()</code></td><td><code class="font-mono">STRING</code></td><td>Returns unique process identifier string (e.g. <code class="font-mono">"act_1"</code>).</td></tr>
+              <tr><td><code class="font-mono">last_error</code></td><td><code class="font-mono">act.last_error()</code></td><td><code class="font-mono">STRING | NULL</code></td><td>Returns error message or panic cause if status is <code class="font-mono">"failed"</code>.</td></tr>
+              <tr><td><code class="font-mono">mailbox_len</code></td><td><code class="font-mono">act.mailbox_len()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns number of pending messages waiting in the FIFO mailbox buffer.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">3. Global Process Registry</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Named actors can register into a thread-safe global registry, enabling transparent inter-module process discovery:
+        </p>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">actor_register</code></td><td><code class="font-mono">actor_register(name, act)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Binds an actor instance to a unique string name in the global registry.</td></tr>
+              <tr><td><code class="font-mono">actor_whereis</code></td><td><code class="font-mono">actor_whereis(name)</code></td><td><code class="font-mono">ACTOR | NULL</code></td><td>Resolves registered actor by name across any file or module.</td></tr>
+              <tr><td><code class="font-mono">actor_unregister</code></td><td><code class="font-mono">actor_unregister(name)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Removes the name binding from the registry.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">4. Fault-Tolerant Supervision Trees (<code class="font-mono">std/actor/supervisor.bmd</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Supervisors continuously monitor worker actors and implement automatic failure recovery according to declarative restart strategies:
+        </p>
+        <ul class="list-disc list-inside space-y-2 mb-4 text-slate-600 dark:text-slate-300">
+          <li><code class="font-mono font-bold">one_for_one</code>: Only the crashed child actor is terminated and restarted. Other children continue uninterrupted.</li>
+          <li><code class="font-mono font-bold">one_for_all</code>: If any child crashes, all other children supervised by the tree are restarted simultaneously.</li>
+          <li><code class="font-mono font-bold">rest_for_one</code>: If a child crashes, that child and all children started after it in configuration order are restarted.</li>
+        </ul>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Fault-Tolerant Supervisor with Auto-Recovery</span>
+          </div>
+          <pre><code class="language-bramand">import "std/actor" as act_mod
+
+let sup = act_mod.new_supervisor({
+    "strategy": "one_for_one",
+    "max_restarts": 5,
+    "time_window": 10000,
+    "children": [
+        {
+            "id": "database_worker",
+            "start": fn() {
+                return actor(fn(msg, state) {
+                    if msg == "crash" {
+                        panic("database connection dropped")
+                    }
+                    return state + 1
+                }, 0)
+            }
+        }
+    ]
+})
+
+// Send messages directly through the supervisor
+sup.send("database_worker", "crash") // Triggers worker crash
+
+// Background monitor automatically detects crash and restarts child
+sleep(50)
+let worker = sup.get_child("database_worker")
+println("Worker recovered status:", worker.status()) // "running"
+
+sup.stop()</code></pre>
         </div>
       </section>
 
@@ -547,30 +643,113 @@ counter.stop()</code></pre>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Uncolored Async/Await &amp; Structured Task Groups</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          With uncolored <code class="font-mono">async fn</code> and <code class="font-mono">await</code>, any caller can await without viral function coloring. Structured Task Groups (<code class="font-mono">task_group()</code>) provide coordinated branch execution with automatic cascade cancellation upon failures.
+          BramandScript implements <span class="font-bold text-slate-900 dark:text-white">uncolored asynchronous coroutines</span>. Unlike traditional languages where async functions virally mandate that all callers become async, BramandScript's <code class="font-mono">await</code> expression is completely uncolored: it can await <code class="font-mono">Future</code> objects, <code class="font-mono">Channel</code> receivers, or raw synchronous values directly with zero overhead.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Uncolored Coroutines (<code class="font-mono">async fn</code> &amp; <code class="font-mono">await</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          An <code class="font-mono">async fn</code> executes asynchronously in a dedicated VM thread frame, returning an immediately resolvable <code class="font-mono">Future</code>:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — Async/Await and Task Groups</span>
+            <span>bramand — Async functions and uncolored await</span>
           </div>
-          <pre><code class="language-bramand">let fetch_data = async fn(endpoint) {
-    return "response from " + endpoint
+          <pre><code class="language-bramand">let fetch_user = async fn(id) {
+    sleep(10)
+    return { "id": id, "name": "Bramand Developer" }
 }
 
-// Uncolored await
-let data = await fetch_data("api/users")
-println("Received:", data)
+// Coroutine call returns a Future
+let future = fetch_user(101)
+println("Is future done:", future.is_done()) // false
 
-// Structured Task Group with Parallel Wait-All & Cascade Cancellation
-let tg = task_group()
-tg.spawn(fn() { return 10 })
-tg.spawn(fn() { return 20 })
+// Await unwraps the resolved value
+let user = await future
+println("User Name:", user["name"]) // "Bramand Developer"
 
+// Uncolored: awaiting regular non-future values returns them instantly
+let instant = await 42
+println("Instant value:", instant) // 42</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Cooperative Multitasking (<code class="font-mono">yield</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Compute-heavy loops can voluntarily yield control to the scheduler using the <code class="font-mono">yield</code> keyword, triggering a cooperative execution switch:
+        </p>
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Cooperative time-slicing</span>
+          </div>
+          <pre><code class="language-bramand">let compute_stream = fn(n) {
+    let i = 0
+    while (i &lt; n) {
+        // Voluntarily yield execution time slice to other concurrent fibers
+        yield i
+        i = i + 1
+    }
+}</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">3. Structured Task Groups (<code class="font-mono">task_group()</code> &amp; <code class="font-mono">std/concurrency</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Structured concurrency guarantees that concurrent subtasks never leak beyond their lexical scope. A <code class="font-mono">task_group()</code> coordinates parallel tasks with collective awaiting (<code class="font-mono">wait_all</code>, <code class="font-mono">wait_any</code>) and automatic <span class="font-bold text-slate-900 dark:text-white">cascade cancellation</span>: if any spawned task panics or fails, all sibling tasks in the group are immediately cancelled.
+        </p>
+
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">spawn</code></td><td><code class="font-mono">tg.spawn(callable, ...args)</code></td><td><code class="font-mono">FUTURE</code></td><td>Schedules a callable function to execute concurrently within this task group.</td></tr>
+              <tr><td><code class="font-mono">wait_all</code></td><td><code class="font-mono">tg.wait_all()</code></td><td><code class="font-mono">RESULT</code></td><td>Awaits completion of all tasks in parallel; returns <code class="font-mono">Ok(results_array)</code> or <code class="font-mono">Err(reason)</code>.</td></tr>
+              <tr><td><code class="font-mono">wait_any</code></td><td><code class="font-mono">tg.wait_any()</code></td><td><code class="font-mono">RESULT</code></td><td>Returns <code class="font-mono">Ok(first_value)</code> from whichever task completes first; returns <code class="font-mono">Err</code> on failure.</td></tr>
+              <tr><td><code class="font-mono">cancel</code></td><td><code class="font-mono">tg.cancel([reason])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Broadcasts cancellation to all tasks in the group and aborts pending executions.</td></tr>
+              <tr><td><code class="font-mono">is_cancelled</code></td><td><code class="font-mono">tg.is_cancelled()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the group has been cancelled.</td></tr>
+              <tr><td><code class="font-mono">count</code></td><td><code class="font-mono">tg.count()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns the number of tasks spawned in the group.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Task group parallel execution &amp; cascade cancellation</span>
+          </div>
+          <pre><code class="language-bramand">import "std/concurrency" as conc
+
+let tg = conc.task_group()
+
+// Spawn multiple concurrent branches
+tg.spawn(fn() {
+    sleep(20)
+    return "profile_data"
+})
+
+tg.spawn(fn() {
+    sleep(15)
+    return "orders_data"
+})
+
+// Parallel wait-all: executes both tasks in parallel
 let res = tg.wait_all()
 if res.is_ok() {
-    println("Results:", res.unwrap()) // [10, 20]
-}</code></pre>
+    let data = res.unwrap()
+    println("Aggregated:", data[0], data[1])
+}
+
+// Cascade Cancellation Demonstration
+let faulty_tg = conc.task_group()
+faulty_tg.spawn(fn() {
+    panic("database query timeout")
+})
+faulty_tg.spawn(fn() {
+    sleep(500)
+    return "never_reached"
+})
+
+let fail_res = faulty_tg.wait_all()
+println("Failure caught:", fail_res.is_err()) // true</code></pre>
         </div>
       </section>
 

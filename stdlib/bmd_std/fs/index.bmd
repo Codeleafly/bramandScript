@@ -44,10 +44,6 @@ let append_text = fn(path, content) {
 
 let append_file = append_text;
 
-let read_text = fn(path) {
-    return read_file(path);
-};
-
 let read_file = read_text;
 
 let list_directory = fn(path) {

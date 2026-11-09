@@ -811,6 +811,9 @@ func init() {
 
 	RegisterBuiltin("fs_stat", &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
+			if err := CheckPermission(PermRead); err != nil {
+				return &object.Error{Message: err.Error(), Fatal: true}
+			}
 			if len(args) != 1 {
 				return &object.Error{Message: fmt.Sprintf("fs_stat expects 1 argument, got %d", len(args))}
 			}
@@ -832,6 +835,7 @@ func init() {
 			set("is_dir", nativeBoolToBooleanObject(fi.IsDir()))
 			set("size", &object.Integer{Value: fi.Size()})
 			set("mode", &object.Integer{Value: int64(fi.Mode())})
+			set("mod_time", &object.Integer{Value: fi.ModTime().UnixMilli()})
 			return &object.Hash{Pairs: pairs}
 		},
 	})

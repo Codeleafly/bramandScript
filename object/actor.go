@@ -203,9 +203,12 @@ func (a *Actor) Send(payload Object) bool {
 	case a.Mailbox <- &ActorMessage{Payload: payload}:
 		return true
 	default:
-		// Mailbox full, queue in background to prevent caller deadlock
+		// Mailbox full, queue in background with stop cancellation to prevent caller deadlock
 		go func() {
-			a.Mailbox <- &ActorMessage{Payload: payload}
+			select {
+			case a.Mailbox <- &ActorMessage{Payload: payload}:
+			case <-a.StopChan:
+			}
 		}()
 		return true
 	}
@@ -227,7 +230,11 @@ func (a *Actor) Ask(payload Object, timeout time.Duration) (Object, error) {
 		ReplyTo: replyChan,
 	}
 
-	a.Mailbox <- msg
+	select {
+	case a.Mailbox <- msg:
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("ask timeout sending message to actor: %s", a.ID)
+	}
 
 	select {
 	case res := <-replyChan:

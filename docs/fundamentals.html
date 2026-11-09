@@ -371,6 +371,36 @@ const { host, port } = { "host": "127.0.0.1", "port": 8080 }</code></pre>
                 <td><code class="font-mono">null</code></td>
                 <td><span class="text-slate-400 font-mono">NO</span></td>
               </tr>
+              <tr>
+                <td><code class="font-mono">TUPLE</code></td>
+                <td>Fixed-Length Immutable Sequence</td>
+                <td><code class="font-mono">()</code>, <code class="font-mono">(42,)</code>, <code class="font-mono">(1, 2, 3)</code></td>
+                <td><span class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">YES (FNV-1a 64)</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">RESULT</code></td>
+                <td>Algebraic Monad (<code class="font-mono">Ok</code> / <code class="font-mono">Err</code>)</td>
+                <td><code class="font-mono">Ok(v)</code>, <code class="font-mono">Err(e)</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OPTION</code></td>
+                <td>Algebraic Monad (<code class="font-mono">Some</code> / <code class="font-mono">None</code>)</td>
+                <td><code class="font-mono">Some(v)</code>, <code class="font-mono">None()</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">FUTURE</code></td>
+                <td>Asynchronous Promise Container</td>
+                <td>Returned by <code class="font-mono">async fn</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">ACTOR</code></td>
+                <td>Lightweight Isolated Process</td>
+                <td>Returned by <code class="font-mono">actor(fn, init)</code></td>
+                <td><span class="text-slate-400 font-mono">NO</span></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -620,9 +650,9 @@ println("Modular exponentiation:", pm) // 1</code></pre>
               </tr>
               <tr>
                 <td>18 (Highest)</td>
-                <td><code class="font-mono">[]</code>, <code class="font-mono">.</code>, <code class="font-mono">?.</code></td>
+                <td><code class="font-mono">[]</code>, <code class="font-mono">.</code>, <code class="font-mono">?.</code>, <code class="font-mono">?</code> (postfix)</td>
                 <td>Left-to-Right</td>
-                <td>Array Index, Dot Property Access, Optional Chaining</td>
+                <td>Index, Dot Access, Optional Chaining, Try-Propagation</td>
               </tr>
             </tbody>
           </table>
@@ -864,6 +894,40 @@ fn sum_head([a, b, ...rest]) {
     return a + b
 }
 println("Head sum:", sum_head([10, 20, 30, 40])) // 30</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Default Parameters</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Functions support default parameter values evaluated when the caller omits corresponding arguments or passes <code class="font-mono">null</code>:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — default parameter values</span>
+          </div>
+          <pre><code>let greet = fn(name = "World", punctuation = "!") {
+    return "Hello, " + name + punctuation
+}
+
+println(greet())                  // "Hello, World!"
+println(greet("Bramand"))         // "Hello, Bramand!"
+println(greet("Kiran", " :)"))    // "Hello, Kiran :)"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Asynchronous Functions (<code class="font-mono">async fn</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Declaring an <code class="font-mono">async fn</code> causes calls to execute concurrently on child VM fiber frames, returning an uncolored <code class="font-mono">Future</code> resolvable via <code class="font-mono">await</code>:
+        </p>
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — async functions</span>
+          </div>
+          <pre><code>async fn load_resource(uri) {
+    sleep(10)
+    return "payload from " + uri
+}
+
+let fut = load_resource("https://example.com/api")
+println("Resolved:", await fut) // "payload from https://example.com/api"</code></pre>
         </div>
 
         <h3 class="text-xl font-semibold mt-6 mb-3">Generator Functions &amp; <code class="font-mono">yield</code></h3>

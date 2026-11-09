@@ -1172,9 +1172,12 @@ func (vm *VM) runLoop() error {
 
 			switch fn := callee.(type) {
 			case *object.Closure:
-				if numArgs != fn.Fn.NumParameters {
+				if numArgs > fn.Fn.NumParameters {
 					return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
 						fn.Fn.NumParameters, numArgs)
+				}
+				for len(args) < fn.Fn.NumParameters {
+					args = append(args, Null)
 				}
 				go func(cl *object.Closure, taskArgs []object.Object) {
 					childVM := vm.newChildVM(cl, taskArgs)

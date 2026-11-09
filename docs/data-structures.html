@@ -140,9 +140,10 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Data Structures &amp; OOP</h3>
           <ul class="space-y-1">
             <li><a href="data-structures.html#ch10" class="nav-link active"><span>10.</span> Arrays &amp; Hash Maps</a></li>
+            <li><a href="data-structures.html#ch-tuples" class="nav-link"><span>10b.</span> Fixed Tuples &amp; Hash Keys</a></li>
             <li><a href="data-structures.html#ch11" class="nav-link"><span>11.</span> For-In Iterators</a></li>
             <li><a href="data-structures.html#ch12" class="nav-link"><span>12.</span> Structs &amp; Methods</a></li>
-            <li><a href="data-structures.html#ch13" class="nav-link"><span>13.</span> Pattern Matching</a></li>
+            <li><a href="data-structures.html#ch13" class="nav-link"><span>13.</span> Deep Pattern Matching &amp; Guards</a></li>
           </ul>
         </div>
 
@@ -384,6 +385,83 @@ println("Server Host:", server_config.host) // "127.0.0.1" (preserved!)</code></
         </div>
       </section>
 
+      <!-- ================= CHAPTER 10B: FIXED TUPLES ================= -->
+
+      <section id="ch-tuples" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Fixed Sequences</span>
+          <span class="badge badge-blue">Hashable Primitive</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">First-Class Fixed Tuples (<code class="font-mono">(a, b, c)</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides first-class <span class="font-bold text-slate-900 dark:text-white">Fixed Tuples</span> (<code class="font-mono">TUPLE</code>). Unlike dynamically resizable Arrays, Tuples are immutable, fixed-length sequences designed for multi-value returns, coordinate vectors, and compound hash keys.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Tuple Syntax &amp; Immutability</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Tuples are declared using parentheses. Single-element tuples require a trailing comma to distinguish from parenthesized grouping expressions:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Tuple creation, indexing &amp; destructuring</span>
+          </div>
+          <pre><code class="language-bramand">// Constructing tuples
+let empty_tuple = ()
+let single_item = (42,)
+let point = (10, 20, 30)
+
+// Indexing and negative offsets
+println("First:", point[0])       // 10
+println("Last:", point[-1])       // 30
+println("Length:", point.len)     // 3
+
+// Multi-variable destructuring
+let (x, y, z) = point
+println("Coordinates:", x, y, z)  // 10 20 30
+
+// Immutability: assigning to tuple indices produces an error
+// point[0] = 99 // Compile/Runtime Error: cannot mutate immutable tuple</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Tuples as Hash Map Keys (<code class="font-mono">Hashable</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Because tuples are strictly immutable, they implement BramandScript's <code class="font-mono">Hashable</code> interface. This makes tuples the optimal data structure for multidimensional coordinates, compound cache keys, and graph edges:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Compound grid keys using tuples</span>
+          </div>
+          <pre><code class="language-bramand">let grid = {}
+
+// Use (row, col) coordinate tuples as dictionary keys
+grid[(0, 0)] = "Origin Station"
+grid[(12, 45)] = "Waypoint Alpha"
+grid[(88, 92)] = "Terminal Beta"
+
+let query = (12, 45)
+println("Located:", grid[query]) // "Waypoint Alpha"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">3. Comparison: Arrays vs. Tuples</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Feature</th><th>Array (<code class="font-mono">[a, b]</code>)</th><th>Tuple (<code class="font-mono">(a, b)</code>)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Mutability</td><td>Mutable (<code class="font-mono">arr[i] = v</code>, <code class="font-mono">push</code>)</td><td>Strictly Immutable</td></tr>
+              <tr><td>Length</td><td>Dynamic</td><td>Fixed at allocation</td></tr>
+              <tr><td>Usable as Hash Key</td><td>No (mutable reference)</td><td>Yes (implements <code class="font-mono">Hashable</code>)</td></tr>
+              <tr><td>Memory Layout</td><td>Overallocated slice buffer</td><td>Compact contiguous stack/heap slice</td></tr>
+              <tr><td>Destructuring</td><td>Pattern matching &amp; let patterns</td><td>Multi-variable destructuring (<code class="font-mono">let (a, b) = tup</code>)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- ================= CHAPTER 11 ================= -->
 
       <section id="ch11" class="section-anchor">
@@ -594,36 +672,102 @@ println("Squares:", squares) // [1, 4, 9, 16, 25]</code></pre>
       <section id="ch13" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-blue">Chapter 13</span>
+          <span class="badge badge-purple">Deep Destructuring</span>
+          <span class="badge badge-emerald">Guards</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pattern Matching (<code class="font-mono">match subject { case ... =&gt; { ... }, default =&gt; { ... } }</code>)</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Deep Pattern Matching &amp; Guards (<code class="font-mono">match ... case ... if ...</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          BramandScript features first-class pattern matching. Matching expressions return values, support multiple values per case separated by commas, and provide a fallback <code class="font-mono">default</code> arm.
+          BramandScript features top-tier pattern matching with structural destructuring, binding extraction, and boolean guard expressions. Expressions evaluate to values, support multi-pattern branches, wildcard discards (<code class="font-mono">_</code>), and variable catch-alls.
         </p>
 
-        <div class="code-block-wrapper">
-          <div class="code-block-header">
-            <span>bramand — pattern matching</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
-          </div>
-          <pre><code><span class="token-kw">let</span> <span class="token-fn">statusCode</span> <span class="token-op">=</span> <span class="token-num">404</span>
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Structural Destructuring with Guards</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Case arms can deconstruct <span class="font-bold text-slate-900 dark:text-white">Tuples</span>, <span class="font-bold text-slate-900 dark:text-white">Arrays</span>, and <span class="font-bold text-slate-900 dark:text-white">Hash maps</span>, binding internal components to scoped variables while evaluating conditional guards (<code class="font-mono">if &lt;condition&gt;</code>):
+        </p>
 
-<span class="token-kw">let</span> <span class="token-fn">responseMessage</span> <span class="token-op">=</span> <span class="token-kw">match</span> <span class="token-fn">statusCode</span> {
-    <span class="token-kw">case</span> <span class="token-num">200</span>, <span class="token-num">201</span> <span class="token-op">=&gt;</span> {
-        <span class="token-str">"HTTP Request Succeeded"</span>
-    }
-    <span class="token-kw">case</span> <span class="token-num">400</span>, <span class="token-num">401</span>, <span class="token-num">403</span> <span class="token-op">=&gt;</span> {
-        <span class="token-str">"Client Permission or Format Error"</span>
-    }
-    <span class="token-kw">case</span> <span class="token-num">404</span> <span class="token-op">=&gt;</span> {
-        <span class="token-str">"Resource Not Found on Host"</span>
-    }
-    <span class="token-kw">default</span> <span class="token-op">=&gt;</span> {
-        <span class="token-str">"Unknown Status or Server Fault"</span>
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Tuple destructuring with guard expressions</span>
+          </div>
+          <pre><code class="language-bramand">let classify_point = fn(pt) {
+    return match pt {
+        case (0, 0) => {
+            "origin"
+        }
+        case (0, y) => {
+            "y-axis at " + str(y)
+        }
+        case (x, 0) => {
+            "x-axis at " + str(x)
+        }
+        case (x, y) if x == y => {
+            "diagonal point"
+        }
+        case (x, y) if x > 0 && y > 0 => {
+            "quadrant 1"
+        }
+        case (x, y) => {
+            "general point"
+        }
+        case _ => {
+            "not a coordinate"
+        }
     }
 }
 
-<span class="token-fn">print</span>(<span class="token-str">"Result:"</span>, <span class="token-fn">responseMessage</span>)</code></pre>
+println(classify_point((0, 0)))  // "origin"
+println(classify_point((4, 4)))  // "diagonal point"
+println(classify_point((5, 12))) // "quadrant 1"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Hash Map Pattern Matching</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Hash patterns match specific key subsets, binding values directly for inspection:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bramand — Hash map pattern matching</span>
+          </div>
+          <pre><code class="language-bramand">let authorize = fn(user) {
+    return match user {
+        case { "role": "admin" } => {
+            "superadmin_granted"
+        }
+        case { "role": "editor", "level": lvl } if lvl >= 3 => {
+            "senior_editor"
+        }
+        case { "name": n } => {
+            "guest: " + n
+        }
+        case _ => {
+            "denied"
+        }
+    }
+}
+
+println(authorize({ "role": "admin" }))                     // "superadmin_granted"
+println(authorize({ "role": "editor", "level": 4 }))       // "senior_editor"
+println(authorize({ "name": "Kiran" }))                     // "guest: Kiran"</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">3. Pattern Forms Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Pattern Form</th><th>Syntax</th><th>Example</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Literal</td><td><code class="font-mono">case literal =&gt;</code></td><td><code class="font-mono">case 200, 201 =&gt;</code></td><td>Matches exact primitive value (Integer, Float, String, Boolean).</td></tr>
+              <tr><td>Tuple Pattern</td><td><code class="font-mono">case (a, b) =&gt;</code></td><td><code class="font-mono">case (x, y) if x &gt; y =&gt;</code></td><td>Unpacks fixed tuple elements into local variables with optional guard.</td></tr>
+              <tr><td>Array Pattern</td><td><code class="font-mono">case [a, b] =&gt;</code></td><td><code class="font-mono">case [first, second] =&gt;</code></td><td>Unpacks array elements by positional index.</td></tr>
+              <tr><td>Hash Pattern</td><td><code class="font-mono">case {"k": v} =&gt;</code></td><td><code class="font-mono">case {"status": 200} =&gt;</code></td><td>Extracts specified keys from a map and checks values.</td></tr>
+              <tr><td>Wildcard</td><td><code class="font-mono">case _ =&gt;</code></td><td><code class="font-mono">case _ =&gt; { fallback }</code></td><td>Matches any value unconditionally without creating a binding.</td></tr>
+              <tr><td>Variable Catch-All</td><td><code class="font-mono">case val =&gt;</code></td><td><code class="font-mono">case other =&gt; { log(other) }</code></td><td>Matches any value and binds it to a scoped variable name.</td></tr>
+              <tr><td>Guard</td><td><code class="font-mono">case p if guard =&gt;</code></td><td><code class="font-mono">case n if n &gt; 100 =&gt;</code></td><td>Evaluates boolean expression using bound variables before arm execution.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

@@ -43,19 +43,25 @@ func TestActorAskAndSend(t *testing.T) {
 
 	counter.send("inc");
 	counter.send("inc");
+	let mlen = counter.mailbox_len();
 	sleep(50);
 	let val = counter.ask("get", 1000);
 	counter.stop();
 
-	val
+	[val, mlen >= 0]
 	`
 	res := runActorSource(t, input)
-	intVal, ok := res.(*object.Integer)
+	arr, ok := res.(*object.Array)
 	if !ok {
-		t.Fatalf("expected Integer, got %s (%+v)", res.Type(), res)
+		t.Fatalf("expected Array, got %s (%+v)", res.Type(), res)
 	}
-	if intVal.Value != 2 {
-		t.Errorf("expected counter value 2, got %d", intVal.Value)
+	intVal, ok := arr.Elements[0].(*object.Integer)
+	if !ok || intVal.Value != 2 {
+		t.Errorf("expected counter value 2, got %v", arr.Elements[0])
+	}
+	boolVal, ok := arr.Elements[1].(*object.Boolean)
+	if !ok || !boolVal.Value {
+		t.Errorf("expected mailbox_len check true, got %v", arr.Elements[1])
 	}
 }
 

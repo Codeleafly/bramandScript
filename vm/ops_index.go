@@ -348,11 +348,13 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 			})
 		}
 		return vm.push(Null)
-	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ || left.Type() == object.BYTES_OBJ) && index.Type() == object.STRING_OBJ:
+	case (left.Type() == object.ARRAY_OBJ || left.Type() == object.STRING_OBJ || left.Type() == object.BYTES_OBJ || left.Type() == object.TUPLE_OBJ) && index.Type() == object.STRING_OBJ:
 		prop := index.(*object.String).Value
 		if prop == "length" || prop == "len" {
 			switch l := left.(type) {
 			case *object.Array:
+				return vm.push(&object.Integer{Value: int64(len(l.Elements))})
+			case *object.Tuple:
 				return vm.push(&object.Integer{Value: int64(len(l.Elements))})
 			case *object.String:
 				return vm.push(&object.Integer{Value: int64(len([]rune(l.Value)))})

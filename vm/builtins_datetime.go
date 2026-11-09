@@ -95,6 +95,8 @@ func getUnixMsFromArg(arg object.Object) (int64, error) {
 		if p, ok := v.Pairs[key]; ok {
 			if intVal, ok := p.Value.(*object.Integer); ok {
 				return intVal.Value, nil
+			} else if fltVal, ok := p.Value.(*object.Float); ok {
+				return int64(fltVal.Value), nil
 			}
 		}
 		return 0, fmt.Errorf("hash missing valid 'unix_ms' integer field")

@@ -125,6 +125,12 @@ func (vm *VM) executeMathAndConcurrencyMethod(left object.Object, index object.O
 					return &object.String{Value: e}
 				},
 			})
+		case "mailbox_len", "mailbox_size":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.Integer{Value: int64(len(act.Mailbox))}
+				},
+			})
 		}
 
 	case left.Type() == object.MUTEX_OBJ && index.Type() == object.STRING_OBJ:

@@ -171,10 +171,28 @@ let supervisor = fn(config) {
         return null;
     };
 
+    let send = fn(id, msg) {
+        let child = get_child(id);
+        if child != null {
+            return child.send(msg);
+        }
+        return false;
+    };
+
+    let ask = fn(id, msg, timeout) {
+        let child = get_child(id);
+        if child != null {
+            return child.ask(msg, timeout);
+        }
+        return null;
+    };
+
     return {
         "which_children": which_children,
         "count_children": count_children,
         "get_child": get_child,
+        "send": send,
+        "ask": ask,
         "stop": stop,
         "status": status,
         "check_and_recover": check_and_recover

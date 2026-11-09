@@ -188,6 +188,10 @@
             <li><a href="stdlib.html#ch-binary-pack" class="nav-link pl-4 text-xs"><span>·</span> std/binary/pack (MsgPack &amp; Struct)</a></li>
             <li><a href="stdlib.html#ch-crypto-advanced" class="nav-link pl-4 text-xs"><span>·</span> std/crypto/advanced (GCM, Ed25519, JWT)</a></li>
             <li><a href="stdlib.html#ch-tui-plot" class="nav-link pl-4 text-xs"><span>·</span> std/tui/plot (Braille Plotter)</a></li>
+            <li><a href="stdlib.html#ch-datetime" class="nav-link pl-4 text-xs"><span>·</span> std/datetime (Calendar &amp; Time)</a></li>
+            <li><a href="stdlib.html#ch-fs-path" class="nav-link pl-4 text-xs"><span>·</span> std/fs &amp; std/path (Filesystem)</a></li>
+            <li><a href="stdlib.html#ch-encoding" class="nav-link pl-4 text-xs"><span>·</span> std/encoding (CSV, Hex, URL)</a></li>
+            <li><a href="stdlib.html#ch-monads" class="nav-link pl-4 text-xs"><span>·</span> Result, Option &amp; ? Monads</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -2031,28 +2035,56 @@ println(bar_chart)</code></pre>
       <section id="ch-datetime" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-emerald">Enterprise Stdlib</span>
+          <span class="badge badge-blue">Calendar Arithmetic</span>
         </div>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Date, Time &amp; Calendar Engine (<code class="font-mono">std/datetime</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Production-grade Date and Time management supporting ISO 8601 formatting, RFC 3339, Unix epoch milliseconds, leap year calculations, calendar arithmetic (<code class="font-mono">add_days</code>, <code class="font-mono">add_hours</code>), and duration diffs.
+          A high-performance date, time, duration, and calendar arithmetic suite. Supports ISO 8601, RFC 3339, Unix epoch millisecond timestamps, UTC conversions, leap year verification, calendar offsets, and custom format conversions (<code class="font-mono">YYYY-MM-DD HH:mm:ss</code>).
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Functions Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">now</code></td><td><code class="font-mono">dt.now()</code></td><td><code class="font-mono">HASH</code></td><td>Returns current datetime object with year, month, day, hour, iso, unix_ms, and methods.</td></tr>
+              <tr><td><code class="font-mono">now_iso</code></td><td><code class="font-mono">dt.now_iso()</code></td><td><code class="font-mono">STRING</code></td><td>Returns current timestamp formatted as ISO 8601 / RFC 3339 string in UTC.</td></tr>
+              <tr><td><code class="font-mono">now_ms</code></td><td><code class="font-mono">dt.now_ms()</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns current epoch time in milliseconds.</td></tr>
+              <tr><td><code class="font-mono">new</code></td><td><code class="font-mono">dt.new(year, month, day, [h=0, m=0, s=0])</code></td><td><code class="font-mono">HASH</code></td><td>Constructs a datetime instance for specified calendar components.</td></tr>
+              <tr><td><code class="font-mono">Date</code></td><td><code class="font-mono">dt.Date(year, month, day)</code></td><td><code class="font-mono">HASH</code></td><td>Constructs a calendar date instance initialized at midnight (00:00:00Z).</td></tr>
+              <tr><td><code class="font-mono">parse</code></td><td><code class="font-mono">dt.parse(raw_str, [layout])</code></td><td><code class="font-mono">HASH</code></td><td>Parses datetime string according to standard candidates or specified custom layout.</td></tr>
+              <tr><td><code class="font-mono">format</code></td><td><code class="font-mono">dt.format(val, [layout])</code></td><td><code class="font-mono">STRING</code></td><td>Formats datetime hash or epoch ms using layout tokens (e.g. <code class="font-mono">"YYYY-MM-DD"</code>).</td></tr>
+              <tr><td><code class="font-mono">add</code></td><td><code class="font-mono">dt.add(val, amt, unit)</code></td><td><code class="font-mono">INTEGER</code></td><td>Adds amount of units (<code class="font-mono">"days"</code>, <code class="font-mono">"hours"</code>, <code class="font-mono">"minutes"</code>, <code class="font-mono">"seconds"</code>, <code class="font-mono">"ms"</code>) to timestamp.</td></tr>
+              <tr><td><code class="font-mono">diff</code></td><td><code class="font-mono">dt.diff(t1, t2, [unit = "ms"])</code></td><td><code class="font-mono">FLOAT | INT</code></td><td>Calculates duration between two timestamps in specified unit.</td></tr>
+              <tr><td><code class="font-mono">is_leap_year</code></td><td><code class="font-mono">dt.is_leap_year(year)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Determines if given Gregorian calendar year is a leap year.</td></tr>
+              <tr><td><code class="font-mono">days_in_month</code></td><td><code class="font-mono">dt.days_in_month(year, month)</code></td><td><code class="font-mono">INTEGER</code></td><td>Returns total number of days (28–31) in given year and month.</td></tr>
+              <tr><td><code class="font-mono">duration</code></td><td><code class="font-mono">dt.duration(ms)</code></td><td><code class="font-mono">HASH</code></td><td>Converts milliseconds into a map of total seconds, minutes, hours, and days.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
             <span>bramand — Date and Calendar Operations</span>
           </div>
           <pre><code class="language-bramand">import "std/datetime" as dt
 
+// Construct calendar date
 let d = dt.new(2026, 11, 9, 14, 30, 0)
-println("ISO 8601:", d.to_iso()) // 2026-11-09T14:30:00Z
+println("ISO 8601:", d.to_iso())        // 2026-11-09T14:30:00Z
+println("Weekday:", d["weekday"])        // "Monday"
 println("Is leap year:", d.is_leap_year()) // false
 
-let future = d.add_days(10)
-println("Future date:", future.to_iso())
+// Calendar arithmetic
+let next_week = d.add_days(7)
+println("Next week:", next_week.to_iso())
 
-let diff = future.diff(d)
-println("Difference in days:", diff.days) // 10</code></pre>
+// Duration diff calculations
+let span = next_week.diff(d)
+println("Days span:", span["days"])      // 7</code></pre>
         </div>
       </section>
 
@@ -2061,30 +2093,76 @@ println("Difference in days:", diff.days) // 10</code></pre>
       <section id="ch-fs-path" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-blue">Enterprise Stdlib</span>
+          <span class="badge badge-purple">Cross-Platform I/O</span>
         </div>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">File System &amp; Path Engine (<code class="font-mono">std/fs</code> &amp; <code class="font-mono">std/path</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Recursive directory walks, glob pattern matching, temp file creation, directory tree inspection, and cross-platform path normalization.
+          Production filesystem engine supporting recursive directory walking with filters, pattern matching (<code class="font-mono">glob</code>), temporary file creation, directory tree hierarchies, file metadata (<code class="font-mono">stat</code>), and canonical path normalization.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. <code class="font-mono">std/path</code> API Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">join</code></td><td><code class="font-mono">path.join(a, b, [c, d, e]) | path.join(array)</code></td><td><code class="font-mono">STRING</code></td><td>Joins path elements into single normalized slash-delimited path.</td></tr>
+              <tr><td><code class="font-mono">clean</code></td><td><code class="font-mono">path.clean(p)</code></td><td><code class="font-mono">STRING</code></td><td>Resolves <code class="font-mono">.</code>, <code class="font-mono">..</code>, and redundant slashes into canonical form.</td></tr>
+              <tr><td><code class="font-mono">base</code></td><td><code class="font-mono">path.base(p)</code></td><td><code class="font-mono">STRING</code></td><td>Extracts trailing element of path (e.g. <code class="font-mono">"file.txt"</code>).</td></tr>
+              <tr><td><code class="font-mono">dir</code></td><td><code class="font-mono">path.dir(p)</code></td><td><code class="font-mono">STRING</code></td><td>Returns directory path excluding the trailing file element.</td></tr>
+              <tr><td><code class="font-mono">ext</code></td><td><code class="font-mono">path.ext(p)</code></td><td><code class="font-mono">STRING</code></td><td>Returns file extension starting with dot (e.g. <code class="font-mono">".bmd"</code>).</td></tr>
+              <tr><td><code class="font-mono">abs</code></td><td><code class="font-mono">path.abs(p)</code></td><td><code class="font-mono">STRING</code></td><td>Resolves relative path to absolute canonical filesystem path.</td></tr>
+              <tr><td><code class="font-mono">is_abs</code></td><td><code class="font-mono">path.is_abs(p)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Checks if given path is absolute.</td></tr>
+              <tr><td><code class="font-mono">split</code></td><td><code class="font-mono">path.split(p)</code></td><td><code class="font-mono">ARRAY</code></td><td>Splits path into <code class="font-mono">[dir, file]</code> array tuple.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. <code class="font-mono">std/fs</code> API Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">walk</code></td><td><code class="font-mono">fs.walk(path, [ext_filter])</code></td><td><code class="font-mono">ARRAY</code></td><td>Recursively traverses directory tree, returning array of file entry hashes.</td></tr>
+              <tr><td><code class="font-mono">glob</code></td><td><code class="font-mono">fs.glob(pattern)</code></td><td><code class="font-mono">ARRAY</code></td><td>Matches files matching shell pattern (e.g. <code class="font-mono">"*.bmd"</code>, <code class="font-mono">"src/**/*.go"</code>).</td></tr>
+              <tr><td><code class="font-mono">temp_file</code></td><td><code class="font-mono">fs.temp_file([prefix, ext])</code></td><td><code class="font-mono">HASH</code></td><td>Creates a unique temporary file on the OS filesystem, returning path and name.</td></tr>
+              <tr><td><code class="font-mono">tree</code></td><td><code class="font-mono">fs.tree(dir, [max_depth = -1])</code></td><td><code class="font-mono">HASH</code></td><td>Builds a nested hierarchical JSON-serializable directory tree.</td></tr>
+              <tr><td><code class="font-mono">stat</code></td><td><code class="font-mono">fs.stat(path)</code></td><td><code class="font-mono">HASH</code></td><td>Returns file metadata: <code class="font-mono">path</code>, <code class="font-mono">name</code>, <code class="font-mono">size</code>, <code class="font-mono">is_dir</code>, <code class="font-mono">mode</code>, <code class="font-mono">mod_time</code>.</td></tr>
+              <tr><td><code class="font-mono">mkdir</code></td><td><code class="font-mono">fs.mkdir(path, [recursive = true])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Creates directory path, creating parent directories when recursive is true.</td></tr>
+              <tr><td><code class="font-mono">read_text</code></td><td><code class="font-mono">fs.read_text(path)</code></td><td><code class="font-mono">STRING</code></td><td>Reads complete contents of text file as UTF-8 string.</td></tr>
+              <tr><td><code class="font-mono">write_text</code></td><td><code class="font-mono">fs.write_text(path, content)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Writes string contents into file, truncating existing content.</td></tr>
+              <tr><td><code class="font-mono">append_text</code></td><td><code class="font-mono">fs.append_text(path, content)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Appends string content to end of file without truncating.</td></tr>
+              <tr><td><code class="font-mono">exists</code></td><td><code class="font-mono">fs.exists(path)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Checks whether file or directory exists at path.</td></tr>
+              <tr><td><code class="font-mono">remove</code></td><td><code class="font-mono">fs.remove(path)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Deletes specified file or empty directory.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — FS and Path operations</span>
+            <span>bramand — Path manipulation &amp; recursive directory walking</span>
           </div>
           <pre><code class="language-bramand">import "std/path" as path
 import "std/fs" as fs
 
 let full_path = path.join(["/var", "log", "app.log"])
-println("Base:", path.base(full_path)) // app.log
-println("Ext:", path.ext(full_path))   // .log
-println("Dir:", path.dir(full_path))   // /var/log
+println("Base:", path.base(full_path)) // "app.log"
+println("Ext:", path.ext(full_path))   // ".log"
+println("Dir:", path.dir(full_path))   // "/var/log"
 
-// Recursive Walk with extension filter
-let bmd_files = fs.walk("./src", ".bmd")
-for file in bmd_files {
-    println("Source file:", file)
-}</code></pre>
+// Create and inspect a temporary file
+let tmp = fs.temp_file("bench", ".txt")
+fs.write_text(tmp["path"], "performance payload")
+
+let st = fs.stat(tmp["path"])
+println("File size in bytes:", st["size"])
+println("Modified timestamp:", st["mod_time"])
+
+fs.remove(tmp["path"])</code></pre>
         </div>
       </section>
 
@@ -2093,28 +2171,57 @@ for file in bmd_files {
       <section id="ch-encoding" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-amber">Enterprise Stdlib</span>
+          <span class="badge badge-emerald">Data Serialization</span>
         </div>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Universal Data Encoding Suite (<code class="font-mono">std/encoding</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          RFC 4180 compliant CSV serialization/parsing, Hexadecimal encoding and decoding, and URL query parameter builders/parsers.
+          Universal serialization suite featuring RFC 4180 compliant CSV parser and formatter, Hexadecimal encoders/decoders, URL query parameter builders/parsers, and Base64 wrapping utilities.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Functions Reference</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">hex_encode</code></td><td><code class="font-mono">enc.hex_encode(data)</code></td><td><code class="font-mono">STRING</code></td><td>Encodes byte buffer or string into lowercase hexadecimal representation.</td></tr>
+              <tr><td><code class="font-mono">hex_decode</code></td><td><code class="font-mono">enc.hex_decode(hex_str)</code></td><td><code class="font-mono">STRING</code></td><td>Decodes hexadecimal string back into original raw string.</td></tr>
+              <tr><td><code class="font-mono">url_encode</code></td><td><code class="font-mono">enc.url_encode(str)</code></td><td><code class="font-mono">STRING</code></td><td>Escapes characters for safe inclusion in URL query strings.</td></tr>
+              <tr><td><code class="font-mono">url_decode</code></td><td><code class="font-mono">enc.url_decode(str)</code></td><td><code class="font-mono">STRING</code></td><td>Unescapes URL-encoded query string.</td></tr>
+              <tr><td><code class="font-mono">url_parse_query</code></td><td><code class="font-mono">enc.url_parse_query(query_str)</code></td><td><code class="font-mono">HASH</code></td><td>Parses URL query string into key-value hash map.</td></tr>
+              <tr><td><code class="font-mono">url_build_query</code></td><td><code class="font-mono">enc.url_build_query(hash)</code></td><td><code class="font-mono">STRING</code></td><td>Encodes key-value hash into canonical sorted URL query string.</td></tr>
+              <tr><td><code class="font-mono">csv_parse</code></td><td><code class="font-mono">enc.csv_parse(str, [delim=",", headers=false])</code></td><td><code class="font-mono">ARRAY</code></td><td>Parses CSV text into array of rows (or array of hashes if headers is true).</td></tr>
+              <tr><td><code class="font-mono">csv_stringify</code></td><td><code class="font-mono">enc.csv_stringify(records, [delim=",", headers])</code></td><td><code class="font-mono">STRING</code></td><td>Serializes array of records (arrays or hashes) into valid CSV string.</td></tr>
+              <tr><td><code class="font-mono">base64_chunk</code></td><td><code class="font-mono">enc.base64_chunk(b64_str, [line_len=64])</code></td><td><code class="font-mono">STRING</code></td><td>Splits long Base64 string with newline characters for MIME/PEM wrapping.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — CSV and Hex encoding</span>
+            <span>bramand — CSV and Hex encoding operations</span>
           </div>
           <pre><code class="language-bramand">import "std/encoding" as enc
 
 // Hex Encode / Decode
-let hex = enc.hex_encode("BramandScript")
+let hex = enc.hex_encode("BramandScript 2026")
 println("Hex:", hex)
 println("Decoded:", enc.hex_decode(hex))
 
-// CSV Records Parsing
-let csv_data = "name,role,level\nAlice,dev,senior\nBob,lead,principal"
-let records = enc.csv_parse_records(csv_data)
-println("Parsed rows:", len(records)) // 3</code></pre>
+// URL Query Builder &amp; Parser
+let query = enc.url_build_query({ "search": "actor model", "page": 1 })
+println("Encoded query:", query) // "page=1&amp;search=actor+model"
+
+// CSV Formatting &amp; Parsing with Headers
+let data = [
+    { "id": "1", "name": "Alice", "role": "Architect" },
+    { "id": "2", "name": "Bob", "role": "Lead" }
+]
+let csv_text = enc.csv_stringify(data)
+let parsed = enc.csv_parse(csv_text, ",", true)
+println("First record role:", parsed[0]["role"]) // "Architect"</code></pre>
         </div>
       </section>
 
@@ -2123,33 +2230,77 @@ println("Parsed rows:", len(records)) // 3</code></pre>
       <section id="ch-monads" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
           <span class="badge badge-purple">Monadic Safety</span>
+          <span class="badge badge-emerald">Algebraic Types</span>
         </div>
         <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Monadic Safety (<code class="font-mono">Result</code>, <code class="font-mono">Option</code> &amp; <code class="font-mono">?</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Eliminate uncaught exceptions and boilerplate error checks using algebraic <code class="font-mono">Ok(v)</code>, <code class="font-mono">Err(e)</code>, <code class="font-mono">Some(v)</code>, <code class="font-mono">None()</code> types and the postfix <code class="font-mono">?</code> try-propagation operator.
+          BramandScript introduces first-class algebraic container types (<code class="font-mono">Result</code> and <code class="font-mono">Option</code>) combined with the postfix try-propagation operator (<code class="font-mono">?</code>) to eliminate runtime panics, uncaught exceptions, and defensive boilerplate checks.
         </p>
 
-        <div class="code-block-wrapper">
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Result Monad (<code class="font-mono">Ok(v)</code> &amp; <code class="font-mono">Err(e)</code>)</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">is_ok</code></td><td><code class="font-mono">res.is_ok()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the Result is <code class="font-mono">Ok</code>.</td></tr>
+              <tr><td><code class="font-mono">is_err</code></td><td><code class="font-mono">res.is_err()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the Result is <code class="font-mono">Err</code>.</td></tr>
+              <tr><td><code class="font-mono">unwrap</code></td><td><code class="font-mono">res.unwrap()</code></td><td><code class="font-mono">OBJECT</code></td><td>Returns inner value if <code class="font-mono">Ok</code>; raises fatal error if called on <code class="font-mono">Err</code>.</td></tr>
+              <tr><td><code class="font-mono">unwrap_or</code></td><td><code class="font-mono">res.unwrap_or(fallback)</code></td><td><code class="font-mono">OBJECT</code></td><td>Returns inner value if <code class="font-mono">Ok</code>; returns fallback value if <code class="font-mono">Err</code>.</td></tr>
+              <tr><td><code class="font-mono">unwrap_err</code></td><td><code class="font-mono">res.unwrap_err()</code></td><td><code class="font-mono">OBJECT</code></td><td>Extracts inner error value from <code class="font-mono">Err</code>.</td></tr>
+              <tr><td><code class="font-mono">map</code></td><td><code class="font-mono">res.map(fn)</code></td><td><code class="font-mono">RESULT</code></td><td>Applies transformation function to inner value if <code class="font-mono">Ok</code>; preserves <code class="font-mono">Err</code> untouched.</td></tr>
+              <tr><td><code class="font-mono">flat_map</code></td><td><code class="font-mono">res.flat_map(fn)</code></td><td><code class="font-mono">RESULT</code></td><td>Applies monadic function returning another <code class="font-mono">Result</code>, flattening the structure.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Option Monad (<code class="font-mono">Some(v)</code> &amp; <code class="font-mono">None()</code>)</h3>
+        <div class="table-container mb-6">
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono">is_some</code></td><td><code class="font-mono">opt.is_some()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if the Option contains a value (<code class="font-mono">Some</code>).</td></tr>
+              <tr><td><code class="font-mono">is_none</code></td><td><code class="font-mono">opt.is_none()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Returns <code class="font-mono">true</code> if empty (<code class="font-mono">None</code>).</td></tr>
+              <tr><td><code class="font-mono">unwrap</code></td><td><code class="font-mono">opt.unwrap()</code></td><td><code class="font-mono">OBJECT</code></td><td>Returns inner value if <code class="font-mono">Some</code>; raises error on <code class="font-mono">None</code>.</td></tr>
+              <tr><td><code class="font-mono">unwrap_or</code></td><td><code class="font-mono">opt.unwrap_or(fallback)</code></td><td><code class="font-mono">OBJECT</code></td><td>Returns inner value if <code class="font-mono">Some</code>, otherwise fallback value.</td></tr>
+              <tr><td><code class="font-mono">map</code></td><td><code class="font-mono">opt.map(fn)</code></td><td><code class="font-mono">OPTION</code></td><td>Applies transformation to inner value, wrapping back into <code class="font-mono">Some</code>.</td></tr>
+              <tr><td><code class="font-mono">flat_map</code></td><td><code class="font-mono">opt.flat_map(fn)</code></td><td><code class="font-mono">OPTION</code></td><td>Monadic bind for chained transformations returning an <code class="font-mono">Option</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">3. Postfix Try-Propagation Operator (<code class="font-mono">?</code>)</h3>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Appending <code class="font-mono">?</code> to any expression evaluating to a <code class="font-mono">Result</code> or <code class="font-mono">Option</code> automatically unwraps the successful value, or performs an early-return from the enclosing function unwinding the error or none value directly to the caller.
+        </p>
+
+        <div class="code-block-wrapper mb-6">
           <div class="code-block-header">
-            <span>bramand — Monadic Result and ? Operator</span>
+            <span>bramand — Monadic pipeline with ? operator</span>
           </div>
-          <pre><code class="language-bramand">let divide = fn(a, b) {
-    if b == 0 {
-        return Err("division by zero")
+          <pre><code class="language-bramand">let parse_integer = fn(s) {
+    if len(s) == 0 {
+        return Err("empty string")
     }
-    return Ok(a / b)
+    return Ok(int(s))
 }
 
-let compute = fn(x, y) {
-    let result = divide(x, y)? // Unwraps Ok, or early-returns Err!
-    return Ok(result * 100)
+let calculate_average = fn(str_a, str_b) {
+    let a = parse_integer(str_a)? // Unwraps Ok, or early-returns Err!
+    let b = parse_integer(str_b)? // Unwraps Ok, or early-returns Err!
+    return Ok((a + b) / 2)
 }
 
-let res = compute(10, 2)
-if res.is_ok() {
-    println("Answer:", res.unwrap()) // 500
-}</code></pre>
+let success = calculate_average("40", "60")
+println("Result:", success.unwrap()) // 50
+
+let failure = calculate_average("", "60")
+println("Failure caught:", failure.is_err()) // true
+println("Fallback:", failure.unwrap_or(0))   // 0</code></pre>
         </div>
       </section>
 

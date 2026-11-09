@@ -973,24 +973,33 @@ func (c *Compiler) Compile(node ast.Node) error {
 					}
 					continue
 
-				} else if ident, ok := val.(*ast.Identifier); ok && clause.Guard != nil {
+				} else if ident, ok := val.(*ast.Identifier); ok {
+					if ident.Value == "_" && clause.Guard == nil {
+						defaultClause = clause
+						continue
+					}
+
 					c.enterBlockScope()
-					c.loadSymbol(subjSym)
-					sym := c.symbolTable.Define(ident.Value, false)
-					if sym.Scope == GlobalScope {
-						c.emit(code.OpSetGlobal, sym.Index)
-					} else {
-						c.emit(code.OpSetLocal, sym.Index)
+					if ident.Value != "_" {
+						c.loadSymbol(subjSym)
+						sym := c.symbolTable.Define(ident.Value, false)
+						if sym.Scope == GlobalScope {
+							c.emit(code.OpSetGlobal, sym.Index)
+						} else {
+							c.emit(code.OpSetLocal, sym.Index)
+						}
 					}
 
-					err := c.Compile(clause.Guard)
-					if err != nil {
-						c.leaveBlockScope()
-						return err
+					if clause.Guard != nil {
+						err := c.Compile(clause.Guard)
+						if err != nil {
+							c.leaveBlockScope()
+							return err
+						}
+						nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
 					}
-					nextCaseJumps = append(nextCaseJumps, c.emit(code.OpJumpNotTruthy, 9999))
 
-					err = c.Compile(clause.Body)
+					err := c.Compile(clause.Body)
 					if err != nil {
 						c.leaveBlockScope()
 						return err
@@ -1005,6 +1014,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 					for _, j := range nextCaseJumps {
 						c.changeOperand(j, len(c.currentInstructions()))
+					}
+					if clause.Guard == nil {
+						break
 					}
 					continue
 				}

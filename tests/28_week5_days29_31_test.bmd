@@ -47,6 +47,9 @@ describe("Day 29: Enterprise File System & Path Engine (std/fs & std/path)", fn(
         fs.write_file(tmp_path, "BramandScript Enterprise Test");
         let content = fs.read_file(tmp_path);
         assert_eq(content, "BramandScript Enterprise Test");
+        let st = fs.stat(tmp_path);
+        assert_true(st["mod_time"] > 0);
+        assert_eq(st["is_dir"], false);
         fs.remove(tmp_path);
     });
 });
@@ -88,6 +91,7 @@ describe("Day 29 & Day 30: Lightweight Actor Model & Supervision", fn() {
             return state;
         }, 100);
 
+        assert_true(act.mailbox_len() >= 0);
         act.send({ "type": "inc", "value": 50 });
         let current = act.ask({ "type": "get" }, 1000);
         assert_eq(current, 150);
@@ -128,6 +132,7 @@ describe("Day 29 & Day 30: Lightweight Actor Model & Supervision", fn() {
 
         let child = sup.get_child("worker");
         assert_true(child != null);
+        assert_true(sup.send("worker", 1));
         sup.stop();
     });
 });
@@ -182,6 +187,8 @@ describe("Day 31: Fixed Tuples & Deep Pattern Matching", fn() {
     test("constructs tuples and supports multi-variable destructuring", fn() {
         let point = (10, 20, 30);
         assert_eq(len(point), 3);
+        assert_eq(point.len, 3);
+        assert_eq(point.length, 3);
         assert_eq(point[0], 10);
         assert_eq(point[1], 20);
         assert_eq(point[2], 30);
@@ -190,6 +197,11 @@ describe("Day 31: Fixed Tuples & Deep Pattern Matching", fn() {
         assert_eq(x, 10);
         assert_eq(y, 20);
         assert_eq(z, 30);
+
+        // Tuple as Hash Key
+        let lookup = {};
+        lookup[(10, 20)] = "target_located";
+        assert_eq(lookup[(10, 20)], "target_located");
     });
 
     test("matches patterns with guards and destructuring", fn() {
@@ -200,7 +212,7 @@ describe("Day 31: Fixed Tuples & Deep Pattern Matching", fn() {
                 case (x, 0) => { "x-axis: " + str(x) }
                 case (x, y) if x == y => { "diagonal" }
                 case (x, y) => { "point" }
-                default => { "other" }
+                case _ => { "wildcard" }
             };
         };
 
@@ -209,6 +221,16 @@ describe("Day 31: Fixed Tuples & Deep Pattern Matching", fn() {
         assert_eq(classify((7, 0)), "x-axis: 7");
         assert_eq(classify((4, 4)), "diagonal");
         assert_eq(classify((2, 9)), "point");
+        assert_eq(classify(999), "wildcard");
+
+        let catch_all = fn(val) {
+            return match val {
+                case 1 => { "one" }
+                case other => { "matched_" + str(other) }
+            };
+        };
+        assert_eq(catch_all(1), "one");
+        assert_eq(catch_all(42), "matched_42");
     });
 });
 
