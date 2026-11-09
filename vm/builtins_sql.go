@@ -1023,6 +1023,8 @@ func unwrapBramandObject(obj object.Object) interface{} {
 		return nil
 	}
 	switch v := obj.(type) {
+	case *object.Null:
+		return nil
 	case *object.Integer:
 		return v.Value
 	case *object.Float:

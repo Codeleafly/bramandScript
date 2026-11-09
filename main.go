@@ -620,6 +620,10 @@ func printHelp() {
 	fmt.Println("  bramand build [-O] <src>  Compile into standalone native binary (-O for optimized bytecode)")
 	fmt.Println("  bramand disasm [-O] <file> Disassemble source file to bytecode (-O for optimized)")
 	fmt.Println("  bramand profile <src.bmd> Profile execution with opcode timing hotspots")
+	fmt.Println("  bramand bench <file.bmd>  Run benchmarks with statistical metrics and allocs")
+	fmt.Println("  bramand fuzz <file.bmd>   Run automated mutation fuzz testing engine")
+	fmt.Println("  bramand record <file.bmd> Record time-travel execution trace (-o trace.json)")
+	fmt.Println("  bramand replay <trace>    Interactive time-travel replay debugger")
 	fmt.Println("  bramand install <target>  Install package from GitHub, CDN/URL, or local directory")
 	fmt.Println("  bramand get               Install missing dependencies declared in bmdpkg.json")
 	fmt.Println("  bramand cache <cmd>       Manage cache and integrity (info, prune, verify)")
@@ -766,13 +770,22 @@ func handleFuzzCommand(filename string) {
 }
 
 func handleRecordCommand(args []string) {
-	sourceFile := args[0]
+	var sourceFile string
 	outputTrace := "trace.json"
-	for i := 1; i < len(args); i++ {
+	for i := 0; i < len(args); i++ {
 		if args[i] == "-o" && i+1 < len(args) {
 			outputTrace = args[i+1]
 			i++
+		} else if strings.HasPrefix(args[i], "-") {
+			// skip other option flags
+		} else if sourceFile == "" {
+			sourceFile = args[i]
 		}
+	}
+
+	if sourceFile == "" {
+		fmt.Println("Usage: bramand record <filename.bmd> [-o trace.json]")
+		safeExit(1)
 	}
 
 	data, err := os.ReadFile(sourceFile)

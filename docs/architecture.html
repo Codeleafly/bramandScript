@@ -813,6 +813,71 @@ fn process_point({ x, y }) { return sqrt(x*x + y*y); }</code></pre>
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
           Generator functions using <code class="font-mono">yield</code> produce lazy, stateful iterators backed by lightweight coroutine tasks. Scientific plots and function curves are rendered with 8x resolution per terminal cell using pure Unicode Braille matrix patterns (<code class="font-mono">std/tui/plot</code>).
         </p>
+      </section>
+
+      <!-- ================= ADVANCED ENGINE ARCHITECTURE (WEEK 5) ================= -->
+      <section id="ch-week5-architecture" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Week 5 Architecture</span>
+          <span class="badge badge-purple">Enterprise Engine Subsystems</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Week 5 Advanced Engine Architecture &amp; Execution Subsystems</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+          Week 5 introduces four major architectural subsystems into the BramandScript VM and compiler core:
+        </p>
+
+        <!-- Subsystem 1: Comptime Sandbox -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-500 font-mono">1.</span> Compile-Time Metaprogramming Sandbox (<code class="font-mono">comptime { ... }</code>)
+          </h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+            During compilation, when the Pratt parser encounters <code class="font-mono">comptime</code>, it produces an <code class="font-mono">ast.ComptimeExpression</code>. The compiler instantiates an isolated sub-compiler and triggers the Go VM sandbox (<code class="font-mono">compiler.ComptimeEvaluator</code>). The sandbox executes bytecode independently in an isolated frame and captures the top-of-stack result. The returned runtime object is placed directly into the outer bytecode constant pool and inlined via <code class="font-mono">OpConstant</code> with zero runtime compute cost.
+          </p>
+          <div class="p-3 bg-slate-100 dark:bg-slate-900 rounded font-mono text-xs text-slate-700 dark:text-slate-300">
+            AST (ComptimeExpression) ──▶ Sub-Compiler (Bytecode) ──▶ Sandbox VM (Execute) ──▶ OpConstant (Inlined)
+          </div>
+        </div>
+
+        <!-- Subsystem 2: Reactive Streams -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-500 font-mono">2.</span> Thread-Safe Reactive Stream Pipelines &amp; Backpressure Control
+          </h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+            Streams implement a dual push/pull contract. In unconstrained push mode, items flow down the pipeline through functional combinators. When consumer backpressure is active (<code class="font-mono">sub.request(n)</code>), the producer thread coordinates with a condition variable (<code class="font-mono">sync.Cond</code>) bound to a mutex. Downstream operators like <code class="font-mono">debounce</code>, <code class="font-mono">throttle</code>, and <code class="font-mono">window</code> batch and pace event emission safely across goroutines without data races.
+          </p>
+          <div class="p-3 bg-slate-100 dark:bg-slate-900 rounded font-mono text-xs text-slate-700 dark:text-slate-300">
+            Stream Producer ──▶ sync.Cond Wait (Backpressure) ──▶ Transform (Map/Filter/Window) ──▶ Subscriber Next
+          </div>
+        </div>
+
+        <!-- Subsystem 3: SQL Engine -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-500 font-mono">3.</span> In-Memory Relational SQL AST Parser, Planner &amp; Execution Engine
+          </h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+            The SQL subsystem converts raw SQL queries into an <code class="font-mono">SQLQueryPlan</code> representing selections, joins, predicates, groups, and sorts. The relational engine executes the plan against in-memory datasets or DataFrame tables through structured pipeline stages: Table Scan → Relational Join (INNER, LEFT) → Predicate Evaluation (WHERE) → Group Hash Partitioning → Aggregate Computation (COUNT, SUM, AVG, MIN, MAX) → Having Filter → Order By Sorting → Column Projection → Limit/Offset Slicing.
+          </p>
+          <div class="p-3 bg-slate-100 dark:bg-slate-900 rounded font-mono text-xs text-slate-700 dark:text-slate-300">
+            SQL String ──▶ Tokenizer ──▶ SQLQueryPlan ──▶ Scan ──▶ Join ──▶ Filter ──▶ GroupBy/Agg ──▶ Project/Limit
+          </div>
+        </div>
+
+        <!-- Subsystem 4: Time-Travel Debugger -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-blue-500 font-mono">4.</span> Time-Travel Reversible Execution Checkpoint Architecture
+          </h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+            When running with <code class="font-mono">bmd record</code>, the VM wraps its inner execution loop with an <code class="font-mono">ExecutionRecorder</code>. At each bytecode instruction step, the recorder captures a <code class="font-mono">StepCheckpoint</code> storing step count, instruction pointer (IP), opcode name, operand stack snapshot, active locals, current function name, and source line. The resulting <code class="font-mono">ExecutionTrace</code> is serialized to JSON, enabling the interactive <code class="font-mono">ReplayDebugger</code> to step backward (<code class="font-mono">step_back</code>), forward, and jump to arbitrary historical execution checkpoints.
+          </p>
+          <div class="p-3 bg-slate-100 dark:bg-slate-900 rounded font-mono text-xs text-slate-700 dark:text-slate-300">
+            VM Loop Step ──▶ RecordStep (IP, Opcode, Stack, Locals) ──▶ trace.json ──▶ ReplayDebugger (Step / StepBack)
+          </div>
+        </div>
 
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-8">
           Released under the MIT License · Copyright (c) 2026 Codeleafly &lt;ziprecovery2024@gmail.com&gt; (<a href="https://github.com/Codeleafly" class="text-indigo-600 dark:text-indigo-400 hover:underline">Codeleafly</a>).

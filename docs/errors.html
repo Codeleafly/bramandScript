@@ -999,6 +999,36 @@ let result = retry.with_retry(fn() {
                 <td class="p-3">Module A imports B which imports A</td>
                 <td class="p-3">Refactor common dependencies into a shared module</td>
               </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">comptime compilation error</td>
+                <td class="p-3 font-mono">ComptimeError</td>
+                <td class="p-3">Syntax or semantic defect inside comptime { ... } block</td>
+                <td class="p-3">Ensure comptime code is self-contained and valid BramandScript syntax</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">comptime evaluation error</td>
+                <td class="p-3 font-mono">ComptimeError</td>
+                <td class="p-3">Runtime exception encountered inside compile-time VM sandbox</td>
+                <td class="p-3">Fix runtime errors (e.g. index bounds or nil dereference) within comptime expression</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">SQL parse error: ...</td>
+                <td class="p-3 font-mono">SQLError</td>
+                <td class="p-3">Malformed SQL query, missing FROM, or invalid clause</td>
+                <td class="p-3">Verify ANSI SQL syntax: SELECT cols FROM table WHERE cond</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">SQL execution error: table not found</td>
+                <td class="p-3 font-mono">SQLError</td>
+                <td class="p-3">Referenced table missing from tables hash dictionary</td>
+                <td class="p-3">Pass table key in dataset dictionary: { "users": records }</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">vector dimensions mismatch</td>
+                <td class="p-3 font-mono">AIError</td>
+                <td class="p-3">Vectors passed to dot_product, cosine, or euclidean have unequal lengths</td>
+                <td class="p-3">Ensure query vector and indexed corpus vectors share identical embedding dimensions</td>
+              </tr>
             </tbody>
           </table>
         </div>

@@ -42,15 +42,21 @@ func createStreamObject(s *streamInstance) *object.Hash {
 		var mu sync.Mutex
 		var items []object.Object
 		doneCh := make(chan struct{})
+		var once sync.Once
+		finish := func() {
+			once.Do(func() {
+				close(doneCh)
+			})
+		}
 
 		go func() {
-			defer close(doneCh)
+			defer finish()
 			s.producer(func(val object.Object) bool {
 				mu.Lock()
 				items = append(items, val)
 				mu.Unlock()
 				return true
-			}, func() {})
+			}, finish)
 		}()
 
 		<-doneCh
@@ -469,6 +475,23 @@ func createStreamObject(s *streamInstance) *object.Hash {
 			var active bool
 			isDone := false
 			doneCh := make(chan struct{})
+			var once sync.Once
+			finish := func() {
+				once.Do(func() {
+					mu.Lock()
+					isDone = true
+					if timer != nil {
+						timer.Stop()
+					}
+					if active {
+						active = false
+						emit(lastVal)
+					}
+					mu.Unlock()
+					done()
+					close(doneCh)
+				})
+			}
 
 			s.producer(func(val object.Object) bool {
 				mu.Lock()
@@ -487,20 +510,7 @@ func createStreamObject(s *streamInstance) *object.Hash {
 					}
 				})
 				return true
-			}, func() {
-				mu.Lock()
-				isDone = true
-				if timer != nil {
-					timer.Stop()
-				}
-				if active {
-					active = false
-					emit(lastVal)
-				}
-				mu.Unlock()
-				done()
-				close(doneCh)
-			})
+			}, finish)
 			<-doneCh
 		}
 		return createStreamObject(newStreamInstance(newProd))
@@ -688,20 +698,36 @@ func createStreamObject(s *streamInstance) *object.Hash {
 			q2 := make(chan object.Object, 1024)
 			done1 := make(chan struct{})
 			done2 := make(chan struct{})
+			stopZip := make(chan struct{})
+			var once sync.Once
+			closeStop := func() {
+				once.Do(func() {
+					close(stopZip)
+				})
+			}
+			defer closeStop()
 
 			go func() {
 				defer close(done1)
 				s.producer(func(val object.Object) bool {
-					q1 <- val
-					return true
+					select {
+					case q1 <- val:
+						return true
+					case <-stopZip:
+						return false
+					}
 				}, func() {})
 			}()
 
 			go func() {
 				defer close(done2)
 				otherStream.producer(func(val object.Object) bool {
-					q2 <- val
-					return true
+					select {
+					case q2 <- val:
+						return true
+					case <-stopZip:
+						return false
+					}
 				}, func() {})
 			}()
 
@@ -715,6 +741,8 @@ func createStreamObject(s *streamInstance) *object.Hash {
 						return
 					}
 					v1 = <-q1
+				case <-stopZip:
+					return
 				}
 
 				select {
@@ -725,6 +753,8 @@ func createStreamObject(s *streamInstance) *object.Hash {
 						return
 					}
 					v2 = <-q2
+				case <-stopZip:
+					return
 				}
 
 				pair := &object.Array{Elements: []object.Object{v1, v2}}

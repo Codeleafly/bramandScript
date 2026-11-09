@@ -133,6 +133,7 @@
             <li><a href="fundamentals.html#ch9" class="nav-link"><span>9.</span> Functions &amp; Closures</a></li>
             <li><a href="fundamentals.html#ch-systems" class="nav-link"><span>10.</span> Low-Level &amp; Systems Primitives</a></li>
             <li><a href="fundamentals.html#ch-exceptions" class="nav-link"><span>11.</span> Exceptions &amp; Permissions</a></li>
+            <li><a href="fundamentals.html#ch-comptime" class="nav-link"><span>12.</span> Compile-Time Metaprogramming (comptime)</a></li>
           </ul>
         </div>
 
@@ -143,6 +144,7 @@
             <li><a href="data-structures.html#ch11" class="nav-link"><span>11.</span> For-In Iterators</a></li>
             <li><a href="data-structures.html#ch12" class="nav-link"><span>12.</span> Structs &amp; Methods</a></li>
             <li><a href="data-structures.html#ch13" class="nav-link"><span>13.</span> Pattern Matching</a></li>
+            <li><a href="data-structures.html#ch-dataframe" class="nav-link"><span>14.</span> Columnar DataFrames &amp; Vectorized Ops</a></li>
           </ul>
         </div>
 
@@ -152,6 +154,7 @@
             <li><a href="concurrency.html#ch-concurrency" class="nav-link "><span>✦</span> Concurrency &amp; Tasks</a></li>
             <li><a href="concurrency.html#ch-channels" class="nav-link"><span>✦</span> Channels &amp; Message Passing</a></li>
             <li><a href="concurrency.html#ch-mutex" class="nav-link"><span>✦</span> Mutex &amp; Synchronization</a></li>
+            <li><a href="concurrency.html#ch-reactive-streams" class="nav-link"><span>✦</span> Reactive Streams &amp; Backpressure</a></li>
             <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
           </ul>
         </div>
@@ -160,6 +163,9 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Standard Library</h3>
           <ul class="space-y-1">
             <li><a href="stdlib.html#ch-modular-stdlib" class="nav-link "><span>✦</span> Modular Stdlib (std/...)</a></li>
+            <li><a href="stdlib.html#ch-stream" class="nav-link"><span>✦</span> Reactive Streams (std/stream)</a></li>
+            <li><a href="stdlib.html#ch-sql" class="nav-link"><span>✦</span> Relational SQL Suite (std/sql)</a></li>
+            <li><a href="stdlib.html#ch-ai" class="nav-link"><span>✦</span> AI Vectors, KNN &amp; RAG (std/ai)</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -177,7 +183,7 @@
             <li><a href="networking.html#ch-http" class="nav-link"><span>✦</span> HTTP Client &amp; Server</a></li>
             <li><a href="networking.html#ch-websockets" class="nav-link"><span>✦</span> RFC 6455 WebSockets</a></li>
             <li><a href="networking.html#ch-ai-integrations" class="nav-link"><span>✦</span> AI Streaming &amp; LLMs</a></li>
-            <li><a href="networking.html#ch-vector-search" class="nav-link"><span>✦</span> Vector Similarity &amp; Search</a></li>
+            <li><a href="networking.html#ch-vector-search" class="nav-link"><span>✦</span> Spatial KNN &amp; Vector Search</a></li>
           </ul>
         </div>
 
@@ -185,6 +191,8 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Developer Tooling</h3>
           <ul class="space-y-1">
             <li><a href="tooling.html#ch-testrunner" class="nav-link "><span>✦</span> Test Runner &amp; Assertions</a></li>
+            <li><a href="tooling.html#ch-bench-fuzz" class="nav-link"><span>✦</span> Benchmarks &amp; Fuzz Testing</a></li>
+            <li><a href="tooling.html#ch-time-travel" class="nav-link"><span>✦</span> Time-Travel Replay Debugger</a></li>
             <li><a href="tooling.html#ch-formatter" class="nav-link"><span>✦</span> Code Formatter (fmt)</a></li>
             <li><a href="tooling.html#ch-compiler" class="nav-link"><span>✦</span> Standalone Binary Build</a></li>
             <li><a href="tooling.html#ch-pkg-manager" class="nav-link"><span>✦</span> Centralized Package Manager</a></li>
@@ -192,8 +200,9 @@
         </div>
 
         <div>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Ecosystem &amp; Architecture</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Diagnostics &amp; Architecture</h3>
           <ul class="space-y-1">
+            <li><a href="errors.html" class="nav-link"><span>✦</span> Diagnostic &amp; Error Reference</a></li>
             <li><a href="architecture.html#ch14" class="nav-link "><span>14.</span> Import Pipeline &amp; Package Architecture</a></li>
             <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
             <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
@@ -294,6 +303,11 @@
         <ul class="space-y-2 text-slate-600 dark:text-slate-300 list-disc list-inside">
           <li><strong>Clean, International English Syntax:</strong> Familiar to developers from Python, JavaScript, and Go, with no syntactic noise or forced ceremony.</li>
           <li><strong>64-Bit Opcode Virtual Machine &amp; Dynamic Stack:</strong> Every source program is compiled to dense 64-bit BigEndian binary opcodes executed by a high-throughput stack loop with dynamically expandable call frames.</li>
+          <li><strong>Compile-Time Metaprogramming Sandbox:</strong> Evaluate precomputed constants, lookup tables, and loops at compilation (<code class="font-mono">comptime { ... }</code>) inlined directly into the bytecode constant pool.</li>
+          <li><strong>Native Reactive Event Streams with Backpressure:</strong> Push/pull stream pipelines (<code class="font-mono">std/stream</code>) with demand signaling (<code class="font-mono">request</code>, <code class="font-mono">pause</code>, <code class="font-mono">resume</code>), time-windowed operators (<code class="font-mono">debounce</code>, <code class="font-mono">throttle</code>, <code class="font-mono">window</code>, <code class="font-mono">sample</code>), and combinators (<code class="font-mono">merge</code>, <code class="font-mono">zip</code>, <code class="font-mono">concat</code>, <code class="font-mono">switch_map</code>).</li>
+          <li><strong>In-Memory Relational SQL &amp; Columnar DataFrames:</strong> ANSI SQL parser, query planner, and execution engine (<code class="font-mono">std/sql</code>) with joins and aggregations, and high-performance zero-copy columnar vectors (<code class="font-mono">std/dataframe</code>).</li>
+          <li><strong>Local AI Vector Metrics &amp; Spatial KNN Index:</strong> Hardware-accelerated Cosine, Euclidean, Manhattan, and Dot similarity metrics, persistent spatial KNN vector index, and RAG sliding-window document chunking pipeline (<code class="font-mono">std/ai</code>).</li>
+          <li><strong>Built-in Benchmarks, Fuzzing &amp; Time-Travel Debugger:</strong> Integrated micro-benchmarks (<code class="font-mono">bmd bench</code>), mutation fuzz testing (<code class="font-mono">bmd fuzz</code>), and step-by-step reversible execution recording (<code class="font-mono">bmd record</code> &amp; <code class="font-mono">bmd replay</code>).</li>
           <li><strong>Lightweight Actors &amp; Supervision Trees:</strong> Erlang/OTP-inspired isolated process model with asynchronous mailboxes, synchronous ask, and fault-tolerant supervision trees (<code class="font-mono">one_for_one</code>, <code class="font-mono">one_for_all</code>, <code class="font-mono">rest_for_one</code>).</li>
           <li><strong>Monadic Safety &amp; Algebraic Types:</strong> First-class <code class="font-mono">Result</code> (<code class="font-mono">Ok</code>/<code class="font-mono">Err</code>), <code class="font-mono">Option</code> (<code class="font-mono">Some</code>/<code class="font-mono">None</code>), and the postfix try-propagation operator (<code class="font-mono">?</code>) eliminating uncaught exceptions.</li>
           <li><strong>Uncolored Async/Await &amp; Structured Concurrency:</strong> Non-viral <code class="font-mono">async fn</code> / <code class="font-mono">await</code> coroutines, cooperative multitasking (<code class="font-mono">yield</code>), and structured task groups with automatic cascade cancellation.</li>
@@ -405,6 +419,26 @@ ln -sf "${PREFIX:-/usr/local}/bin/bramand" "${PREFIX:-/usr/local}/bin/bmd"</code
                 <td><code class="font-mono">bmd test [paths]</code></td>
                 <td>Run automated test suite discovery and execution runner</td>
                 <td><code class="font-mono">bmd test tests/</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd bench &lt;file.bmd&gt;</code></td>
+                <td>Run micro-benchmarks with statistical timing and allocation tracking</td>
+                <td><code class="font-mono">bmd bench bench.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd fuzz &lt;file.bmd&gt;</code></td>
+                <td>Run automated mutation-based fuzz testing engine</td>
+                <td><code class="font-mono">bmd fuzz fuzz_test.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd record &lt;file.bmd&gt; [-o trace.json]</code></td>
+                <td>Record VM execution step checkpoints into time-travel trace</td>
+                <td><code class="font-mono">bmd record app.bmd</code></td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">bmd replay &lt;trace.json&gt;</code></td>
+                <td>Interactive time-travel debugger with step forward and step backward</td>
+                <td><code class="font-mono">bmd replay trace.json</code></td>
               </tr>
               <tr>
                 <td><code class="font-mono">bmd fmt [-c] [paths]</code></td>

@@ -374,7 +374,23 @@ bmd build app.bmd -o my_app
 | `bmd pkg list` | *(none)* | Lists dependencies in current project and all globally installed packages |
 | `bmd build` | `<file.bmd> -o <exe>` | Compiles self-contained executable embedding dependencies from `~/.bmd_libs/` |
 
-### 4. Run All Automated Unit Tests
+### 4. Performance Benchmarks, Fuzz Testing & Time-Travel Debugging
+```bash
+# Run statistical performance micro-benchmarks
+bmd bench benchmarks/matrix_bench.bmd
+
+# Run automated mutation-based fuzz testing
+bmd fuzz tests/fuzz_json.bmd
+
+# Record program execution into time-travel trace
+bmd record script.bmd -o trace.json
+
+# Launch interactive time-travel replay debugger
+bmd replay trace.json
+# Commands: [s]tep, [b]ack/step_back, [p]rint/inspect, [h]istory, [g]oto <step>, [q]uit
+```
+
+### 5. Run All Automated Unit Tests
 ```bash
 # Pure Go test suite
 go test ./... -v

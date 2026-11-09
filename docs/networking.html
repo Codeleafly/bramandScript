@@ -513,6 +513,36 @@ println("Data payload:", outcome.result)</code></pre>
 <span class="token-kw">let</span> <span class="token-fn">matches</span> <span class="token-op">=</span> <span class="token-fn">vector_search</span>(<span class="token-fn">query</span>, <span class="token-fn">corpus</span>, <span class="token-num">2</span>, <span class="token-str">"cosine"</span>)
 <span class="token-fn">println</span>(<span class="token-str">"Top Match:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"item"</span>][<span class="token-str">"title"</span>], <span class="token-str">"Score:"</span>, <span class="token-fn">matches</span>[<span class="token-num">0</span>][<span class="token-str">"score"</span>])</code></pre>
         </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Persistent In-Memory Spatial Vector Index (<code class="font-mono">std/ai</code>) &amp; RAG Pipeline</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+          The <code class="font-mono">std/ai</code> module provides a fast K-Nearest Neighbors (KNN) spatial index supporting vector insertion, similarity search, serialization to JSON files, and sliding-window document chunking:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Spatial KNN Index and RAG Context Generation</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/ai" as ai;
+
+// 1. Semantic Document Chunking
+let doc = "BramandScript Bytecode VM executes 64-bit opcodes on a dynamic stack. Pure Go stdlib zero dependencies.";
+let chunks = ai.chunk_text(doc, { "chunk_size": 40, "chunk_overlap": 10 });
+
+// 2. Initialize In-Memory KNN Spatial Vector Index
+let idx = ai.new_index("cosine");
+idx.add("doc_sec_01", [0.95, 0.12, 0.05], { "text": chunks[0]["text"] });
+idx.add("doc_sec_02", [0.10, 0.89, 0.22], { "text": chunks[1]["text"] });
+
+// 3. Nearest Neighbor Similarity Search
+let hits = idx.search([0.92, 0.15, 0.03], 1);
+println("Top Hit ID:", hits[0]["id"], "Score:", hits[0]["score"]);
+
+// 4. Format RAG Prompt Context Block for LLM
+let rag_context = ai.build_rag_context([0.92, 0.15, 0.03], idx, 2);
+println("RAG Context:\n", rag_context);</code></pre>
+        </div>
       </section>
 
       <!-- ================= DEVELOPER TOOLING: TEST RUNNER ================= -->

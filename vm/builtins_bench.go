@@ -183,7 +183,7 @@ func init() {
 			}
 
 			formatted := formatBenchmarkResult(res)
-			println(formatted)
+			fmt.Println(formatted)
 
 			h := &object.Hash{Pairs: make(map[object.HashKey]object.HashPair)}
 			setPair := func(k string, v object.Object) {

@@ -155,6 +155,7 @@
             <li><a href="concurrency.html#ch-semaphores-pools" class="nav-link"><span>✦</span> Semaphores &amp; Worker Pools</a></li>
             <li><a href="concurrency.html#ch-actors" class="nav-link"><span>✦</span> Actor Model &amp; Supervision</a></li>
             <li><a href="concurrency.html#ch-async-taskgroup" class="nav-link"><span>✦</span> Async/Await &amp; Task Groups</a></li>
+            <li><a href="concurrency.html#ch-reactive-streams" class="nav-link"><span>✦</span> Reactive Streams &amp; Backpressure</a></li>
             <li><a href="concurrency.html#ch-fileio" class="nav-link"><span>✦</span> File I/O &amp; Process Exec</a></li>
           </ul>
         </div>
@@ -793,6 +794,73 @@ println("Failure caught:", fail_res.is_err()) // true</code></pre>
     <span class="token-fn">println</span>(<span class="token-str">"Steered Up!"</span>)
 }
 <span class="token-fn">term_raw</span>(<span class="token-kw">false</span>) <span class="token-comment">// Restore terminal mode</span></code></pre>
+        </div>
+      </section>
+
+      <!-- ================= NATIVE REACTIVE EVENT STREAMS WITH BACKPRESSURE ================= -->
+      <section id="ch-reactive-streams" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Day 32 Standard</span>
+          <span class="badge badge-purple">Reactive Pipelines</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Native Reactive Event Streams with Backpressure (<code class="font-mono">std/stream</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides native push/pull reactive event streams with backpressure demand signaling, high-frequency time-windowed operators (<code class="font-mono">debounce</code>, <code class="font-mono">throttle</code>, <code class="font-mono">window</code>, <code class="font-mono">sample</code>), and stream multiplexing combinators (<code class="font-mono">merge</code>, <code class="font-mono">zip</code>, <code class="font-mono">concat</code>, <code class="font-mono">switch_map</code>).
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Reactive Stream Pipeline &amp; Demand Signaling</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/stream" as stream;
+
+// 1. Pipeline Transformation: Map, Filter, Window
+let s = stream.from_array([1, 2, 3, 4, 5, 6, 7, 8])
+    .filter(fn(x) { return x % 2 == 0; })
+    .map(fn(x) { return x * 10; })
+    .window(2);
+
+let batches = s.collect();
+println("Batches:", batches); // [[20, 40], [60, 80]]
+
+// 2. Controlled Backpressure Demand Pull
+let source = stream.from_array([100, 200, 300, 400]);
+let sub = source.subscribe({
+    "next": fn(val) { println("Received:", val); },
+    "complete": fn() { println("Stream complete."); }
+});
+
+// Explicit demand pull: request 2 items
+sub.request(2);
+sub.pause();
+println("Subscription active:", sub.is_active());
+sub.resume();
+
+// 3. Stream Combinators (Zip & Merge)
+let s1 = stream.from_array(["A", "B", "C"]);
+let s2 = stream.from_array([1, 2, 3]);
+let paired = s1.zip(s2).collect();
+println("Zipped pairs:", paired); // [["A", 1], ["B", 2], ["C", 3]]</code></pre>
+        </div>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Operator / Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">subscribe</code></td><td><code class="font-mono">s.subscribe(observer)</code></td><td><code class="font-mono">Subscription</code></td><td>Attaches observer with <code class="font-mono">.request(n)</code>, <code class="font-mono">.pause()</code>, <code class="font-mono">.resume()</code>, and <code class="font-mono">.cancel()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">pull</code></td><td><code class="font-mono">s.pull(n)</code></td><td><code class="font-mono">ARRAY</code></td><td>Pulls exactly <code class="font-mono">n</code> items from the stream on demand.</td></tr>
+              <tr><td><code class="font-mono font-bold">debounce</code></td><td><code class="font-mono">s.debounce(ms)</code></td><td><code class="font-mono">Stream</code></td><td>Suppresses events emitted within <code class="font-mono">ms</code> window until quiet period elapses.</td></tr>
+              <tr><td><code class="font-mono font-bold">throttle</code></td><td><code class="font-mono">s.throttle(ms)</code></td><td><code class="font-mono">Stream</code></td><td>Ensures at least <code class="font-mono">ms</code> duration between consecutive emissions.</td></tr>
+              <tr><td><code class="font-mono font-bold">window</code></td><td><code class="font-mono">s.window(size)</code></td><td><code class="font-mono">Stream</code></td><td>Batches incoming items into arrays of fixed <code class="font-mono">size</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">sample</code></td><td><code class="font-mono">s.sample(ms)</code></td><td><code class="font-mono">Stream</code></td><td>Emits latest value observed across periodic <code class="font-mono">ms</code> timer interval.</td></tr>
+              <tr><td><code class="font-mono font-bold">merge / zip / concat</code></td><td><code class="font-mono">s1.merge(s2) / .zip / .concat</code></td><td><code class="font-mono">Stream</code></td><td>Interleaves, pairs pairwise, or sequences multiple streams.</td></tr>
+              <tr><td><code class="font-mono font-bold">switch_map</code></td><td><code class="font-mono">s.switch_map(fn)</code></td><td><code class="font-mono">Stream</code></td><td>Maps items to inner streams, canceling the active inner stream upon new arrival.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
