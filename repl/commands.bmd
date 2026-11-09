@@ -1,0 +1,92 @@
+// BramandScript REPL :: Command Router
+// Handles interactive shell commands (:help, :clear, :reset, :env, :type, :time, :disasm, :exit).
+
+import "./format" as fmt
+import "./editor" as ed
+import "std/strings" as str_pkg
+
+let print_repl_help = fn() {
+    println(fmt.c_cyan("✦ BramandScript Interactive REPL Commands:"));
+    println(fmt.c_dim("────────────────────────────────────────────────────────────────────────────"));
+    println("  " + fmt.c_bold(":help") + "               Show this command reference");
+    println("  " + fmt.c_bold(":clear") + "              Clear the terminal screen");
+    println("  " + fmt.c_bold(":reset") + "              Reset active session variables and constants");
+    println("  " + fmt.c_bold(":env") + "                Inspect all active variables in current session");
+    println("  " + fmt.c_bold(":type <expr>") + "        Evaluate expression and inspect its runtime type");
+    println("  " + fmt.c_bold(":time <expr>") + "        Execute expression and measure execution duration");
+    println("  " + fmt.c_bold(":disasm <expr>") + "      Disassemble bytecode instructions for expression");
+    println("  " + fmt.c_bold(":editor [path]") + "      Open multi-line editor (save with ':done [path]')");
+    println("  " + fmt.c_bold(":exit, :quit") + "        Exit the BramandScript REPL");
+    println(fmt.c_dim("────────────────────────────────────────────────────────────────────────────"));
+};
+
+let execute_repl_command = fn(trimmed, sess) {
+    if trimmed == ":help" {
+        print_repl_help();
+        return { "handled": true, "exit": false };
+    }
+    if trimmed == ":clear" {
+        print("\033[H\033[2J");
+        return { "handled": true, "exit": false };
+    }
+    if trimmed == ":reset" {
+        let new_sess = create_session();
+        println(fmt.c_green("[OK] ") + "Runtime session reset.");
+        return { "handled": true, "exit": false, "new_session": new_sess };
+    }
+    if trimmed == ":env" {
+        let vars = session_vars(sess);
+        let var_keys = keys(vars);
+        if len(var_keys) == 0 {
+            println(fmt.c_dim("  (no active user variables in session)"));
+        } else {
+            println(fmt.c_cyan("✦ Active Session Variables (" + str(len(var_keys)) + "):"));
+            let k_idx = 0;
+            while k_idx < len(var_keys) {
+                let k = var_keys[k_idx];
+                let val = vars[k];
+                println("  " + fmt.c_bold(k) + " : " + fmt.c_magenta(type(val)) + " = " + str(val));
+                k_idx = k_idx + 1;
+            }
+        }
+        return { "handled": true, "exit": false };
+    }
+    if str_pkg.starts_with(trimmed, ":editor") || str_pkg.starts_with(trimmed, ":edit") {
+        ed.run_editor_mode(sess, trimmed);
+        return { "handled": true, "exit": false };
+    }
+    if str_pkg.starts_with(trimmed, ":disasm ") {
+        let expr = trim(str_pkg.slice(trimmed, 8, len(trimmed)));
+        let disassembled = disasm(expr);
+        println(disassembled);
+        return { "handled": true, "exit": false };
+    }
+    if str_pkg.starts_with(trimmed, ":type ") {
+        let expr = trim(str_pkg.slice(trimmed, 6, len(trimmed)));
+        let res = eval(expr, sess);
+        if type(res) == "ERROR" {
+            println(fmt.c_red("✦ Error: ") + str(res));
+        } else {
+            println(fmt.c_magenta(type(res)));
+        }
+        return { "handled": true, "exit": false };
+    }
+    if str_pkg.starts_with(trimmed, ":time ") {
+        let expr = trim(str_pkg.slice(trimmed, 6, len(trimmed)));
+        let t0 = time_ms();
+        let res = eval(expr, sess);
+        let elapsed = time_ms() - t0;
+        ensure_newline();
+        if type(res) == "ERROR" {
+            println(fmt.c_red("✦ Error: ") + str(res));
+        } else {
+            if res != null {
+                println(fmt.format_repl_value(res));
+            }
+            println(fmt.c_dim("  · execution duration: " + str(elapsed) + "ms"));
+        }
+        ensure_newline();
+        return { "handled": true, "exit": false };
+    }
+    return { "handled": false, "exit": false };
+};

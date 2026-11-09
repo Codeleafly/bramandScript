@@ -62,6 +62,7 @@
         <a href="networking.html" class="nav-pill ">Net &amp; AI</a>
         <a href="tooling.html" class="nav-pill ">Tooling</a>
         <a href="architecture.html" class="nav-pill active">Architecture</a>
+        <a href="errors.html" class="nav-pill ">Errors</a>
       </nav>
 
       <!-- Search Bar -->
@@ -608,6 +609,66 @@
                 <td>none</td>
                 <td><code class="font-mono">[a, n] --&gt; [res]</code> / <code class="font-mono">[a] --&gt; [res]</code></td>
                 <td>Performs bitwise left shift, arithmetic right shift, and bitwise inversion (~)</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpArray / OpHash</code></td>
+                <td><code class="font-mono">[uint16]</code> count</td>
+                <td><code class="font-mono">[elements...] --&gt; [container]</code></td>
+                <td>Constructs dynamically-sized Array or Hash map from stack values</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpIndex / OpSetIndex</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[col, key] --&gt; [v]</code> / <code class="font-mono">[col, key, v] --&gt;</code></td>
+                <td>Indexed read or mutation with negative indexing and bounds checks</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpSpawn / OpSend / OpReceive</code></td>
+                <td><code class="font-mono">[uint8]</code> args / none</td>
+                <td><code class="font-mono">[fn] --&gt;</code> / <code class="font-mono">[ch, v] --&gt;</code> / <code class="font-mono">[ch] --&gt; [v]</code></td>
+                <td>Lightweight concurrent task spawning and synchronized channel streaming</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpGetBuiltin</code></td>
+                <td><code class="font-mono">[uint8]</code> builtinIndex</td>
+                <td><code class="font-mono">--&gt; [builtin]</code></td>
+                <td>Retrieves Go standard library builtin function from immutable host registry</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpGetFree / OpSetFree</code></td>
+                <td><code class="font-mono">[uint8]</code> freeIndex</td>
+                <td><code class="font-mono">--&gt; [v]</code> / <code class="font-mono">[v] --&gt;</code></td>
+                <td>Reads or mutates lexical free-variable closure captured cell</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpCurrentClosure</code></td>
+                <td>none</td>
+                <td><code class="font-mono">--&gt; [closure]</code></td>
+                <td>Pushes reference to active closure on the stack for self-recursion</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpGetLocalCell / OpGetFreeCell</code></td>
+                <td><code class="font-mono">[uint16]</code> / <code class="font-mono">[uint8]</code></td>
+                <td><code class="font-mono">--&gt; [cell]</code></td>
+                <td>Allocates or extracts mutable shared reference cell for closures</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpModule / OpEnterPackage / OpLeavePackage</code></td>
+                <td><code class="font-mono">[uint64]</code> pathIndex / none</td>
+                <td>none</td>
+                <td>Module singleton management and package boundary permission isolation</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpTrue / OpFalse / OpNull</code></td>
+                <td>none</td>
+                <td><code class="font-mono">--&gt; [bool/null]</code></td>
+                <td>Pushes singleton immutable boolean or null runtime object</td>
+              </tr>
+              <tr>
+                <td><code class="font-mono">OpBang / OpMinus</code></td>
+                <td>none</td>
+                <td><code class="font-mono">[val] --&gt; [res]</code></td>
+                <td>Logical negation (!) and arithmetic negation (-) operations</td>
               </tr>
             </tbody>
           </table>

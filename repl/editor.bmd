@@ -1,0 +1,70 @@
+// BramandScript REPL :: Multi-Line Editor Mode
+// Provides interactive multi-line code drafting and optional disk saving.
+
+import "./format" as fmt
+import "std/strings" as str_pkg
+
+let run_editor_mode = fn(sess, init_cmd) {
+    println(fmt.c_yellow("✦ Entering multi-line editor mode. Type ':done' to execute or ':cancel' to abort."));
+    println(fmt.c_dim("  To save to file on disk: ':done <filename.bmd>' or ':save <filename.bmd>'"));
+
+    let default_save_path = "";
+    let trimmed_cmd = trim(init_cmd);
+    if str_pkg.starts_with(trimmed_cmd, ":editor ") || str_pkg.starts_with(trimmed_cmd, ":edit ") {
+        let parts = split(trimmed_cmd, " ");
+        if len(parts) > 1 {
+            default_save_path = trim(parts[1]);
+        }
+    }
+
+    let buffer = "";
+    let line_num = 1;
+
+    while true {
+        let prompt = fmt.c_dim("  " + str(line_num) + " │ ");
+        let line = read_line(prompt);
+        if line == null || line == ":cancel" || line == ":abort" {
+            println(fmt.c_dim("[Editor cancelled]"));
+            return null;
+        }
+
+        let trimmed_line = trim(line);
+        if trimmed_line == ":done" || str_pkg.starts_with(trimmed_line, ":done ") || str_pkg.starts_with(trimmed_line, ":save ") {
+            let save_path = default_save_path;
+            let parts = split(trimmed_line, " ");
+            if len(parts) > 1 && trim(parts[1]) != "" {
+                save_path = trim(parts[1]);
+            }
+
+            if save_path != "" {
+                write_file(save_path, buffer);
+                println(fmt.c_green("[OK] ") + "Saved " + str(len(buffer)) + " bytes to " + save_path);
+            }
+            break;
+        }
+
+        buffer = buffer + line + "\n";
+        line_num = line_num + 1;
+    }
+
+    if trim(buffer) == "" {
+        return null;
+    }
+
+    println(fmt.c_dim("Executing buffer..."));
+    let t0 = time_ms();
+    let res = eval(buffer, sess);
+    let elapsed = time_ms() - t0;
+    ensure_newline();
+
+    if type(res) == "ERROR" {
+        println(fmt.c_red("✦ Runtime Error: ") + str(res));
+    } else {
+        if res != null {
+            println(fmt.format_repl_value(res));
+        }
+        println(fmt.c_dim("  · executed in " + str(elapsed) + "ms"));
+    }
+    ensure_newline();
+    return res;
+};

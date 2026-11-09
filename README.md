@@ -390,6 +390,7 @@ The documentation is organized into dedicated, fast-loading modular guides:
 - [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, resilient network requests, AI streaming, and vector search.
 - [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Centralized package manager (`bmd install`, `bmd get`, `bmd cache`), test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
 - [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 4-stage runtime import resolution pipeline, inter-process atomic locking, SemVer diamond dependency resolution, 64-bit opcode VM, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.
+- [Runtime & Diagnostics Reference](https://codeleafly.github.io/bramandScript/errors.html) — Complete error catalog (`SyntaxError`, `CompileError`, `RuntimeError`, `PermissionDenied`, `ConcurrencyError`, `PackageManagerError`), visual diagnostic anatomy, and defensive recovery strategies.
 
 ---
 

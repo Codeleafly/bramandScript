@@ -1,0 +1,11 @@
+// BramandScript Standard Library :: Interactive REPL Engine (std/tooling/repl)
+// 100% Native BramandScript REPL with session state, multi-line editing,
+// runtime reflection, timing diagnostics, and bytecode disassembly.
+
+import "std/repl/repl" as r
+import "std/repl/format" as fmt
+import "std/repl/commands" as cmd
+
+let start_repl = r.start_repl;
+let format_repl_value = fmt.format_repl_value;
+let print_repl_help = cmd.print_repl_help;

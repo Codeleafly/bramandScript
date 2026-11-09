@@ -31,6 +31,14 @@ func Run(opts RunnerOptions) int {
 	vm.SetTestRunnerActive(true)
 	defer vm.SetTestRunnerActive(false)
 
+	// Ensure ./bramand binary exists for subprocess-based tests (tests 24-27)
+	if _, err := os.Stat("./bramand"); err != nil {
+		exe, err := os.Executable()
+		if err == nil {
+			_ = os.Symlink(exe, "./bramand")
+		}
+	}
+
 	files := discoverTestFiles(opts.Paths)
 	if len(files) == 0 {
 		fmt.Printf("%s[WARN] No test files found matching '*_test.bmd' or 'test_*.bmd'%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)

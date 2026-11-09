@@ -25,5 +25,6 @@ This example demonstrates how to process, query, and aggregate tabular datasets 
 ## Running the Example
 
 ```bash
-bramand run examples/13_tabular_data_analytics/main.bmd
+bramand run --allow-all examples/13_tabular_data_analytics/main.bmd
 ```
+> Note: `--allow-all` (or `--allow-write`) is required for CSV reading and disk persistence (`save_csv`).

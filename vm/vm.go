@@ -98,9 +98,14 @@ func (vm *VM) wrapError(err error) error {
 	if frame != nil && frame.cl != nil && frame.cl.Fn != nil {
 		if frame.ip >= 0 && frame.ip < len(frame.cl.Fn.SourceMap) {
 			line = frame.cl.Fn.SourceMap[frame.ip]
+		} else if len(frame.cl.Fn.SourceMap) > 0 {
+			line = frame.cl.Fn.SourceMap[len(frame.cl.Fn.SourceMap)-1]
 		}
 	}
 	frames := vm.captureStackTrace()
+	if line == 1 && len(frames) > 0 && frames[0].Line > 1 {
+		line = frames[0].Line
+	}
 	return &RuntimeError{Line: line, Col: 1, Message: err.Error(), StackTrace: frames}
 }
 

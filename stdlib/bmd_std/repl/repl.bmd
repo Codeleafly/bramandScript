@@ -1,0 +1,80 @@
+// BramandScript :: 100% Native Interactive REPL Engine (repl/repl.bmd)
+// Modular self-hosted REPL with persistent session state, multi-line delimiter tracking,
+// syntax highlighting, runtime introspection, and multi-line editor.
+
+import "./depth" as depth
+import "./format" as fmt
+import "./commands" as cmd
+import "std/strings" as str_pkg
+
+let start_repl = fn() {
+    println(fmt.c_cyan("✦ ") + fmt.c_bold("BramandScript 0.1.1") + fmt.c_dim(" · High-Performance Native Bytecode VM"));
+    println(fmt.c_dim("  Type :help for documentation, :editor for multi-line, :exit to quit.\n"));
+
+    let sess = create_session();
+    let buffer = "";
+    let net_depth = 0;
+
+    while true {
+        let prompt = "";
+        if net_depth == 0 {
+            prompt = fmt.c_cyan("✦ ") + fmt.c_bold("bmd ") + fmt.c_green("❯ ") + "\033[0m";
+        } else {
+            let indent = str_pkg.repeat("  ", net_depth);
+            prompt = fmt.c_dim("· ··· ") + indent;
+        }
+
+        let line = read_line(prompt);
+        if line == null {
+            // EOF reached (Ctrl+D)
+            println("\n" + fmt.c_dim("[Session terminated]"));
+            break;
+        }
+
+        let trimmed = trim(line);
+
+        // Top-level REPL commands (only when not in nested block)
+        if net_depth == 0 {
+            if trimmed == ":exit" || trimmed == ":quit" || trimmed == "exit" || trimmed == "quit" {
+                println(fmt.c_dim("[Goodbye]"));
+                break;
+            }
+
+            let cmd_res = cmd.execute_repl_command(trimmed, sess);
+            if cmd_res["handled"] {
+                if contains(cmd_res, "new_session") {
+                    sess = cmd_res["new_session"];
+                    buffer = "";
+                    net_depth = 0;
+                }
+                continue;
+            }
+        }
+
+        if buffer == "" {
+            buffer = line;
+        } else {
+            buffer = buffer + "\n" + line;
+        }
+
+        let delta = depth.count_delimiter_depth(line);
+        net_depth = net_depth + delta;
+        if net_depth < 0 {
+            net_depth = 0;
+        }
+
+        // If delimiter depth is closed and trimmed is non-empty, evaluate
+        if net_depth == 0 && trimmed != "" {
+            let to_eval = buffer;
+            buffer = "";
+
+            let res = eval(to_eval, sess);
+            if type(res) == "ERROR" {
+                println(fmt.c_red("✦ Runtime Error: ") + str(res));
+            } else if res != null {
+                println(fmt.format_repl_value(res));
+            }
+            ensure_newline();
+        }
+    }
+};

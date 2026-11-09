@@ -19,5 +19,6 @@ This example demonstrates how to use the embedded JSON document database and que
 ## Running the Example
 
 ```bash
-bramand run examples/10_embedded_document_store/main.bmd
+bramand run --allow-all examples/10_embedded_document_store/main.bmd
 ```
+> Note: `--allow-all` (or `--allow-write`) is required because the database writes collection records to disk.

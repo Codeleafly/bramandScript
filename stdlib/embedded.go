@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed *
+//go:embed bmd_std/*
 var FS embed.FS
 
 // ReadFile loads the bytes of an embedded standard library file.
@@ -14,6 +14,9 @@ func ReadFile(path string) ([]byte, error) {
 	path = normalizePath(path)
 
 	candidates := []string{
+		"bmd_std/" + path + "/index.bmd",
+		"bmd_std/" + path + ".bmd",
+		"bmd_std/" + path,
 		path + "/index.bmd",
 		path + ".bmd",
 		path,
@@ -34,6 +37,9 @@ func ResolveEmbeddedPath(path string) (string, bool) {
 	path = normalizePath(path)
 
 	candidates := []string{
+		"bmd_std/" + path + "/index.bmd",
+		"bmd_std/" + path + ".bmd",
+		"bmd_std/" + path,
 		path + "/index.bmd",
 		path + ".bmd",
 		path,
@@ -55,8 +61,10 @@ func Exists(path string) bool {
 
 func normalizePath(path string) string {
 	path = strings.ReplaceAll(path, "\\", "/")
+	path = strings.TrimPrefix(path, "embed:stdlib/bmd_std/")
 	path = strings.TrimPrefix(path, "embed:stdlib/")
 	path = strings.TrimPrefix(path, "embed:")
+	path = strings.TrimPrefix(path, "bmd_std/")
 	path = strings.TrimPrefix(path, "std/")
 	path = strings.TrimPrefix(path, "stdlib/")
 	path = strings.TrimPrefix(path, "/")

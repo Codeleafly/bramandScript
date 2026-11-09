@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runtime &amp; Diagnostics Reference ✦ BramandScript Documentation</title>
+  <meta name="description" content="Official guide to BramandScript diagnostics, compiler errors, runtime errors, permission sandbox violations, concurrency errors, and recovery strategies.">
+  <link rel="canonical" href="https://codeleafly.github.io/bramandScript/errors.html">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Global Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Version -->
+      <div class="flex items-center gap-3">
+        <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none" aria-label="Toggle Menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="index.html" class="flex items-center gap-2 font-bold text-lg tracking-tight">
+          <span class="text-blue-600 dark:text-blue-400 text-xl font-mono">✦</span>
+          <span class="font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">BramandScript</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-mono font-medium">v0.1.1</span>
+        </a>
+      </div>
+
+      <!-- Top Nav Pills -->
+      <nav class="hidden xl:flex items-center gap-1 text-xs font-medium">
+        <a href="index.html" class="nav-pill ">Start</a>
+        <a href="fundamentals.html" class="nav-pill ">Fundamentals</a>
+        <a href="data-structures.html" class="nav-pill ">Data &amp; OOP</a>
+        <a href="concurrency.html" class="nav-pill ">Concurrency</a>
+        <a href="stdlib.html" class="nav-pill ">Stdlib</a>
+        <a href="networking.html" class="nav-pill ">Net &amp; AI</a>
+        <a href="tooling.html" class="nav-pill ">Tooling</a>
+        <a href="architecture.html" class="nav-pill ">Architecture</a>
+        <a href="errors.html" class="nav-pill active">Errors</a>
+      </nav>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-xs relative hidden sm:block">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <input type="text" id="search-input" placeholder="Search errors... (Press '/')" 
+            class="w-full pl-9 pr-10 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+          <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+            <kbd class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 shadow-sm">/</kbd>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Utilities -->
+      <div class="flex items-center gap-2">
+        <a href="https://github.com/Codeleafly/bramandScript" target="_blank" rel="noopener" class="text-xs font-medium px-3 py-1.5 rounded-md text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <span class="font-mono">❯_</span>
+          <span>GitHub</span>
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none flex items-center gap-1 text-xs font-medium" title="Toggle Theme">
+          <svg id="theme-icon-light" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-dark" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Drawer Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 z-40 hidden backdrop-blur-sm lg:hidden"></div>
+
+  <!-- Layout Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex gap-8 py-6">
+
+    <!-- Responsive Sidebar Navigation -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-5 transform -translate-x-full transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:w-64 lg:p-0 lg:bg-transparent lg:border-none flex flex-col">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 lg:hidden mb-4">
+        <span class="font-bold text-sm tracking-wide uppercase text-slate-500">Navigation</span>
+        <button id="mobile-close-btn" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" onclick="document.getElementById('sidebar-overlay').click()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="sidebar-nav" class="flex-1 overflow-y-auto pr-2 space-y-6 text-sm">
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Diagnostic Engine</h3>
+          <ul class="space-y-1">
+            <li><a href="#err-overview" class="nav-link active"><span>✦</span> Overview &amp; Philosophy</a></li>
+            <li><a href="#err-anatomy" class="nav-link"><span>✦</span> Visual Anatomy of an Error</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Error Categories</h3>
+          <ul class="space-y-1">
+            <li><a href="#err-syntax" class="nav-link"><span>1.</span> Syntax Errors (Lexer/Parser)</a></li>
+            <li><a href="#err-compile" class="nav-link"><span>2.</span> Compile Errors (Scope &amp; Types)</a></li>
+            <li><a href="#err-runtime" class="nav-link"><span>3.</span> Runtime Errors (VM Execution)</a></li>
+            <li><a href="#err-permission" class="nav-link"><span>4.</span> PermissionDenied Violations</a></li>
+            <li><a href="#err-concurrency" class="nav-link"><span>5.</span> Concurrency &amp; Deadlocks</a></li>
+            <li><a href="#err-package" class="nav-link"><span>6.</span> Package Manager &amp; Bundler</a></li>
+            <li><a href="#err-stack" class="nav-link"><span>7.</span> Stack Overflow &amp; Recursion</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Defensive Engineering</h3>
+          <ul class="space-y-1">
+            <li><a href="#err-recovery" class="nav-link"><span>✦</span> Try-Catch &amp; Defer Recovery</a></li>
+            <li><a href="#err-patterns" class="nav-link"><span>✦</span> Safe Nav &amp; Nullish Operators</a></li>
+            <li><a href="#err-resilience" class="nav-link"><span>✦</span> Retry, Circuit Breakers &amp; Log</a></li>
+            <li><a href="#err-matrix" class="nav-link"><span>✦</span> Quick Reference Matrix</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0 max-w-4xl space-y-12 pb-16">
+
+      <!-- Section: Overview & Philosophy -->
+      <section id="err-overview" class="section-anchor">
+        <div class="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+          <span>✦</span>
+          <span>Zero-Defect Quality Standards</span>
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-4">
+          Runtime Diagnostics &amp; Error Reference
+        </h1>
+        <p class="text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
+          BramandScript features a compiler and virtual machine diagnostic engine inspired by the Rust compiler. When an issue occurs at tokenization, compilation, or bytecode execution, the system emits an unambiguous, contextual diagnostic featuring line numbering, 5-line context windows, column-accurate caret spans, zero-noise borderless formatting, and actionable suggestions.
+        </p>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <div class="font-mono text-sm font-bold text-red-600 dark:text-red-400 mb-1">✦ Context Windows</div>
+            <p class="text-xs text-slate-600 dark:text-slate-400">5 lines of source context above and below the error site allow instant orientation without opening external editors.</p>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <div class="font-mono text-sm font-bold text-cyan-600 dark:text-cyan-400 mb-1">✦ Span Highlighting</div>
+            <p class="text-xs text-slate-600 dark:text-slate-400">Multi-character token spans are accurately underlined with <code class="font-mono text-red-500">^~~~~</code> indicators pointing to the offending expression.</p>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <div class="font-mono text-sm font-bold text-yellow-600 dark:text-yellow-400 mb-1">✦ Actionable Hints</div>
+            <p class="text-xs text-slate-600 dark:text-slate-400">Intelligent heuristics analyze symbol scopes, mistyped keywords, and missing permissions to suggest instant fixes.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Visual Anatomy of an Error -->
+      <section id="err-anatomy" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Visual Anatomy of a BramandScript Diagnostic
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          Every diagnostic rendered by <code class="font-mono">diagnostics/diagnostics.go</code> adheres to an international terminal standard designed for readability and terminal piping:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Diagnostic Terminal Output</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-text">✦ error[CompileError]: undefined variable 'totalScore'
+  --> src/analytics/engine.bmd:14:13
+     |
+   9 |     let multiplier = 1.25;
+  10 |     let baseWeight = 40;
+  11 |     let rawScore = calculate_raw(records);
+  12 |     
+  13 |     // Calculate adjusted score with dynamic penalty
+  14 |     let res = totalScore * multiplier;
+     |               ^~~~~~~~~~ [Hint: Declare variable using 'let totalScore = ...' or check spelling]
+  15 |     return res;
+  16 | };
+     |</code></pre>
+        </div>
+
+        <div class="space-y-3 mt-4 text-sm text-slate-700 dark:text-slate-300">
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-red-500 shrink-0">1. Header Line:</span>
+            <span>Starts with the Unicode symbol <code class="font-mono text-red-400">✦ error[Kind]</code> followed by the specific failure message.</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-cyan-500 shrink-0">2. Source Pointer:</span>
+            <span>Formatted as <code class="font-mono text-cyan-400">  --> filepath:line:column</code> which modern IDE terminals (VS Code, Alacritty, iTerm, Termux) automatically hyperlink for 1-click jumping.</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-slate-400 shrink-0">3. Context Gutter:</span>
+            <span>Clean gutter bar <code class="font-mono text-slate-500">|</code> with dimmed line numbers for context lines and highlighted bold numbers for the active line.</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-red-500 shrink-0">4. Caret &amp; Span:</span>
+            <span>The caret <code class="font-mono text-red-500">^</code> points to the exact column, while tildes <code class="font-mono text-red-500">~~~~</code> underline multi-character identifiers or operators.</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="font-mono font-bold text-yellow-500 shrink-0">5. Inline Hint:</span>
+            <span>Enclosed in brackets <code class="font-mono text-yellow-500">[Hint: ...]</code> with the actionable code modification needed to fix the bug immediately.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 1. Syntax Errors -->
+      <section id="err-syntax" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-red-500 font-mono">1.</span> Syntax Errors (<code class="font-mono text-red-600 dark:text-red-400">SyntaxError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          Syntax errors are detected during lexical analysis (<code class="font-mono">lexer</code>) and top-down operator precedence parsing (<code class="font-mono">parser</code>). They indicate malformed tokens, unclosed string literals, missing delimiters, or invalid grammar constructs.
+        </p>
+
+        <!-- Syntax Case 1 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 1.1: Missing Semicolon or Delimiter</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            BramandScript requires statement-terminating semicolons <code class="font-mono">;</code> for all variable declarations, reassignments, import statements, and expression statements.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let count = 10
+let maxLimit = 100;</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let count = 10;
+let maxLimit = 100;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-red-950/20 border border-red-800/40 text-xs font-mono text-red-300">
+            ✦ error[SyntaxError]: expected next token to be ;, got IDENT instead at line 2, col 1
+          </div>
+        </div>
+
+        <!-- Syntax Case 2 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 1.2: Unmatched Parentheses, Brackets, or Braces</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Unbalanced delimiters prevent the Pratt parser from closing compound expressions or block scopes.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let items = [1, 2, 3;
+let sum = (a + b;</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let items = [1, 2, 3];
+let sum = (a + b);</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-red-950/20 border border-red-800/40 text-xs font-mono text-red-300">
+            ✦ error[SyntaxError]: expected next token to be ], got ; instead at line 1, col 21
+          </div>
+        </div>
+
+        <!-- Syntax Case 3 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 1.3: Unclosed String Literal or Invalid Escape Sequence</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            String literals enclosed in double quotes must be closed on the same line or use escaped newline <code class="font-mono">\n</code> sequences.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let msg = "Hello, world;
+let badPath = "C:\new_folder\test";</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let msg = "Hello, world";
+let badPath = "C:\\new_folder\\test";</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 2. Compile Errors -->
+      <section id="err-compile" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-yellow-500 font-mono">2.</span> Compile Errors (<code class="font-mono text-yellow-600 dark:text-yellow-400">CompileError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          Compile errors are caught during the AST-to-bytecode compilation phase. The compiler validates symbol resolution, variable mutability, scope binding, module dependencies, and constant tables before emitting VM opcodes.
+        </p>
+
+        <!-- Compile Case 1 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 2.1: Undefined Variable or Typo</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Referencing a variable that has not been defined in the current block, function, or global scope triggers an immediate compilation stop.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let radius = 5;
+let area = pi * radius * radius;</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">import "std/math" as math;
+let radius = 5;
+let area = math.PI * radius * radius;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-yellow-950/20 border border-yellow-800/40 text-xs font-mono text-yellow-300">
+            ✦ error[CompileError]: undefined variable 'pi'<br>
+            &nbsp;&nbsp;--> main.bmd:2:12<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;let area = pi * radius * radius;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^^ [Hint: Declare variable using 'let pi = ...' or check spelling]
+          </div>
+        </div>
+
+        <!-- Compile Case 2 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 2.2: Reassignment to Constant (<code class="font-mono">const</code>)</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Identifiers declared with the <code class="font-mono">const</code> keyword are strictly immutable. Attempting reassignment or compound mutation is caught at compile time.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">const MAX_CONNS = 100;
+MAX_CONNS = 200; // error!</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let maxConns = 100;
+maxConns = 200; // valid with 'let'</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-yellow-950/20 border border-yellow-800/40 text-xs font-mono text-yellow-300">
+            ✦ error[CompileError]: cannot reassign to constant 'MAX_CONNS'<br>
+            &nbsp;&nbsp;--> server.bmd:2:1<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;MAX_CONNS = 200;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^^^^^^^^^ [Hint: Variables declared with 'const' cannot be modified. Use 'let' instead]
+          </div>
+        </div>
+
+        <!-- Compile Case 3 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 2.3: Circular Module Imports &amp; Unresolved Modules</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            The BramandScript module loader implements strict circular dependency detection to prevent infinite recursion during compilation.
+          </p>
+
+          <div class="code-block-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Circular Dependency Architecture</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+            <pre><code class="language-bmd">// In module_a.bmd:
+import "./module_b" as b;
+
+// In module_b.bmd:
+import "./module_a" as a; // Circular Import Error!</code></pre>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-yellow-950/20 border border-yellow-800/40 text-xs font-mono text-yellow-300">
+            ✦ error[CompileError]: circular import detected: module './module_a' is already being imported<br>
+            &nbsp;&nbsp;--> module_b.bmd:1:1
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-2">
+            <strong>Solution:</strong> Extract shared types and utilities into an independent module (e.g. <code class="font-mono">types.bmd</code> or <code class="font-mono">common.bmd</code>) and import that from both modules.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: 3. Runtime Errors -->
+      <section id="err-runtime" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-purple-500 font-mono">3.</span> Runtime Errors (<code class="font-mono text-purple-600 dark:text-purple-400">RuntimeError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          Runtime errors occur during virtual machine opcode execution when an operation encounters an illegal state (e.g., division by zero, index out of range, invocation of a null reference).
+        </p>
+
+        <!-- Runtime Case 1 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 3.1: Division by Zero (<code class="font-mono">OpDiv</code>)</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Integer or floating-point division by 0 halts execution with an explicit error.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let count = 0;
+let average = total / count;</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let count = 0;
+let average = count == 0 ? 0 : total / count;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-purple-950/20 border border-purple-800/40 text-xs font-mono text-purple-300">
+            ✦ error[RuntimeError]: division by zero<br>
+            &nbsp;&nbsp;--> math_util.bmd:2:23<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;let average = total / count;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^ [Hint: Denominator cannot be 0]
+          </div>
+        </div>
+
+        <!-- Runtime Case 2 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 3.2: Array Index Out of Bounds</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Attempting to read or assign to an array index outside the valid range <code class="font-mono">0 &lt;= idx &lt; len(arr)</code> (or negative index <code class="font-mono">-len(arr) &lt;= idx &lt; 0</code>).
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let list = [10, 20, 30];
+let val = list[5]; // out of bounds!</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let list = [10, 20, 30];
+let idx = 5;
+let val = idx < len(list) ? list[idx] : null;</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-purple-950/20 border border-purple-800/40 text-xs font-mono text-purple-300">
+            ✦ error[RuntimeError]: index out of bounds: index 5, length 3<br>
+            &nbsp;&nbsp;--> array_demo.bmd:2:11<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;let val = list[5];<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^ [Hint: Array index is outside the valid range (0 to len - 1)]
+          </div>
+        </div>
+
+        <!-- Runtime Case 3 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 3.3: Invoking Null or Non-Callable Reference</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Attempting to execute <code class="font-mono">foo()</code> when <code class="font-mono">foo</code> is <code class="font-mono">null</code> or a non-function value.
+          </p>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase text-red-500 font-mono">● Erroneous Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let callback = null;
+callback("data"); // crashes!</code></pre>
+              </div>
+            </div>
+            <div>
+              <span class="text-xs font-semibold uppercase text-emerald-500 font-mono">● Corrected Code</span>
+              <div class="code-block-wrapper !my-1">
+                <pre><code class="language-bmd">let callback = null;
+if callback != null {
+    callback("data");
+}</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded-lg bg-purple-950/20 border border-purple-800/40 text-xs font-mono text-purple-300">
+            ✦ error[RuntimeError]: calling non-function and non-builtin: null<br>
+            &nbsp;&nbsp;--> handler.bmd:2:1<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;callback("data");<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;^^^^^^^^ [Hint: Verify target function is not null, or use optional chaining (?.)]
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 4. Permission Denied Errors -->
+      <section id="err-permission" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-orange-500 font-mono">4.</span> Sandbox Security &amp; Permissions (<code class="font-mono text-orange-600 dark:text-orange-400">PermissionDenied</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          BramandScript enforces an enterprise zero-trust security sandbox by default. File system writes, socket networking, subprocess execution, and elevated file reads require explicit command-line permission flags or package contract declarations.
+        </p>
+
+        <div class="overflow-x-auto mb-6">
+          <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-800 rounded-lg">
+            <thead class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Permission Flag</th>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Protected Operations</th>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Default Policy</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800 font-mono">
+              <tr>
+                <td class="p-3 text-cyan-600 dark:text-cyan-400">--allow-read</td>
+                <td class="p-3 text-slate-700 dark:text-slate-300 font-sans">file_read, file_exists, dir_list, fs_walk</td>
+                <td class="p-3 text-emerald-600">Allowed in local working directory</td>
+              </tr>
+              <tr>
+                <td class="p-3 text-cyan-600 dark:text-cyan-400">--allow-write</td>
+                <td class="p-3 text-slate-700 dark:text-slate-300 font-sans">file_write, file_append, file_delete, dir_create</td>
+                <td class="p-3 text-red-500">Denied by default</td>
+              </tr>
+              <tr>
+                <td class="p-3 text-cyan-600 dark:text-cyan-400">--allow-net</td>
+                <td class="p-3 text-slate-700 dark:text-slate-300 font-sans">tcp_dial, tcp_listen, http_server, ws_dial, http_fetch</td>
+                <td class="p-3 text-red-500">Denied by default</td>
+              </tr>
+              <tr>
+                <td class="p-3 text-cyan-600 dark:text-cyan-400">--allow-run</td>
+                <td class="p-3 text-slate-700 dark:text-slate-300 font-sans">exec, process_spawn, shell command invocation</td>
+                <td class="p-3 text-red-500">Denied by default</td>
+              </tr>
+              <tr>
+                <td class="p-3 text-cyan-600 dark:text-cyan-400">--allow-all</td>
+                <td class="p-3 text-slate-700 dark:text-slate-300 font-sans">Grants complete system access across all sub-systems</td>
+                <td class="p-3 text-yellow-600">Explicit opt-in</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Permission Denied Diagnostic Output</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-text">✦ error[PermissionDenied]: unauthorized write operation to path '/var/log/app.log'
+  --> src/logger.bmd:22:5
+     |
+  21 |     let entry = format_entry(level, msg);
+  22 |     file_write("/var/log/app.log", entry);
+     |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ [Hint: Run with the required security permission flag: --allow-run, --allow-write, --allow-net, or --allow-all]
+  23 | };
+     |</code></pre>
+        </div>
+
+        <p class="text-xs text-slate-600 dark:text-slate-400 mt-3">
+          <strong>Resolution:</strong> Run the binary with the appropriate permission flag:
+          <code class="font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">bramand run --allow-write src/logger.bmd</code> or declare <code class="font-mono">permissions.filesystem_write: true</code> inside your project's <code class="font-mono">bmdpkg.json</code> manifest.
+        </p>
+      </section>
+
+      <!-- Section: 5. Concurrency & Deadlocks -->
+      <section id="err-concurrency" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-blue-500 font-mono">5.</span> Concurrency &amp; Deadlocks (<code class="font-mono text-blue-600 dark:text-blue-400">ConcurrencyError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          BramandScript utilizes lightweight concurrent tasks (<code class="font-mono">spawn</code>), typed channels (<code class="font-mono">chan(cap)</code>), and mutual exclusion locks (<code class="font-mono">mutex()</code>). Thread-safety violations, sends to closed channels, or unbuffered deadlock stalls trigger concurrency diagnostics.
+        </p>
+
+        <!-- Concurrency Case 1 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 mb-6 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 5.1: Send on Closed Channel</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            Attempting to push data into a channel that has already been closed with <code class="font-mono">ch.close()</code> halts the emitting task.
+          </p>
+
+          <div class="code-block-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Safe Channel Architecture</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+            <pre><code class="language-bmd">let ch = chan(5);
+ch.close();
+
+// Guard against closed channel before sending
+let ok = ch.try_send("payload");
+if !ok {
+    println("Channel closed or buffer full; discarded gracefully.");
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Concurrency Case 2 -->
+        <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Case 5.2: Shared Memory Protection</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+            BramandScript Hash maps and Arrays are internally guarded with <code class="font-mono">sync.RWMutex</code> to eliminate Go runtime race panics. For application-level atomic critical sections, use the stdlib <code class="font-mono">mutex()</code> primitive:
+          </p>
+
+          <div class="code-block-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Mutex Synchronization Pattern</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+            <pre><code class="language-bmd">let m = mutex();
+let sharedCounter = 0;
+
+spawn(fn() {
+    m.lock();
+    sharedCounter += 1;
+    m.unlock();
+});</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 6. Package Manager & Bundler -->
+      <section id="err-package" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-500 font-mono">6.</span> Package Manager &amp; Bundler (<code class="font-mono text-emerald-600 dark:text-emerald-400">PackageManagerError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          The centralized package engine (<code class="font-mono">bramand pkg</code>, <code class="font-mono">bramand install</code>, <code class="font-mono">bramand build</code>) enforces SHA-256 supply-chain verification and offline determinism.
+        </p>
+
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-mono text-sm font-bold text-slate-900 dark:text-white mb-1">✦ Checksum Mismatch Error</div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-2">
+              Occurs when the downloaded package archive's computed SHA-256 hash differs from the value recorded in <code class="font-mono">bmdpkg.lock</code>.
+            </p>
+            <div class="p-2.5 rounded bg-red-950/20 border border-red-800/40 font-mono text-xs text-red-300">
+              [ERROR] Package integrity checksum failed for 'jwt-bmd@1.0.0': lockfile expected sha256:e3b0c442... but archive computed sha256:7a8b9c...
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2">
+              <strong>Fix:</strong> Run <code class="font-mono">bramand cache prune</code> to purge corrupt cached files, or re-verify dependencies with <code class="font-mono">bramand pkg verify</code>.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-mono text-sm font-bold text-slate-900 dark:text-white mb-1">✦ Offline Mode Contract Violation</div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mb-2">
+              When running with <code class="font-mono">--offline</code> or <code class="font-mono">BMD_OFFLINE=1</code>, outbound network requests to package repositories are strictly prohibited.
+            </p>
+            <div class="p-2.5 rounded bg-yellow-950/20 border border-yellow-800/40 font-mono text-xs text-yellow-300">
+              [ERROR] Offline mode enabled (--offline): network fetch denied for package 'std/dataframe'
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-2">
+              <strong>Fix:</strong> Pre-cache dependencies using <code class="font-mono">bramand get</code> while online, or embed modules directly into single-binary executables using <code class="font-mono">bramand build</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 7. Stack Overflow & Cyclic Structures -->
+      <section id="err-stack" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+          <span class="text-rose-500 font-mono">7.</span> Stack Overflow &amp; Cyclic Limits (<code class="font-mono text-rose-600 dark:text-rose-400">StackOverflowError</code>)
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          To protect systems from runaway recursion or cyclic data structure crashes, the Bramand VM implements hardware-safe depth limits.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-mono font-bold text-slate-900 dark:text-white mb-1">✦ Call Frame Stack Limit (10,000 Frames)</div>
+            <p class="text-slate-600 dark:text-slate-400 mb-2">
+              Uncontrolled recursive functions without terminating base conditions are intercepted before exhausting host memory:
+            </p>
+            <div class="p-2 rounded bg-red-950/20 border border-red-800/40 font-mono text-red-300">
+              ✦ error[RuntimeError]: stack overflow: maximum call stack depth (10000 frames) exceeded
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-mono font-bold text-slate-900 dark:text-white mb-1">✦ Cyclic Reference Guard (Depth 64)</div>
+            <p class="text-slate-600 dark:text-slate-400 mb-2">
+              Deeply nested or circular structures (e.g. <code class="font-mono">a[0] = a; a == a</code>) use pointer identity shortcuts and depth tracking to prevent infinite recursion.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Defensive Engineering -->
+      <section id="err-recovery" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Defensive Engineering &amp; Exception Recovery
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          BramandScript provides modern error handling constructs including structured exceptions (<code class="font-mono">try-catch-finally</code>), custom <code class="font-mono">throw</code>, LIFO <code class="font-mono">defer</code> statements, safe navigation, and resilient stdlib packages.
+        </p>
+
+        <!-- Try-Catch-Finally -->
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Try-Catch-Finally Exception Handling</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">try {
+    let res = parse_user_input(payload);
+    if res.age < 0 {
+        throw "InvalidAge: age cannot be negative";
+    }
+    process_user(res);
+} catch (err) {
+    println("✦ Caught Error: " + str(err));
+} finally {
+    // Guarantees resource cleanup even after exceptions
+    cleanup_temp_buffers();
+}</code></pre>
+        </div>
+
+        <!-- LIFO Defer -->
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2">LIFO Defer Statement Cleanup</h3>
+        <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">
+          The <code class="font-mono">defer</code> keyword schedules cleanup actions to execute in strict Last-In, First-Out (LIFO) order when the enclosing function returns or unwinds via exception:
+        </p>
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Resource Cleanup with Defer</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">fn process_file(path) {
+    let fd = file_open(path, "r");
+    defer file_close(fd); // Guarantees closure upon return
+    
+    let content = file_read(path);
+    return parse(content);
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section: Safe Operators -->
+      <section id="err-patterns" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Safe Navigation &amp; Nullish Operators
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          Prevent runtime null reference exceptions without cluttered nested conditional branches:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-bold text-blue-600 dark:text-blue-400 text-sm mb-1">user?.address?.city</div>
+            <div class="text-slate-700 dark:text-slate-300 font-sans mb-2">Optional Chaining</div>
+            <p class="text-slate-500 font-sans">Returns <code class="font-mono">null</code> safely if <code class="font-mono">user</code> or <code class="font-mono">address</code> is null instead of throwing an error.</p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-bold text-emerald-600 dark:text-emerald-400 text-sm mb-1">val ?? "default"</div>
+            <div class="text-slate-700 dark:text-slate-300 font-sans mb-2">Nullish Coalescing</div>
+            <p class="text-slate-500 font-sans">Evaluates right side only if the left operand is explicitly <code class="font-mono">null</code>.</p>
+          </div>
+
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
+            <div class="font-bold text-purple-600 dark:text-purple-400 text-sm mb-1">config.port ??= 8080</div>
+            <div class="text-slate-700 dark:text-slate-300 font-sans mb-2">Nullish Assignment</div>
+            <p class="text-slate-500 font-sans">Assigns fallback value only if target property is currently null.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Resilience Packages -->
+      <section id="err-resilience" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Resilience: Retry, Circuit Breaker &amp; Structured Logging
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          For network and distributed systems, the standard library provides battle-tested resilience primitives in <code class="font-mono">std/retry</code>, <code class="font-mono">std/circuitbreaker</code>, and <code class="font-mono">std/log</code>:
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Exponential Backoff &amp; Circuit Breakers</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/retry" as retry;
+import "std/circuitbreaker" as cb;
+import "std/log" as log;
+
+let breaker = cb.new_circuit_breaker(5, 10000); // 5 failures -> Open for 10s
+
+let result = retry.with_retry(fn() {
+    return breaker.execute(fn() {
+        return fetch_remote_resource();
+    });
+}, 3, 200); // 3 retries, 200ms initial exponential backoff</code></pre>
+        </div>
+      </section>
+
+      <!-- Section: Quick Reference Matrix -->
+      <section id="err-matrix" class="section-anchor">
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Quick Reference Troubleshooting Matrix
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-800 rounded-lg">
+            <thead class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Error Message Pattern</th>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Classification</th>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Root Cause</th>
+                <th class="p-3 font-semibold text-slate-900 dark:text-white">Recommended Fix</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+              <tr>
+                <td class="p-3 font-mono text-red-500">undefined variable 'x'</td>
+                <td class="p-3 font-mono">CompileError</td>
+                <td class="p-3">Variable not in scope or typo</td>
+                <td class="p-3">Declare with <code class="font-mono">let x = ...</code> or verify spelling</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">cannot reassign to constant</td>
+                <td class="p-3 font-mono">CompileError</td>
+                <td class="p-3">Modifying immutable <code class="font-mono">const</code></td>
+                <td class="p-3">Change declaration from <code class="font-mono">const</code> to <code class="font-mono">let</code></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">division by zero</td>
+                <td class="p-3 font-mono">RuntimeError</td>
+                <td class="p-3">Denominator evaluates to 0</td>
+                <td class="p-3">Add zero check: <code class="font-mono">b == 0 ? 0 : a / b</code></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">index out of bounds</td>
+                <td class="p-3 font-mono">RuntimeError</td>
+                <td class="p-3">Index outside [0, len-1]</td>
+                <td class="p-3">Validate index with <code class="font-mono">len(arr)</code> before access</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">calling non-function: null</td>
+                <td class="p-3 font-mono">RuntimeError</td>
+                <td class="p-3">Target variable is null</td>
+                <td class="p-3">Verify function is assigned, or use optional call</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">unauthorized write operation</td>
+                <td class="p-3 font-mono">PermissionDenied</td>
+                <td class="p-3">Security sandbox blocked disk write</td>
+                <td class="p-3">Execute with <code class="font-mono">--allow-write</code> or <code class="font-mono">--allow-all</code></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">stack overflow: 10000 frames</td>
+                <td class="p-3 font-mono">RuntimeError</td>
+                <td class="p-3">Infinite or unbounded recursion</td>
+                <td class="p-3">Add terminating base case or rewrite loop iteratively</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-mono text-red-500">circular import detected</td>
+                <td class="p-3 font-mono">CompileError</td>
+                <td class="p-3">Module A imports B which imports A</td>
+                <td class="p-3">Refactor common dependencies into a shared module</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Global Footer -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-8 text-xs text-slate-500 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2 font-mono">
+        <span class="text-blue-600 dark:text-blue-400">✦</span>
+        <span>BramandScript 0.1.1 Documentation · Pure Go Stdlib · Zero External Dependencies</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="hover:text-slate-900 dark:hover:text-white transition">Home</a>
+        <a href="fundamentals.html" class="hover:text-slate-900 dark:hover:text-white transition">Fundamentals</a>
+        <a href="errors.html" class="text-blue-600 dark:text-blue-400 font-medium">Errors Guide</a>
+        <a href="https://github.com/Codeleafly/bramandScript" target="_blank" rel="noopener" class="hover:text-slate-900 dark:hover:text-white transition">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

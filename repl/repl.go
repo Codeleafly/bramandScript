@@ -1,300 +1,60 @@
 package repl
 
 import (
+	"embed"
+	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+
 	"bramandscript/compiler"
 	"bramandscript/diagnostics"
 	"bramandscript/lexer"
 	"bramandscript/object"
 	"bramandscript/parser"
 	"bramandscript/vm"
-	"bufio"
-	"fmt"
-	"io"
-	"os"
-	"runtime"
-	"sort"
-	"strconv"
-	"strings"
 )
+
+//go:embed *.bmd
+var EmbeddedREPL embed.FS
 
 const DIVIDER = "__________________________________________________________________"
 
 func Start(in io.Reader, out io.Writer) {
+	vm.SetStdin(in)
+	defer vm.SetStdin(nil)
 	vm.SetStdout(out)
 	defer vm.SetStdout(nil)
 
-	scanner := bufio.NewScanner(in)
-
-	fmt.Fprintf(out, "%s✦ %sBramandScript 0.1.1%s %s(%s-%s) · High-Performance Bytecode VM%s\n",
-		diagnostics.ColorCyan, diagnostics.ColorBold, diagnostics.ColorReset,
-		diagnostics.ColorDim, runtime.GOARCH, runtime.GOOS, diagnostics.ColorReset)
-	fmt.Fprintf(out, "%s  Type %s:help%s for documentation, %s:editor%s for multi-line, %s:exit%s to quit.%s\n\n",
-		diagnostics.ColorDim, diagnostics.ColorCyan, diagnostics.ColorDim,
-		diagnostics.ColorCyan, diagnostics.ColorDim,
-		diagnostics.ColorCyan, diagnostics.ColorDim, diagnostics.ColorReset)
-
-	constants := []object.Object{}
-	globals := make([]object.Object, vm.GlobalsSize)
-	symbolTable := compiler.NewSymbolTable()
-
-	for i, v := range compiler.Builtins {
-		symbolTable.DefineBuiltin(i, v.Name)
-	}
-
-	var buffer strings.Builder
-	depth := 0
-
-	for {
-		if depth == 0 {
-			fmt.Fprintf(out, "%s✦ %sbmd %s❯%s ", diagnostics.ColorCyan, diagnostics.ColorBold, diagnostics.ColorGreen, diagnostics.ColorReset)
+	// Execute native BramandScript REPL (repl/repl.bmd)
+	var source string
+	data, err := EmbeddedREPL.ReadFile("repl.bmd")
+	if err == nil {
+		source = string(data) + "\nstart_repl();\n"
+	} else {
+		data, err := os.ReadFile("repl/repl.bmd")
+		if err == nil {
+			source = string(data) + "\nstart_repl();\n"
 		} else {
-			indent := strings.Repeat("  ", depth)
-			fmt.Fprintf(out, "%s· ···%s %s", diagnostics.ColorDim, diagnostics.ColorReset, indent)
-		}
-
-		scanned := scanner.Scan()
-		if !scanned {
-			return
-		}
-
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		// Top-level REPL commands
-		if depth == 0 {
-			if trimmed == ":exit" || trimmed == ":quit" || trimmed == "exit" || trimmed == "quit" {
-				return
-			}
-			if trimmed == ":clear" {
-				fmt.Fprint(out, "\033[H\033[2J")
-				continue
-			}
-			if trimmed == ":reset" {
-				constants = []object.Object{}
-				globals = make([]object.Object, vm.GlobalsSize)
-				symbolTable = compiler.NewSymbolTable()
-				for i, v := range compiler.Builtins {
-					symbolTable.DefineBuiltin(i, v.Name)
-				}
-				fmt.Fprintf(out, "%s[OK] Runtime session reset.%s\n", diagnostics.ColorGreen, diagnostics.ColorReset)
-				continue
-			}
-			if trimmed == ":help" {
-				printHelp(out)
-				continue
-			}
-			if strings.HasPrefix(trimmed, ":editor") || strings.HasPrefix(trimmed, ":edit") {
-				runEditorMode(scanner, out, symbolTable, &constants, globals, trimmed)
-				continue
-			}
-			if strings.HasPrefix(trimmed, ":disasm") {
-				codeArg := strings.TrimSpace(strings.TrimPrefix(trimmed, ":disasm"))
-				if codeArg == "" {
-					fmt.Fprintf(out, "%sUsage: :disasm <expression or code>%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
-					continue
-				}
-				runDisasm(codeArg, out, symbolTable, constants)
-				continue
-			}
-			if strings.HasPrefix(trimmed, ":profile") {
-				codeArg := strings.TrimSpace(strings.TrimPrefix(trimmed, ":profile"))
-				if codeArg == "" {
-					fmt.Fprintf(out, "%sUsage: :profile <expression or code>%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
-					continue
-				}
-				runProfile(codeArg, out, symbolTable, &constants, globals)
-				continue
-			}
-		}
-
-		if trimmed == "" && depth == 0 {
-			continue
-		}
-
-		// Calculate block depth: tracking { and (
-		for _, ch := range line {
-			if ch == '{' || ch == '(' {
-				depth++
-			} else if ch == '}' || ch == ')' {
-				if depth > 0 {
-					depth--
-				}
-			}
-		}
-
-		buffer.WriteString(line)
-		buffer.WriteString("\n")
-
-		if depth > 0 {
-			continue
-		}
-
-		source := buffer.String()
-		buffer.Reset()
-
-		executeCode(source, "<repl>", out, symbolTable, &constants, globals)
-	}
-}
-
-func runEditorMode(scanner *bufio.Scanner, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object, cmd string) {
-	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
-	fmt.Fprintf(out, "%sMulti-Line Editor Mode%s\n", diagnostics.ColorBold, diagnostics.ColorReset)
-	fmt.Fprintf(out, "Type code line-by-line. Type %s:done%s to execute, %s:cancel%s to abort.\n",
-		diagnostics.ColorCyan, diagnostics.ColorReset, diagnostics.ColorYellow, diagnostics.ColorReset)
-	fmt.Fprintf(out, "To save to file on disk: %s:done <filename.bmd>%s\n",
-		diagnostics.ColorCyan, diagnostics.ColorReset)
-	fmt.Fprintf(out, "%s%s%s\n", diagnostics.ColorDim, DIVIDER, diagnostics.ColorReset)
-
-	var defaultSavePath string
-	cmdParts := strings.Fields(cmd)
-	if len(cmdParts) > 1 {
-		if cmdParts[1] == "save" && len(cmdParts) > 2 {
-			defaultSavePath = cmdParts[2]
-		} else if cmdParts[1] != "save" {
-			defaultSavePath = cmdParts[1]
+			source = `import "std/repl/repl" as r; r.start_repl();`
 		}
 	}
-
-	var editorBuffer strings.Builder
-	lineNum := 1
-
-	for {
-		fmt.Fprintf(out, "%s%02d |%s ", diagnostics.ColorDim, lineNum, diagnostics.ColorReset)
-		if !scanner.Scan() {
-			break
-		}
-
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == ":cancel" || trimmed == ":abort" {
-			fmt.Fprintf(out, "%s[Aborted] Editor code discarded.%s\n", diagnostics.ColorYellow, diagnostics.ColorReset)
-			return
-		}
-
-		if trimmed == ":done" || strings.HasPrefix(trimmed, ":done ") || strings.HasPrefix(trimmed, ":save ") {
-			savePath := defaultSavePath
-			parts := strings.Fields(trimmed)
-			if len(parts) > 1 {
-				savePath = parts[1]
-			}
-
-			source := editorBuffer.String()
-			if savePath != "" {
-				err := os.WriteFile(savePath, []byte(source), 0644)
-				if err != nil {
-					fmt.Fprintf(out, "%s[Error] Could not save file: %s%s\n", diagnostics.ColorRed, err, diagnostics.ColorReset)
-				} else {
-					fmt.Fprintf(out, "%s[OK] Saved %d bytes to %s%s\n", diagnostics.ColorGreen, len(source), savePath, diagnostics.ColorReset)
-				}
-			}
-
-			fmt.Fprintf(out, "%sExecuting buffer...%s\n", diagnostics.ColorDim, diagnostics.ColorReset)
-			executeCode(source, "<editor>", out, symbolTable, constants, globals)
-			return
-		}
-
-		editorBuffer.WriteString(line)
-		editorBuffer.WriteString("\n")
-		lineNum++
-	}
-}
-
-func executeCode(source, filename string, out io.Writer, symbolTable *compiler.SymbolTable, constants *[]object.Object, globals []object.Object) {
-	defer vm.EnsureStdoutNewline()
 
 	l := lexer.New(source)
 	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.SyntaxErrors) > 0 {
-		firstErr := p.SyntaxErrors[0]
-		diag := diagnostics.Diagnostic{
-			Filename: filename,
-			Source:   source,
-			Line:     firstErr.Line,
-			Col:      firstErr.Col,
-			Kind:     "SyntaxError",
-			Message:  firstErr.Message,
-			Hint:     diagnostics.GenerateHint(firstErr.Message),
-		}
-		fmt.Fprint(out, diag.Format())
-		vm.EnsureStdoutNewline()
-		return
-	} else if len(p.Errors()) > 0 {
-		diag := diagnostics.Diagnostic{
-			Filename: filename,
-			Source:   source,
-			Line:     1,
-			Col:      1,
-			Kind:     "SyntaxError",
-			Message:  p.Errors()[0],
-			Hint:     diagnostics.GenerateHint(p.Errors()[0]),
-		}
-		fmt.Fprint(out, diag.Format())
-		vm.EnsureStdoutNewline()
-		return
-	}
-
-	comp := compiler.NewWithState(symbolTable, *constants)
-	comp.SetCurrentFile(filename, source)
-	err := comp.Compile(program)
+	prog := p.ParseProgram()
+	comp := compiler.New()
+	comp.SetBaseDir("repl")
+	comp.SetCurrentFile("repl/repl.bmd", source)
+	err = comp.Compile(prog)
 	if err != nil {
-		diag := diagnostics.Diagnostic{
-			Filename: filename,
-			Source:   source,
-			Kind:     "CompileError",
-			Message:  err.Error(),
-			Hint:     diagnostics.GenerateHint(err.Error()),
-		}
-
-		if ce, ok := err.(*compiler.CompilerError); ok {
-			diag.Line = ce.Line
-			diag.Col = ce.Col
-			diag.Message = ce.Message
-			if ce.File != "" {
-				diag.Filename = ce.File
-			}
-			if ce.Source != "" {
-				diag.Source = ce.Source
-			}
-			diag.Hint = diagnostics.GenerateHint(ce.Message)
-		} else {
-			diag.Line = 1
-			diag.Col = 1
-		}
-
-		fmt.Fprint(out, diag.Format())
-		vm.EnsureStdoutNewline()
+		fmt.Fprintf(out, "[ERROR] Failed to compile native REPL: %v\n", err)
 		return
 	}
-
-	code := comp.Bytecode()
-	*constants = code.Constants
-
-	machine := vm.NewWithGlobalsStore(code, globals)
-	err = machine.Run()
-	vm.EnsureStdoutNewline()
-	if err != nil {
-		diag := diagnostics.Diagnostic{
-			Filename: filename,
-			Source:   source,
-			Line:     1,
-			Col:      1,
-			Kind:     "RuntimeError",
-			Message:  err.Error(),
-			Hint:     diagnostics.GenerateHint(err.Error()),
-		}
-		fmt.Fprint(out, diag.Format())
-		vm.EnsureStdoutNewline()
-		return
-	}
-
-	lastPopped := machine.LastPoppedStackElem()
-	if lastPopped != nil && lastPopped.Type() != object.NULL_OBJ {
-		fmt.Fprintf(out, "%s\n", FormatReplValue(lastPopped))
-		vm.ResetStdoutNewlineState()
-	}
+	machine := vm.New(comp.Bytecode())
+	_ = machine.Run()
 }
 
 // FormatReplValue renders runtime objects with syntax highlighting for REPL sessions.

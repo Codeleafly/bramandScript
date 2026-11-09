@@ -252,4 +252,5 @@ var Builtins = []BuiltinDef{
 	{Name: "disasm"},
 	{Name: "ensure_newline"},
 	{Name: "error"},
+	{Name: "yield"},
 }

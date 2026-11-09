@@ -27,6 +27,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ExpressionStatement:
+		c.currentLine = node.Token.Line
 		if fnLit, ok := node.Expression.(*ast.FunctionLiteral); ok && fnLit.Name != "" {
 			symbol := c.symbolTable.Define(fnLit.Name, false)
 			err := c.Compile(node.Expression)
@@ -59,6 +60,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.leaveBlockScope()
 
 	case *ast.LetStatement:
+		c.currentLine = node.Token.Line
 		if node.Pattern != nil {
 			return true, c.compileDestructuring(node.Pattern, node.Value, false, node.Token)
 		}
@@ -80,6 +82,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ConstStatement:
+		c.currentLine = node.Token.Line
 		if node.Pattern != nil {
 			return true, c.compileDestructuring(node.Pattern, node.Value, true, node.Token)
 		}
@@ -101,6 +104,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ReassignStatement:
+		c.currentLine = node.Token.Line
 		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
 		if !ok {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "cannot assign to undefined variable '%s'", node.Name.Value)
@@ -778,6 +782,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.WhileStatement:
+		c.currentLine = node.Token.Line
 		loopStart := len(c.currentInstructions())
 		c.loops = append(c.loops, LoopContext{continuePos: loopStart, breakJumps: []int{}, continueJumps: []int{}})
 
@@ -807,6 +812,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.BreakStatement:
+		c.currentLine = node.Token.Line
 		if len(c.loops) == 0 {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "'break' statement outside of loop")
 		}
@@ -814,6 +820,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		c.loops[len(c.loops)-1].breakJumps = append(c.loops[len(c.loops)-1].breakJumps, breakPos)
 
 	case *ast.ContinueStatement:
+		c.currentLine = node.Token.Line
 		if len(c.loops) == 0 {
 			return true, c.makeError(node.Token.Line, node.Token.Col, "'continue' statement outside of loop")
 		}
@@ -826,6 +833,7 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 		}
 
 	case *ast.ReturnStatement:
+		c.currentLine = node.Token.Line
 		if node.ReturnValue == nil {
 			c.emit(code.OpReturn)
 		} else {
@@ -1009,6 +1017,9 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 
 		for _, root := range stdlibRoots {
 			candidates := []string{
+				filepath.Join(root, "bmd_std", stdSubpath, "index.bmd"),
+				filepath.Join(root, "bmd_std", stdSubpath+".bmd"),
+				filepath.Join(root, "bmd_std", stdSubpath),
 				filepath.Join(root, stdSubpath, "index.bmd"),
 				filepath.Join(root, stdSubpath+".bmd"),
 				filepath.Join(root, stdSubpath),

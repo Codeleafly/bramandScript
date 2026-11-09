@@ -89,11 +89,20 @@ func readLineFromStdin(args []object.Object) object.Object {
 	return &object.String{Value: strings.TrimRight(text, "\r\n")}
 }
 
-// ResetStdin resets the standard input buffer (used for testing).
-func ResetStdin() {
+// SetStdin redirects standard input for read_line and input builtins. Passing nil resets to os.Stdin.
+func SetStdin(r io.Reader) {
 	stdinReaderLock.Lock()
 	defer stdinReaderLock.Unlock()
-	stdinReader = bufio.NewReader(os.Stdin)
+	if r == nil {
+		stdinReader = bufio.NewReader(os.Stdin)
+	} else {
+		stdinReader = bufio.NewReader(r)
+	}
+}
+
+// ResetStdin resets the standard input buffer (used for testing).
+func ResetStdin() {
+	SetStdin(nil)
 }
 
 func init() {
@@ -217,6 +226,14 @@ func init() {
 					msg = args[0].Inspect()
 				}
 				return &object.Error{Message: msg}
+			},
+		},
+		"yield": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) == 0 {
+					return Null
+				}
+				return args[0]
 			},
 		},
 	})

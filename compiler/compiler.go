@@ -415,6 +415,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 
 	case *ast.IntegerLiteral:
+		c.currentLine = node.Token.Line
 		if node.BigValue != nil {
 			c.emit(code.OpConstant, c.addConstant(&object.BigInt{Value: node.BigValue}))
 		} else {
@@ -423,10 +424,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.FloatLiteral:
+		c.currentLine = node.Token.Line
 		floatVal := &object.Float{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(floatVal))
 
 	case *ast.StringLiteral:
+		c.currentLine = node.Token.Line
 		str := &object.String{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(str))
 
@@ -468,6 +471,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.BooleanLiteral:
+		c.currentLine = node.Token.Line
 		if node.Value {
 			c.emit(code.OpTrue)
 		} else {
@@ -475,9 +479,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.NullLiteral:
+		c.currentLine = node.Token.Line
 		c.emit(code.OpNull)
 
 	case *ast.Identifier:
+		c.currentLine = node.Token.Line
 		symbol, ok := c.symbolTable.Resolve(node.Value)
 		if !ok {
 			return c.makeError(node.Token.Line, node.Token.Col, "undefined variable '%s'", node.Value)
@@ -895,6 +901,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return nil
 		}
 
+		c.currentLine = node.Token.Line
 		err := c.Compile(node.Function)
 		if err != nil {
 			return err
@@ -905,6 +912,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		}
+		c.currentLine = node.Token.Line
 		c.emit(code.OpCall, len(node.Arguments))
 
 	case *ast.SpawnExpression:
