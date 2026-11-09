@@ -36,3 +36,9 @@ let assert_not_null = fn(val, msg) {
     }
     return true;
 };
+
+import "./bench.bmd" as bench_mod;
+import "./fuzz.bmd" as fuzz_mod;
+
+let bench = bench_mod.run_bench;
+let fuzz = fuzz_mod.run_fuzz;

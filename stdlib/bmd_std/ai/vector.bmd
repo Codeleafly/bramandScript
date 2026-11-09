@@ -1,0 +1,26 @@
+// BramandScript Standard Library :: Local AI Vector Similarity & Metric Engine (std/ai/vector)
+// Cosine Similarity, Euclidean Distance, Dot Product, Manhattan Distance, and Normalization.
+
+let sim_cosine = fn(v1, v2) {
+    return cosine_similarity(v1, v2);
+};
+
+let dist_cosine = fn(v1, v2) {
+    return cosine_distance(v1, v2);
+};
+
+let dist_euclidean = fn(v1, v2) {
+    return euclidean_distance(v1, v2);
+};
+
+let dist_manhattan = fn(v1, v2) {
+    return manhattan_distance(v1, v2);
+};
+
+let dot = fn(v1, v2) {
+    return dot_product(v1, v2);
+};
+
+let normalize = fn(v) {
+    return vector_normalize(v);
+};

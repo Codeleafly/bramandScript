@@ -1,0 +1,149 @@
+// BramandScript Enterprise System :: Week 5 End-to-End Integration Application
+// Showcases full harmony across:
+// ✦ Actors & Supervision Trees
+// ✦ Reactive Event Streams with Backpressure
+// ✦ Async / Await Coroutines
+// ✦ In-Memory Relational SQL Queries & Joins
+// ✦ Columnar DataFrame Projection & Vectorized Aggregations
+// ✦ Local AI Spatial Vector Index & KNN Search
+// ✦ Monadic Result/Option Safety & Comptime Precomputations
+
+import "std/actor" as act_mod;
+import "std/stream" as stream;
+import "std/sql" as sql;
+import "std/dataframe" as df_mod;
+import "std/ai" as ai;
+
+// 1. Comptime Metaprogramming: Precompute system constants at compile time
+let SYSTEM_CONFIG = comptime {
+    let base_rate = 100;
+    let multiplier = 5;
+    return {
+        "max_telemetry_batch": base_rate * multiplier,
+        "default_timeout_ms": 2000,
+        "version": "2.0-week5"
+    };
+};
+
+// 2. Monadic Safe Function
+let validate_event = fn(event) {
+    if event == null {
+        return Err("event payload is null");
+    }
+    if event["sensor_id"] == null {
+        return Err("missing sensor_id");
+    }
+    return Ok(event);
+};
+
+// 3. Async Coroutine: Simulated external telemetry ingest
+let fetch_telemetry_async = async fn(sensor_id, value) {
+    return {
+        "sensor_id": sensor_id,
+        "value": value,
+        "embedding": [value * 0.1, 1.0 - (value * 0.1)]
+    };
+};
+
+println("✦ BramandScript Week 5 Enterprise Integration Application");
+println("──────────────────────────────────────────────────────────────────");
+println("Config inlined via comptime: max_batch=" + str(SYSTEM_CONFIG["max_telemetry_batch"]) + ", ver=" + SYSTEM_CONFIG["version"]);
+
+// 4. Actor Model & Supervision Tree
+let sup = act_mod.new_supervisor({
+    "strategy": "one_for_one",
+    "max_restarts": 3,
+    "children": [
+        {
+            "id": "telemetry_processor",
+            "start": fn() {
+                return actor(fn(msg, state) {
+                    if msg["type"] == "record" {
+                        push(state["events"], msg["data"]);
+                        return state;
+                    }
+                    if msg["type"] == "summary" {
+                        return len(state["events"]);
+                    }
+                    return state;
+                }, { "events": [] });
+            }
+        }
+    ]
+});
+
+let worker = sup.get_child("telemetry_processor");
+println("Supervised worker initialized. Alive: " + str(worker.is_alive()));
+
+// 5. Ingest Async Payloads and Feed into Actor
+let raw_events = [
+    await fetch_telemetry_async("temp_01", 3.2),
+    await fetch_telemetry_async("temp_02", 4.5),
+    await fetch_telemetry_async("temp_03", 8.9),
+    await fetch_telemetry_async("vibe_01", 1.8)
+];
+
+let i = 0;
+while i < len(raw_events) {
+    let checked = validate_event(raw_events[i]);
+    if checked.is_ok() {
+        worker.send({ "type": "record", "data": checked.unwrap() });
+    }
+    i = i + 1;
+}
+
+let total_recorded = worker.ask({ "type": "summary" }, 1000);
+println("Worker accumulated events: " + str(total_recorded));
+
+// 6. Reactive Stream Pipeline with Backpressure
+println("\n✦ Reactive Event Stream Pipeline:");
+let s = stream.from_array(raw_events);
+let processed_batches = s.filter(fn(e) { return e["value"] > 2.0; })
+                         .map(fn(e) { return { "sensor": e["sensor_id"], "reading": e["value"] * 10.0 }; })
+                         .window(2)
+                         .collect();
+
+println("Windowed processed batches: " + str(processed_batches));
+
+// 7. Relational SQL Queries & In-Memory Join Engine
+println("\n✦ Relational SQL Query Engine:");
+let metadata_table = [
+    { "sensor_id": "temp_01", "location": "Server Room A", "zone": "Critical" },
+    { "sensor_id": "temp_02", "location": "Server Room B", "zone": "Critical" },
+    { "sensor_id": "temp_03", "location": "Outdoor Shed", "zone": "Perimeter" },
+    { "sensor_id": "vibe_01", "location": "HVAC Unit 1", "zone": "Mechanical" }
+];
+
+let db = sql.create_database({
+    "telemetry": raw_events,
+    "sensors": metadata_table
+});
+
+let join_results = db.query("SELECT t.sensor_id, s.location, s.zone, t.value FROM telemetry t INNER JOIN sensors s ON t.sensor_id = s.sensor_id WHERE t.value >= 3.0 ORDER BY t.value DESC");
+println("SQL Join Results: " + str(join_results));
+
+// 8. Columnar DataFrame & Vectorized Analytics
+println("\n✦ Columnar DataFrame & Vectorized Filtering:");
+let df = df_mod.from_records(raw_events);
+let col_val = df.column("value");
+println("Column Mean Value: " + str(col_val.mean()));
+println("Column Max Value:  " + str(col_val.max()));
+
+let mask = col_val.gt(4.0);
+let high_temp_df = df.filter_mask(mask);
+println("High Reading DataFrame Shape: " + str(high_temp_df.shape()));
+
+// 9. Local AI Spatial Vector Index (KNN Search)
+println("\n✦ Local AI Spatial Vector Index (KNN Search):");
+let v_idx = ai.new_index("cosine");
+v_idx.add("pattern_normal", [0.3, 0.7], { "classification": "Nominal Operating State" });
+v_idx.add("pattern_critical", [0.9, 0.1], { "classification": "Thermal Runaway Anomaly" });
+
+let query_vec = ai.normalize([0.89, 0.12]);
+let nearest = v_idx.search(query_vec, 1);
+println("Top Matched Anomaly: " + nearest[0]["id"] + " (Score: " + str(nearest[0]["score"]) + ")");
+println("Classification:      " + nearest[0]["metadata"]["classification"]);
+
+// Shutdown supervisor
+sup.stop();
+println("\n[OK] Week 5 Enterprise Integration Pipeline executed cleanly.");

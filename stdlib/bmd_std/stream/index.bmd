@@ -1,0 +1,54 @@
+// BramandScript Standard Library :: Native Reactive Event Streams with Backpressure (std/stream)
+// Push/pull reactive pipelines, backpressure signals, windowed operators, and multiplexing combinators.
+
+import "./operators.bmd" as ops;
+import "./combinators.bmd" as combs;
+
+let _native_stream = stream;
+
+let stream_new = fn(source) {
+    return _native_stream(source);
+};
+
+let from_array = fn(arr) {
+    return _native_stream(arr);
+};
+
+let from_channel = fn(ch) {
+    return _native_stream(ch);
+};
+
+let empty = fn() {
+    return _native_stream([]);
+};
+
+let of = fn(items) {
+    return _native_stream(items);
+};
+
+let interval = fn(ms, max_count) {
+    return _native_stream(fn(emit, done) {
+        let count = 0;
+        while (max_count == null || count < max_count) {
+            sleep(ms);
+            let keep_going = emit(count);
+            count = count + 1;
+            if (!keep_going) {
+                break;
+            }
+        }
+        done();
+    });
+};
+
+// Re-export operators
+let debounce = ops.debounce;
+let throttle = ops.throttle;
+let window = ops.window;
+let sample = ops.sample;
+
+// Re-export combinators
+let merge = combs.merge;
+let zip = combs.zip;
+let concat = combs.concat;
+let switch_map = combs.switch_map;

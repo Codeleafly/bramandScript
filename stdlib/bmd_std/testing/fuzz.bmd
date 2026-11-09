@@ -1,0 +1,10 @@
+// BramandScript Standard Library :: Automated Fuzz Testing Engine (std/testing/fuzz)
+// Corpus mutation, crash reproduction, and edge-case discovery.
+
+let _native_fuzz = fuzz;
+
+let run_fuzz = fn(target_fn, options) {
+    return _native_fuzz(target_fn, options);
+};
+
+let fuzz = run_fuzz;

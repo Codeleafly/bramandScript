@@ -1,0 +1,129 @@
+// BramandScript System Verification :: Week 5 Day 34 AI Vector & RAG Pipeline Test Suite
+// Validates Vector Similarity Metrics (Cosine, Euclidean, Manhattan, Dot, Normalize),
+// In-Memory Spatial Vector Index (KNN Search, Add, Search, Save, Load),
+// and RAG Document Chunking & Text Pipeline.
+
+import "std/ai" as ai;
+import "std/fs" as fs;
+
+describe("Day 34: Local AI Vector Similarity & Metric Engine", fn() {
+    test("calculates dot product and normalized vectors", fn() {
+        let v1 = [1.0, 2.0, 3.0];
+        let v2 = [4.0, 5.0, 6.0];
+        let dp = ai.dot_product(v1, v2);
+        assert_eq(dp, 32.0); // 1*4 + 2*5 + 3*6 = 32
+
+        let norm_v = ai.normalize([3.0, 4.0]);
+        assert_eq(len(norm_v), 2);
+        assert_true(norm_v[0] > 0.59 && norm_v[0] < 0.61); // 3/5 = 0.6
+        assert_true(norm_v[1] > 0.79 && norm_v[1] < 0.81); // 4/5 = 0.8
+    });
+
+    test("computes cosine, euclidean, and manhattan metrics", fn() {
+        let a = [1.0, 0.0];
+        let b = [1.0, 0.0];
+        let c = [0.0, 1.0];
+
+        assert_eq(ai.cosine_similarity(a, b), 1.0);
+        assert_eq(ai.cosine_distance(a, b), 0.0);
+        assert_eq(ai.cosine_similarity(a, c), 0.0);
+
+        let d1 = [0.0, 0.0];
+        let d2 = [3.0, 4.0];
+        assert_eq(ai.euclidean_distance(d1, d2), 5.0);
+        assert_eq(ai.manhattan_distance(d1, d2), 7.0);
+    });
+});
+
+describe("Day 34: In-Memory Spatial Vector Index (KNN Search)", fn() {
+    test("indexes vectors and performs k-nearest neighbors search", fn() {
+        let idx = ai.new_index("cosine");
+        idx.add("doc_ai", [0.99, 0.05, 0.0], { "title": "Machine Learning Guide" });
+        idx.add("doc_db", [0.05, 0.95, 0.0], { "title": "Relational Databases" });
+        idx.add("doc_net", [0.1, 0.1, 0.9], { "title": "Computer Networking" });
+
+        assert_eq(idx.size(), 3);
+        assert_true(idx.get("doc_ai") != null);
+
+        let query = [1.0, 0.0, 0.0];
+        let results = idx.search(query, 2);
+        assert_eq(len(results), 2);
+        assert_eq(results[0]["id"], "doc_ai");
+        assert_true(results[0]["score"] > 0.95);
+    });
+
+    test("supports vector removal, clearing, and metric switching", fn() {
+        let idx = ai.new_index("euclidean");
+        idx.add("p1", [0.0, 0.0]);
+        idx.add("p2", [1.0, 1.0]);
+        idx.add("p3", [10.0, 10.0]);
+
+        assert_eq(idx.size(), 3);
+        let removed = idx.remove("p3");
+        assert_true(removed);
+        assert_eq(idx.size(), 2);
+
+        let near = idx.search([0.1, 0.1], 1);
+        assert_eq(len(near), 1);
+        assert_eq(near[0]["id"], "p1");
+
+        idx.clear();
+        assert_eq(idx.size(), 0);
+    });
+
+    test("serializes and deserializes index to and from file", fn() {
+        let tmp = fs.temp_file("bmd_spatial_idx", ".json");
+        let path = tmp["path"];
+
+        let idx = ai.new_index("cosine");
+        idx.add("model_a", [0.8, 0.6], { "name": "Model Alpha" });
+        idx.add("model_b", [0.6, 0.8], { "name": "Model Beta" });
+
+        assert_true(idx.save(path));
+
+        let loaded_idx = ai.new_index("cosine");
+        assert_true(loaded_idx.load(path));
+        assert_eq(loaded_idx.size(), 2);
+
+        let hits = loaded_idx.search([0.8, 0.6], 1);
+        assert_eq(hits[0]["id"], "model_a");
+        assert_eq(hits[0]["metadata"]["name"], "Model Alpha");
+
+        fs.remove(path);
+    });
+});
+
+describe("Day 34: RAG Document Chunking & Text Pipeline", fn() {
+    test("chunks text with sliding window and overlap", fn() {
+        let doc = "BramandScript provides pure Go stdlib execution. It is lightweight, fast, and secure. Built from scratch with Pratt parser.";
+        let chunks = ai.chunk_text(doc, { "chunk_size": 40, "chunk_overlap": 10 });
+        assert_true(len(chunks) >= 3);
+        assert_eq(chunks[0]["index"], 0);
+        assert_true(len(chunks[0]["text"]) <= 40);
+    });
+
+    test("chunks text by paragraphs and sentences", fn() {
+        let multi_para = "First paragraph content here.\n\nSecond paragraph content follows.\n\nThird paragraph ends.";
+        let p_chunks = ai.chunk_by_paragraphs(multi_para, 100);
+        assert_eq(len(p_chunks), 3);
+        assert_eq(p_chunks[0]["text"], "First paragraph content here.");
+
+        let sentences = "Hello world. This is test two! And final sentence?";
+        let s_chunks = ai.chunk_by_sentences(sentences, 100);
+        assert_true(len(s_chunks) >= 1);
+    });
+
+    test("cleans text and builds RAG context from search hits", fn() {
+        let messy = "  Clean   up \t whitespace \n and \r\n tabs.  ";
+        let cleaned = ai.clean_text(messy);
+        assert_eq(cleaned, " Clean up whitespace and tabs. ");
+
+        let idx = ai.new_index("cosine");
+        idx.add("d1", [1.0, 0.0], { "text": "BramandScript VM uses pure Go stdlib without dependencies." });
+        idx.add("d2", [0.0, 1.0], { "text": "Recipes for baking bread at home." });
+
+        let rag_context = ai.build_rag_context([1.0, 0.0], idx, 1);
+        assert_true(contains(rag_context, "BramandScript VM"));
+        assert_true(contains(rag_context, "[Document 1"));
+    });
+});

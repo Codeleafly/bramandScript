@@ -1,0 +1,22 @@
+// BramandScript Standard Library :: Time-Windowed Stream Operators (std/stream/operators)
+// High-frequency event stream operators: debounce, throttle, window, sample.
+
+let debounce = fn(s, ms) {
+    if s == null { return null; }
+    return s.debounce(ms);
+};
+
+let throttle = fn(s, ms) {
+    if s == null { return null; }
+    return s.throttle(ms);
+};
+
+let window = fn(s, size) {
+    if s == null { return null; }
+    return s.window(size);
+};
+
+let sample = fn(s, ms) {
+    if s == null { return null; }
+    return s.sample(ms);
+};

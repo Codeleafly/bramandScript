@@ -1,0 +1,47 @@
+// BramandScript Standard Library :: Relational Query Engine Execution (std/sql/engine)
+// Executes SQL joins (INNER, LEFT) and aggregates (COUNT, SUM, AVG, MIN, MAX) over arrays of hashes and structs.
+
+import "../dataframe/index.bmd" as df_mod;
+
+let execute_query = fn(query_str, tables) {
+    return sql_query(query_str, tables);
+};
+
+let create_database = fn(initial_tables) {
+    let tbls = {};
+    if initial_tables != null {
+        let t_names = keys(initial_tables);
+        let i = 0;
+        while i < len(t_names) {
+            let name = t_names[i];
+            tbls[name] = initial_tables[name];
+            i = i + 1;
+        }
+    }
+
+    return {
+        "query": fn(sql_str) {
+            return execute_query(sql_str, tbls);
+        },
+        "query_df": fn(sql_str) {
+            let records = execute_query(sql_str, tbls);
+            if len(records) == 0 {
+                return df_mod.from_records([]);
+            }
+            return df_mod.from_records(records);
+        },
+        "insert": fn(table_name, row) {
+            if tbls[table_name] == null {
+                tbls[table_name] = [];
+            }
+            push(tbls[table_name], row);
+            return true;
+        },
+        "table": fn(table_name) {
+            return tbls[table_name];
+        },
+        "tables": fn() {
+            return keys(tbls);
+        }
+    };
+};

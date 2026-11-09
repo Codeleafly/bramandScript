@@ -23,26 +23,26 @@
 
 ## Day 32
 
-- [ ] Native Reactive Event Streams with Backpressure: Implement stream(source) supporting push/pull reactive pipelines, backpressure flow control signals, and stream.map, stream.filter primitives. (Includes: stdlib/bmd_std/stream/index.bmd, vm/vm.go, tests, docs)
-- [ ] Time-Windowed Stream Operators: Implement stream.debounce(ms), stream.throttle(ms), stream.window(size), and stream.sample(ms) for high-frequency event stream processing. (Includes: stdlib/bmd_std/stream/operators.bmd, tests, docs)
-- [ ] Stream Combinators and Multiplexing: Implement stream.merge(s1, s2), stream.zip(s1, s2), stream.concat(s1, s2), and stream.switch_map(fn) for complex reactive event coordination. (Includes: stdlib/bmd_std/stream/combinators.bmd, tests, docs)
+- [x] Native Reactive Event Streams with Backpressure: Implement stream(source) supporting push/pull reactive pipelines, backpressure flow control signals, and stream.map, stream.filter primitives. (Includes: stdlib/bmd_std/stream/index.bmd, vm/vm.go, tests, docs)
+- [x] Time-Windowed Stream Operators: Implement stream.debounce(ms), stream.throttle(ms), stream.window(size), and stream.sample(ms) for high-frequency event stream processing. (Includes: stdlib/bmd_std/stream/operators.bmd, tests, docs)
+- [x] Stream Combinators and Multiplexing: Implement stream.merge(s1, s2), stream.zip(s1, s2), stream.concat(s1, s2), and stream.switch_map(fn) for complex reactive event coordination. (Includes: stdlib/bmd_std/stream/combinators.bmd, tests, docs)
 
 ## Day 33
 
-- [ ] In-Memory Relational SQL Parser & Query Planner: Implement pure Go stdlib ANSI SQL parser supporting SELECT, FROM, WHERE, ORDER BY, GROUP BY, HAVING, and LIMIT clauses over in-memory datasets. (Includes: stdlib/bmd_std/sql/parser.bmd, stdlib/bmd_std/sql/planner.bmd, tests, docs)
-- [ ] Relational Query Engine Execution: Implement sql.query(queryStr, tables) executing SQL joins (INNER, LEFT) and aggregates (COUNT, SUM, AVG, MIN, MAX) over arrays of hashes and structs. (Includes: stdlib/bmd_std/sql/engine.bmd, tests, docs)
-- [ ] Columnar DataFrame Projection & Vectorized Aggregations: Optimize DataFrame and SQL query execution with zero-copy columnar scanning and vectorized arithmetic filters. (Includes: stdlib/bmd_std/dataframe/index.bmd, tests, docs)
+- [x] In-Memory Relational SQL Parser & Query Planner: Implement pure Go stdlib ANSI SQL parser supporting SELECT, FROM, WHERE, ORDER BY, GROUP BY, HAVING, and LIMIT clauses over in-memory datasets. (Includes: stdlib/bmd_std/sql/parser.bmd, stdlib/bmd_std/sql/planner.bmd, tests, docs)
+- [x] Relational Query Engine Execution: Implement sql.query(queryStr, tables) executing SQL joins (INNER, LEFT) and aggregates (COUNT, SUM, AVG, MIN, MAX) over arrays of hashes and structs. (Includes: stdlib/bmd_std/sql/engine.bmd, tests, docs)
+- [x] Columnar DataFrame Projection & Vectorized Aggregations: Optimize DataFrame and SQL query execution with zero-copy columnar scanning and vectorized arithmetic filters. (Includes: stdlib/bmd_std/dataframe/index.bmd, tests, docs)
 
 ## Day 34
 
-- [ ] Local AI Vector Similarity & Metric Engine: Implement Cosine Similarity, Euclidean Distance, Dot Product, and Manhattan Distance algorithms in pure Go stdlib with hardware floating-point acceleration. (Includes: stdlib/bmd_std/ai/vector.bmd, tests, docs)
-- [ ] In-Memory Spatial Vector Index (KNN Search): Implement fast K-Nearest Neighbors spatial index supporting index.add(id, vector), index.search(queryVector, k), and index.save/load. (Includes: stdlib/bmd_std/ai/index.bmd, tests, docs)
-- [ ] RAG Document Chunking & Text Pipeline: Implement semantic text chunking, sliding window splitters, and embedding normalization utilities for local AI agent workflows. (Includes: stdlib/bmd_std/ai/rag.bmd, tests, docs)
+- [x] Local AI Vector Similarity & Metric Engine: Implement Cosine Similarity, Euclidean Distance, Dot Product, and Manhattan Distance algorithms in pure Go stdlib with hardware floating-point acceleration. (Includes: stdlib/bmd_std/ai/vector.bmd, tests, docs)
+- [x] In-Memory Spatial Vector Index (KNN Search): Implement fast K-Nearest Neighbors spatial index supporting index.add(id, vector), index.search(queryVector, k), and index.save/load. (Includes: stdlib/bmd_std/ai/index.bmd, tests, docs)
+- [x] RAG Document Chunking & Text Pipeline: Implement semantic text chunking, sliding window splitters, and embedding normalization utilities for local AI agent workflows. (Includes: stdlib/bmd_std/ai/rag.bmd, tests, docs)
 
 ## Day 35
 
-- [ ] Comptime Metaprogramming Sandbox: Implement comptime { ... } grammar and AST compiler executing code blocks during compilation in an isolated VM sandbox to inline precomputed constants and unroll loops. (Includes: token/token.go, ast/ast.go, parser/parser.go, compiler/compiler.go, vm/vm.go, tests, docs)
-- [ ] Built-in Benchmarking Framework: Implement bench "name" fn(b) { ... } language primitive and bmd bench CLI command with statistical timing, nanoseconds/op, and allocations tracking. (Includes: stdlib/bmd_std/testing/bench.bmd, main.go, tests, docs)
-- [ ] Automated Fuzz Testing Engine: Implement bmd fuzz command and fuzz fn(data) { ... } primitive with corpus mutation, crash reproduction, and edge-case discovery. (Includes: stdlib/bmd_std/testing/fuzz.bmd, main.go, tests, docs)
-- [ ] Time-Travel Execution Recorder & Replay Debugger: Implement bmd record script.bmd and bmd replay trace.bin capturing VM step execution checkpoints with step_back and inspect_history commands. (Includes: vm/vm.go, vm/record.go, main.go, repl/commands.bmd, tests, docs)
-- [ ] Week 5 End-to-End System Dogfooding & Verification: Build comprehensive integration applications validating Actors + Supervision + Async + SQL + Vectors + Monads with 100% test pass rate and zero regressions. (Includes: tests/*, examples/*, docs/*)
+- [x] Comptime Metaprogramming Sandbox: Implement comptime { ... } grammar and AST compiler executing code blocks during compilation in an isolated VM sandbox to inline precomputed constants and unroll loops. (Includes: token/token.go, ast/ast.go, parser/parser.go, compiler/compiler.go, vm/vm.go, tests, docs)
+- [x] Built-in Benchmarking Framework: Implement bench "name" fn(b) { ... } language primitive and bmd bench CLI command with statistical timing, nanoseconds/op, and allocations tracking. (Includes: stdlib/bmd_std/testing/bench.bmd, main.go, tests, docs)
+- [x] Automated Fuzz Testing Engine: Implement bmd fuzz command and fuzz fn(data) { ... } primitive with corpus mutation, crash reproduction, and edge-case discovery. (Includes: stdlib/bmd_std/testing/fuzz.bmd, main.go, tests, docs)
+- [x] Time-Travel Execution Recorder & Replay Debugger: Implement bmd record script.bmd and bmd replay trace.bin capturing VM step execution checkpoints with step_back and inspect_history commands. (Includes: vm/vm.go, vm/record.go, main.go, repl/commands.bmd, tests, docs)
+- [x] Week 5 End-to-End System Dogfooding & Verification: Build comprehensive integration applications validating Actors + Supervision + Async + SQL + Vectors + Monads with 100% test pass rate and zero regressions. (Includes: tests/*, examples/*, docs/*)

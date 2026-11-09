@@ -1,0 +1,97 @@
+// BramandScript System Verification :: Week 5 Day 35 Comptime, Benchmarking, Fuzzing & Replay Test Suite
+// Validates Comptime Metaprogramming Sandbox, Built-in Benchmarking Framework,
+// Automated Fuzz Testing Engine, and Time-Travel Execution Recorder & Replay Debugger.
+
+import "std/testing/bench" as bm;
+import "std/testing/fuzz" as fm;
+import "std/fs" as fs;
+
+describe("Day 35: Comptime Metaprogramming Sandbox", fn() {
+    test("inlines precomputed constants at compile time", fn() {
+        let compiled_val = comptime {
+            let acc = 0;
+            let i = 1;
+            while i <= 5 {
+                acc = acc + i;
+                i = i + 1;
+            }
+            return acc;
+        };
+        assert_eq(compiled_val, 15);
+
+        let direct_expr = comptime { 100 * 25 + 50 };
+        assert_eq(direct_expr, 2550);
+    });
+
+    test("inlines unrolled tables and precomputed arrays", fn() {
+        let powers_of_two = comptime {
+            let table = [];
+            let val = 1;
+            let i = 0;
+            while i < 6 {
+                push(table, val);
+                val = val * 2;
+                i = i + 1;
+            }
+            return table;
+        };
+
+        assert_eq(len(powers_of_two), 6);
+        assert_eq(powers_of_two[0], 1);
+        assert_eq(powers_of_two[1], 2);
+        assert_eq(powers_of_two[2], 4);
+        assert_eq(powers_of_two[3], 8);
+        assert_eq(powers_of_two[4], 16);
+        assert_eq(powers_of_two[5], 32);
+    });
+});
+
+describe("Day 35: Built-in Benchmarking Framework", fn() {
+    test("runs benchmark and produces statistical metrics", fn() {
+        let res = bench("HashInsertBench", fn(b) {
+            let h = {};
+            let i = 0;
+            while i < 100 {
+                h["key_" + str(i)] = i;
+                i = i + 1;
+            }
+        }, 100);
+
+        assert_eq(res["name"], "HashInsertBench");
+        assert_true(res["n"] > 0);
+        assert_true(res["duration_ms"] > 0.0);
+        assert_true(res["ns_per_op"] >= 0);
+        assert_true(res["ops_per_sec"] > 0.0);
+        assert_true(len(res["formatted"]) > 0);
+    });
+});
+
+describe("Day 35: Automated Fuzz Testing Engine", fn() {
+    test("fuzzes robust function without crashes", fn() {
+        let safe_json_check = fn(str_data) {
+            if str_data == null || len(str_data) == 0 {
+                return 0;
+            }
+            return len(str_data);
+        };
+
+        let result = fuzz(safe_json_check, { "count": 100 });
+        assert_eq(result["crashed"], false);
+        assert_eq(result["crash_input"], null);
+        assert_eq(result["iterations"], 100);
+    });
+
+    test("discovers crashes and reproduces edge cases", fn() {
+        let panicking_fn = fn(input) {
+            if contains(input, "%") || contains(input, "\x00") {
+                panic("forbidden edge-case detected");
+            }
+            return true;
+        };
+
+        let result = fuzz(panicking_fn, { "count": 100, "corpus": ["normal", "edge\x00data"] });
+        assert_eq(result["crashed"], true);
+        assert_true(result["crash_error"] != null);
+        assert_true(result["crash_iteration"] > 0);
+    });
+});

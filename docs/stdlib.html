@@ -192,6 +192,9 @@
             <li><a href="stdlib.html#ch-fs-path" class="nav-link pl-4 text-xs"><span>·</span> std/fs &amp; std/path (Filesystem)</a></li>
             <li><a href="stdlib.html#ch-encoding" class="nav-link pl-4 text-xs"><span>·</span> std/encoding (CSV, Hex, URL)</a></li>
             <li><a href="stdlib.html#ch-monads" class="nav-link pl-4 text-xs"><span>·</span> Result, Option &amp; ? Monads</a></li>
+            <li><a href="stdlib.html#ch-stream" class="nav-link pl-4 text-xs"><span>·</span> std/stream (Reactive Streams)</a></li>
+            <li><a href="stdlib.html#ch-sql" class="nav-link pl-4 text-xs"><span>·</span> std/sql (Relational SQL Engine)</a></li>
+            <li><a href="stdlib.html#ch-ai" class="nav-link pl-4 text-xs"><span>·</span> std/ai (Vector Metrics &amp; KNN)</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -2755,6 +2758,74 @@ println("Fallback:", failure.unwrap_or(0))   // 0</code></pre>
               <tr><td><code class="font-mono font-bold">__iter_key</code></td><td><code class="font-mono">__iter_key(collection, index)</code></td><td><code class="font-mono">ANY</code></td><td>Returns the current iteration key (string key for hashes, integer index for arrays/strings/bytes).</td></tr>
               <tr><td><code class="font-mono font-bold">__iter_val</code></td><td><code class="font-mono">__iter_val(collection, index)</code></td><td><code class="font-mono">ANY</code></td><td>Retrieves the collection value element at the current iteration position.</td></tr>
               <tr><td><code class="font-mono font-bold">__iter_item</code></td><td><code class="font-mono">__iter_item(collection, index)</code></td><td><code class="font-mono">ARRAY</code></td><td>Yields a 2-element tuple <code class="font-mono">[key, val]</code> for dual-variable iteration loops.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 24: Reactive Event Streams (std/stream) -->
+        <h3 id="ch-stream" class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">24. Native Reactive Event Streams (<code class="font-mono">std/stream</code>)</h3>
+        <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+          High-performance push/pull reactive stream pipelines with backpressure flow control signals, windowed operators, and multiplexing combinators:
+        </p>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Stream Function / Method</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">stream</code></td><td><code class="font-mono">stream(source)</code></td><td><code class="font-mono">HASH</code></td><td>Creates reactive stream from array, channel, or custom generator function.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.map</code></td><td><code class="font-mono">s.map(fn)</code></td><td><code class="font-mono">HASH</code></td><td>Transforms emitted items using mapping function.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.filter</code></td><td><code class="font-mono">s.filter(pred)</code></td><td><code class="font-mono">HASH</code></td><td>Filters stream items according to predicate truthiness.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.window</code></td><td><code class="font-mono">s.window(size)</code></td><td><code class="font-mono">HASH</code></td><td>Batches incoming events into chunks of fixed size.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.debounce</code></td><td><code class="font-mono">s.debounce(ms)</code></td><td><code class="font-mono">HASH</code></td><td>Suppresses rapid successive items until quiet period elapses.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.throttle</code></td><td><code class="font-mono">s.throttle(ms)</code></td><td><code class="font-mono">HASH</code></td><td>Limits emission frequency, enforcing minimum millisecond gap.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.zip</code></td><td><code class="font-mono">s1.zip(s2)</code></td><td><code class="font-mono">HASH</code></td><td>Combines two streams pairwise into 2-element arrays.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.concat</code></td><td><code class="font-mono">s1.concat(s2)</code></td><td><code class="font-mono">HASH</code></td><td>Sequentially emits all items of first stream then second stream.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.switch_map</code></td><td><code class="font-mono">s.switch_map(fn)</code></td><td><code class="font-mono">HASH</code></td><td>Projects each item to an inner stream, canceling prior active inner stream.</td></tr>
+              <tr><td><code class="font-mono font-bold">stream.collect</code></td><td><code class="font-mono">s.collect()</code></td><td><code class="font-mono">ARRAY</code></td><td>Collects all emitted stream items into a concrete array.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 25: In-Memory Relational SQL Suite (std/sql) -->
+        <h3 id="ch-sql" class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">25. In-Memory Relational SQL Suite (<code class="font-mono">std/sql</code>)</h3>
+        <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+          ANSI SQL parser, query planner, and relational query engine executing joins, filters, and aggregations across in-memory datasets and DataFrames:
+        </p>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>SQL Function</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">sql_query / sql.query</code></td><td><code class="font-mono">sql.query(sql_str, tables)</code></td><td><code class="font-mono">ARRAY</code></td><td>Executes SELECT with WHERE, JOIN (INNER, LEFT), GROUP BY, HAVING, ORDER BY, and LIMIT over dataset tables.</td></tr>
+              <tr><td><code class="font-mono font-bold">sql.parse</code></td><td><code class="font-mono">sql.parse(sql_str)</code></td><td><code class="font-mono">HASH</code></td><td>Parses ANSI SQL string into structured AST node.</td></tr>
+              <tr><td><code class="font-mono font-bold">sql.plan</code></td><td><code class="font-mono">sql.plan(ast)</code></td><td><code class="font-mono">HASH</code></td><td>Generates optimized query execution plan.</td></tr>
+              <tr><td><code class="font-mono font-bold">sql.database</code></td><td><code class="font-mono">sql.database(tables)</code></td><td><code class="font-mono">HASH</code></td><td>Creates managed in-memory relational database with <code class="font-mono">.query()</code> and <code class="font-mono">.insert()</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Category 26: Local AI Vector Metrics & Spatial Index (std/ai) -->
+        <h3 id="ch-ai" class="text-lg font-bold text-slate-800 dark:text-slate-200 mt-6 mb-2">26. Local AI Vector Metrics &amp; Spatial Index (<code class="font-mono">std/ai</code>)</h3>
+        <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+          Pure Go stdlib hardware floating-point accelerated metrics, K-Nearest Neighbors (KNN) spatial index, and RAG document chunking pipeline:
+        </p>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>AI Primitive</th><th>Exact Signature</th><th>Return</th><th>Description &amp; Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">cosine_similarity</code></td><td><code class="font-mono">cosine_similarity(v1, v2)</code></td><td><code class="font-mono">FLOAT</code></td><td>Computes normalized cosine similarity [-1.0, 1.0].</td></tr>
+              <tr><td><code class="font-mono font-bold">cosine_distance</code></td><td><code class="font-mono">cosine_distance(v1, v2)</code></td><td><code class="font-mono">FLOAT</code></td><td>Computes cosine distance (1.0 - cosine_similarity).</td></tr>
+              <tr><td><code class="font-mono font-bold">euclidean_distance</code></td><td><code class="font-mono">euclidean_distance(v1, v2)</code></td><td><code class="font-mono">FLOAT</code></td><td>Computes straight-line L2 geometric distance.</td></tr>
+              <tr><td><code class="font-mono font-bold">manhattan_distance</code></td><td><code class="font-mono">manhattan_distance(v1, v2)</code></td><td><code class="font-mono">FLOAT</code></td><td>Computes L1 grid taxicab distance.</td></tr>
+              <tr><td><code class="font-mono font-bold">dot_product</code></td><td><code class="font-mono">dot_product(v1, v2)</code></td><td><code class="font-mono">FLOAT</code></td><td>Computes algebraic dot product of two vectors.</td></tr>
+              <tr><td><code class="font-mono font-bold">vector_normalize</code></td><td><code class="font-mono">vector_normalize(v)</code></td><td><code class="font-mono">ARRAY</code></td><td>Computes unit vector with L2 norm equal to 1.0.</td></tr>
+              <tr><td><code class="font-mono font-bold">ai.new_index</code></td><td><code class="font-mono">ai.new_index(metric)</code></td><td><code class="font-mono">HASH</code></td><td>Creates K-Nearest Neighbors spatial index with <code class="font-mono">.add()</code>, <code class="font-mono">.search()</code>, <code class="font-mono">.save()</code>, and <code class="font-mono">.load()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">ai.chunk_text</code></td><td><code class="font-mono">ai.chunk_text(text, opts)</code></td><td><code class="font-mono">ARRAY</code></td><td>Semantic sliding window text chunker with configurable chunk size and overlap.</td></tr>
+              <tr><td><code class="font-mono font-bold">ai.build_rag_context</code></td><td><code class="font-mono">ai.build_rag_context(query, idx, k)</code></td><td><code class="font-mono">STRING</code></td><td>Retrieves top-k hits and formats into clean RAG LLM prompt context block.</td></tr>
             </tbody>
           </table>
         </div>

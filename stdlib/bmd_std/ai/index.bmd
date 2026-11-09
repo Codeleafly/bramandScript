@@ -1,0 +1,207 @@
+// BramandScript Standard Library :: Local AI & Spatial Vector Index Suite (std/ai)
+// In-Memory Spatial Vector Index (KNN Search), Vector Similarity Metrics, and RAG Pipeline.
+
+import "./vector.bmd" as vec;
+import "./rag.bmd" as rag;
+
+// Spatial Vector Index (KNN Search)
+let new_vector_index = fn(metric_name) {
+    let metric = "cosine";
+    if metric_name != null {
+        metric = metric_name;
+    }
+
+    let entries = []; // array of { id, vector, metadata }
+
+    let calc_dist = fn(v1, v2) {
+        if metric == "euclidean" {
+            return euclidean_distance(v1, v2);
+        }
+        if metric == "manhattan" {
+            return manhattan_distance(v1, v2);
+        }
+        if metric == "dot" {
+            return 0.0 - dot_product(v1, v2); // higher dot = lower score for sorting
+        }
+        // cosine distance (1.0 - sim)
+        return cosine_distance(v1, v2);
+    };
+
+    let idx = {};
+
+    idx["add"] = fn(id, vector, metadata) {
+        let meta = {};
+        if metadata != null {
+            meta = metadata;
+        }
+        // If entry with same id already exists, update it
+        let i = 0;
+        let found = false;
+        while i < len(entries) {
+            if entries[i]["id"] == id {
+                entries[i]["vector"] = vector;
+                entries[i]["metadata"] = meta;
+                found = true;
+                break;
+            }
+            i = i + 1;
+        }
+        if !found {
+            push(entries, {
+                "id": id,
+                "vector": vector,
+                "metadata": meta
+            });
+        }
+        return true;
+    };
+
+    idx["get"] = fn(id) {
+        let i = 0;
+        while i < len(entries) {
+            if entries[i]["id"] == id {
+                return entries[i];
+            }
+            i = i + 1;
+        }
+        return null;
+    };
+
+    idx["remove"] = fn(id) {
+        let new_entries = [];
+        let i = 0;
+        let removed = false;
+        while i < len(entries) {
+            if entries[i]["id"] != id {
+                push(new_entries, entries[i]);
+            } else {
+                removed = true;
+            }
+            i = i + 1;
+        }
+        entries = new_entries;
+        return removed;
+    };
+
+    idx["size"] = fn() {
+        return len(entries);
+    };
+    idx["count"] = fn() {
+        return len(entries);
+    };
+    idx["len"] = fn() {
+        return len(entries);
+    };
+
+    idx["search"] = fn(query_vec, top_k) {
+        let k = 5;
+        if top_k != null && top_k > 0 {
+            k = top_k;
+        }
+
+        let scored = [];
+        let i = 0;
+        while i < len(entries) {
+            let entry = entries[i];
+            let dist = calc_dist(query_vec, entry["vector"]);
+            let score = 1.0 - dist;
+            if metric == "euclidean" || metric == "manhattan" {
+                score = dist; // for distance metrics, lower is closer
+            }
+            push(scored, {
+                "id": entry["id"],
+                "score": score,
+                "distance": dist,
+                "vector": entry["vector"],
+                "metadata": entry["metadata"]
+            });
+            i = i + 1;
+        }
+
+        // Sort by closest
+        let n = len(scored);
+        let a = 0;
+        while a < n {
+            let b = 0;
+            while b < n - a - 1 {
+                let s1 = scored[b];
+                let s2 = scored[b + 1];
+                let should_swap = false;
+                if metric == "euclidean" || metric == "manhattan" {
+                    if s1["distance"] > s2["distance"] { should_swap = true; }
+                } else {
+                    if s1["score"] < s2["score"] { should_swap = true; }
+                }
+                if should_swap {
+                    let temp = scored[b];
+                    scored[b] = scored[b + 1];
+                    scored[b + 1] = temp;
+                }
+                b = b + 1;
+            }
+            a = a + 1;
+        }
+
+        let res = [];
+        let count = 0;
+        while count < k && count < len(scored) {
+            push(res, scored[count]);
+            count = count + 1;
+        }
+        return res;
+    };
+
+    idx["save"] = fn(filepath) {
+        let data = {
+            "metric": metric,
+            "entries": entries
+        };
+        let content = json_stringify(data);
+        write_file(filepath, content);
+        return true;
+    };
+
+    idx["load"] = fn(filepath) {
+        if (!file_exists(filepath)) {
+            return false;
+        }
+        let content = read_file(filepath);
+        let data = json_parse(content);
+        if (data != null) {
+            if data["metric"] != null {
+                metric = data["metric"];
+            }
+            if data["entries"] != null {
+                entries = data["entries"];
+            }
+            return true;
+        }
+        return false;
+    };
+
+    idx["clear"] = fn() {
+        entries = [];
+        return true;
+    };
+
+    return idx;
+};
+
+let new_index = new_vector_index;
+let create_index = new_vector_index;
+
+// Re-export vector primitives
+let cosine_similarity = vec.sim_cosine;
+let cosine_distance = vec.dist_cosine;
+let euclidean_distance = vec.dist_euclidean;
+let manhattan_distance = vec.dist_manhattan;
+let dot_product = vec.dot;
+let normalize = vec.normalize;
+
+// Re-export RAG pipeline
+let chunk_text = rag.chunk_text;
+let chunk_by_paragraphs = rag.chunk_by_paragraphs;
+let chunk_by_sentences = rag.chunk_by_sentences;
+let clean_text = rag.clean_text;
+let build_rag_context = rag.build_rag_context;
+let embedding_normalize = rag.embedding_normalize;

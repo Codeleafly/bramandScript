@@ -28,6 +28,21 @@ var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
 var Null = &object.Null{}
 
+func init() {
+	compiler.ComptimeEvaluator = func(bc *compiler.Bytecode) (object.Object, error) {
+		sandboxVM := New(bc)
+		err := sandboxVM.Run()
+		if err != nil {
+			return nil, err
+		}
+		res := sandboxVM.LastPoppedStackElem()
+		if res == nil {
+			res = Null
+		}
+		return res, nil
+	}
+}
+
 type RuntimeError struct {
 	Line       int
 	Col        int
@@ -172,6 +187,7 @@ type VM struct {
 	maxStackSize int
 
 	profiler *Profiler
+	recorder *ExecutionRecorder
 
 	activeContracts []*object.PackageContract
 
@@ -611,6 +627,12 @@ func (vm *VM) RunProfiled() (*ProfileReport, error) {
 	return report, err
 }
 
+func (vm *VM) RunRecorded(sourceFile string) (*ExecutionTrace, error) {
+	vm.recorder = NewExecutionRecorder(sourceFile)
+	err := vm.Run()
+	return vm.recorder.Trace, err
+}
+
 func (vm *VM) runLoop() error {
 	var ip int
 	var ins code.Instructions
@@ -638,6 +660,10 @@ func (vm *VM) runLoop() error {
 		var t0 time.Time
 		if vm.profiler != nil {
 			t0 = time.Now()
+		}
+
+		if vm.recorder != nil {
+			vm.recorder.RecordStep(vm, op, ip)
 		}
 
 		switch op {

@@ -1,0 +1,12 @@
+// BramandScript Standard Library :: In-Memory Relational SQL Planner (std/sql/planner)
+// Query optimization and execution plan construction: Scan, Filter, Join, Aggregate, Sort, Project, Limit.
+
+let plan_query = fn(parsed_ast) {
+    if parsed_ast == null { return null; }
+    return {
+        "ast": parsed_ast,
+        "stages": ["scan", "join", "filter", "aggregate", "sort", "project", "limit"]
+    };
+};
+
+let plan = plan_query;

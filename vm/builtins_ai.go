@@ -361,6 +361,43 @@ func init() {
 				return &object.Float{Value: dist}
 			},
 		},
+		"dot_product": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=2", len(args))}
+				}
+				v1, err1 := extractVectorSlice(args[0])
+				v2, err2 := extractVectorSlice(args[1])
+				if err1 != nil || err2 != nil {
+					return &object.Error{Message: "arguments to dot_product must be vectors or arrays of numbers"}
+				}
+				dot, err := calcDotProduct(v1, v2)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Float{Value: dot}
+			},
+		},
+		"vector_normalize": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+				}
+				v, err := extractVectorSlice(args[0])
+				if err != nil {
+					return &object.Error{Message: "argument to vector_normalize must be a vector or array of numbers"}
+				}
+				normVec, err := calcVectorNormalize(v)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				elems := make([]object.Object, len(normVec))
+				for i, val := range normVec {
+					elems[i] = &object.Float{Value: val}
+				}
+				return &object.Array{Elements: elems}
+			},
+		},
 		"vector_search": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) < 2 || len(args) > 4 {
@@ -527,4 +564,32 @@ func calcManhattanDistance(a, b []float64) (float64, error) {
 		sum += math.Abs(a[i] - b[i])
 	}
 	return sum, nil
+}
+
+func calcDotProduct(a, b []float64) (float64, error) {
+	if len(a) != len(b) {
+		return 0, fmt.Errorf("vector dimensions mismatch: %d != %d", len(a), len(b))
+	}
+	var dot float64
+	for i := range a {
+		dot += a[i] * b[i]
+	}
+	return dot, nil
+}
+
+func calcVectorNormalize(a []float64) ([]float64, error) {
+	var sum float64
+	for _, v := range a {
+		sum += v * v
+	}
+	norm := math.Sqrt(sum)
+	if norm == 0 {
+		res := make([]float64, len(a))
+		return res, nil
+	}
+	res := make([]float64, len(a))
+	for i, v := range a {
+		res[i] = v / norm
+	}
+	return res, nil
 }

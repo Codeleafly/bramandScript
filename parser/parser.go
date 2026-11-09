@@ -120,6 +120,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.SEND_RECV, p.parsePrefixExpression)
 	p.registerPrefix(token.BIT_NOT, p.parsePrefixExpression)
 	p.registerPrefix(token.YIELD, p.parseYieldExpression)
+	p.registerPrefix(token.COMPTIME, p.parseComptimeExpression)
 	p.registerPrefix(token.FORMAT_STRING, p.parseInterpolatedStringLiteral)
 	p.registerPrefix(token.ELLIPSIS, p.parseSpreadExpression)
 
@@ -702,6 +703,20 @@ func (p *Parser) parseTuplePattern() *ast.TuplePattern {
 
 func (p *Parser) parseAwaitExpression() ast.Expression {
 	expr := &ast.AwaitExpression{Token: p.curToken}
+	p.nextToken()
+	expr.Value = p.parseExpression(PREFIX)
+	return expr
+}
+
+func (p *Parser) parseComptimeExpression() ast.Expression {
+	expr := &ast.ComptimeExpression{Token: p.curToken}
+
+	if p.peekTokenIs(token.LBRACE) {
+		p.nextToken()
+		expr.Body = p.parseBlockStatement()
+		return expr
+	}
+
 	p.nextToken()
 	expr.Value = p.parseExpression(PREFIX)
 	return expr

@@ -110,6 +110,7 @@ const (
 	ACTOR    = "ACTOR"
 	ASYNC    = "ASYNC"
 	AWAIT    = "AWAIT"
+	COMPTIME = "COMPTIME"
 )
 
 var keywords = map[string]TokenType{
@@ -145,6 +146,7 @@ var keywords = map[string]TokenType{
 	"actor":    ACTOR,
 	"async":    ASYNC,
 	"await":    AWAIT,
+	"comptime": COMPTIME,
 }
 
 func LookupIdent(ident string) TokenType {

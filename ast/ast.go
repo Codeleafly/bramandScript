@@ -891,6 +891,24 @@ func (ye *YieldExpression) String() string {
 	return "yield"
 }
 
+type ComptimeExpression struct {
+	Token token.Token // token.COMPTIME
+	Body  *BlockStatement
+	Value Expression
+}
+
+func (ce *ComptimeExpression) expressionNode()      {}
+func (ce *ComptimeExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *ComptimeExpression) String() string {
+	if ce.Body != nil {
+		return "comptime " + ce.Body.String()
+	}
+	if ce.Value != nil {
+		return "comptime " + ce.Value.String()
+	}
+	return "comptime"
+}
+
 // ---------------- Enterprise Language AST Nodes ----------------
 
 type TernaryExpression struct {

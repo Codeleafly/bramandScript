@@ -141,6 +141,36 @@ func main() {
 		vm.SetProgramArgs(os.Args[3:])
 		handleProfileCommand(os.Args[2])
 
+	case "bench":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand bench <filename.bmd> [args...]")
+			safeExit(1)
+		}
+		vm.SetProgramArgs(os.Args[3:])
+		handleBenchCommand(os.Args[2])
+
+	case "fuzz":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand fuzz <filename.bmd> [args...]")
+			safeExit(1)
+		}
+		vm.SetProgramArgs(os.Args[3:])
+		handleFuzzCommand(os.Args[2])
+
+	case "record":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand record <filename.bmd> [-o trace.json]")
+			safeExit(1)
+		}
+		handleRecordCommand(os.Args[2:])
+
+	case "replay":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: bramand replay <trace.json>")
+			safeExit(1)
+		}
+		handleReplayCommand(os.Args[2])
+
 	case "pkg", "lib", "package":
 		handlePkgCommand(os.Args[2:])
 
@@ -711,6 +741,90 @@ func handleProfileCommand(filename string) {
 	}
 
 	fmt.Print(report.String())
+}
+
+func handleBenchCommand(filename string) {
+	fmt.Printf("✦ BramandScript Benchmark Runner: %s\n", filename)
+	fmt.Println("──────────────────────────────────────────────────────────────────")
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
+		safeExit(1)
+	}
+	executeSource(string(data), filename)
+}
+
+func handleFuzzCommand(filename string) {
+	fmt.Printf("✦ BramandScript Fuzz Testing Engine: %s\n", filename)
+	fmt.Println("──────────────────────────────────────────────────────────────────")
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", filename, err)
+		safeExit(1)
+	}
+	executeSource(string(data), filename)
+}
+
+func handleRecordCommand(args []string) {
+	sourceFile := args[0]
+	outputTrace := "trace.json"
+	for i := 1; i < len(args); i++ {
+		if args[i] == "-o" && i+1 < len(args) {
+			outputTrace = args[i+1]
+			i++
+		}
+	}
+
+	data, err := os.ReadFile(sourceFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Could not read file '%s': %s\n", sourceFile, err)
+		safeExit(1)
+	}
+
+	source := string(data)
+	l := lexer.New(source)
+	p := parser.New(l)
+	prog := p.ParseProgram()
+	if len(p.SyntaxErrors) > 0 {
+		fmt.Fprintf(os.Stderr, "[ERROR] Syntax error in '%s': %s\n", sourceFile, p.SyntaxErrors[0].Message)
+		safeExit(1)
+	}
+
+	comp := compiler.New()
+	comp.SetBaseDir(filepath.Dir(sourceFile))
+	comp.SetCurrentFile(sourceFile, source)
+	if err := comp.Compile(prog); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Compilation failed: %s\n", err)
+		safeExit(1)
+	}
+
+	machine := vm.New(comp.Bytecode())
+	trace, err := machine.RunRecorded(sourceFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Execution error: %s\n", err)
+	}
+
+	if trace != nil {
+		if err := trace.Save(outputTrace); err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] Failed to save trace: %s\n", err)
+			safeExit(1)
+		}
+		fmt.Printf("[OK] Execution recorded: %d steps written to %s\n", trace.TotalSteps, outputTrace)
+	}
+}
+
+func handleReplayCommand(traceFile string) {
+	trace, err := vm.LoadTrace(traceFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed to load trace: %s\n", err)
+		safeExit(1)
+	}
+
+	debugger := vm.NewReplayDebugger(trace)
+	if err := debugger.RunInteractive(os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Replay error: %s\n", err)
+		safeExit(1)
+	}
 }
 
 func handlePkgCommand(args []string) {

@@ -1,0 +1,24 @@
+// BramandScript Standard Library :: Stream Combinators & Multiplexing (std/stream/combinators)
+// Coordination primitives for multiple streams: merge, zip, concat, switch_map.
+
+let merge = fn(s1, s2) {
+    if s1 == null { return s2; }
+    if s2 == null { return s1; }
+    return s1.merge(s2);
+};
+
+let zip = fn(s1, s2) {
+    if s1 == null || s2 == null { return null; }
+    return s1.zip(s2);
+};
+
+let concat = fn(s1, s2) {
+    if s1 == null { return s2; }
+    if s2 == null { return s1; }
+    return s1.concat(s2);
+};
+
+let switch_map = fn(s, map_fn) {
+    if s == null { return null; }
+    return s.switch_map(map_fn);
+};

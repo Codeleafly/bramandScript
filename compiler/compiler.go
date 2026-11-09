@@ -29,6 +29,9 @@ type EmittedInstruction struct {
 	Position int
 }
 
+// ComptimeEvaluator is configured by the VM package to execute comptime AST blocks in an isolated sandbox.
+var ComptimeEvaluator func(bc *Bytecode) (object.Object, error)
+
 type CompilationScope struct {
 	instructions        code.Instructions
 	lastInstruction     EmittedInstruction
@@ -1291,6 +1294,35 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		c.emit(code.OpAwait)
+
+	case *ast.ComptimeExpression:
+		c.currentLine = node.Token.Line
+		if ComptimeEvaluator == nil {
+			return fmt.Errorf("comptime evaluator not initialized")
+		}
+
+		subCompiler := New()
+		var compileErr error
+		if node.Body != nil {
+			compileErr = subCompiler.Compile(&ast.Program{Statements: node.Body.Statements})
+		} else if node.Value != nil {
+			compileErr = subCompiler.Compile(&ast.Program{
+				Statements: []ast.Statement{
+					&ast.ExpressionStatement{Expression: node.Value},
+				},
+			})
+		}
+
+		if compileErr != nil {
+			return fmt.Errorf("comptime compilation error: %s", compileErr)
+		}
+
+		resultObj, err := ComptimeEvaluator(subCompiler.Bytecode())
+		if err != nil {
+			return fmt.Errorf("comptime evaluation error: %s", err)
+		}
+
+		c.emit(code.OpConstant, c.addConstant(resultObj))
 	}
 
 	return c.compileErr

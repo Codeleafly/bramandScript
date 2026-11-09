@@ -311,4 +311,18 @@ var Builtins = []BuiltinDef{
 
 	// Day 31 Cooperative Multitasking Scheduler & Structured Task Groups
 	{Name: "task_group"},
+
+	// Day 32 Native Reactive Event Streams with Backpressure
+	{Name: "stream"},
+
+	// Day 33 Relational SQL Engine Execution
+	{Name: "sql_query"},
+
+	// Day 34 Local AI Vector Similarity & Metric Engine
+	{Name: "dot_product"},
+	{Name: "vector_normalize"},
+
+	// Day 35 Benchmarking and Fuzz Testing Framework
+	{Name: "bench"},
+	{Name: "fuzz"},
 }

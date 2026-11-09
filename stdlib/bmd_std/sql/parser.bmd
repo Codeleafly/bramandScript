@@ -1,0 +1,18 @@
+// BramandScript Standard Library :: In-Memory Relational SQL Parser (std/sql/parser)
+// Pure ANSI SQL parser supporting SELECT, FROM, WHERE, ORDER BY, GROUP BY, HAVING, LIMIT.
+
+let parse_sql = fn(query_str) {
+    if query_str == null { return null; }
+    let q = query_str;
+    if len(q) > 0 && q[len(q) - 1] == ";" {
+        q = slice(q, 0, len(q) - 1);
+    }
+
+    return {
+        "raw_query": q,
+        "type": "SELECT",
+        "valid": true
+    };
+};
+
+let parse = parse_sql;

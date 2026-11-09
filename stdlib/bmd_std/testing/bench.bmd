@@ -1,0 +1,10 @@
+// BramandScript Standard Library :: Built-in Benchmarking Framework (std/testing/bench)
+// Statistical timing, nanoseconds/op, and allocations tracking.
+
+let _native_bench = bench;
+
+let run_bench = fn(name, bench_fn, duration_ms) {
+    return _native_bench(name, bench_fn, duration_ms);
+};
+
+let benchmark = run_bench;

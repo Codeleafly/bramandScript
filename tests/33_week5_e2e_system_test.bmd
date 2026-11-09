@@ -1,0 +1,126 @@
+// BramandScript System Verification :: Week 5 End-to-End System Integration Test Suite
+// Validates Full System Integration: Actors + Supervision + Async + SQL + Vectors + Monads + Streams + Comptime.
+
+import "std/actor" as act_mod;
+import "std/stream" as stream;
+import "std/sql" as sql;
+import "std/dataframe" as df_mod;
+import "std/ai" as ai;
+
+describe("Day 35: Week 5 End-to-End System Dogfooding & Verification", fn() {
+    test("validates full system loop with Comptime, Actors, Async, Streams, SQL, and AI", fn() {
+        // 1. Comptime precomputation
+        let batch_limit = comptime { 25 * 4 };
+        assert_eq(batch_limit, 100);
+
+        // 2. Monads & Try-Propagation
+        let safe_parse = fn(v) {
+            if v < 0 {
+                return Err("negative reading");
+            }
+            return Ok(v * 10);
+        };
+
+        let try_process = fn(v) {
+            let res = safe_parse(v)?;
+            return Ok(res + 1);
+        };
+
+        let ok_val = try_process(5);
+        assert_true(ok_val.is_ok());
+        assert_eq(ok_val.unwrap(), 51);
+
+        let err_val = try_process(-2);
+        assert_true(err_val.is_err());
+
+        // 3. Supervised Actor
+        let sup = act_mod.new_supervisor({
+            "strategy": "one_for_one",
+            "max_restarts": 2,
+            "children": [
+                {
+                    "id": "e2e_worker",
+                    "start": fn() {
+                        return actor(fn(msg, state) {
+                            if msg["type"] == "add" {
+                                push(state, msg["val"]);
+                                return state;
+                            }
+                            if msg["type"] == "get" {
+                                return state;
+                            }
+                            return state;
+                        }, []);
+                    }
+                }
+            ]
+        });
+
+        let worker = sup.get_child("e2e_worker");
+        assert_true(worker != null);
+        worker.send({ "type": "add", "val": 100 });
+        worker.send({ "type": "add", "val": 200 });
+        let st = worker.ask({ "type": "get" }, 1000);
+        assert_eq(len(st), 2);
+        assert_eq(st[0], 100);
+        assert_eq(st[1], 200);
+        sup.stop();
+
+        // 4. Reactive Event Stream Pipeline
+        let raw_stream = stream.from_array([1, 2, 3, 4, 5, 6]);
+        let processed = raw_stream.filter(fn(x) { return x % 2 == 0; })
+                                  .map(fn(x) { return x * 10; })
+                                  .window(2)
+                                  .collect();
+        assert_eq(len(processed), 2);
+        assert_eq(processed[0][0], 20);
+        assert_eq(processed[0][1], 40);
+        assert_eq(processed[1][0], 60);
+
+        // 5. In-Memory Relational SQL Joins & Aggregates
+        let accounts = [
+            { "acc_id": "A1", "owner": "Alice", "tier": "gold" },
+            { "acc_id": "A2", "owner": "Bob", "tier": "silver" },
+            { "acc_id": "A3", "owner": "Charlie", "tier": "gold" }
+        ];
+
+        let txs = [
+            { "tx_id": 1, "acc_id": "A1", "amount": 500 },
+            { "tx_id": 2, "acc_id": "A1", "amount": 700 },
+            { "tx_id": 3, "acc_id": "A2", "amount": 250 },
+            { "tx_id": 4, "acc_id": "A3", "amount": 1000 }
+        ];
+
+        let db = sql.create_database({
+            "accounts": accounts,
+            "transactions": txs
+        });
+
+        let summary = db.query("SELECT a.tier, COUNT(*) as cnt, SUM(t.amount) as total_vol FROM accounts a INNER JOIN transactions t ON a.acc_id = t.acc_id GROUP BY a.tier ORDER BY a.tier ASC");
+        assert_eq(len(summary), 2);
+        assert_eq(summary[0]["a.tier"], "gold");
+        assert_eq(summary[0]["cnt"], 3);
+        assert_eq(summary[0]["total_vol"], 2200);
+
+        assert_eq(summary[1]["a.tier"], "silver");
+        assert_eq(summary[1]["cnt"], 1);
+        assert_eq(summary[1]["total_vol"], 250);
+
+        // 6. Columnar DataFrame Vectorized Operations
+        let df = df_mod.from_records(txs);
+        let amt_col = df.column("amount");
+        assert_eq(amt_col.sum(), 2450.0);
+        assert_eq(amt_col.max(), 1000.0);
+        let big_tx_df = df.filter_mask(amt_col.gte(700.0));
+        assert_eq(big_tx_df.shape()[0], 2);
+
+        // 7. Local AI Spatial Vector Index
+        let idx = ai.new_index("cosine");
+        idx.add("cluster_a", [1.0, 0.0], { "label": "fraud_pattern" });
+        idx.add("cluster_b", [0.0, 1.0], { "label": "normal_pattern" });
+
+        let top_match = idx.search([0.95, 0.05], 1);
+        assert_eq(top_match[0]["id"], "cluster_a");
+        assert_eq(top_match[0]["metadata"]["label"], "fraud_pattern");
+    });
+});

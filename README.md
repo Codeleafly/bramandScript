@@ -62,6 +62,45 @@
   ```bmd
   let result = 3 |> inc |> square // square(inc(3)) -> 16
   ```
+- **Comptime Metaprogramming Sandbox (`comptime { ... }`)**:
+  Execute arbitrary code blocks during compilation in an isolated VM sandbox to inline precomputed constants and unroll lookup tables with zero runtime overhead:
+  ```bmd
+  let factorials = comptime {
+      let t = [];
+      let val = 1;
+      let i = 1;
+      while i <= 6 {
+          val = val * i;
+          push(t, val);
+          i = i + 1;
+      }
+      return t;
+  }; // Inlined directly into bytecode constants: [1, 2, 6, 24, 120, 720]
+  ```
+- **Native Reactive Event Streams with Backpressure (`std/stream`)**:
+  Reactive push/pull pipelines with backpressure flow control signals (`request(n)`, `pause()`, `resume()`), windowed operators (`debounce`, `throttle`, `window`, `sample`), and combinators (`merge`, `zip`, `concat`, `switch_map`):
+  ```bmd
+  import "std/stream" as stream;
+  let pipeline = stream.from_array([1, 2, 3, 4, 5, 6])
+      .filter(fn(x) { return x % 2 == 0; })
+      .map(fn(x) { return x * 10; })
+      .window(2)
+      .collect(); // [[20, 40], [60]]
+  ```
+- **In-Memory Relational SQL Engine (`std/sql`)**:
+  Full ANSI SQL parser, query planner, and execution engine supporting `SELECT`, `FROM`, `INNER JOIN`, `LEFT JOIN`, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, and `LIMIT` over arrays of hashes and DataFrames:
+  ```bmd
+  import "std/sql" as sql;
+  let res = sql.query("SELECT dept, COUNT(*) as cnt, AVG(salary) as avg_sal FROM employees GROUP BY dept HAVING cnt > 1 ORDER BY avg_sal DESC", tables);
+  ```
+- **Columnar DataFrame Projection & Vectorized Aggregations (`std/dataframe`)**:
+  Zero-copy columnar dictionaries, vectorized arithmetic filters (`col.gt(10)`), boolean mask slicing, and direct SQL integration (`df.query(...)`).
+- **Local AI Vector Similarity, Spatial Index & RAG Pipeline (`std/ai`)**:
+  Pure Go stdlib hardware floating-point accelerated metrics (Cosine, Euclidean, Manhattan, Dot Product, Normalization), fast K-Nearest Neighbors (KNN) spatial index with JSON serialization, and sliding-window semantic text chunkers for local AI agent workflows.
+- **Built-in Benchmarking & Automated Fuzz Testing (`bmd bench` & `bmd fuzz`)**:
+  Statistical nanoseconds/op, bytes/op, allocations tracking, and mutation-based edge-case discovery directly integrated into the language and CLI.
+- **Time-Travel Execution Recorder & Replay Debugger (`bmd record` & `bmd replay`)**:
+  Step-by-step VM checkpoint capture enabling developers to step forward, step backward in time (`step_back`), inspect stack history, and jump to any historical execution point.
 - **Adaptive Numeric Core & Transparent BigInt**:
   Standard integer arithmetic automatically promotes to arbitrary-precision `BigInt` upon 64-bit overflow (`2 ** 70`), eliminating silent overflow wrapping while maintaining unboxed int64 speed on small integers.
 - **Scientific Computing & Linear Algebra Suite**:

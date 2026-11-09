@@ -1,0 +1,215 @@
+// BramandScript Standard Library :: RAG Document Chunking & Text Pipeline (std/ai/rag)
+// Semantic text chunking, sliding window splitters, and embedding normalization utilities.
+
+import "./vector.bmd" as vec_mod;
+
+// Cleans excess whitespace, collapses duplicate spaces and tabs.
+let clean_text = fn(text) {
+    if text == null { return ""; }
+    let s = text;
+    let res = "";
+    let in_space = false;
+    let i = 0;
+    while i < len(s) {
+        let ch = s[i];
+        if ch == " " || ch == "\t" || ch == "\r" || ch == "\n" {
+            if !in_space {
+                res = res + " ";
+                in_space = true;
+            }
+        } else {
+            in_space = false;
+            res = res + ch;
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// Sliding window text chunking with chunk_size and chunk_overlap.
+let chunk_text = fn(text, options) {
+    if text == null || len(text) == 0 {
+        return [];
+    }
+
+    let chunk_size = 200;
+    let chunk_overlap = 40;
+
+    if options != null {
+        if options["chunk_size"] != null && options["chunk_size"] > 0 {
+            chunk_size = options["chunk_size"];
+        }
+        if options["chunk_overlap"] != null && options["chunk_overlap"] >= 0 {
+            chunk_overlap = options["chunk_overlap"];
+        }
+    }
+
+    if chunk_overlap >= chunk_size {
+        chunk_overlap = chunk_size / 2;
+    }
+
+    let chunks = [];
+    let start = 0;
+    let text_len = len(text);
+    let step = chunk_size - chunk_overlap;
+    if step <= 0 {
+        step = 1;
+    }
+
+    while start < text_len {
+        let end = start + chunk_size;
+        if end > text_len {
+            end = text_len;
+        }
+
+        let chunk = slice(text, start, end);
+        push(chunks, {
+            "text": chunk,
+            "start": start,
+            "end": end,
+            "index": len(chunks)
+        });
+
+        if end >= text_len {
+            break;
+        }
+        start = start + step;
+    }
+
+    return chunks;
+};
+
+// Splits text by paragraphs (double newlines \n\n).
+let chunk_by_paragraphs = fn(text, max_chunk_size) {
+    if text == null { return []; }
+    let max_sz = 500;
+    if max_chunk_size != null && max_chunk_size > 0 {
+        max_sz = max_chunk_size;
+    }
+
+    let paras = [];
+    let cur = "";
+    let i = 0;
+    let n = len(text);
+
+    while i < n {
+        if text[i] == "\n" && i + 1 < n && text[i + 1] == "\n" {
+            if len(cur) > 0 {
+                push(paras, cur);
+                cur = "";
+            }
+            i = i + 2;
+        } else {
+            cur = cur + text[i];
+            i = i + 1;
+        }
+    }
+    if len(cur) > 0 {
+        push(paras, cur);
+    }
+
+    let chunks = [];
+    let p_idx = 0;
+    while p_idx < len(paras) {
+        let p = paras[p_idx];
+        if len(p) <= max_sz {
+            push(chunks, {
+                "text": p,
+                "index": len(chunks)
+            });
+        } else {
+            let sub = chunk_text(p, { "chunk_size": max_sz, "chunk_overlap": 50 });
+            let s_idx = 0;
+            while s_idx < len(sub) {
+                push(chunks, {
+                    "text": sub[s_idx]["text"],
+                    "index": len(chunks)
+                });
+                s_idx = s_idx + 1;
+            }
+        }
+        p_idx = p_idx + 1;
+    }
+
+    return chunks;
+};
+
+// Splits text by sentence boundaries.
+let chunk_by_sentences = fn(text, max_chunk_size) {
+    if text == null { return []; }
+    let max_sz = 300;
+    if max_chunk_size != null && max_chunk_size > 0 {
+        max_sz = max_chunk_size;
+    }
+
+    let sentences = [];
+    let cur = "";
+    let i = 0;
+    let n = len(text);
+
+    while i < n {
+        cur = cur + text[i];
+        let is_punct = (text[i] == "." || text[i] == "!" || text[i] == "?");
+        let is_end = (i + 1 == n || text[i + 1] == " " || text[i + 1] == "\n");
+        if is_punct && is_end {
+            push(sentences, cur);
+            cur = "";
+            if i + 1 < n && text[i + 1] == " " {
+                i = i + 1;
+            }
+        }
+        i = i + 1;
+    }
+    if len(cur) > 0 {
+        push(sentences, cur);
+    }
+
+    let chunks = [];
+    let acc = "";
+    let s_idx = 0;
+    while s_idx < len(sentences) {
+        let s = sentences[s_idx];
+        if len(acc) + len(s) <= max_sz {
+            acc = acc + " " + s;
+        } else {
+            if len(acc) > 0 {
+                push(chunks, { "text": acc, "index": len(chunks) });
+            }
+            acc = s;
+        }
+        s_idx = s_idx + 1;
+    }
+    if len(acc) > 0 {
+        push(chunks, { "text": acc, "index": len(chunks) });
+    }
+
+    return chunks;
+};
+
+// Formats retrieved search results into a clean RAG context string.
+let build_rag_context = fn(query_vec, vector_index, top_k) {
+    let k = 3;
+    if top_k != null && top_k > 0 {
+        k = top_k;
+    }
+
+    let hits = vector_index.search(query_vec, k);
+    let context = "";
+    let i = 0;
+    while i < len(hits) {
+        let hit = hits[i];
+        let doc_text = "";
+        if hit["metadata"] != null && hit["metadata"]["text"] != null {
+            doc_text = hit["metadata"]["text"];
+        } else {
+            doc_text = str(hit["id"]);
+        }
+        context = context + "[Document " + str(i + 1) + " (id: " + str(hit["id"]) + ")]\n" + doc_text + "\n\n";
+        i = i + 1;
+    }
+    return context;
+};
+
+let embedding_normalize = fn(vec) {
+    return vec_mod.normalize(vec);
+};

@@ -192,6 +192,8 @@
             <li><a href="tooling.html#ch-disasm-profile" class="nav-link"><span>✦</span> Disassembler &amp; Profiler</a></li>
             <li><a href="tooling.html#ch-pkg-manager" class="nav-link"><span>✦</span> Centralized Package Manager</a></li>
             <li><a href="tooling.html#ch-optimizer" class="nav-link"><span>✦</span> AOT Optimizer &amp; Benchmarks</a></li>
+            <li><a href="tooling.html#ch-bench-fuzz" class="nav-link"><span>✦</span> Benchmarks &amp; Fuzz Testing</a></li>
+            <li><a href="tooling.html#ch-time-travel" class="nav-link"><span>✦</span> Time-Travel Replay Debugger</a></li>
             <li><a href="tooling.html#ch-native-tooling" class="nav-link"><span>✦</span> Native Tooling Suite (.bmd)</a></li>
           </ul>
         </div>
@@ -902,6 +904,139 @@ bramand run --max-frames 2048 deep_recursion.bmd</code></pre>
               <tr><td><code class="font-mono">--allow-net</code></td><td><code class="font-mono">false</code></td><td>Authorizes host network socket listening (<code class="font-mono">tcp_listen()</code>, web servers).</td></tr>
               <tr><td><code class="font-mono">--max-frames &lt;N&gt;</code></td><td><code class="font-mono">1024</code></td><td>Sets maximum call stack frame limit for deep recursive algorithms.</td></tr>
               <tr><td><code class="font-mono">-O</code></td><td><code class="font-mono">false</code></td><td>Enables ahead-of-time (AOT) constant folding and peephole bytecode optimization.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= BENCHMARKING & FUZZ TESTING ENGINE ================= -->
+      <section id="ch-bench-fuzz" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Day 35 Standard</span>
+          <span class="badge badge-purple">Testing &amp; Performance</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Built-in Benchmarking &amp; Automated Fuzz Testing (<code class="font-mono">bmd bench</code> &amp; <code class="font-mono">bmd fuzz</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript provides production-grade performance benchmarking and mutation-based fuzz testing directly integrated into the VM engine and unified CLI toolchain:
+        </p>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">1. Built-in Micro-Benchmarking Framework (<code class="font-mono">bmd bench</code>)</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+          The <code class="font-mono">bench(name, fn)</code> primitive dynamically scales iterations (<code class="font-mono">b.n</code>) until statistical timing converges, reporting nanoseconds per op (<code class="font-mono">ns/op</code>), bytes allocated (<code class="font-mono">B/op</code>), and heap allocations (<code class="font-mono">allocs/op</code>):
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — benchmark implementation</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/testing" as testing;
+
+testing.bench("Array push 1000 items", fn(b) {
+    let i = 0;
+    while i < b.n {
+        let arr = [];
+        let j = 0;
+        while j < 1000 {
+            push(arr, j);
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+});</code></pre>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — CLI Benchmark Execution</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Run all benchmarks in file
+bmd bench benchmarks/stream_benchmarks.bmd
+
+# Output:
+# ✦ BramandScript Benchmark Runner
+# BenchmarkArrayPush1000Items    50000    24100 ns/op    8192 B/op    10 allocs/op
+# PASS: 1 benchmarks completed</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">2. Automated Fuzz Testing Engine (<code class="font-mono">bmd fuzz</code>)</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+          The <code class="font-mono">fuzz(target_fn, options)</code> primitive mutates input corpora using byte-flipping, random insertions, character deletions, and boundary value injections to uncover unexpected crashes, boundary violations, or infinite loops:
+        </p>
+
+        <div class="code-block-wrapper mb-4">
+          <div class="code-block-header">
+            <span>bmd — fuzz testing target</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code>import "std/testing" as testing;
+import "std/json" as json;
+
+testing.fuzz(fn(data) {
+    // Parser must never crash with uncaught host panic
+    try {
+        json.parse(data);
+    } catch err {
+        // Handled parsing errors are valid outcomes
+    }
+}, {"iterations": 500, "corpus": ["{}", "{\"a\": 1}", "[]"]});</code></pre>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — CLI Fuzz Execution</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Run fuzz tests targeting edge cases
+bmd fuzz tests/fuzz_json.bmd
+
+# Output:
+# ✦ BramandScript Fuzz Testing Engine
+# FuzzJSONParser    500 runs    0 crashes    0 defects
+# PASS: Fuzzing completed successfully</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIME-TRAVEL EXECUTION RECORDER & REPLAY DEBUGGER ================= -->
+      <section id="ch-time-travel" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Day 35 Standard</span>
+          <span class="badge badge-purple">Time-Travel Debugging</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Time-Travel Execution Recorder &amp; Replay Debugger (<code class="font-mono">bmd record</code> &amp; <code class="font-mono">bmd replay</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript introduces deterministic step execution recording. Developers can record a full VM execution session to a JSON trace file and step backward and forward through time to pinpoint defects with zero guesswork:
+        </p>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bash — Record and Replay Execution Trace</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code># Record program execution into trace file
+bmd record script.bmd -o trace.json
+
+# Launch interactive time-travel replay debugger
+bmd replay trace.json</code></pre>
+        </div>
+
+        <h3 class="text-xl font-semibold mt-6 mb-3">Interactive Replay Commands</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Command</th><th>Alias</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">step</code></td><td><code class="font-mono">s, n, next</code></td><td>Steps forward one VM instruction in time.</td></tr>
+              <tr><td><code class="font-mono font-bold">step_back</code></td><td><code class="font-mono">b, back, prev</code></td><td>Steps backward one instruction in time, restoring previous stack and frame state.</td></tr>
+              <tr><td><code class="font-mono font-bold">history</code></td><td><code class="font-mono">h, log</code></td><td>Displays execution history window with the current position indicator (<code class="font-mono">❯</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">goto &lt;step&gt;</code></td><td><code class="font-mono">g, jump</code></td><td>Jumps directly to any step checkpoint in execution history.</td></tr>
+              <tr><td><code class="font-mono font-bold">inspect</code></td><td><code class="font-mono">i, state</code></td><td>Inspects top of operand stack, stack depth, and frame pointers at current step.</td></tr>
+              <tr><td><code class="font-mono font-bold">help</code></td><td><code class="font-mono">?</code></td><td>Displays all available interactive time-travel debugger commands.</td></tr>
+              <tr><td><code class="font-mono font-bold">quit</code></td><td><code class="font-mono">q, exit</code></td><td>Exits the time-travel replay session.</td></tr>
             </tbody>
           </table>
         </div>

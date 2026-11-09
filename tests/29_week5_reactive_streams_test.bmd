@@ -1,0 +1,143 @@
+// BramandScript System Verification :: Week 5 Day 32 Reactive Streams Test Suite
+// Validates Native Reactive Event Streams with Backpressure, Time-Windowed Operators,
+// and Stream Combinators & Multiplexing.
+
+import "std/stream" as stream;
+
+describe("Day 32: Native Reactive Event Streams with Backpressure", fn() {
+    test("stream from array with map, filter, and collect", fn() {
+        let s = stream.from_array([1, 2, 3, 4, 5, 6]);
+        let res = s.map(fn(x) { return x * 10; })
+                   .filter(fn(x) { return x > 25; })
+                   .collect();
+        assert_eq(len(res), 4);
+        assert_eq(res[0], 30);
+        assert_eq(res[1], 40);
+        assert_eq(res[2], 50);
+        assert_eq(res[3], 60);
+    });
+
+    test("stream pull and backpressure demand signaling", fn() {
+        let s = stream.from_array([100, 200, 300, 400, 500]);
+        let pulled = s.pull(3);
+        assert_eq(len(pulled), 3);
+        assert_eq(pulled[0], 100);
+        assert_eq(pulled[1], 200);
+        assert_eq(pulled[2], 300);
+
+        let s2 = stream.from_array([1, 2, 3, 4, 5]);
+        let total = 0;
+        let sub = s2.subscribe({
+            "next": fn(v) { total = total + v; },
+            "complete": fn() {}
+        });
+
+        assert_true(sub.is_active());
+        sub.request(2);
+        sleep(25);
+        assert_eq(total, 3); // 1 + 2
+
+        sub.request(3);
+        sleep(25);
+        assert_eq(total, 15); // 1 + 2 + 3 + 4 + 5
+    });
+
+    test("take, take_while, and skip/drop", fn() {
+        let s = stream.from_array([1, 2, 3, 4, 5]);
+        let taken = s.take(3).collect();
+        assert_eq(len(taken), 3);
+        assert_eq(taken[0], 1);
+        assert_eq(taken[2], 3);
+
+        let s2 = stream.from_array([10, 20, 30, 40, 50]);
+        let tw = s2.take_while(fn(x) { return x < 35; }).collect();
+        assert_eq(len(tw), 3);
+        assert_eq(tw[2], 30);
+
+        let s3 = stream.from_array([1, 2, 3, 4, 5]);
+        let skipped = s3.skip(2).collect();
+        assert_eq(len(skipped), 3);
+        assert_eq(skipped[0], 3);
+        assert_eq(skipped[2], 5);
+    });
+
+    test("reduce, count, first, and last", fn() {
+        let s = stream.from_array([1, 2, 3, 4, 5]);
+        let sum = s.reduce(fn(acc, x) { return acc + x; }, 0);
+        assert_eq(sum, 15);
+
+        let s2 = stream.from_array([10, 20, 30]);
+        assert_eq(s2.count(), 3);
+        assert_eq(s2.first(), 10);
+        assert_eq(s2.last(), 30);
+    });
+});
+
+describe("Day 32: Time-Windowed Stream Operators", fn() {
+    test("window batches items into chunks", fn() {
+        let s = stream.from_array([1, 2, 3, 4, 5]);
+        let chunks = s.window(2).collect();
+        assert_eq(len(chunks), 3);
+        assert_eq(chunks[0][0], 1);
+        assert_eq(chunks[0][1], 2);
+        assert_eq(chunks[1][0], 3);
+        assert_eq(chunks[1][1], 4);
+        assert_eq(len(chunks[2]), 1);
+        assert_eq(chunks[2][0], 5);
+    });
+
+    test("debounce suppresses rapid successive events", fn() {
+        let s = stream.from_array([10, 20, 30]);
+        let deb = s.debounce(50).collect();
+        assert_true(len(deb) >= 1);
+        assert_eq(deb[len(deb) - 1], 30);
+    });
+
+    test("throttle limits emission frequency", fn() {
+        let s = stream.from_array([1, 2, 3, 4, 5]);
+        let thr = s.throttle(100).collect();
+        assert_true(len(thr) >= 1);
+        assert_eq(thr[0], 1);
+    });
+});
+
+describe("Day 32: Stream Combinators and Multiplexing", fn() {
+    test("concat sequences two streams", fn() {
+        let s1 = stream.from_array([1, 2]);
+        let s2 = stream.from_array([3, 4]);
+        let conc = s1.concat(s2).collect();
+        assert_eq(len(conc), 4);
+        assert_eq(conc[0], 1);
+        assert_eq(conc[1], 2);
+        assert_eq(conc[2], 3);
+        assert_eq(conc[3], 4);
+    });
+
+    test("zip pairs corresponding items", fn() {
+        let s1 = stream.from_array(["a", "b", "c"]);
+        let s2 = stream.from_array([10, 20, 30]);
+        let zipped = s1.zip(s2).collect();
+        assert_eq(len(zipped), 3);
+        assert_eq(zipped[0][0], "a");
+        assert_eq(zipped[0][1], 10);
+        assert_eq(zipped[1][0], "b");
+        assert_eq(zipped[1][1], 20);
+        assert_eq(zipped[2][0], "c");
+        assert_eq(zipped[2][1], 30);
+    });
+
+    test("merge interleaves items from multiple streams", fn() {
+        let s1 = stream.from_array([1, 2]);
+        let s2 = stream.from_array([3, 4]);
+        let merged = s1.merge(s2).collect();
+        assert_eq(len(merged), 4);
+    });
+
+    test("switch_map maps and switches active inner streams", fn() {
+        let s = stream.from_array([1, 2]);
+        let sm = s.switch_map(fn(x) {
+            return stream.from_array([x * 10, x * 10 + 1]);
+        }).collect();
+        assert_true(len(sm) >= 2);
+    });
+});
