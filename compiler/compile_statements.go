@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -607,9 +608,9 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 
 			var data []byte
 			var err error
-			if strings.HasPrefix(filePath, "embed:stdlib/") {
+			if strings.HasPrefix(filePath, "embed:stdlib/") || strings.HasPrefix(filePath, "embed:/stdlib/") {
 				data, err = stdlib.ReadFile(filePath)
-			} else if strings.HasPrefix(filePath, "embed:bundle/") {
+			} else if strings.HasPrefix(filePath, "embed:bundle/") || strings.HasPrefix(filePath, "embed:/bundle/") {
 				data, err = pkg.ReadActiveBundleFile(filePath)
 			} else {
 				data, err = os.ReadFile(filePath)
@@ -652,10 +653,10 @@ func (c *Compiler) compileStatement(node ast.Node) (bool, error) {
 			}
 
 			prevBaseDir := c.BaseDir
-			if strings.HasPrefix(filePath, "embed:stdlib/") {
-				c.BaseDir = filepath.ToSlash(filepath.Dir(filePath))
-			} else if strings.HasPrefix(filePath, "embed:bundle/") {
-				c.BaseDir = filepath.ToSlash(filepath.Dir(filePath))
+			if strings.HasPrefix(filePath, "embed:stdlib/") || strings.HasPrefix(filePath, "embed:/stdlib/") {
+				c.BaseDir = path.Dir(filePath)
+			} else if strings.HasPrefix(filePath, "embed:bundle/") || strings.HasPrefix(filePath, "embed:/bundle/") {
+				c.BaseDir = path.Dir(filePath)
 			} else {
 				c.BaseDir = filepath.Dir(filePath)
 			}
@@ -989,7 +990,8 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 			return bundlePath, nil
 		}
 	}
-	if strings.HasPrefix(filepath.ToSlash(c.BaseDir), "embed:bundle/") {
+	normBundleDir := strings.ReplaceAll(c.BaseDir, "\\", "/")
+	if strings.HasPrefix(normBundleDir, "embed:bundle/") || strings.HasPrefix(normBundleDir, "embed:/bundle/") {
 		if bundlePath, _, ok := pkg.ResolveBundleModule(importPath, c.BaseDir); ok {
 			return bundlePath, nil
 		}
@@ -1057,10 +1059,11 @@ func (c *Compiler) resolveModulePath(importPath string) (string, error) {
 	}
 
 	// If current module being compiled is an embedded stdlib module, resolve relative imports
-	normBaseDir := filepath.ToSlash(c.BaseDir)
-	if strings.HasPrefix(normBaseDir, "embed:stdlib/") {
+	normBaseDir := strings.ReplaceAll(c.BaseDir, "\\", "/")
+	if strings.HasPrefix(normBaseDir, "embed:stdlib/") || strings.HasPrefix(normBaseDir, "embed:/stdlib/") {
 		base := strings.TrimPrefix(normBaseDir, "embed:stdlib/")
-		rel := filepath.ToSlash(filepath.Clean(filepath.Join(base, importPath)))
+		base = strings.TrimPrefix(base, "embed:/stdlib/")
+		rel := path.Clean(path.Join(base, importPath))
 		if embeddedPath, ok := stdlib.ResolveEmbeddedPath(rel); ok {
 			return "embed:stdlib/" + embeddedPath, nil
 		}

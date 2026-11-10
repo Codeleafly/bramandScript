@@ -578,7 +578,8 @@ func init() {
 			if s, ok := args[0].(*object.String); ok {
 				p = s.Value
 			}
-			return nativeBoolToBooleanObject(filepath.IsAbs(p))
+			isAbs := filepath.IsAbs(p) || strings.HasPrefix(p, "/") || strings.HasPrefix(p, "\\")
+			return nativeBoolToBooleanObject(isAbs)
 		},
 	})
 

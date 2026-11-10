@@ -2,9 +2,9 @@ name: CI Test Suite
 
 on:
   push:
-    branches: [ master, main, 'feature/**', 'feat/**' ]
+    branches: [ main, master, 'feature/**', 'feat/**' ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -63,9 +63,14 @@ jobs:
         if: ${{ !matrix.is_android }}
         run: go build -o bramand-test main.go
 
+      - name: Execute End-to-End Language Tests (Linux)
+        if: ${{ matrix.target == 'Linux' }}
+        run: ./bramand-test test
+
       - name: Compile Test Suites (Android Termux ARM64)
         if: ${{ matrix.is_android }}
         run: |
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./ast -o /dev/null
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./code -o /dev/null
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./lexer -o /dev/null
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./parser -o /dev/null
@@ -73,6 +78,9 @@ jobs:
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./vm -o /dev/null
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./formatter -o /dev/null
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./diagnostics -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./stdlib -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./pkg -o /dev/null
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go test -c ./repl -o /dev/null
 
       - name: Build Standalone Binary (Android Termux ARM64)
         if: ${{ matrix.is_android }}
