@@ -1,0 +1,245 @@
+// Srishti Programming Language :: Standard Library :: Strings Module (std/strings)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Helper to unwrap string value if Srishti Object was passed
+let _sval = fn(s) {
+    if s != null && (type(s) == "HASH" || type(s) == "STRUCT") && contains(s, "value") {
+        return str(s.value);
+    }
+    if s == null {
+        return "";
+    }
+    return str(s);
+};
+
+// repeat(s, count): Repeats string s count times
+let repeat = fn(s, count) {
+    let str_val = _sval(s);
+    if count <= 0 {
+        return "";
+    }
+    let res = "";
+    let i = 0;
+    while i < count {
+        res = res + str_val;
+        i = i + 1;
+    }
+    return res;
+};
+
+// pad_left(s, target_len, pad_char): Pads string on the left to target_len
+let pad_left = fn(s, target_len, pad_char) {
+    let str_val = _sval(s);
+    let p_char = _sval(pad_char);
+    if len(p_char) == 0 {
+        p_char = " ";
+    }
+    let cur_len = len(str_val);
+    if cur_len >= target_len {
+        return str_val;
+    }
+    let needed = target_len - cur_len;
+    return repeat(p_char, needed) + str_val;
+};
+
+// pad_right(s, target_len, pad_char): Pads string on the right to target_len
+let pad_right = fn(s, target_len, pad_char) {
+    let str_val = _sval(s);
+    let p_char = _sval(pad_char);
+    if len(p_char) == 0 {
+        p_char = " ";
+    }
+    let cur_len = len(str_val);
+    if cur_len >= target_len {
+        return str_val;
+    }
+    let needed = target_len - cur_len;
+    return str_val + repeat(p_char, needed);
+};
+
+// starts_with(s, prefix): Checks if s begins with prefix
+let starts_with = fn(s, prefix) {
+    let str_val = _sval(s);
+    let pre = _sval(prefix);
+    let lp = len(pre);
+    if lp == 0 {
+        return true;
+    }
+    if len(str_val) < lp {
+        return false;
+    }
+    return slice(str_val, 0, lp) == pre;
+};
+
+// ends_with(s, suffix): Checks if s ends with suffix
+let ends_with = fn(s, suffix) {
+    let str_val = _sval(s);
+    let suf = _sval(suffix);
+    let ls = len(suf);
+    let lstr = len(str_val);
+    if ls == 0 {
+        return true;
+    }
+    if lstr < ls {
+        return false;
+    }
+    return slice(str_val, lstr - ls, lstr) == suf;
+};
+
+// contains(s, substr): Checks if substr occurs inside s
+let contains = fn(s, substr) {
+    let str_val = _sval(s);
+    let sub = _sval(substr);
+    let lsub = len(sub);
+    let lstr = len(str_val);
+    if lsub == 0 {
+        return true;
+    }
+    if lstr < lsub {
+        return false;
+    }
+    let i = 0;
+    while i <= (lstr - lsub) {
+        if slice(str_val, i, i + lsub) == sub {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+};
+
+// to_upper(s): Converts string characters to uppercase
+let to_upper = fn(s) {
+    let str_val = _sval(s);
+    let res = "";
+    let i = 0;
+    let l = len(str_val);
+    while i < l {
+        let ch = str_val[i];
+        if ch >= "a" && ch <= "z" {
+            // ASCII offset: 'a' is 97, 'A' is 65 (offset - 32)
+            let code = ord(ch);
+            res = res + chr(code - 32);
+        } else {
+            res = res + ch;
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// to_lower(s): Converts string characters to lowercase
+let to_lower = fn(s) {
+    let str_val = _sval(s);
+    let res = "";
+    let i = 0;
+    let l = len(str_val);
+    while i < l {
+        let ch = str_val[i];
+        if ch >= "A" && ch <= "Z" {
+            let code = ord(ch);
+            res = res + chr(code + 32);
+        } else {
+            res = res + ch;
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// trim_left(s): Removes leading whitespace characters
+let trim_left = fn(s) {
+    let str_val = _sval(s);
+    let i = 0;
+    let l = len(str_val);
+    while i < l {
+        let ch = str_val[i];
+        if ch != " " && ch != "\t" && ch != "\n" && ch != "\r" {
+            return slice(str_val, i, l);
+        }
+        i = i + 1;
+    }
+    return "";
+};
+
+// trim_right(s): Removes trailing whitespace characters
+let trim_right = fn(s) {
+    let str_val = _sval(s);
+    let l = len(str_val);
+    let i = l - 1;
+    while i >= 0 {
+        let ch = str_val[i];
+        if ch != " " && ch != "\t" && ch != "\n" && ch != "\r" {
+            return slice(str_val, 0, i + 1);
+        }
+        i = i - 1;
+    }
+    return "";
+};
+
+// trim(s): Removes both leading and trailing whitespace characters
+let trim = fn(s) {
+    return trim_right(trim_left(s));
+};
+
+// split(s, sep): Splits string s by delimiter sep into an array of strings
+let split = fn(s, sep) {
+    let str_val = _sval(s);
+    let sep_val = _sval(sep);
+    let res = [];
+    if len(str_val) == 0 {
+        return [""];
+    }
+    if len(sep_val) == 0 {
+        let i = 0;
+        while i < len(str_val) {
+            res = push(res, str_val[i]);
+            i = i + 1;
+        }
+        return res;
+    }
+
+    let lstr = len(str_val);
+    let lsep = len(sep_val);
+    let start = 0;
+    let i = 0;
+    while i <= (lstr - lsep) {
+        if slice(str_val, i, i + lsep) == sep_val {
+            res = push(res, slice(str_val, start, i));
+            start = i + lsep;
+            i = start;
+        } else {
+            i = i + 1;
+        }
+    }
+    res = push(res, slice(str_val, start, lstr));
+    return res;
+};
+
+// join(arr, sep): Joins an array of strings with separator sep
+let join = fn(arr, sep) {
+    let sep_val = _sval(sep);
+    if arr == null || len(arr) == 0 {
+        return "";
+    }
+    let res = _sval(arr[0]);
+    let i = 1;
+    while i < len(arr) {
+        res = res + sep_val + _sval(arr[i]);
+        i = i + 1;
+    }
+    return res;
+};
+
+// replace(s, old_sub, new_sub): Replaces all occurrences of old_sub with new_sub
+let replace = fn(s, old_sub, new_sub) {
+    let str_val = _sval(s);
+    let old_v = _sval(old_sub);
+    let new_v = _sval(new_sub);
+    if len(old_v) == 0 {
+        return str_val;
+    }
+    let parts = split(str_val, old_v);
+    return join(parts, new_v);
+};

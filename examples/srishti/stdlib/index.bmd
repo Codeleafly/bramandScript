@@ -1,0 +1,75 @@
+// Srishti Programming Language :: Standard Library Master Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./math" as math_pkg
+import "./strings" as str_pkg
+import "./collections" as coll_pkg
+import "./io" as io_pkg
+import "./json" as json_pkg
+
+// Module Namespaces
+let math = math_pkg;
+let strings = str_pkg;
+let collections = coll_pkg;
+let io = io_pkg;
+let json = json_pkg;
+
+// --- Math Module Re-exports ---
+let PI = math_pkg.PI;
+let E = math_pkg.E;
+let abs = math_pkg.abs;
+let min = math_pkg.min;
+let max = math_pkg.max;
+let clamp = math_pkg.clamp;
+let floor = math_pkg.floor;
+let ceil = math_pkg.ceil;
+let round = math_pkg.round;
+let sqrt = math_pkg.sqrt;
+let pow = math_pkg.pow;
+let hypot = math_pkg.hypot;
+let deg_to_rad = math_pkg.deg_to_rad;
+let rad_to_deg = math_pkg.rad_to_deg;
+
+// --- Strings Module Re-exports ---
+let split = str_pkg.split;
+let join = str_pkg.join;
+let trim = str_pkg.trim;
+let trim_left = str_pkg.trim_left;
+let trim_right = str_pkg.trim_right;
+let to_upper = str_pkg.to_upper;
+let to_lower = str_pkg.to_lower;
+let contains = str_pkg.contains;
+let starts_with = str_pkg.starts_with;
+let ends_with = str_pkg.ends_with;
+let replace = str_pkg.replace;
+let pad_left = str_pkg.pad_left;
+let pad_right = str_pkg.pad_right;
+let repeat = str_pkg.repeat;
+
+// --- Collections Module Re-exports ---
+let map = coll_pkg.map;
+let filter = coll_pkg.filter;
+let reduce = coll_pkg.reduce;
+let find = coll_pkg.find;
+let find_index = coll_pkg.find_index;
+let any = coll_pkg.any;
+let all = coll_pkg.all;
+let reverse = coll_pkg.reverse;
+let sort = coll_pkg.sort;
+let flatten = coll_pkg.flatten;
+let chunk = coll_pkg.chunk;
+let zip = coll_pkg.zip;
+let range = coll_pkg.range;
+
+// --- I/O Module Re-exports ---
+let read_file = io_pkg.read_file;
+let write_file = io_pkg.write_file;
+let append_file = io_pkg.append_file;
+let file_exists = io_pkg.file_exists;
+let format_table = io_pkg.format_table;
+let print_banner = io_pkg.print_banner;
+
+// --- JSON Module Re-exports ---
+let serialize = json_pkg.serialize;
+let deserialize = json_pkg.deserialize;

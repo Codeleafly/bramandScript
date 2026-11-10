@@ -1,0 +1,163 @@
+// Srishti Programming Language :: Standard Library :: Math Module (std/math)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Mathematical Constants
+let PI = 3.141592653589793;
+let E = 2.718281828459045;
+
+// Helper to unwrap value if Srishti Object was passed
+let _val = fn(x) {
+    if (x != null && (type(x) == "HASH" || type(x) == "STRUCT") && contains(x, "value")) {
+        return x.value;
+    }
+    return x;
+};
+
+// abs(x): Returns the absolute value of x
+let abs = fn(x) {
+    let v = _val(x);
+    if (v < 0) {
+        return -v;
+    }
+    return v;
+};
+
+// min(a, b): Returns the smaller of a and b
+let min = fn(a, b) {
+    let va = _val(a);
+    let vb = _val(b);
+    if (va < vb) {
+        return va;
+    }
+    return vb;
+};
+
+// max(a, b): Returns the larger of a and b
+let max = fn(a, b) {
+    let va = _val(a);
+    let vb = _val(b);
+    if (va > vb) {
+        return va;
+    }
+    return vb;
+};
+
+// clamp(val, min_val, max_val): Restricts val to be within [min_val, max_val]
+let clamp = fn(val, min_val, max_val) {
+    let v = _val(val);
+    let vmin = _val(min_val);
+    let vmax = _val(max_val);
+    if (v < vmin) {
+        return vmin;
+    }
+    if (v > vmax) {
+        return vmax;
+    }
+    return v;
+};
+
+// floor(x): Returns largest integer less than or equal to x
+let floor = fn(x) {
+    let v = _val(x);
+    let iv = int(v);
+    if (float(iv) > float(v)) {
+        return iv - 1;
+    }
+    return iv;
+};
+
+// ceil(x): Returns smallest integer greater than or equal to x
+let ceil = fn(x) {
+    let v = _val(x);
+    let iv = int(v);
+    if (float(iv) < float(v)) {
+        return iv + 1;
+    }
+    return iv;
+};
+
+// round(x): Rounds to the nearest integer
+let round = fn(x) {
+    let v = _val(x);
+    if (float(v) >= 0.0) {
+        return floor(float(v) + 0.5);
+    }
+    return ceil(float(v) - 0.5);
+};
+
+// sqrt(x): Returns square root of x using Newton-Raphson approximation
+let sqrt = fn(x) {
+    let v = _val(x);
+    let fv = float(v);
+    if (fv < 0.0) {
+        return 0.0;
+    }
+    if (fv == 0.0) {
+        return 0.0;
+    }
+    let guess = fv;
+    if (guess > 1.0) {
+        guess = guess / 2.0;
+    }
+    let iter = 0;
+    while (iter < 40) {
+        let next_guess = 0.5 * (guess + (fv / guess));
+        let diff = next_guess - guess;
+        if (diff < 0.0) {
+            diff = -diff;
+        }
+        if (diff < 0.000000000000001) {
+            return next_guess;
+        }
+        guess = next_guess;
+        iter = iter + 1;
+    }
+    return guess;
+};
+
+// pow(base, exp): Computes base raised to the power exp
+let pow = fn(base, exp) {
+    let b = _val(base);
+    let e = _val(exp);
+    if (int(e) == e) {
+        let ie = int(e);
+        if (ie == 0) {
+            return 1.0;
+        }
+        if (ie < 0) {
+            return 1.0 / pow(b, -ie);
+        }
+        let res = 1.0;
+        let cur = float(b);
+        let n = ie;
+        while (n > 0) {
+            if ((n % 2) == 1) {
+                res = res * cur;
+            }
+            cur = cur * cur;
+            n = n / 2;
+        }
+        return res;
+    }
+    return float(b) ** float(e);
+};
+
+// hypot(a, b): Calculates the Euclidean hypotenuse sqrt(a*a + b*b)
+let hypot = fn(a, b) {
+    let va = float(_val(a));
+    let vb = float(_val(b));
+    return sqrt(va * va + vb * vb);
+};
+
+// deg_to_rad(deg): Converts degrees to radians
+let deg_to_rad = fn(deg) {
+    let d = float(_val(deg));
+    return d * (PI / 180.0);
+};
+
+// rad_to_deg(rad): Converts radians to degrees
+let rad_to_deg = fn(rad) {
+    let r = float(_val(rad));
+    return r * (180.0 / PI);
+};

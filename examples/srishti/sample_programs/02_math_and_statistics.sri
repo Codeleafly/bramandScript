@@ -1,0 +1,159 @@
+// Srishti Programming Language Sample Program 02: Mathematics & Statistics Suite
+// Demonstrates Scientific Computing, Iterative Algorithms, Vector/Matrix Operations & Number Theory
+
+create struct DataSet with numbers:
+
+define function sqrt_approx with val:
+    if val is less than or equal to 0.0 then:
+        return 0.0
+    let guess be val
+    if guess is greater than 1.0 then:
+        set guess to guess divided by 2.0
+    let iter be 0
+    repeat while iter is less than 20:
+        set guess to 0.5 times (guess plus (val divided by guess))
+        set iter to iter plus 1
+    return guess
+
+define function calculate_mean with dataset:
+    let nums be dataset.numbers
+    let n be len(nums)
+    if n is equal to 0 then:
+        return 0.0
+    let sum be 0.0
+    iterate x through nums:
+        set sum to sum plus float(x)
+    return sum divided by float(n)
+
+define function sort_numbers with nums:
+    let n be len(nums)
+    let arr be nums
+    let i be 0
+    repeat while i is less than n:
+        let j be 0
+        repeat while j is less than (n minus i minus 1):
+            if arr[j] is greater than arr[j plus 1] then:
+                let temp be arr[j]
+                set arr[j] to arr[j plus 1]
+                set arr[j plus 1] to temp
+            set j to j plus 1
+        set i to i plus 1
+    return arr
+
+define function calculate_median with dataset:
+    let sorted_nums be sort_numbers(dataset.numbers)
+    let n be len(sorted_nums)
+    if n is equal to 0 then:
+        return 0.0
+    let mid be n divided by 2
+    if (n modulo 2) is equal to 1 then:
+        return float(sorted_nums[mid])
+    otherwise:
+        let left be float(sorted_nums[mid minus 1])
+        let right be float(sorted_nums[mid])
+        return (left plus right) divided by 2.0
+
+define function calculate_variance with dataset:
+    let mean be calculate_mean(dataset)
+    let nums be dataset.numbers
+    let n be len(nums)
+    if n is equal to 0 then:
+        return 0.0
+    let sum_sq be 0.0
+    iterate x through nums:
+        let diff be float(x) minus mean
+        set sum_sq to sum_sq plus (diff times diff)
+    return sum_sq divided by float(n)
+
+define function calculate_std_dev with dataset:
+    let v be calculate_variance(dataset)
+    return sqrt_approx(v)
+
+define function sieve_of_eratosthenes with limit:
+    let is_prime be []
+    let k be 0
+    repeat while k is less than or equal to limit:
+        set is_prime to push(is_prime, true)
+        set k to k plus 1
+    set is_prime[0] to false
+    set is_prime[1] to false
+
+    let p be 2
+    repeat while (p times p) is less than or equal to limit:
+        if is_prime[p] is equal to true then:
+            let multiple be p times p
+            repeat while multiple is less than or equal to limit:
+                set is_prime[multiple] to false
+                set multiple to multiple plus p
+        set p to p plus 1
+
+    let primes be []
+    let idx be 2
+    repeat while idx is less than or equal to limit:
+        if is_prime[idx] is equal to true then:
+            set primes to push(primes, idx)
+        set idx to idx plus 1
+    return primes
+
+define function fibonacci_memoized with n:
+    if n is less than or equal to 0 then:
+        return 0
+    if n is equal to 1 then:
+        return 1
+    let dp be [0, 1]
+    let i be 2
+    repeat while i is less than or equal to n:
+        let next_fib be dp[i minus 1] plus dp[i minus 2]
+        set dp to push(dp, next_fib)
+        set i to i plus 1
+    return dp[n]
+
+define function matrix_vector_multiply with matrix, vec:
+    let rows be len(matrix)
+    let cols be len(vec)
+    let result be []
+    let r be 0
+    repeat while r is less than rows:
+        let dot be 0.0
+        let c be 0
+        repeat while c is less than cols:
+            let m_val be float(matrix[r][c])
+            let v_val be float(vec[c])
+            set dot to dot plus (m_val times v_val)
+            set c to c plus 1
+        set result to push(result, dot)
+        set r to r plus 1
+    return result
+
+define function run_scientific_suite:
+    display "✦ Running Srishti Scientific & Statistics Suite"
+    let raw_data be [12, 45, 23, 67, 34, 89, 56, 78, 90, 21, 43]
+    let ds be DataSet(raw_data)
+
+    let mean_val be calculate_mean(ds)
+    display "Mean:      " combined with str(mean_val)
+
+    let median_val be calculate_median(ds)
+    display "Median:    " combined with str(median_val)
+
+    let std_val be calculate_std_dev(ds)
+    display "Std Dev:   " combined with str(std_val)
+
+    let primes_50 be sieve_of_eratosthenes(50)
+    display "Primes <= 50 count: " combined with str(len(primes_50))
+
+    let fib_15 be fibonacci_memoized(15)
+    display "Fibonacci(15):      " combined with str(fib_15)
+
+    let mat be [
+        [2, 3, 1],
+        [4, 0, 5],
+        [1, 2, 3]
+    ]
+    let vector be [3, 2, 4]
+    let transformed be matrix_vector_multiply(mat, vector)
+    display "Matrix-Vector Result: " combined with str(transformed[0]) combined with ", " combined with str(transformed[1]) combined with ", " combined with str(transformed[2])
+
+    return mean_val
+
+run_scientific_suite()

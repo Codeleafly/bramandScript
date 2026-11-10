@@ -1,0 +1,9 @@
+// Srishti Programming Language :: REPL Subsystem Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./repl" as repl_pkg
+
+let start_repl = repl_pkg.start_repl;
+let format_repl_error = repl_pkg.format_repl_error;
+let display_help = repl_pkg.display_help;

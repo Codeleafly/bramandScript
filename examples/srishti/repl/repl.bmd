@@ -1,0 +1,269 @@
+// Srishti Programming Language :: Interactive REPL Engine
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "../token/index" as tok_pkg
+import "../lexer/index" as lex_pkg
+import "../ast/index" as ast_pkg
+import "../parser/index" as parse_pkg
+import "../compiler/index" as comp_pkg
+import "../object/index" as obj_pkg
+import "../vm/index" as vm_pkg
+import "../stdlib/strings" as str_pkg
+
+// Pre-defined built-in names table
+let BUILTINS = ["len", "print", "println", "str", "int", "float", "type", "push", "slice", "input"];
+
+// Pretty Error Formatter with Line Gutters and Arrows
+let format_repl_error = fn(source_code, line_num, col_num, message) {
+    let lines = str_pkg.split(source_code, "\n");
+    let out = [];
+    out = push(out, "  [ERROR] " + message);
+    if line_num > 0 && line_num <= len(lines) {
+        let line_text = lines[line_num - 1];
+        let line_prefix = "  " + str(line_num) + " | ";
+        out = push(out, line_prefix + line_text);
+        let caret_indent = str_pkg.repeat(" ", len(line_prefix) + col_num - 1);
+        out = push(out, caret_indent + "^--- here");
+    }
+    return str_pkg.join(out, "\n");
+};
+
+// Check if source code line needs continuation (e.g. block ending with colon or unclosed brackets)
+let needs_continuation = fn(code) {
+    let trimmed = str_pkg.trim(code);
+    let l = len(trimmed);
+    if l == 0 {
+        return false;
+    }
+    if str_pkg.ends_with(trimmed, ":") {
+        return true;
+    }
+
+    // Check bracket counts
+    let open_parens = 0;
+    let open_brackets = 0;
+    let i = 0;
+    while i < len(code) {
+        let ch = code[i];
+        if ch == "(" {
+            open_parens = open_parens + 1;
+        } else if ch == ")" {
+            open_parens = open_parens - 1;
+        } else if ch == "[" {
+            open_brackets = open_brackets + 1;
+        } else if ch == "]" {
+            open_brackets = open_brackets - 1;
+        }
+        i = i + 1;
+    }
+    return open_parens > 0 || open_brackets > 0;
+};
+
+// REPL Help Display
+let display_help = fn() {
+    println("──────────────────────────────────────────────────────────────────");
+    println("✦ Srishti Interactive REPL Help Reference");
+    println("──────────────────────────────────────────────────────────────────");
+    println("Interactive Dot & Colon Commands:");
+    println("  :help               Show this interactive command guide");
+    println("  :vars               Inspect all declared global variables and values");
+    println("  :ast <code>         Parse code snippet and dump AST structure");
+    println("  :disasm <code>      Compile snippet and inspect VM bytecode opcodes");
+    println("  :clear              Clear terminal display screen");
+    println("  :exit / :quit       Exit the Srishti REPL session");
+    println("");
+    println("Language Syntax Highlights:");
+    println("  Variables:          let x be 42");
+    println("  Mutation:           set x to x plus 10");
+    println("  Constants:          constant PI be 3.14159");
+    println("  Functions:          define function add with a, b:");
+    println("                          return a plus b");
+    println("  Structs:            create struct Point with x, y:");
+    println("  Branching:          if x is greater than 10 then: ... otherwise: ...");
+    println("  Loops:              repeat while cond: ... | iterate x through list: ...");
+    println("  Pattern Match:      match code: when 1: ... when 2: ... otherwise: ...");
+    println("  Operators:          plus, minus, times, divided by, modulo, raised to");
+    println("  Comparisons:        is equal to, is not equal to, is greater than, etc.");
+    println("  String Combinator:  \"Hello \" combined with \"World\"");
+    println("  Concurrency:        spawn task audit(acc)");
+    println("──────────────────────────────────────────────────────────────────");
+};
+
+// Start Interactive REPL Session
+let start_repl = fn() {
+    println("╔══════════════════════════════════════════════════════════════════╗");
+    println("║  ✦ Srishti Interactive Language REPL (सृष्टि) v1.0.0             ║");
+    println("║    Pure BramandScript Stack Machine Architecture                 ║");
+    println("║    Type :help for reference, :exit or Ctrl+D to exit             ║");
+    println("╚══════════════════════════════════════════════════════════════════╝");
+
+    // Initialize Persistent REPL State
+    let symbol_table = comp_pkg.new_symbol_table();
+    let b_idx = 0;
+    while b_idx < len(BUILTINS) {
+        symbol_table.define_builtin(b_idx, BUILTINS[b_idx]);
+        b_idx = b_idx + 1;
+    }
+
+    let constants = [];
+
+    // Allocate 256 VM global slots
+    let globals = [];
+    let g = 0;
+    while g < 256 {
+        globals = push(globals, obj_pkg.NULL);
+        g = g + 1;
+    }
+
+    let is_running = true;
+
+    while is_running {
+        let line = input("srishti> ");
+        if line == null {
+            // EOF reached
+            println("\n[INFO] Exiting Srishti REPL.");
+            is_running = false;
+        } else {
+            let trimmed = str_pkg.trim(line);
+            if len(trimmed) == 0 {
+                // Empty line
+            } else if trimmed == ":exit" || trimmed == ":quit" {
+                println("[INFO] Exiting Srishti REPL. Namaste!");
+                is_running = false;
+            } else if trimmed == ":help" {
+                display_help();
+            } else if trimmed == ":clear" {
+                print("\x1b[2J\x1b[H");
+            } else if trimmed == ":vars" {
+                println("── Active Global Variables ───────────────────────────────────────");
+                let store = symbol_table.store;
+                let var_names = keys(store);
+                let count = 0;
+                let i = 0;
+                while i < len(var_names) {
+                    let k = var_names[i];
+                    let sym = store[k];
+                    if sym.scope == comp_pkg.SCOPE_GLOBAL {
+                        let val = globals[sym.index];
+                        let val_str = obj_pkg.inspect(val);
+                        let val_type = obj_pkg.get_object_type(val);
+                        println("  " + k + " (idx " + str(sym.index) + "): " + val_str + " [" + val_type + "]");
+                        count = count + 1;
+                    }
+                    i = i + 1;
+                }
+                if count == 0 {
+                    println("  (no user-defined globals yet)");
+                }
+                println("──────────────────────────────────────────────────────────────────");
+            } else if str_pkg.starts_with(trimmed, ":ast") {
+                let code_part = str_pkg.trim(str_pkg.replace(trimmed, ":ast", ""));
+                if len(code_part) == 0 {
+                    println("  Usage: :ast <srishti code snippet>");
+                } else {
+                    let l = lex_pkg.new_lexer(code_part, "<repl>");
+                    let p = parse_pkg.new_parser(l);
+                    let program = p.parse_program();
+                    if len(p.errors) > 0 {
+                        println("  [ERROR] Parse failed:");
+                        let err_idx = 0;
+                        while err_idx < len(p.errors) {
+                            println("    " + str(p.errors[err_idx]));
+                            err_idx = err_idx + 1;
+                        }
+                    } else {
+                        println("  AST Output:");
+                        println(ast_pkg.dump_ast(program));
+                    }
+                }
+            } else if str_pkg.starts_with(trimmed, ":disasm") {
+                let code_part = str_pkg.trim(str_pkg.replace(trimmed, ":disasm", ""));
+                if len(code_part) == 0 {
+                    println("  Usage: :disasm <srishti code snippet>");
+                } else {
+                    let l = lex_pkg.new_lexer(code_part, "<repl>");
+                    let p = parse_pkg.new_parser(l);
+                    let program = p.parse_program();
+                    if len(p.errors) > 0 {
+                        println("  [ERROR] Parse failed:");
+                        let err_idx = 0;
+                        while err_idx < len(p.errors) {
+                            println("    " + str(p.errors[err_idx]));
+                            err_idx = err_idx + 1;
+                        }
+                    } else {
+                        let c = comp_pkg.new_compiler();
+                        c.compile(program);
+                        if len(c.errors) > 0 {
+                            println("  [ERROR] Compilation failed: " + str(c.errors[0]));
+                        } else {
+                            let bc = c.bytecode();
+                            println("  Disassembled Bytecode:");
+                            println(comp_pkg.disassemble(bc.instructions));
+                        }
+                    }
+                }
+            } else {
+                // Regular Srishti Source Input - Handle multi-line if needed
+                let full_code = line;
+                while needs_continuation(full_code) {
+                    let cont = input("... ");
+                    if cont == null || len(str_pkg.trim(cont)) == 0 {
+                        break;
+                    }
+                    full_code = full_code + "\n" + cont;
+                }
+
+                // Lex & Parse
+                let l = lex_pkg.new_lexer(full_code, "<repl>");
+                let p = parse_pkg.new_parser(l);
+                let program = p.parse_program();
+
+                if len(p.errors) > 0 {
+                    let e_idx = 0;
+                    while e_idx < len(p.errors) {
+                        let perr = p.errors[e_idx];
+                        let msg = (perr.message != null) ? perr.message : str(perr);
+                        let ln = (perr.span != null && perr.span.start != null) ? perr.span.start.line : 1;
+                        let col = (perr.span != null && perr.span.start != null) ? perr.span.start.column : 1;
+                        println(format_repl_error(full_code, ln, col, msg));
+                        e_idx = e_idx + 1;
+                    }
+                } else {
+                    // Compile with persistent symbol table & constants
+                    let c = comp_pkg.new_compiler_with_state(symbol_table, constants);
+                    c.compile(program);
+
+                    if len(c.errors) > 0 {
+                        let c_idx = 0;
+                        while c_idx < len(c.errors) {
+                            println("  [ERROR] Compile error: " + str(c.errors[c_idx]));
+                            c_idx = c_idx + 1;
+                        }
+                    } else {
+                        let bc = c.bytecode();
+                        constants = bc.constants;
+
+                        // Execute on VM preserving shared globals
+                        let vm = vm_pkg.new_vm_with_globals(bc, globals);
+                        let run_err = vm.run();
+                        globals = vm.globals;
+
+                        if run_err != null {
+                            println("  [ERROR] Runtime Error: " + str(run_err));
+                        } else {
+                            let last_val = vm.last_popped_stack_elem();
+                            if last_val != null {
+                                let ot = obj_pkg.get_object_type(last_val);
+                                if ot != obj_pkg.OBJ_NULL {
+                                    println("❯ " + obj_pkg.inspect(last_val));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+};

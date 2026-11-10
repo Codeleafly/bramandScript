@@ -305,6 +305,7 @@ let optimize_bytecode = comp_pkg.optimize_bytecode;
 
 let Compiler = comp_pkg.Compiler;
 let new_compiler = comp_pkg.new_compiler;
+let new_compiler_with_state = comp_pkg.new_compiler_with_state;
 let new_optimizing_compiler = comp_pkg.new_optimizing_compiler;
 
 // --- Runtime Object System ---

@@ -1,0 +1,113 @@
+// Srishti Programming Language Sample Program 01: Banking & Transaction System
+// Demonstrates Structs, Functions, Pattern Matching, Recursion, Loops & Concurrency
+
+constant BANK_NAME be "Aryavarta Imperial Trust"
+constant VIP_THRESHOLD be 100000.0
+
+create struct Account with id, owner, balance, is_active:
+
+define function create_account with id, owner, initial_balance:
+    let acc be Account(id, owner, initial_balance, true)
+    return acc
+
+define function deposit with account, amount:
+    if amount is less than or equal to 0.0 then:
+        display "Deposit amount must be positive"
+        return false
+    otherwise:
+        set account.balance to account.balance plus amount
+        display "Deposit confirmed for " combined with account.owner
+        return true
+
+define function withdraw with account, amount:
+    if amount is greater than account.balance then:
+        display "Insufficient balance for withdrawal"
+        return false
+    otherwise:
+        set account.balance to account.balance minus amount
+        display "Withdrawal successful for " combined with account.owner
+        return true
+
+define function transfer with from_acc, to_acc, amount:
+    if amount is greater than from_acc.balance then:
+        display "Transfer failed: insufficient funds"
+        return false
+    otherwise:
+        set from_acc.balance to from_acc.balance minus amount
+        set to_acc.balance to to_acc.balance plus amount
+        display "Transferred " combined with str(amount) combined with " to " combined with to_acc.owner
+        return true
+
+define function calculate_compound_interest with principal, rate, years:
+    let factor be 1.0 plus (rate divided by 100.0)
+    let compounded be factor raised to years
+    let future_val be principal times compounded
+    return future_val
+
+define function generate_statement with account:
+    display "========================================"
+    display "✦ Account Statement :: " combined with BANK_NAME
+    display "Account ID: " combined with str(account.id)
+    display "Holder:     " combined with account.owner
+    display "Balance:    " combined with str(account.balance)
+    let status_str be "Suspended"
+    if account.is_active is equal to true then:
+        set status_str to "Active"
+    display "Status:     " combined with status_str
+    display "========================================"
+    return account.balance
+
+define function audit_vip_accounts with accounts_list:
+    let vip_count be 0
+    iterate acc through accounts_list:
+        if acc.balance is greater than or equal to VIP_THRESHOLD then:
+            display "✦ VIP Account Holder: " combined with acc.owner combined with " Balance: " combined with str(acc.balance)
+            set vip_count to vip_count plus 1
+        otherwise:
+            display "· Standard Account: " combined with acc.owner
+    return vip_count
+
+define function process_transaction with tx_code, source_acc, target_acc, amount:
+    match tx_code:
+        when 1:
+            deposit(source_acc, amount)
+        when 2:
+            withdraw(source_acc, amount)
+        when 3:
+            transfer(source_acc, target_acc, amount)
+        when 4:
+            generate_statement(source_acc)
+        otherwise:
+            display "Invalid transaction code"
+
+define function run_banking_pipeline:
+    display "✦ Initializing Banking System for " combined with BANK_NAME
+    let acc1 be create_account(101, "Aryabhata", 85000.0)
+    let acc2 be create_account(102, "Brahmagupta", 120000.0)
+    let acc3 be create_account(103, "Bhaskara", 45000.0)
+
+    // Execute pattern matched transactions
+    process_transaction(1, acc1, null, 25000.0)
+    process_transaction(2, acc3, null, 5000.0)
+    process_transaction(3, acc2, acc3, 20000.0)
+
+    // Calculate projected yield on acc1
+    let projected be calculate_compound_interest(acc1.balance, 8.0, 3)
+    display "3-Year Projected Balance for " combined with acc1.owner combined with ": " combined with str(projected)
+
+    // Concurrently spawn account audit
+    let bank_accounts be [acc1, acc2, acc3]
+    spawn task audit_vip_accounts(bank_accounts)
+
+    // Iterative balance verification loop
+    let total_reserves be 0.0
+    let idx be 0
+    repeat while idx is less than len(bank_accounts):
+        let current_acc be bank_accounts[idx]
+        set total_reserves to total_reserves plus current_acc.balance
+        set idx to idx plus 1
+
+    display "Total Vault Reserves: " combined with str(total_reserves)
+    return total_reserves
+
+run_banking_pipeline()

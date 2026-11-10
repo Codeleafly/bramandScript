@@ -402,7 +402,7 @@ let parse_if_statement = fn(p) {
     let consequence = parser_parse_block_ref(p, start_tok["col"]);
     let alternative = null;
 
-    if parser_peek_token_is(p, tok_pkg.TOKEN_OTHERWISE) {
+    if parser_peek_token_is(p, tok_pkg.TOKEN_OTHERWISE) && (p["peek_token"]["col"] >= start_tok["col"]) {
         parser_next_token(p);  // consume 'otherwise'
         if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
             return null;

@@ -90,15 +90,22 @@ let lex_skip_comments = fn(l) {
                 lex_read_char(l);
             }
         }
+    } else if l["ch"] == "/" && lex_peek_char(l) == "/" {
+        // Single-line comment: '//'
+        lex_read_char(l);
+        lex_read_char(l);
+        while l["ch"] != "" && l["ch"] != "\n" {
+            lex_read_char(l);
+        }
     }
 };
 
 // Loops until next non-whitespace, non-comment character or EOF
 let lex_skip_whitespace_and_comments = fn(l) {
-    while l["ch"] != "" {
-        if uni_pkg.is_whitespace(l["ch"]) || l["ch"] == "\n" {
+    while (l["ch"] != "") {
+        if (uni_pkg.is_whitespace(l["ch"]) || l["ch"] == "\n") {
             lex_read_char(l);
-        } else if l["ch"] == "-" && lex_peek_char(l) == "-" {
+        } else if ((l["ch"] == "-" && lex_peek_char(l) == "-") || (l["ch"] == "/" && lex_peek_char(l) == "/")) {
             lex_skip_comments(l);
         } else {
             break;

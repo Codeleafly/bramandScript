@@ -705,6 +705,23 @@ let new_compiler = fn() {
     return Compiler([], sym_tab, [main_scope], 0, false, []);
 };
 
+// Compiler Constructor with existing symbol table and constants (for REPL and stateful sessions)
+let new_compiler_with_state = fn(sym_tab, constants) {
+    let main_scope = new_compilation_scope();
+    if constants == null {
+        constants = [];
+    }
+    if sym_tab == null {
+        sym_tab = sym_pkg.new_symbol_table();
+        let b_idx = 0;
+        while b_idx < len(BUILTINS) {
+            sym_tab.define_builtin(b_idx, BUILTINS[b_idx]);
+            b_idx = b_idx + 1;
+        }
+    }
+    return Compiler(constants, sym_tab, [main_scope], 0, false, []);
+};
+
 // Optimizing Compiler Constructor Helper
 let new_optimizing_compiler = fn() {
     let c = new_compiler();

@@ -1,0 +1,79 @@
+// Srishti Programming Language Sample Program 04: Priority Task Scheduler & Job Engine
+// Demonstrates Struct Modeling, Priority Queues, Higher-Order Filtering & State Mutation
+
+create struct Job with id, name, priority, is_completed:
+
+define function create_job with id, name, priority:
+    return Job(id, name, priority, false)
+
+define function execute_job with job_item:
+    set job_item.is_completed to true
+    display "✦ Executing Job [" combined with str(job_item.id) combined with "] '" combined with job_item.name combined with "' (Priority: " combined with str(job_item.priority) combined with ")"
+    return job_item
+
+define function sort_queue_by_priority with queue:
+    let n be len(queue)
+    let arr be queue
+    let i be 0
+    repeat while i is less than n:
+        let j be 0
+        repeat while j is less than (n minus i minus 1):
+            let t1 be arr[j]
+            let t2 be arr[j plus 1]
+            // Sort descending: highest priority first
+            if t1.priority is less than t2.priority then:
+                let temp be arr[j]
+                set arr[j] to arr[j plus 1]
+                set arr[j plus 1] to temp
+            set j to j plus 1
+        set i to i plus 1
+    return arr
+
+define function filter_high_priority with queue, min_priority:
+    let high_p_tasks be []
+    iterate item through queue:
+        if item.priority is greater than or equal to min_priority then:
+            set high_p_tasks to push(high_p_tasks, item)
+    return high_p_tasks
+
+define function process_job_queue with queue:
+    let sorted_jobs be sort_queue_by_priority(queue)
+    let completed_count be 0
+    display "--------------------------------------------------"
+    display "✦ Starting Task Execution Queue (" combined with str(len(sorted_jobs)) combined with " jobs)"
+    iterate job_entry through sorted_jobs:
+        execute_job(job_entry)
+        set completed_count to completed_count plus 1
+    display "✦ Queue Processing Complete (" combined with str(completed_count) combined with " completed)"
+    display "--------------------------------------------------"
+    return completed_count
+
+define function run_scheduler_pipeline:
+    display "✦ Srishti Distributed Job Scheduler"
+    let t1 be create_job(101, "Bytecode Compilation & Verification", 95)
+    let t2 be create_job(102, "JSON Schema Deserialization", 45)
+    let t3 be create_job(103, "VM Stack Frame Memory Allocation", 90)
+    let t4 be create_job(104, "Dead Code Bytecode Optimization", 85)
+    let t5 be create_job(105, "Log Metric Export & Formatting", 30)
+    let t6 be create_job(106, "Concurrent Task Audit Synchronization", 75)
+
+    let all_jobs be [t1, t2, t3, t4, t5, t6]
+    display "Total registered jobs in pool: " combined with str(len(all_jobs))
+
+    // Filter high priority tasks (priority >= 75)
+    let urgent_jobs be filter_high_priority(all_jobs, 75)
+    display "Urgent high-priority jobs (>=75): " combined with str(len(urgent_jobs))
+
+    // Process urgent queue
+    let processed be process_job_queue(urgent_jobs)
+
+    // Check completion status
+    let all_done be true
+    iterate item through urgent_jobs:
+        if item.is_completed is not equal to true then:
+            set all_done to false
+
+    display "All urgent jobs completed: " combined with str(all_done)
+    return processed
+
+run_scheduler_pipeline()

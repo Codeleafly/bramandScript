@@ -1,0 +1,132 @@
+// Srishti Programming Language :: Standard Library :: I/O Module (std/io)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./strings" as str_pkg
+
+// Cache BramandScript host VM builtins before scoping functions
+let _builtin_read_file = read_file;
+let _builtin_write_file = write_file;
+let _builtin_append_file = append_file;
+let _builtin_file_exists = file_exists;
+
+// Helper to unwrap string value if Srishti Object was passed
+let _sval = fn(s) {
+    if s != null && (type(s) == "HASH" || type(s) == "STRUCT") && contains(s, "value") {
+        return str(s.value);
+    }
+    if s == null {
+        return "";
+    }
+    return str(s);
+};
+
+// read_file(path): Reads entire file content from path into string
+let read_file = fn(path) {
+    let p = _sval(path);
+    return _builtin_read_file(p);
+};
+
+// write_file(path, content): Writes string content to file at path
+let write_file = fn(path, content) {
+    let p = _sval(path);
+    let c = _sval(content);
+    return _builtin_write_file(p, c);
+};
+
+// append_file(path, content): Appends string content to file at path
+let append_file = fn(path, content) {
+    let p = _sval(path);
+    let c = _sval(content);
+    return _builtin_append_file(p, c);
+};
+
+// file_exists(path): Checks if file exists on disk
+let file_exists = fn(path) {
+    let p = _sval(path);
+    return _builtin_file_exists(p);
+};
+
+// format_table(headers, rows): Formats headers and rows into an aligned Unicode table
+let format_table = fn(headers, rows) {
+    let num_cols = len(headers);
+    let col_widths = [];
+    let c = 0;
+    while c < num_cols {
+        col_widths = push(col_widths, len(_sval(headers[c])));
+        c = c + 1;
+    }
+
+    let r = 0;
+    while r < len(rows) {
+        let row = rows[r];
+        let c2 = 0;
+        while c2 < num_cols && c2 < len(row) {
+            let cell_len = len(_sval(row[c2]));
+            if cell_len > col_widths[c2] {
+                col_widths[c2] = cell_len;
+            }
+            c2 = c2 + 1;
+        }
+        r = r + 1;
+    }
+
+    // Build border lines
+    let make_divider = fn(left, mid, right, fill) {
+        let line = left;
+        let i = 0;
+        while i < num_cols {
+            line = line + str_pkg.repeat(fill, col_widths[i] + 2);
+            if i < num_cols - 1 {
+                line = line + mid;
+            }
+            i = i + 1;
+        }
+        line = line + right;
+        return line;
+    };
+
+    let top_border = make_divider("┌", "┬", "┐", "─");
+    let mid_border = make_divider("├", "┼", "┤", "─");
+    let bot_border = make_divider("└", "┴", "┘", "─");
+
+    let format_row = fn(cells) {
+        let line = "│";
+        let i = 0;
+        while i < num_cols {
+            let text = (i < len(cells)) ? _sval(cells[i]) : "";
+            line = line + " " + str_pkg.pad_right(text, col_widths[i], " ") + " │";
+            i = i + 1;
+        }
+        return line;
+    };
+
+    let out = [top_border, format_row(headers), mid_border];
+    let r_idx = 0;
+    while r_idx < len(rows) {
+        out = push(out, format_row(rows[r_idx]));
+        r_idx = r_idx + 1;
+    }
+    out = push(out, bot_border);
+    return str_pkg.join(out, "\n");
+};
+
+// print_banner(title, subtitle): Displays a clean, professional banner
+let print_banner = fn(title, subtitle) {
+    let t = _sval(title);
+    let s = _sval(subtitle);
+    let max_l = len(t);
+    if len(s) > max_l {
+        max_l = len(s);
+    }
+    if max_l < 46 {
+        max_l = 46;
+    }
+    let sep = str_pkg.repeat("═", max_l + 4);
+    println("╔" + sep + "╗");
+    println("║  ✦ " + str_pkg.pad_right(t, max_l, " ") + "  ║");
+    if len(s) > 0 {
+        println("║    " + str_pkg.pad_right(s, max_l, " ") + "  ║");
+    }
+    println("╚" + sep + "╝");
+};

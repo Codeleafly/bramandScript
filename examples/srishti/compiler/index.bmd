@@ -94,5 +94,6 @@ let CompilationScope = comp_pkg.CompilationScope;
 let new_compilation_scope = comp_pkg.new_compilation_scope;
 let Compiler = comp_pkg.Compiler;
 let new_compiler = comp_pkg.new_compiler;
+let new_compiler_with_state = comp_pkg.new_compiler_with_state;
 let new_optimizing_compiler = comp_pkg.new_optimizing_compiler;
 let compile = comp_pkg.compile;

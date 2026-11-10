@@ -1,0 +1,284 @@
+// Srishti Programming Language :: Standard Library :: Collections Module (std/collections)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Helper to unwrap native array from Srishti ArrayObject if passed
+let _arr = fn(coll) {
+    if (coll != null && (type(coll) == "HASH" || type(coll) == "STRUCT") && contains(coll, "elements")) {
+        return coll.elements;
+    }
+    if (coll == null) {
+        return [];
+    }
+    return coll;
+};
+
+// map(coll, callback): Applies callback(elem, idx) to each item in collection
+let map = fn(coll, callback) {
+    let a = _arr(coll);
+    let res = [];
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        res = push(res, callback(a[i]));
+        i = i + 1;
+    }
+    return res;
+};
+
+// filter(coll, predicate): Keeps items where predicate(elem) is truthy
+let filter = fn(coll, predicate) {
+    let a = _arr(coll);
+    let res = [];
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        let item = a[i];
+        let ok = predicate(item);
+        if (ok == true || (ok != null && ok != false && ok != 0)) {
+            res = push(res, item);
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// reduce(coll, callback, initial): Combines elements into a single value
+let reduce = fn(coll, callback, initial) {
+    let a = _arr(coll);
+    let l = len(a);
+    if (l == 0) {
+        return initial;
+    }
+    let acc = initial;
+    let start_idx = 0;
+    if (initial == null) {
+        acc = a[0];
+        start_idx = 1;
+    }
+    let i = start_idx;
+    while (i < l) {
+        acc = callback(acc, a[i]);
+        i = i + 1;
+    }
+    return acc;
+};
+
+// find(coll, predicate): Returns the first item matching predicate, or null
+let find = fn(coll, predicate) {
+    let a = _arr(coll);
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        let item = a[i];
+        let ok = predicate(item);
+        if (ok == true || (ok != null && ok != false && ok != 0)) {
+            return item;
+        }
+        i = i + 1;
+    }
+    return null;
+};
+
+// find_index(coll, predicate): Returns 0-based index of first matching item, or -1
+let find_index = fn(coll, predicate) {
+    let a = _arr(coll);
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        let item = a[i];
+        let ok = predicate(item);
+        if (ok == true || (ok != null && ok != false && ok != 0)) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+};
+
+// any(coll, predicate): Returns true if any item satisfies predicate
+let any = fn(coll, predicate) {
+    return find_index(coll, predicate) != -1;
+};
+
+// all(coll, predicate): Returns true if all items satisfy predicate
+let all = fn(coll, predicate) {
+    let a = _arr(coll);
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        let ok = predicate(a[i]);
+        if (ok == false || ok == null || ok == 0) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+};
+
+// reverse(coll): Returns a new array with elements in reversed order
+let reverse = fn(coll) {
+    let a = _arr(coll);
+    let res = [];
+    let i = len(a) - 1;
+    while (i >= 0) {
+        res = push(res, a[i]);
+        i = i - 1;
+    }
+    return res;
+};
+
+// Helper: Mergesort implementation for stable sorting
+let _merge = fn(left, right, comparator) {
+    let res = [];
+    let i = 0;
+    let j = 0;
+    let nl = len(left);
+    let nr = len(right);
+    while (i < nl && j < nr) {
+        let cmp_res = 0;
+        if (comparator != null) {
+            cmp_res = comparator(left[i], right[j]);
+        } else {
+            if (left[i] < right[j]) {
+                cmp_res = -1;
+            } else if (left[i] > right[j]) {
+                cmp_res = 1;
+            } else {
+                cmp_res = 0;
+            }
+        }
+        if (cmp_res <= 0) {
+            res = push(res, left[i]);
+            i = i + 1;
+        } else {
+            res = push(res, right[j]);
+            j = j + 1;
+        }
+    }
+    while (i < nl) {
+        res = push(res, left[i]);
+        i = i + 1;
+    }
+    while (j < nr) {
+        res = push(res, right[j]);
+        j = j + 1;
+    }
+    return res;
+};
+
+let _mergesort = fn(a, comparator) {
+    let l = len(a);
+    if (l <= 1) {
+        return a;
+    }
+    let mid = l / 2;
+    let left = slice(a, 0, mid);
+    let right = slice(a, mid, l);
+    return _merge(_mergesort(left, comparator), _mergesort(right, comparator), comparator);
+};
+
+// sort(coll, comparator): Returns a new array sorted using comparator (or natural order)
+let sort = fn(coll, comparator) {
+    let a = _arr(coll);
+    return _mergesort(a, comparator);
+};
+
+// flatten(coll): Recursively flattens nested arrays into a 1D array
+let flatten = fn(coll) {
+    let a = _arr(coll);
+    let res = [];
+    let i = 0;
+    let l = len(a);
+    while (i < l) {
+        let item = a[i];
+        let is_sub = false;
+        if (item != null) {
+            let t = type(item);
+            if (t == "ARRAY") {
+                is_sub = true;
+            } else if ((t == "HASH" || t == "STRUCT") && contains(item, "elements")) {
+                is_sub = true;
+                item = item.elements;
+            }
+        }
+        if (is_sub) {
+            let flat_sub = flatten(item);
+            let k = 0;
+            while (k < len(flat_sub)) {
+                res = push(res, flat_sub[k]);
+                k = k + 1;
+            }
+        } else {
+            res = push(res, item);
+        }
+        i = i + 1;
+    }
+    return res;
+};
+
+// chunk(coll, size): Divides array into chunks of specified length
+let chunk = fn(coll, size) {
+    let a = _arr(coll);
+    let res = [];
+    if (size <= 0) {
+        return [a];
+    }
+    let l = len(a);
+    let i = 0;
+    while (i < l) {
+        let end_idx = i + size;
+        if (end_idx > l) {
+            end_idx = l;
+        }
+        res = push(res, slice(a, i, end_idx));
+        i = end_idx;
+    }
+    return res;
+};
+
+// zip(arr1, arr2): Combines two arrays into an array of pair tuples [a, b]
+let zip = fn(arr1, arr2) {
+    let a1 = _arr(arr1);
+    let a2 = _arr(arr2);
+    let min_len = len(a1);
+    if (len(a2) < min_len) {
+        min_len = len(a2);
+    }
+    let res = [];
+    let i = 0;
+    while (i < min_len) {
+        res = push(res, [a1[i], a2[i]]);
+        i = i + 1;
+    }
+    return res;
+};
+
+// range(start, end, step): Generates an array of sequential numbers
+let range = fn(start, end, step) {
+    let s = start;
+    let e = end;
+    let st = step;
+    if (e == null) {
+        e = s;
+        s = 0;
+    }
+    if (st == null) {
+        st = 1;
+    }
+    let res = [];
+    if (st > 0) {
+        let cur = s;
+        while (cur < e) {
+            res = push(res, cur);
+            cur = cur + st;
+        }
+    } else if (st < 0) {
+        let cur = s;
+        while (cur > e) {
+            res = push(res, cur);
+            cur = cur + st;
+        }
+    }
+    return res;
+};

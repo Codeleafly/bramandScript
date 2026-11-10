@@ -1,0 +1,320 @@
+// Srishti Programming Language :: E2E Integration & Standard Library Test Suite
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Verifies Stdlib Math, Strings, Collections, JSON, and End-to-End Execution of Sample Programs.
+
+import "../index" as sri
+import "../stdlib/index" as std
+import "../stdlib/math" as math
+import "../stdlib/strings" as strings
+import "../stdlib/collections" as coll
+import "../stdlib/json" as json
+import "../stdlib/io" as io
+
+// Helper to run Srishti file directly and assert zero runtime errors
+let eval_file_native = fn(filepath) {
+    let src = read_file(filepath);
+    let res = sri.run(src, filepath);
+    if len(res.errors) > 0 {
+        let i = 0;
+        while i < len(res.errors) {
+            println("EXECUTION ERROR in " + filepath + ": " + str(res.errors[i]));
+            i = i + 1;
+        }
+    }
+    assert_eq(len(res.errors), 0, "Expected 0 runtime errors in " + filepath);
+    return sri.to_native(res.result);
+};
+
+describe("Standard Library :: Math Functions", fn() {
+        test("Math constants PI and E", fn() {
+                assert(math.PI > 3.1415 && math.PI < 3.1416);
+                assert(math.E > 2.7182 && math.E < 2.7183);
+        });
+
+        test("abs: absolute values of integers and floats", fn() {
+                assert_eq(math.abs(-42), 42);
+                assert_eq(math.abs(42), 42);
+                assert_eq(math.abs(-3.14), 3.14);
+                assert_eq(math.abs(0), 0);
+        });
+
+        test("min and max comparisons", fn() {
+                assert_eq(math.min(10, 20), 10);
+                assert_eq(math.min(-5, 5), -5);
+                assert_eq(math.max(10, 20), 20);
+                assert_eq(math.max(-5, 5), 5);
+        });
+
+        test("clamp boundary enforcement", fn() {
+                assert_eq(math.clamp(50, 0, 100), 50);
+                assert_eq(math.clamp(-10, 0, 100), 0);
+                assert_eq(math.clamp(150, 0, 100), 100);
+        });
+
+        test("floor and ceil integer rounding", fn() {
+                assert_eq(math.floor(3.8), 3);
+                assert_eq(math.floor(3.0), 3);
+                assert_eq(math.ceil(3.2), 4);
+                assert_eq(math.ceil(4.0), 4);
+        });
+
+        test("round to nearest integer", fn() {
+                assert_eq(math.round(3.4), 3);
+                assert_eq(math.round(3.6), 4);
+                assert_eq(math.round(3.5), 4);
+        });
+
+        test("sqrt Newton-Raphson approximation", fn() {
+                assert_eq(math.sqrt(0), 0.0);
+                assert_eq(math.sqrt(4), 2.0);
+                assert_eq(math.sqrt(9), 3.0);
+                assert_eq(math.sqrt(16), 4.0);
+                assert_eq(math.sqrt(100), 10.0);
+                let s2 = math.sqrt(2.0);
+                assert(s2 > 1.4142 && s2 < 1.4143);
+        });
+
+        test("pow base exponentiation", fn() {
+                assert_eq(math.pow(2, 0), 1.0);
+                assert_eq(math.pow(2, 3), 8.0);
+                assert_eq(math.pow(3, 4), 81.0);
+                assert_eq(math.pow(10, 3), 1000.0);
+        });
+
+        test("hypot Euclidean distance", fn() {
+                assert_eq(math.hypot(3, 4), 5.0);
+                assert_eq(math.hypot(5, 12), 13.0);
+        });
+
+        test("deg_to_rad and rad_to_deg angle conversions", fn() {
+                let r180 = math.deg_to_rad(180.0);
+                assert(r180 > 3.1415 && r180 < 3.1416);
+                let d = math.rad_to_deg(math.PI);
+                assert(d > 179.99 && d < 180.01);
+        });
+});
+
+describe("Standard Library :: Strings Functions", fn() {
+        test("repeat string generation", fn() {
+                assert_eq(strings.repeat("ab", 3), "ababab");
+                assert_eq(strings.repeat("x", 0), "");
+        });
+
+        test("pad_left and pad_right alignment", fn() {
+                assert_eq(strings.pad_left("42", 5, "0"), "00042");
+                assert_eq(strings.pad_right("hi", 5, "."), "hi...");
+        });
+
+        test("starts_with and ends_with prefix/suffix checks", fn() {
+                assert_eq(strings.starts_with("Srishti Language", "Srishti"), true);
+                assert_eq(strings.starts_with("Srishti Language", "Bramand"), false);
+                assert_eq(strings.ends_with("program.sri", ".sri"), true);
+                assert_eq(strings.ends_with("program.sri", ".bmd"), false);
+        });
+
+        test("contains substring matching", fn() {
+                assert_eq(strings.contains("hello world", "world"), true);
+                assert_eq(strings.contains("hello world", "earth"), false);
+        });
+
+        test("to_upper and to_lower ASCII casing", fn() {
+                assert_eq(strings.to_upper("srishti-123"), "SRISHTI-123");
+                assert_eq(strings.to_lower("SRISHTI-123"), "srishti-123");
+        });
+
+        test("trim, trim_left, and trim_right whitespace removal", fn() {
+                assert_eq(strings.trim_left("  hello  "), "hello  ");
+                assert_eq(strings.trim_right("  hello  "), "  hello");
+                assert_eq(strings.trim("  hello  "), "hello");
+                assert_eq(strings.trim("\t\n  text \r\n"), "text");
+        });
+
+        test("split and join operations", fn() {
+                let parts = strings.split("a,b,c,d", ",");
+                assert_eq(len(parts), 4);
+                assert_eq(parts[0], "a");
+                assert_eq(parts[3], "d");
+
+                let rejoined = strings.join(parts, "::");
+                assert_eq(rejoined, "a::b::c::d");
+        });
+
+        test("replace substring substitutions", fn() {
+                let res = strings.replace("apple banana apple", "apple", "orange");
+                assert_eq(res, "orange banana orange");
+        });
+});
+
+describe("Standard Library :: Collections Functions", fn() {
+        test("map functional transformation", fn() {
+                let nums = [1, 2, 3, 4];
+                let doubled = coll.map(nums, fn(x) { return x * 2; });
+                assert_eq(doubled[0], 2);
+                assert_eq(doubled[1], 4);
+                assert_eq(doubled[2], 6);
+                assert_eq(doubled[3], 8);
+        });
+
+        test("filter predicate selection", fn() {
+                let nums = [1, 2, 3, 4, 5, 6];
+                let evens = coll.filter(nums, fn(x) { return (x % 2) == 0; });
+                assert_eq(len(evens), 3);
+                assert_eq(evens[0], 2);
+                assert_eq(evens[1], 4);
+                assert_eq(evens[2], 6);
+        });
+
+        test("reduce accumulation", fn() {
+                let nums = [1, 2, 3, 4, 5];
+                let sum = coll.reduce(nums, fn(acc, x) { return acc + x; }, 0);
+                assert_eq(sum, 15);
+                let prod = coll.reduce(nums, fn(acc, x) { return acc * x; }, 1);
+                assert_eq(prod, 120);
+        });
+
+        test("find and find_index lookup", fn() {
+                let items = [10, 25, 30, 45, 50];
+                let found = coll.find(items, fn(x) { return x > 28; });
+                assert_eq(found, 30);
+                let idx = coll.find_index(items, fn(x) { return x == 45; });
+                assert_eq(idx, 3);
+                let missing = coll.find_index(items, fn(x) { return x == 999; });
+                assert_eq(missing, -1);
+        });
+
+        test("any and all logical queries", fn() {
+                let nums = [2, 4, 6, 8];
+                assert_eq(coll.all(nums, fn(x) { return (x % 2) == 0; }), true);
+                assert_eq(coll.any(nums, fn(x) { return x == 6; }), true);
+                assert_eq(coll.any(nums, fn(x) { return x == 7; }), false);
+        });
+
+        test("reverse array order", fn() {
+                let rev = coll.reverse([1, 2, 3, 4]);
+                assert_eq(rev[0], 4);
+                assert_eq(rev[1], 3);
+                assert_eq(rev[2], 2);
+                assert_eq(rev[3], 1);
+        });
+
+        test("sort stable array ordering", fn() {
+                let sorted = coll.sort([45, 12, 89, 34, 23]);
+                assert_eq(sorted[0], 12);
+                assert_eq(sorted[1], 23);
+                assert_eq(sorted[2], 34);
+                assert_eq(sorted[3], 45);
+                assert_eq(sorted[4], 89);
+        });
+
+        test("flatten nested arrays", fn() {
+                let nested = [[1, 2], [3, [4, 5]], 6];
+                let flat = coll.flatten(nested);
+                assert_eq(len(flat), 6);
+                assert_eq(flat[0], 1);
+                assert_eq(flat[3], 4);
+                assert_eq(flat[5], 6);
+        });
+
+        test("chunk array partitioning", fn() {
+                let chunks = coll.chunk([1, 2, 3, 4, 5, 6, 7], 3);
+                assert_eq(len(chunks), 3);
+                assert_eq(len(chunks[0]), 3);
+                assert_eq(len(chunks[1]), 3);
+                assert_eq(len(chunks[2]), 1);
+                assert_eq(chunks[2][0], 7);
+        });
+
+        test("zip pairwise array combination", fn() {
+                let zipped = coll.zip(["a", "b", "c"], [10, 20, 30]);
+                assert_eq(len(zipped), 3);
+                assert_eq(zipped[0][0], "a");
+                assert_eq(zipped[0][1], 10);
+                assert_eq(zipped[2][0], "c");
+                assert_eq(zipped[2][1], 30);
+        });
+
+        test("range sequence generation", fn() {
+                let r1 = coll.range(5);
+                assert_eq(len(r1), 5);
+                assert_eq(r1[0], 0);
+                assert_eq(r1[4], 4);
+
+                let r2 = coll.range(2, 6);
+                assert_eq(len(r2), 4);
+                assert_eq(r2[0], 2);
+                assert_eq(r2[3], 5);
+
+                let r3 = coll.range(0, 10, 2);
+                assert_eq(len(r3), 5);
+                assert_eq(r3[1], 2);
+                assert_eq(r3[4], 8);
+        });
+});
+
+describe("Standard Library :: JSON Serialization & Deserialization", fn() {
+        test("serialize primitive data types", fn() {
+                assert_eq(json.serialize(42), "42");
+                assert_eq(json.serialize(3.14), "3.14");
+                assert_eq(json.serialize("hello"), "\"hello\"");
+                assert_eq(json.serialize(true), "true");
+                assert_eq(json.serialize(null), "null");
+        });
+
+        test("serialize arrays and maps", fn() {
+                let arr_json = json.serialize([1, 2, 3]);
+                assert_eq(arr_json, "[1, 2, 3]");
+
+                let map_json = json.serialize({"name": "Srishti", "ready": true});
+                assert(strings.contains(map_json, "\"name\":\"Srishti\""));
+                assert(strings.contains(map_json, "\"ready\":true"));
+        });
+
+        test("serialize with pretty indentation", fn() {
+                let pretty = json.serialize([1, 2], 2);
+                assert(strings.contains(pretty, "\n"));
+                assert(strings.contains(pretty, "  1"));
+        });
+
+        test("deserialize JSON string back to native values", fn() {
+                let parsed = json.deserialize("{\"code\": 101, \"status\": \"ok\", \"items\": [10, 20]}");
+                assert_eq(parsed["code"], 101);
+                assert_eq(parsed["status"], "ok");
+                assert_eq(len(parsed["items"]), 2);
+                assert_eq(parsed["items"][0], 10);
+        });
+});
+
+describe("End-to-End Real-World Sample Programs", fn() {
+        test("Sample 01: Banking & Transaction System (01_banking_system.sri)", fn() {
+                let res = eval_file_native("examples/srishti/sample_programs/01_banking_system.sri");
+                // Initial balances: 85,000 + 120,000 + 45,000 = 250,000
+                // deposit 25,000 -> 275,000
+                // withdraw 5,000 -> 270,000
+                // transfer 20,000 (net change 0) -> 270,000
+                assert_eq(res, 270000.0);
+        });
+
+        test("Sample 02: Mathematics & Statistics Suite (02_math_and_statistics.sri)", fn() {
+                let res = eval_file_native("examples/srishti/sample_programs/02_math_and_statistics.sri");
+                // Mean of [12, 45, 23, 67, 34, 89, 56, 78, 90, 21, 43] is 558 / 11 = 50.72727272727273
+                assert(res > 50.72 && res < 50.73);
+        });
+
+        test("Sample 03: Text Analytics & NLP Suite (03_text_analyzer.sri)", fn() {
+                let res = eval_file_native("examples/srishti/sample_programs/03_text_analyzer.sri");
+                // Returns total word count of analyzed passage (24 words)
+                assert_eq(res, 24);
+        });
+
+        test("Sample 04: Priority Task Scheduler & Job Engine (04_task_scheduler.sri)", fn() {
+                let res = eval_file_native("examples/srishti/sample_programs/04_task_scheduler.sri");
+                // Returns count of processed urgent tasks (4 tasks >= 75 priority)
+                assert_eq(res, 4);
+        });
+
+        test("Sample 05: RPG Dungeon Engine & Combat Simulator (05_game_simulation.sri)", fn() {
+                let res = eval_file_native("examples/srishti/sample_programs/05_game_simulation.sri");
+                // Returns number of cleared dungeon monsters (3 monsters)
+                assert_eq(res, 3);
+        });
+});

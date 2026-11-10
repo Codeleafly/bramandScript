@@ -1,0 +1,118 @@
+// Srishti Programming Language Sample Program 05: RPG Game Dungeon Engine & Battle Simulator
+// Demonstrates OOP Structs, Action Dispatch, State Mutation, Combat Mechanics & Match Control Flow
+
+create struct Hero with name, health, max_health, attack, defense, gold, exp, level:
+create struct Monster with name, health, attack, exp_reward, gold_reward:
+
+define function create_hero with name:
+    return Hero(name, 100, 100, 22, 6, 50, 0, 1)
+
+define function create_monster with name, health, attack, exp_reward, gold_reward:
+    return Monster(name, health, attack, exp_reward, gold_reward)
+
+define function level_up with hero:
+    set hero.level to hero.level plus 1
+    set hero.max_health to hero.max_health plus 25
+    set hero.health to hero.max_health
+    set hero.attack to hero.attack plus 5
+    set hero.defense to hero.defense plus 3
+    set hero.exp to hero.exp minus 100
+    display "✦ Level Up! " combined with hero.name combined with " reached Level " combined with str(hero.level) combined with " (HP: " combined with str(hero.health) combined with ", ATK: " combined with str(hero.attack) combined with ", DEF: " combined with str(hero.defense) combined with ")"
+    return hero
+
+define function use_item with hero, item_code:
+    match item_code:
+        when 1:
+            // Healing Salve: Restore 35 HP up to max
+            let healed be hero.health plus 35
+            if healed is greater than hero.max_health then:
+                set healed to hero.max_health
+            set hero.health to healed
+            display "✦ " combined with hero.name combined with " drank Healing Salve (Current HP: " combined with str(hero.health) combined with ")"
+        when 2:
+            // Elixir of Wrath: +4 ATK
+            set hero.attack to hero.attack plus 4
+            display "✦ " combined with hero.name combined with " ingested Elixir of Wrath (ATK: " combined with str(hero.attack) combined with ")"
+        when 3:
+            // Aegis Tonic: +3 DEF
+            set hero.defense to hero.defense plus 3
+            display "✦ " combined with hero.name combined with " applied Aegis Tonic (DEF: " combined with str(hero.defense) combined with ")"
+        otherwise:
+            display "Unknown inventory item code"
+    return hero
+
+define function battle_round with hero, foe:
+    // Hero attacks foe
+    let hero_dmg be hero.attack
+    set foe.health to foe.health minus hero_dmg
+    display "  " combined with hero.name combined with " strikes " combined with foe.name combined with " for " combined with str(hero_dmg) combined with " damage!"
+
+    if foe.health is less than or equal to 0 then:
+        display "✦ Defeated " combined with foe.name combined with "! Gained " combined with str(foe.exp_reward) combined with " EXP and " combined with str(foe.gold_reward) combined with " Gold."
+        set hero.exp to hero.exp plus foe.exp_reward
+        set hero.gold to hero.gold plus foe.gold_reward
+        if hero.exp is greater than or equal to 100 then:
+            level_up(hero)
+        return true
+
+    // Foe counter-attacks hero
+    let raw_dmg be foe.attack minus hero.defense
+    let foe_dmg be raw_dmg
+    if raw_dmg is less than 1 then:
+        set foe_dmg to 1
+    set hero.health to hero.health minus foe_dmg
+    display "  " combined with foe.name combined with " retaliates hitting " combined with hero.name combined with " for " combined with str(foe_dmg) combined with " damage (HP left: " combined with str(hero.health) combined with ")"
+
+    return false
+
+define function dungeon_crawl with hero, dungeon_monsters:
+    display "=================================================="
+    display "✦ Entering the Ancient Crypt of Takshashila"
+    display "Hero: " combined with hero.name combined with " | Level: " combined with str(hero.level) combined with " | HP: " combined with str(hero.health)
+    display "=================================================="
+
+    let m_idx be 0
+    let cleared be 0
+    repeat while m_idx is less than len(dungeon_monsters) and hero.health is greater than 0:
+        let current_monster be dungeon_monsters[m_idx]
+        display "\n⚔ Encounter: Wild " combined with current_monster.name combined with " (HP: " combined with str(current_monster.health) combined with ", ATK: " combined with str(current_monster.attack) combined with ")"
+
+        // Combat loop
+        repeat while current_monster.health is greater than 0 and hero.health is greater than 0:
+            let defeated be battle_round(hero, current_monster)
+            if defeated is equal to true then:
+                set cleared to cleared plus 1
+            otherwise:
+                // Drink potion if health dropped critically
+                if hero.health is less than 40 and hero.health is greater than 0 then:
+                    use_item(hero, 1)
+
+        set m_idx to m_idx plus 1
+
+    display "=================================================="
+    if hero.health is greater than 0 then:
+        display "✦ Dungeon Cleared Successfully! Monsters Defeated: " combined with str(cleared)
+        display "Final Gold Reserve: " combined with str(hero.gold)
+    otherwise:
+        display "Hero has fallen in battle."
+    display "=================================================="
+
+    return cleared
+
+define function run_game_simulation:
+    let player be create_hero("Vikramaditya")
+
+    // Buff with items before entering dungeon
+    use_item(player, 2)
+    use_item(player, 3)
+
+    let monsters be [
+        create_monster("Cave Goblin", 35, 12, 35, 20),
+        create_monster("Shadow Serpent", 50, 15, 45, 30),
+        create_monster("Crypt Wight", 70, 18, 55, 60)
+    ]
+
+    let cleared_count be dungeon_crawl(player, monsters)
+    return cleared_count
+
+run_game_simulation()

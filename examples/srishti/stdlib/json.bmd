@@ -1,0 +1,161 @@
+// Srishti Programming Language :: Standard Library :: JSON Module (std/json)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "../object/index" as obj_pkg
+import "./strings" as str_pkg
+
+// Helper to escape string characters for JSON output
+let _escape_string = fn(s) {
+    let res = "\"";
+    let i = 0;
+    let l = len(s);
+    while (i < l) {
+        let ch = s[i];
+        if (ch == "\"") {
+            res = res + "\\\"";
+        } else if (ch == "\\") {
+            res = res + "\\\\";
+        } else if (ch == "\n") {
+            res = res + "\\n";
+        } else if (ch == "\t") {
+            res = res + "\\t";
+        } else if (ch == "\r") {
+            res = res + "\\r";
+        } else {
+            res = res + ch;
+        }
+        i = i + 1;
+    }
+    return res + "\"";
+};
+
+// Forward declarations
+let _stringify_array = null;
+let _stringify_object = null;
+
+// Pure JSON Stringifier with optional pretty-printing indentation
+let _stringify_val = fn(val, depth, indent_str) {
+    if (val == null) {
+        return "null";
+    }
+
+    // Check if it's a Srishti runtime object
+    let t = type(val);
+    if ((t == "HASH" || t == "STRUCT") && contains(val, "type") && val.type != null) {
+        let ot = val.type;
+        if (ot == obj_pkg.OBJ_NULL) {
+            return "null";
+        }
+        if (ot == obj_pkg.OBJ_INT || ot == obj_pkg.OBJ_FLOAT) {
+            return str(val.value);
+        }
+        if (ot == obj_pkg.OBJ_STRING) {
+            return _escape_string(val.value);
+        }
+        if (ot == obj_pkg.OBJ_BOOLEAN) {
+            return val.value ? "true" : "false";
+        }
+        if (ot == obj_pkg.OBJ_ARRAY) {
+            return _stringify_array(val.elements, depth, indent_str);
+        }
+        if (ot == obj_pkg.OBJ_STRUCT_INSTANCE) {
+            return _stringify_object(val.fields, depth, indent_str);
+        }
+    }
+
+    if (t == "INTEGER" || t == "FLOAT") {
+        return str(val);
+    }
+    if (t == "BOOLEAN") {
+        return val ? "true" : "false";
+    }
+    if (t == "STRING") {
+        return _escape_string(val);
+    }
+    if (t == "ARRAY") {
+        return _stringify_array(val, depth, indent_str);
+    }
+    if (t == "HASH" || t == "STRUCT") {
+        return _stringify_object(val, depth, indent_str);
+    }
+
+    return _escape_string(str(val));
+};
+
+_stringify_array = fn(arr, depth, indent_str) {
+    if (len(arr) == 0) {
+        return "[]";
+    }
+    let is_pretty = false;
+    if (indent_str != null && len(indent_str) > 0) {
+        is_pretty = true;
+    }
+    let cur_indent = is_pretty ? str_pkg.repeat(indent_str, depth + 1) : "";
+    let end_indent = is_pretty ? str_pkg.repeat(indent_str, depth) : "";
+    let sep = is_pretty ? ",\n" : ", ";
+
+    let items = [];
+    let i = 0;
+    while (i < len(arr)) {
+        let s_item = _stringify_val(arr[i], depth + 1, indent_str);
+        items = push(items, cur_indent + s_item);
+        i = i + 1;
+    }
+
+    if (is_pretty) {
+        return "[\n" + str_pkg.join(items, sep) + "\n" + end_indent + "]";
+    }
+    return "[" + str_pkg.join(items, sep) + "]";
+};
+
+_stringify_object = fn(obj, depth, indent_str) {
+    let is_pretty = false;
+    if (indent_str != null && len(indent_str) > 0) {
+        is_pretty = true;
+    }
+    let cur_indent = is_pretty ? str_pkg.repeat(indent_str, depth + 1) : "";
+    let end_indent = is_pretty ? str_pkg.repeat(indent_str, depth) : "";
+    let sep = is_pretty ? ",\n" : ", ";
+    let colon_sep = is_pretty ? ": " : ":";
+
+    let items = [];
+    let k_list = keys(obj);
+    if (len(k_list) == 0) {
+        return "{}";
+    }
+    let i = 0;
+    while (i < len(k_list)) {
+        let k = k_list[i];
+        let val_s = _stringify_val(obj[k], depth + 1, indent_str);
+        items = push(items, cur_indent + _escape_string(k) + colon_sep + val_s);
+        i = i + 1;
+    }
+
+    if (is_pretty) {
+        return "{\n" + str_pkg.join(items, sep) + "\n" + end_indent + "}";
+    }
+    return "{" + str_pkg.join(items, sep) + "}";
+};
+
+// serialize(val, indent): Serializes value to JSON string
+let serialize = fn(val, indent) {
+    let indent_str = "";
+    if (indent != null) {
+        if (type(indent) == "INTEGER") {
+            indent_str = str_pkg.repeat(" ", indent);
+        } else if (type(indent) == "STRING") {
+            indent_str = indent;
+        }
+    }
+    return _stringify_val(val, 0, indent_str);
+};
+
+// deserialize(json_str): Parses a JSON string into native BramandScript values
+let deserialize = fn(json_str) {
+    let s = str(json_str);
+    if (json_str != null && (type(json_str) == "HASH" || type(json_str) == "STRUCT") && contains(json_str, "value")) {
+        s = json_str.value;
+    }
+    return json_parse(s);
+};

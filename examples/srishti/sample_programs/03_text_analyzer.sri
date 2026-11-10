@@ -1,0 +1,125 @@
+// Srishti Programming Language Sample Program 03: Text Analytics & NLP Suite
+// Demonstrates String Processing, Character Inspection, Frequency Analysis & Struct Modeling
+
+create struct TextStats with word_count, char_count, line_count, unique_words:
+
+define function is_space with ch:
+    return ch is equal to " " or ch is equal to "\t" or ch is equal to "\n" or ch is equal to "\r"
+
+define function split_words with text:
+    let words be []
+    let current_word be ""
+    let i be 0
+    let l be len(text)
+    repeat while i is less than l:
+        let ch be text[i]
+        if is_space(ch) is equal to true then:
+            if len(current_word) is greater than 0 then:
+                set words to push(words, current_word)
+                set current_word to ""
+        otherwise:
+            set current_word to current_word combined with ch
+        set i to i plus 1
+    if len(current_word) is greater than 0 then:
+        set words to push(words, current_word)
+    return words
+
+define function count_lines with text:
+    if len(text) is equal to 0 then:
+        return 0
+    let lines be 1
+    let i be 0
+    repeat while i is less than len(text):
+        if text[i] is equal to "\n" then:
+            set lines to lines plus 1
+        set i to i plus 1
+    return lines
+
+define function count_unique_words with words_list:
+    let unique_list be []
+    iterate w through words_list:
+        let found be false
+        iterate u through unique_list:
+            if u is equal to w then:
+                set found to true
+        if found is equal to false then:
+            set unique_list to push(unique_list, w)
+    return len(unique_list)
+
+define function is_palindrome with word:
+    let l be len(word)
+    if l is less than or equal to 1 then:
+        return true
+    let i be 0
+    let mid be l divided by 2
+    repeat while i is less than mid:
+        let left_ch be word[i]
+        let right_ch be word[l minus 1 minus i]
+        if left_ch is not equal to right_ch then:
+            return false
+        set i to i plus 1
+    return true
+
+define function capitalize_single_word with w:
+    let l be len(w)
+    if l is equal to 0 then:
+        return ""
+    let first_ch be w[0]
+    let rest be slice(w, 1, l)
+    return first_ch combined with rest
+
+define function capitalize_sentence with sentence:
+    let words be split_words(sentence)
+    let res be ""
+    let i be 0
+    repeat while i is less than len(words):
+        let cap be capitalize_single_word(words[i])
+        if i is equal to 0 then:
+            set res to cap
+        otherwise:
+            set res to res combined with " " combined with cap
+        set i to i plus 1
+    return res
+
+define function analyze_document with doc_text:
+    let words be split_words(doc_text)
+    let w_count be len(words)
+    let c_count be len(doc_text)
+    let l_count be count_lines(doc_text)
+    let u_count be count_unique_words(words)
+    return TextStats(w_count, c_count, l_count, u_count)
+
+define function format_report with stats:
+    display "=================================================="
+    display "✦ Srishti NLP & Text Analytics Intelligence Report"
+    display "Total Characters:  " combined with str(stats.char_count)
+    display "Total Words:       " combined with str(stats.word_count)
+    display "Total Lines:       " combined with str(stats.line_count)
+    display "Unique Vocabulary: " combined with str(stats.unique_words)
+    let lexical_diversity be 0.0
+    if stats.word_count is greater than 0 then:
+        set lexical_diversity to float(stats.unique_words) divided by float(stats.word_count)
+    display "Lexical Diversity: " combined with str(lexical_diversity)
+    display "=================================================="
+    return stats.word_count
+
+define function run_text_analyzer_pipeline:
+    display "✦ Initializing Text Analysis Suite"
+    let passage be "srishti is a modern english programming language\nsrishti compiles to bytecode\nbytecode runs on a virtual machine\nlanguage is expressive and language is pure"
+
+    let stats be analyze_document(passage)
+    format_report(stats)
+
+    // Palindrome verifications
+    display "Palindrome 'radar': " combined with str(is_palindrome("radar"))
+    display "Palindrome 'srishti': " combined with str(is_palindrome("srishti"))
+    display "Palindrome 'madam': " combined with str(is_palindrome("madam"))
+
+    // Capitalization
+    let title be "bramand script and srishti architecture"
+    let capitalized be capitalize_sentence(title)
+    display "Capitalized Sentence: " combined with capitalized
+
+    return stats.word_count
+
+run_text_analyzer_pipeline()

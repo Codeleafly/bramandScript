@@ -1,0 +1,282 @@
+// Srishti Programming Language :: Unified Command-Line Runner (cli.bmd)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./index" as sri
+import "./ast/index" as ast_pkg
+import "./compiler/index" as comp_pkg
+import "./repl/index" as repl_pkg
+import "./stdlib/strings" as str_pkg
+import "./stdlib/io" as io_pkg
+
+// Srishti Version and Specs
+let SRISHTI_VERSION = "1.0.0";
+let SRISHTI_CODENAME = "Srishti (सृष्टि)";
+
+// Display Version Banner
+let show_version = fn() {
+    println("✦ " + SRISHTI_CODENAME + " Programming Language CLI v" + SRISHTI_VERSION);
+    println("──────────────────────────────────────────────────────────────────");
+    println("Host VM:          BramandScript 64-bit Bytecode Virtual Machine");
+    println("Architecture:     Stack-based VM with Pratt Parser & Opcode Engine");
+    println("Standard Library: 100% Pure BramandScript (.bmd) Stdlib");
+    println("Deployment:       Zero Third-Party Dependencies (Offline-First)");
+    println("Copyright:        Copyright (c) 2026 BramandScript Language Team");
+    println("──────────────────────────────────────────────────────────────────");
+};
+
+// Display CLI Help Reference
+let show_help = fn() {
+    println("✦ " + SRISHTI_CODENAME + " Language Toolchain");
+    println("Usage: bramand run examples/srishti/cli.bmd <command> [options] [arguments]\n");
+    println("Commands:");
+    println("  run <file.sri>     Execute a Srishti source program on the VM");
+    println("  repl               Launch interactive terminal REPL session");
+    println("  ast <file.sri>     Parse source file and dump Abstract Syntax Tree");
+    println("  disasm <file.sri>  Compile source file and disassemble VM bytecodes");
+    println("  check <file.sri>   Perform syntax and static semantic validation");
+    println("  test               Execute the Srishti test suites (*_test.bmd)");
+    println("  version            Display version and architectural specifications");
+    println("  help               Display this command line usage guide\n");
+    println("Examples:");
+    println("  bramand run examples/srishti/cli.bmd run examples/srishti/sample_programs/01_banking_system.sri");
+    println("  bramand run examples/srishti/cli.bmd repl");
+    println("  bramand run examples/srishti/cli.bmd check my_script.sri");
+    println("──────────────────────────────────────────────────────────────────");
+};
+
+// Read File with Existence Validation
+let load_source_file = fn(filepath) {
+    if !file_exists(filepath) {
+        println("  [ERROR] File not found: '" + filepath + "'");
+        return null;
+    }
+    return read_file(filepath);
+};
+
+// Command: run <file.sri>
+let cmd_run = fn(filepath) {
+    if filepath == null || len(filepath) == 0 {
+        println("  [ERROR] Missing source file argument for 'run' command.");
+        println("  Usage: bramand run examples/srishti/cli.bmd run <file.sri>");
+        return 1;
+    }
+    let src = load_source_file(filepath);
+    if src == null {
+        return 1;
+    }
+
+    let res = sri.run(src, filepath);
+    if len(res.errors) > 0 {
+        println("  [ERROR] Execution failed with " + str(len(res.errors)) + " error(s):");
+        let i = 0;
+        while i < len(res.errors) {
+            println("    " + str(res.errors[i]));
+            i = i + 1;
+        }
+        return 1;
+    }
+    return 0;
+};
+
+// Command: ast <file.sri>
+let cmd_ast = fn(filepath) {
+    if filepath == null || len(filepath) == 0 {
+        println("  [ERROR] Missing source file argument for 'ast' command.");
+        return 1;
+    }
+    let src = load_source_file(filepath);
+    if src == null {
+        return 1;
+    }
+
+    let l = sri.new_lexer(src, filepath);
+    let p = sri.new_parser(l);
+    let prog = p.parse_program();
+
+    if len(p.errors) > 0 {
+        println("  [ERROR] Parse errors encountered in '" + filepath + "':");
+        let i = 0;
+        while i < len(p.errors) {
+            println("    " + str(p.errors[i]));
+            i = i + 1;
+        }
+        return 1;
+    }
+
+    println("✦ Abstract Syntax Tree (AST) for: " + filepath);
+    println("──────────────────────────────────────────────────────────────────");
+    println(ast_pkg.dump_ast(prog));
+    return 0;
+};
+
+// Command: disasm <file.sri>
+let cmd_disasm = fn(filepath) {
+    if filepath == null || len(filepath) == 0 {
+        println("  [ERROR] Missing source file argument for 'disasm' command.");
+        return 1;
+    }
+    let src = load_source_file(filepath);
+    if src == null {
+        return 1;
+    }
+
+    let comp_res = sri.compile(src, filepath);
+    if len(comp_res.errors) > 0 {
+        println("  [ERROR] Compilation failed with " + str(len(comp_res.errors)) + " error(s):");
+        let i = 0;
+        while i < len(comp_res.errors) {
+            println("    " + str(comp_res.errors[i]));
+            i = i + 1;
+        }
+        return 1;
+    }
+
+    let bc = comp_res.bytecode;
+    println("✦ Bytecode Disassembly for: " + filepath);
+    println("──────────────────────────────────────────────────────────────────");
+    println("Constants Pool (" + str(len(bc.constants)) + " entries):");
+    let c_idx = 0;
+    while c_idx < len(bc.constants) {
+        println("  [" + str(c_idx) + "] " + sri.inspect(bc.constants[c_idx]));
+        c_idx = c_idx + 1;
+    }
+    println("\nInstructions:");
+    println(comp_pkg.disassemble(bc.instructions));
+    return 0;
+};
+
+// Command: check <file.sri>
+let cmd_check = fn(filepath) {
+    if filepath == null || len(filepath) == 0 {
+        println("  [ERROR] Missing source file argument for 'check' command.");
+        return 1;
+    }
+    let src = load_source_file(filepath);
+    if src == null {
+        return 1;
+    }
+
+    let l = sri.new_lexer(src, filepath);
+    let p = sri.new_parser(l);
+    let prog = p.parse_program();
+
+    if len(p.errors) > 0 {
+        println("  [FAIL] Syntax validation failed for '" + filepath + "':");
+        let i = 0;
+        while i < len(p.errors) {
+            println("    " + str(p.errors[i]));
+            i = i + 1;
+        }
+        return 1;
+    }
+
+    let comp_res = sri.compile(src, filepath);
+    if len(comp_res.errors) > 0 {
+        println("  [FAIL] Semantic compilation validation failed for '" + filepath + "':");
+        let i = 0;
+        while i < len(comp_res.errors) {
+            println("    " + str(comp_res.errors[i]));
+            i = i + 1;
+        }
+        return 1;
+    }
+
+    println("  [OK] Syntax and semantic check passed cleanly for '" + filepath + "'.");
+    return 0;
+};
+
+// Command: test
+let cmd_test = fn() {
+    println("✦ Srishti Test Runner");
+    println("Executing Srishti Language Verification Test Suites...");
+    println("──────────────────────────────────────────────────────────────────");
+
+    let test_suites = [
+        "examples/srishti/tests/01_lexer_test.bmd",
+        "examples/srishti/tests/02_parser_test.bmd",
+        "examples/srishti/tests/03_compiler_test.bmd",
+        "examples/srishti/tests/04_vm_execution_test.bmd"
+    ];
+
+    if file_exists("examples/srishti/tests/05_e2e_programs_test.bmd") {
+        test_suites = push(test_suites, "examples/srishti/tests/05_e2e_programs_test.bmd");
+    }
+
+    let all_passed = true;
+    let s_idx = 0;
+    while s_idx < len(test_suites) {
+        let t_file = test_suites[s_idx];
+        println("• Running suite: " + t_file);
+        let res = exec("./bramand", ["run", t_file]);
+        if res != null && contains(res, "stdout") {
+            println(res.stdout);
+        }
+        if res != null && contains(res, "exit_code") && res.exit_code != 0 {
+            all_passed = false;
+            println("  [FAIL] Suite failed: " + t_file);
+        }
+        s_idx = s_idx + 1;
+    }
+
+    if all_passed {
+        println("──────────────────────────────────────────────────────────────────");
+        println("[OK] All Srishti test suites passed successfully!");
+        return 0;
+    }
+    println("──────────────────────────────────────────────────────────────────");
+    println("[FAIL] Some Srishti test suites failed.");
+    return 1;
+};
+
+// Main CLI Entrypoint Dispatcher
+let main = fn() {
+    let cli_args = args();
+    if len(cli_args) == 0 {
+        show_help();
+        return 0;
+    }
+
+    let subcmd = cli_args[0];
+    let target = (len(cli_args) > 1) ? cli_args[1] : null;
+
+    if subcmd == "run" {
+        return cmd_run(target);
+    }
+    if subcmd == "repl" {
+        repl_pkg.start_repl();
+        return 0;
+    }
+    if subcmd == "ast" {
+        return cmd_ast(target);
+    }
+    if subcmd == "disasm" {
+        return cmd_disasm(target);
+    }
+    if subcmd == "check" {
+        return cmd_check(target);
+    }
+    if subcmd == "test" {
+        return cmd_test();
+    }
+    if subcmd == "version" || subcmd == "-v" || subcmd == "--version" {
+        show_version();
+        return 0;
+    }
+    if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+        show_help();
+        return 0;
+    }
+
+    // Default fallback: if argument is a file ending in .sri, run it
+    if str_pkg.ends_with(subcmd, ".sri") {
+        return cmd_run(subcmd);
+    }
+
+    println("  [ERROR] Unknown command: '" + subcmd + "'");
+    println("  Run 'bramand run examples/srishti/cli.bmd help' for available commands.");
+    return 1;
+};
+
+let exit_code = main();
+exit(exit_code);
