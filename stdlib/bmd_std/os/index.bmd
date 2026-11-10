@@ -1,0 +1,37 @@
+// BramandScript Standard Library :: Operating System Engine (std/os)
+// Platform information, system architecture, CPU cores, memory metrics, and environment variables.
+
+let platform = os_platform();
+let arch = os_arch();
+
+let cpus = fn() {
+    return os_cpus();
+};
+
+let memory = fn() {
+    return os_memory_info();
+};
+
+let memory_info = memory;
+
+let get_env = fn(key, default_val = null) {
+    return os_get_env(key, default_val);
+};
+
+let set_env = fn(key, val) {
+    return os_set_env(key, val);
+};
+
+let env = os_env_all();
+
+let cwd = fn() {
+    return os_cwd();
+};
+
+let pid = fn() {
+    return os_pid();
+};
+
+let exit_os = fn(code = 0) {
+    exit(code);
+};

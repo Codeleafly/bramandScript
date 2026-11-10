@@ -3,7 +3,10 @@ package vm
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"syscall"
 
 	"bramandscript/object"
 )
@@ -381,6 +384,10 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 		}
 		// Check bytes methods
 		if handled, err := vm.executeBytesMethod(left, index); handled {
+			return err
+		}
+		// Check process methods
+		if handled, err := vm.executeProcessMethod(left, index); handled {
 			return err
 		}
 		return fmt.Errorf("index operator not supported: %s[%s]", left.Type(), index.Type())
@@ -865,4 +872,155 @@ func (vm *VM) executeBytesMethod(left, index object.Object) (bool, error) {
 		})
 	}
 	return false, nil
+}
+
+func (vm *VM) executeProcessMethod(left, index object.Object) (bool, error) {
+	if left.Type() != object.PROCESS_OBJ || index.Type() != object.STRING_OBJ {
+		return false, nil
+	}
+	proc := left.(*object.Process)
+	prop := index.(*object.String).Value
+
+	switch prop {
+	case "pid":
+		return true, vm.push(&object.Integer{Value: int64(proc.PID)})
+	case "wait":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				code, pid, _ := proc.Wait()
+				pairs := make(map[object.HashKey]object.HashPair)
+				kExitCode := &object.String{Value: "exit_code"}
+				vExitCode := &object.Integer{Value: int64(code)}
+				pairs[kExitCode.HashKey()] = object.HashPair{Key: kExitCode, Value: vExitCode}
+				kCode := &object.String{Value: "code"}
+				pairs[kCode.HashKey()] = object.HashPair{Key: kCode, Value: vExitCode}
+				kPid := &object.String{Value: "pid"}
+				vPid := &object.Integer{Value: int64(pid)}
+				pairs[kPid.HashKey()] = object.HashPair{Key: kPid, Value: vPid}
+				return &object.Hash{Pairs: pairs}
+			},
+		})
+	case "kill":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				var sig os.Signal = syscall.SIGTERM
+				if len(args) > 0 {
+					sigStr := strings.ToUpper(args[0].Inspect())
+					if s, ok := args[0].(*object.String); ok {
+						sigStr = strings.ToUpper(s.Value)
+					}
+					switch sigStr {
+					case "SIGKILL", "KILL", "9":
+						sig = syscall.SIGKILL
+					case "SIGINT", "INT", "2":
+						sig = syscall.SIGINT
+					case "SIGHUP", "HUP", "1":
+						sig = syscall.SIGHUP
+					case "SIGTERM", "TERM", "15":
+						sig = syscall.SIGTERM
+					default:
+						sig = syscall.SIGTERM
+					}
+				}
+				if err := proc.Kill(sig); err != nil {
+					return &object.Error{Message: fmt.Sprintf("proc.kill failed: %s", err)}
+				}
+				return True
+			},
+		})
+	case "write", "stdin_write":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return &object.Error{Message: "stdin_write requires data argument"}
+				}
+				var b []byte
+				switch v := args[0].(type) {
+				case *object.String:
+					b = []byte(v.Value)
+				case *object.Bytes:
+					v.Mu.RLock()
+					b = make([]byte, len(v.Value))
+					copy(b, v.Value)
+					v.Mu.RUnlock()
+				default:
+					b = []byte(v.Inspect())
+				}
+				n, err := proc.WriteStdin(b)
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.Integer{Value: int64(n)}
+			},
+		})
+	case "close_stdin", "stdin_close":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if err := proc.CloseStdin(); err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return True
+			},
+		})
+	case "read_stdout", "stdout_read":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				maxBytes := 4096
+				if len(args) > 0 {
+					if i, ok := args[0].(*object.Integer); ok {
+						maxBytes = int(i.Value)
+					}
+				}
+				data, err := proc.ReadStdout(maxBytes)
+				if err == io.EOF && len(data) == 0 {
+					return Null
+				}
+				if err != nil && len(data) == 0 {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.String{Value: string(data)}
+			},
+		})
+	case "read_stdout_all", "stdout_read_all":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				data, err := proc.ReadStdoutAll()
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.String{Value: string(data)}
+			},
+		})
+	case "read_stderr", "stderr_read":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				maxBytes := 4096
+				if len(args) > 0 {
+					if i, ok := args[0].(*object.Integer); ok {
+						maxBytes = int(i.Value)
+					}
+				}
+				data, err := proc.ReadStderr(maxBytes)
+				if err == io.EOF && len(data) == 0 {
+					return Null
+				}
+				if err != nil && len(data) == 0 {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.String{Value: string(data)}
+			},
+		})
+	case "read_stderr_all", "stderr_read_all":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				data, err := proc.ReadStderrAll()
+				if err != nil {
+					return &object.Error{Message: err.Error()}
+				}
+				return &object.String{Value: string(data)}
+			},
+		})
+	default:
+		return true, fmt.Errorf("unknown property or method '%s' on Process", prop)
+	}
 }

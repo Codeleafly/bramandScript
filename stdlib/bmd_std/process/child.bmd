@@ -1,0 +1,116 @@
+// BramandScript Standard Library :: Child Process (std/process/child)
+// ChildProcess abstraction wrapping low-level process handles with stream I/O.
+
+let ChildProcess = fn(raw_proc) {
+    let self = {
+        "raw": raw_proc,
+        "pid": proc_pid(raw_proc)
+    };
+
+    let stdin_obj = {
+        "write": fn(data) {
+            return proc_stdin_write(raw_proc, data);
+        },
+        "end": fn() {
+            return proc_stdin_close(raw_proc);
+        },
+        "close": fn() {
+            return proc_stdin_close(raw_proc);
+        }
+    };
+
+    let stdout_obj = {
+        "read": fn(max_bytes = 4096) {
+            return proc_stdout_read(raw_proc, max_bytes);
+        },
+        "read_all": fn() {
+            return proc_stdout_read_all(raw_proc);
+        },
+        "on_data": fn(cb) {
+            spawn fn() {
+                while true {
+                    let chunk = proc_stdout_read(raw_proc, 4096);
+                    if chunk == null {
+                        break;
+                    }
+                    if len(chunk) > 0 {
+                        cb(chunk);
+                    }
+                }
+            }();
+            return true;
+        }
+    };
+
+    let stderr_obj = {
+        "read": fn(max_bytes = 4096) {
+            return proc_stderr_read(raw_proc, max_bytes);
+        },
+        "read_all": fn() {
+            return proc_stderr_read_all(raw_proc);
+        },
+        "on_data": fn(cb) {
+            spawn fn() {
+                while true {
+                    let chunk = proc_stderr_read(raw_proc, 4096);
+                    if chunk == null {
+                        break;
+                    }
+                    if len(chunk) > 0 {
+                        cb(chunk);
+                    }
+                }
+            }();
+            return true;
+        }
+    };
+
+    self["stdin"] = stdin_obj;
+    self["stdout"] = stdout_obj;
+    self["stderr"] = stderr_obj;
+
+    self["wait"] = fn() {
+        let res = proc_wait(raw_proc);
+        if type(res) == "HASH" {
+            return res["exit_code"];
+        }
+        return res;
+    };
+
+    self["wait_info"] = fn() {
+        return proc_wait(raw_proc);
+    };
+
+    self["kill"] = fn(sig = "SIGTERM") {
+        return proc_kill(raw_proc, sig);
+    };
+
+    self["pipe"] = fn(target_proc) {
+        let p_out = self["stdout"];
+
+        spawn fn() {
+            while true {
+                let chunk = p_out["read"](4096);
+                if chunk == null {
+                    if target_proc["stdin"] != null {
+                        target_proc["stdin"]["end"]();
+                    } else {
+                        proc_stdin_close(target_proc);
+                    }
+                    break;
+                }
+                if len(chunk) > 0 {
+                    if target_proc["stdin"] != null {
+                        target_proc["stdin"]["write"](chunk);
+                    } else {
+                        proc_stdin_write(target_proc, chunk);
+                    }
+                }
+            }
+        }();
+
+        return target_proc;
+    };
+
+    return self;
+};

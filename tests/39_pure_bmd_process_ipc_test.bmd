@@ -1,0 +1,167 @@
+// tests/39_pure_bmd_process_ipc_test.bmd
+// BramandScript System Verification :: Pure BramandScript OS & Process IPC Streams (Agent 9)
+// Validates Subprocess Spawning, Stdio Streaming, Unix Pipelines, Signal Termination, and OS Introspection.
+
+import "std/process" as process;
+import "std/os" as os;
+
+describe("Subprocess Spawning & Standard I/O Streams (std/process)", fn() {
+    test("Subprocess spawn and stdout reading", fn() {
+        let p = process.spawn("echo", ["BramandScript IPC"]);
+        assert(p != null);
+        assert(p.pid > 0);
+
+        let out = p.stdout.read_all();
+        assert(contains(out, "BramandScript IPC"));
+
+        let code = p.wait();
+        assert_eq(code, 0);
+
+        let info = p.wait_info();
+        assert_eq(info["exit_code"], 0);
+        assert(info["pid"] > 0);
+    });
+
+    test("Subprocess stdin pipe writing and echo back", fn() {
+        let cat_proc = process.spawn("cat", []);
+        assert(cat_proc != null);
+        assert(cat_proc.pid > 0);
+
+        let test_payload = "Line 1: Streaming Stdin Data\nLine 2: BramandScript IPC Stream\n";
+        let written = cat_proc.stdin.write(test_payload);
+        assert(written > 0);
+
+        cat_proc.stdin.end();
+
+        let received = cat_proc.stdout.read_all();
+        assert_eq(received, test_payload);
+
+        let code = cat_proc.wait();
+        assert_eq(code, 0);
+    });
+
+    test("Subprocess chunked stdout reading with max_bytes buffer", fn() {
+        let p = process.spawn("echo", ["ChunkOne ChunkTwo ChunkThree"]);
+        let chunk1 = p.stdout.read(8);
+        assert(chunk1 != null);
+        assert_eq(len(chunk1), 8);
+
+        let remaining = p.stdout.read_all();
+        assert(remaining != null);
+        assert(contains(remaining, "ChunkTwo"));
+
+        let code = p.wait();
+        assert_eq(code, 0);
+    });
+
+    test("Subprocess stderr stream capture", fn() {
+        let p = process.spawn("sh", ["-c", "echo Diagnostic Error Stream >&2; exit 0"]);
+        let err_out = p.stderr.read_all();
+        assert(contains(err_out, "Diagnostic Error Stream"));
+
+        let code = p.wait();
+        assert_eq(code, 0);
+    });
+});
+
+describe("IPC Unix Pipelines & Synchronous Exec (std/process)", fn() {
+    test("IPC Unix pipeline: Process 1 stdout piped into Process 2 stdin", fn() {
+        let p1 = process.spawn("echo", ["bramandscript streaming pipeline"]);
+        let p2 = process.spawn("tr", ["a-z", "A-Z"]);
+
+        process.pipe(p1, p2);
+
+        let piped_result = p2.stdout.read_all();
+        let trimmed = trim(piped_result);
+        assert_eq(trimmed, "BRAMANDSCRIPT STREAMING PIPELINE");
+
+        let c1 = p1.wait();
+        let c2 = p2.wait();
+        assert_eq(c1, 0);
+        assert_eq(c2, 0);
+    });
+
+    test("ChildProcess .pipe method chaining syntax", fn() {
+        let p1 = process.spawn("echo", ["piped via method syntax"]);
+        let p2 = process.spawn("cat", []);
+
+        p1.pipe(p2);
+
+        let res = trim(p2.stdout.read_all());
+        assert_eq(res, "piped via method syntax");
+
+        p1.wait();
+        p2.wait();
+    });
+
+    test("Process.exec helper executes command synchronously and captures stdio", fn() {
+        let res = process.exec("echo Synchronous Exec Succeeded");
+        assert_eq(res["exit_code"], 0);
+        assert(contains(res["stdout"], "Synchronous Exec Succeeded"));
+        assert_eq(res["stderr"], "");
+    });
+
+    test("Exit code verification for succeeding (0) and failing (1) commands", fn() {
+        let p_ok = process.spawn("sh", ["-c", "exit 0"]);
+        assert_eq(p_ok.wait(), 0);
+
+        let p_fail = process.spawn("sh", ["-c", "exit 1"]);
+        assert_eq(p_fail.wait(), 1);
+
+        let exec_err = process.exec("sh", { "args": ["-c", "exit 42"] });
+        assert_eq(exec_err["exit_code"], 42);
+    });
+});
+
+describe("Process Lifecycle & Termination (.kill)", fn() {
+    test("Child process termination via .kill()", fn() {
+        let p = process.spawn("sleep", ["10"]);
+        assert(p.pid > 0);
+
+        let kill_ok = p.kill("SIGKILL");
+        assert(kill_ok == true);
+
+        let code = p.wait();
+        assert(code != 0);
+    });
+});
+
+describe("Operating System Introspection & Environment (std/os)", fn() {
+    test("OS platform, architecture, and CPU core count", fn() {
+        assert(os.platform == "linux" || os.platform == "android" || os.platform == "darwin" || os.platform == "windows");
+        assert(len(os.arch) > 0);
+        assert(os.cpus() >= 1);
+    });
+
+    test("OS memory stats introspection", fn() {
+        let mem = os.memory();
+        assert(type(mem) == "HASH");
+        assert(mem["alloc"] > 0);
+        assert(mem["sys"] > 0);
+        assert(mem["total_alloc"] > 0);
+    });
+
+    test("OS environment variable inspection and mutation", fn() {
+        let path = os.get_env("PATH");
+        assert(path != null);
+        assert(len(path) > 0);
+
+        os.set_env("BMD_AGENT9_TEST_VAR", "BRAMAND_OS_IPC_VERIFIED");
+        assert_eq(os.get_env("BMD_AGENT9_TEST_VAR"), "BRAMAND_OS_IPC_VERIFIED");
+
+        let def_val = os.get_env("UNKNOWN_NON_EXISTENT_VAR_12345", "fallback_default");
+        assert_eq(def_val, "fallback_default");
+    });
+
+    test("OS working directory and process PID inspection", fn() {
+        let cwd = os.cwd();
+        assert(len(cwd) > 0);
+        assert(contains(cwd, "bramandScript"));
+
+        let pid = os.pid();
+        assert(pid > 0);
+
+        assert_eq(process.cwd(), cwd);
+        assert(process.pid > 0);
+    });
+});

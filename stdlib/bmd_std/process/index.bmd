@@ -1,0 +1,126 @@
+// BramandScript Standard Library :: Process & IPC Streams (std/process)
+// Child process spawning, stream pipelines, synchronous exec, and process metrics.
+
+import "std/process/child" as child;
+
+let ChildProcess = child.ChildProcess;
+
+let spawn_process = fn(cmd, args = [], opts = {}) {
+    if type(args) == "HASH" && (opts == null || len(opts) == 0) {
+        opts = args;
+        args = [];
+    }
+    if args == null {
+        args = [];
+    }
+    if opts == null {
+        opts = {};
+    }
+    let raw = proc_spawn(cmd, args, opts);
+    if type(raw) == "ERROR" {
+        return raw;
+    }
+    return ChildProcess(raw);
+};
+
+let spawn = spawn_process;
+let spawn_proc = spawn_process;
+
+let exec = fn(cmd, opts = {}) {
+    let cmd_name = cmd;
+    let cmd_args = [];
+    if type(cmd) == "ARRAY" {
+        if len(cmd) > 0 {
+            cmd_name = cmd[0];
+            let i = 1;
+            while i < len(cmd) {
+                cmd_args = push(cmd_args, cmd[i]);
+                i = i + 1;
+            }
+        }
+    } else if type(opts) == "ARRAY" {
+        cmd_args = opts;
+        opts = {};
+    } else if opts != null && opts["args"] != null {
+        cmd_args = opts["args"];
+    }
+
+    let p = spawn_process(cmd_name, cmd_args, opts);
+    if type(p) == "ERROR" {
+        return {
+            "stdout": "",
+            "stderr": p.message,
+            "exit_code": -1
+        };
+    }
+
+    p["stdin"]["end"]();
+
+    let out_chan = chan(1);
+    let err_chan = chan(1);
+
+    spawn fn() {
+        out_chan.send(p["stdout"]["read_all"]());
+    }();
+
+    spawn fn() {
+        err_chan.send(p["stderr"]["read_all"]());
+    }();
+
+    let code = p["wait"]();
+    let out = out_chan.recv();
+    let err = err_chan.recv();
+
+    return {
+        "stdout": out,
+        "stderr": err,
+        "exit_code": code
+    };
+};
+
+let pipe = fn(proc1, proc2) {
+    if proc1["pipe"] != null {
+        return proc1["pipe"](proc2);
+    }
+    spawn fn() {
+        while true {
+            let chunk = proc_stdout_read(proc1, 4096);
+            if chunk == null {
+                if proc2["stdin"] != null {
+                    proc2["stdin"]["end"]();
+                } else {
+                    proc_stdin_close(proc2);
+                }
+                break;
+            }
+            if len(chunk) > 0 {
+                if proc2["stdin"] != null {
+                    proc2["stdin"]["write"](chunk);
+                } else {
+                    proc_stdin_write(proc2, chunk);
+                }
+            }
+        }
+    }();
+    return proc2;
+};
+
+let cwd = fn() {
+    return os_cwd();
+};
+
+let env = os_env_all();
+
+let get_env = fn(key, default_val = null) {
+    return os_get_env(key, default_val);
+};
+
+let set_env = fn(key, val) {
+    return os_set_env(key, val);
+};
+
+let pid = os_pid();
+
+let exit_process = fn(code = 0) {
+    exit(code);
+};

@@ -23,6 +23,11 @@
 - [x] Automated Pure BMD DNS & HTTPS Test Suite (tests/38_pure_bmd_dns_https_test.bmd): Comprehensive integration test suite validating RFC 1035 DNS codec, mock UDP DNS server, resolver cache, and HTTPS requests (Includes: RFC 1035 QNAME encoding/decoding, pointer compression, mock UDP DNS server, cache eviction, HTTPS TLS request)
 ## Day 39
 
+- [x] Low-Level Process & IPC Host Primitives in Go (stdlib/go_std/os.go & vm/builtins_os.go): Implement low-level child process spawning, stdin/stdout/stderr streaming pipes, process wait/kill, and OS host metrics in Go (Includes: proc_spawn, proc_stdin_write, proc_stdin_close, proc_stdout_read, proc_stdout_read_all, proc_stderr_read, proc_stderr_read_all, proc_wait, proc_kill, proc_pid, os_platform, os_arch, os_cpus, os_memory_info, os_env_all)
+- [x] Pure BramandScript ChildProcess & Stream Pipeline (stdlib/bmd_std/process/process.bmd): Implement ChildProcess struct wrapping low-level proc handles with stdin/stdout/stderr stream interfaces, wait, and kill (Includes: ChildProcess, stdin.write, stdin.end, stdout.read, stdout.read_all, stdout.on_data, stderr.read, wait, kill, pid)
+- [x] Pure BramandScript IPC Unix Pipelines & Exec Helpers (stdlib/bmd_std/process/): Implement process.exec synchronous runner, process.pipe coroutine-based stream piping, process.env and cwd abstractions (Includes: process.spawn, process.exec, process.pipe, process.env, process.cwd, stdlib/bmd_std/process/index.bmd)
+- [x] Pure BramandScript High-Level OS System Module (stdlib/bmd_std/os/): Implement comprehensive OS information and environment abstraction module with platform, architecture, CPUs, and memory (Includes: os.platform, os.arch, os.cpus, os.memory, os.get_env, os.set_env, stdlib/bmd_std/os/index.bmd)
+- [x] Automated Pure BMD Process & IPC Test Suite (tests/39_pure_bmd_process_ipc_test.bmd): Comprehensive test suite covering subprocess spawn, stream I/O, IPC Unix pipelines, kill, exit codes, and OS introspection (Includes: spawn stdout read, stdin pipe cat echo, IPC pipe proc1 to proc2, exit code verification, process kill, OS metrics)
 ## Day 40
 
 ## Day 41

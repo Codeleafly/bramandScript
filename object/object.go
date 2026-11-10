@@ -48,6 +48,7 @@ const (
 	OPTION_OBJ               = "OPTION"
 	TUPLE_OBJ                = "TUPLE"
 	FUTURE_OBJ               = "FUTURE"
+	PROCESS_OBJ              = "PROCESS"
 )
 
 type Object interface {
