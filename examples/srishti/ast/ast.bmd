@@ -1,0 +1,77 @@
+// Srishti Programming Language :: AST Base Definitions & Program Root
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Defines node types, base AST conventions, and the root Program node.
+
+// Node Type Constants :: Statements & Structural Nodes
+let NODE_PROGRAM = "Program";
+let NODE_LET = "LetStatement";
+let NODE_SET = "SetStatement";
+let NODE_DEFINE_FUNCTION = "DefineFunctionStatement";
+let NODE_CREATE_STRUCT = "CreateStructStatement";
+let NODE_IF = "IfStatement";
+let NODE_REPEAT_WHILE = "RepeatWhileStatement";
+let NODE_ITERATE = "IterateStatement";
+let NODE_MATCH = "MatchStatement";
+let NODE_MATCH_CASE = "MatchCase";
+let NODE_RETURN = "ReturnStatement";
+let NODE_SPAWN_TASK = "SpawnTaskStatement";
+let NODE_DISPLAY = "DisplayStatement";
+let NODE_EXPRESSION_STMT = "ExpressionStatement";
+let NODE_BLOCK = "BlockStatement";
+
+// Node Type Constants :: Expressions & Literals
+let NODE_IDENTIFIER = "Identifier";
+let NODE_INTEGER_LITERAL = "IntegerLiteral";
+let NODE_FLOAT_LITERAL = "FloatLiteral";
+let NODE_STRING_LITERAL = "StringLiteral";
+let NODE_BOOLEAN_LITERAL = "BooleanLiteral";
+let NODE_NULL_LITERAL = "NullLiteral";
+let NODE_PREFIX_EXPR = "PrefixExpression";
+let NODE_INFIX_EXPR = "InfixExpression";
+let NODE_CALL_EXPR = "CallExpression";
+let NODE_INDEX_EXPR = "IndexExpression";
+let NODE_PROPERTY_EXPR = "PropertyExpression";
+let NODE_ARRAY_LITERAL = "ArrayLiteral";
+
+// Program struct represents the entire Abstract Syntax Tree root
+struct Program {
+    statements,
+    node_type,
+
+    // Returns token literal of first statement, or empty string
+    fn token_literal() {
+        if len(statements) > 0 && statements[0] != null {
+            return statements[0].token_literal();
+        }
+        return "";
+    }
+
+    // Reconstructs source code representation of all statements
+    fn to_string() {
+        let out = "";
+        let i = 0;
+        while i < len(statements) {
+            let s = statements[i];
+            if s != null {
+                out = out + s.to_string() + "\n";
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    // Human-readable diagnostic description
+    fn inspect() {
+        return "Program(" + str(len(statements)) + " statements)";
+    }
+}
+
+// Constructor creating a Program root node
+let new_program = fn(statements) {
+    if statements == null {
+        statements = [];
+    }
+    let p = Program(statements, NODE_PROGRAM);
+    p["node_type"] = NODE_PROGRAM;
+    return p;
+};

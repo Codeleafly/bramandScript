@@ -1,0 +1,706 @@
+// Srishti Programming Language :: Pratt Parser Engine (parser/parser.bmd)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Top-down operator precedence (Pratt) parser constructing full AST hierarchies.
+
+import "../token/index" as tok_pkg
+import "../lexer/index" as lex_pkg
+import "../ast/index" as ast_pkg
+import "./precedence" as prec_pkg
+import "./errors" as err_pkg
+
+// Advances parser state by one token: cur_token becomes peek_token, peek_token becomes next lexical token
+let parser_next_token = fn(p) {
+    p["cur_token"] = p["peek_token"];
+    p["peek_token"] = p["lexer"]["next_token"]();
+};
+
+// Checks if current token matches the expected token type
+let parser_cur_token_is = fn(p, t_type) {
+    if p["cur_token"] == null { return false; }
+    return p["cur_token"]["type"] == t_type;
+};
+
+// Checks if peek token matches the expected token type
+let parser_peek_token_is = fn(p, t_type) {
+    if p["peek_token"] == null { return false; }
+    return p["peek_token"]["type"] == t_type;
+};
+
+// Appends a formatted syntax error with source line snippet to parser error registry
+let parser_add_error = fn(p, message, tok) {
+    let line = 1;
+    let col = 1;
+    let span_len = 1;
+    if tok != null {
+        line = tok["line"];
+        col = tok["col"];
+        if tok["literal"] != null && len(tok["literal"]) > 0 {
+            span_len = len(tok["literal"]);
+        }
+    }
+    let src_line = lex_pkg.extract_source_line(p["source_code"], line);
+    let syn_err = err_pkg.new_syntax_error(message, p["filename"], line, col, src_line, span_len);
+    push(p["syntax_errors"], syn_err);
+    push(p["errors"], syn_err.to_string());
+};
+
+// Records an error when peek token does not match the expected token type
+let parser_peek_error = fn(p, expected_type) {
+    let peek_tok = p["peek_token"];
+    let exp_name = tok_pkg.token_name(expected_type);
+    let got_type = "EOF";
+    let got_lit = "";
+    if peek_tok != null {
+        got_type = peek_tok["type"];
+        got_lit = peek_tok["literal"];
+    }
+    let msg = "expected next token to be " + exp_name + ", got '" + got_lit + "' (" + got_type + ") instead";
+    parser_add_error(p, msg, peek_tok);
+};
+
+// Records an error when no prefix parse function exists for current token
+let parser_no_prefix_error = fn(p, tok) {
+    let lit = "";
+    let t_type = "UNKNOWN";
+    if tok != null {
+        lit = tok["literal"];
+        t_type = tok["type"];
+    }
+    let msg = "no prefix parse function for token '" + lit + "' (" + t_type + ") found";
+    parser_add_error(p, msg, tok);
+};
+
+// Verifies that peek token matches expected type; advances token if matched, logs error if not
+let parser_expect_peek = fn(p, expected_type) {
+    if parser_peek_token_is(p, expected_type) {
+        parser_next_token(p);
+        return true;
+    }
+    parser_peek_error(p, expected_type);
+    return false;
+};
+
+// Returns operator precedence of the peek token
+let parser_peek_precedence = fn(p) {
+    if p["peek_token"] == null {
+        return prec_pkg.LOWEST;
+    }
+    return prec_pkg.get_precedence(p["peek_token"]["type"]);
+};
+
+// Returns operator precedence of the current token
+let parser_cur_precedence = fn(p) {
+    if p["cur_token"] == null {
+        return prec_pkg.LOWEST;
+    }
+    return prec_pkg.get_precedence(p["cur_token"]["type"]);
+};
+
+// Forward declaration holders for recursive Pratt parsing functions
+let parser_parse_expression_ref = null;
+let parser_parse_statement_ref = null;
+let parser_parse_block_ref = null;
+
+// --- Prefix Parse Functions ---
+
+let parse_identifier = fn(p) {
+    return ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+};
+
+let parse_integer_literal = fn(p) {
+    let tok = p["cur_token"];
+    let val = int(tok["literal"]);
+    return ast_pkg.new_integer_literal(tok, val);
+};
+
+let parse_float_literal = fn(p) {
+    let tok = p["cur_token"];
+    let val = float(tok["literal"]);
+    return ast_pkg.new_float_literal(tok, val);
+};
+
+let parse_string_literal = fn(p) {
+    return ast_pkg.new_string_literal(p["cur_token"], p["cur_token"]["literal"]);
+};
+
+let parse_boolean_literal = fn(p) {
+    let val = (p["cur_token"]["literal"] == "true");
+    return ast_pkg.new_boolean_literal(p["cur_token"], val);
+};
+
+let parse_null_literal = fn(p) {
+    return ast_pkg.new_null_literal(p["cur_token"]);
+};
+
+let parse_prefix_expression = fn(p) {
+    let start_tok = p["cur_token"];
+    let op = start_tok["literal"];
+    parser_next_token(p);
+    let right = parser_parse_expression_ref(p, prec_pkg.PREFIX);
+    return ast_pkg.new_prefix_expression(start_tok, op, right);
+};
+
+let parse_grouped_expression = fn(p) {
+    parser_next_token(p);  // consume '('
+    let expr = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_RPAREN) {
+        return null;
+    }
+    return expr;
+};
+
+let parse_array_literal = fn(p) {
+    let start_tok = p["cur_token"];
+    let elements = [];
+
+    if parser_peek_token_is(p, tok_pkg.TOKEN_RBRACKET) {
+        parser_next_token(p);  // consume ']'
+        return ast_pkg.new_array_literal(start_tok, elements);
+    }
+
+    parser_next_token(p);  // move to first element
+    let el = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+    if el != null {
+        push(elements, el);
+    }
+
+    while parser_peek_token_is(p, tok_pkg.TOKEN_COMMA) {
+        parser_next_token(p);  // consume comma
+        parser_next_token(p);  // move to next element
+        let next_el = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+        if next_el != null {
+            push(elements, next_el);
+        }
+    }
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_RBRACKET) {
+        return null;
+    }
+    return ast_pkg.new_array_literal(start_tok, elements);
+};
+
+// --- Infix Parse Functions ---
+
+let parse_infix_expression = fn(p, left) {
+    let start_tok = p["cur_token"];
+    let op = start_tok["literal"];
+    let prec = parser_cur_precedence(p);
+    parser_next_token(p);
+    let right = parser_parse_expression_ref(p, prec);
+    return ast_pkg.new_infix_expression(start_tok, left, op, right);
+};
+
+let parse_call_expression = fn(p, left) {
+    let start_tok = p["cur_token"];
+    let args = [];
+
+    if parser_peek_token_is(p, tok_pkg.TOKEN_RPAREN) {
+        parser_next_token(p);  // consume ')'
+        return ast_pkg.new_call_expression(start_tok, left, args);
+    }
+
+    parser_next_token(p);  // move to first argument
+    let arg = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+    if arg != null {
+        push(args, arg);
+    }
+
+    while parser_peek_token_is(p, tok_pkg.TOKEN_COMMA) {
+        parser_next_token(p);  // consume comma
+        parser_next_token(p);  // move to next argument
+        let next_arg = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+        if next_arg != null {
+            push(args, next_arg);
+        }
+    }
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_RPAREN) {
+        return null;
+    }
+    return ast_pkg.new_call_expression(start_tok, left, args);
+};
+
+let parse_index_expression = fn(p, left) {
+    let start_tok = p["cur_token"];
+    parser_next_token(p);  // move to index expression
+    let idx_expr = parser_parse_expression_ref(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_RBRACKET) {
+        return null;
+    }
+    return ast_pkg.new_index_expression(start_tok, left, idx_expr);
+};
+
+let parse_property_expression = fn(p, left) {
+    let start_tok = p["cur_token"];
+    if !parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+        return null;
+    }
+    let prop = ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+    return ast_pkg.new_property_expression(start_tok, left, prop);
+};
+
+// --- Pratt Core Expression Parser ---
+let parser_parse_expression = fn(p, precedence) {
+    let prefix = p["prefix_parse_fns"][p["cur_token"]["type"]];
+    if prefix == null {
+        parser_no_prefix_error(p, p["cur_token"]);
+        return null;
+    }
+    let left_exp = prefix(p);
+
+    while !parser_peek_token_is(p, tok_pkg.TOKEN_EOF) &&
+    !parser_peek_token_is(p, tok_pkg.TOKEN_COLON) &&
+    precedence < parser_peek_precedence(p) {
+
+        // Tokens that start statements on a new line must not be parsed as infix operators
+        if p["peek_token"]["line"] > p["cur_token"]["line"] {
+            let pt = p["peek_token"]["type"];
+            if pt == tok_pkg.TOKEN_LPAREN || pt == tok_pkg.TOKEN_LBRACKET || pt == tok_pkg.TOKEN_MINUS {
+                break;
+            }
+        }
+
+        let infix = p["infix_parse_fns"][p["peek_token"]["type"]];
+        if infix == null {
+            return left_exp;
+        }
+
+        parser_next_token(p);
+        left_exp = infix(p, left_exp);
+    }
+
+    return left_exp;
+};
+parser_parse_expression_ref = parser_parse_expression;
+
+// --- Statement Parsers ---
+
+let parse_let_statement = fn(p, is_constant) {
+    let start_tok = p["cur_token"];
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+        return null;
+    }
+    let name = ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_BE) {
+        return null;
+    }
+
+    parser_next_token(p);  // advance to expression
+    let val = parser_parse_expression(p, prec_pkg.LOWEST);
+    return ast_pkg.new_let_statement(start_tok, name, val, is_constant);
+};
+
+let parse_set_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    parser_next_token(p);  // advance to target
+
+    let target = parser_parse_expression(p, prec_pkg.LOWEST);
+    if target == null {
+        return null;
+    }
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_TO) {
+        return null;
+    }
+
+    parser_next_token(p);  // advance to value
+    let val = parser_parse_expression(p, prec_pkg.LOWEST);
+    return ast_pkg.new_set_statement(start_tok, target, val);
+};
+
+let parse_define_statement = fn(p) {
+    let start_tok = p["cur_token"];
+
+    if !parser_peek_token_is(p, tok_pkg.TOKEN_FUNCTION) && !parser_peek_token_is(p, tok_pkg.TOKEN_METHOD) {
+        parser_add_error(p, "expected 'function' or 'method' after 'define'", p["peek_token"]);
+        return null;
+    }
+    parser_next_token(p);  // consume function or method keyword
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+        return null;
+    }
+    let name = ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+
+    let params = [];
+    if parser_peek_token_is(p, tok_pkg.TOKEN_WITH) {
+        parser_next_token(p);  // consume 'with'
+        if parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+            push(params, ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]));
+            while parser_peek_token_is(p, tok_pkg.TOKEN_COMMA) {
+                parser_next_token(p);  // consume comma
+                if parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+                    push(params, ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]));
+                } else {
+                    return null;
+                }
+            }
+        } else {
+            return null;
+        }
+    }
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+        return null;
+    }
+
+    let body = parser_parse_block_ref(p, start_tok["col"], true);
+    return ast_pkg.new_define_function_statement(start_tok, name, params, body);
+};
+
+let parse_create_statement = fn(p) {
+    let start_tok = p["cur_token"];
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_STRUCT) {
+        return null;
+    }
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+        return null;
+    }
+    let name = ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+
+    let fields = [];
+    if parser_peek_token_is(p, tok_pkg.TOKEN_WITH) {
+        parser_next_token(p);  // consume 'with'
+        if parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+            push(fields, ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]));
+            while parser_peek_token_is(p, tok_pkg.TOKEN_COMMA) {
+                parser_next_token(p);  // consume comma
+                if parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+                    push(fields, ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]));
+                } else {
+                    return null;
+                }
+            }
+        } else {
+            return null;
+        }
+    }
+
+    if parser_peek_token_is(p, tok_pkg.TOKEN_COLON) {
+        parser_next_token(p);  // consume optional trailing colon
+    }
+
+    return ast_pkg.new_create_struct_statement(start_tok, name, fields);
+};
+
+let parse_if_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    parser_next_token(p);  // advance to condition
+
+    let condition = parser_parse_expression(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_THEN) {
+        return null;
+    }
+    if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+        return null;
+    }
+
+    let consequence = parser_parse_block_ref(p, start_tok["col"]);
+    let alternative = null;
+
+    if parser_peek_token_is(p, tok_pkg.TOKEN_OTHERWISE) {
+        parser_next_token(p);  // consume 'otherwise'
+        if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+            return null;
+        }
+        alternative = parser_parse_block_ref(p, start_tok["col"]);
+    }
+
+    return ast_pkg.new_if_statement(start_tok, condition, consequence, alternative);
+};
+
+let parse_repeat_while_statement = fn(p) {
+    let start_tok = p["cur_token"];
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_WHILE) {
+        return null;
+    }
+
+    parser_next_token(p);  // advance to condition
+    let condition = parser_parse_expression(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+        return null;
+    }
+
+    let body = parser_parse_block_ref(p, start_tok["col"]);
+    return ast_pkg.new_repeat_while_statement(start_tok, condition, body);
+};
+
+let parse_iterate_statement = fn(p) {
+    let start_tok = p["cur_token"];
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_IDENTIFIER) {
+        return null;
+    }
+    let item_name = ast_pkg.new_identifier(p["cur_token"], p["cur_token"]["literal"]);
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_THROUGH) {
+        return null;
+    }
+
+    parser_next_token(p);  // advance to collection expression
+    let collection = parser_parse_expression(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+        return null;
+    }
+
+    let body = parser_parse_block_ref(p, start_tok["col"]);
+    return ast_pkg.new_iterate_statement(start_tok, item_name, collection, body);
+};
+
+let parse_match_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    parser_next_token(p);  // advance to match expression
+
+    let expr = parser_parse_expression(p, prec_pkg.LOWEST);
+    if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+        return null;
+    }
+
+    let cases = [];
+    let default_case = null;
+
+    while parser_peek_token_is(p, tok_pkg.TOKEN_WHEN) || parser_peek_token_is(p, tok_pkg.TOKEN_OTHERWISE) {
+        if parser_peek_token_is(p, tok_pkg.TOKEN_WHEN) {
+            parser_next_token(p);  // consume 'when'
+            let when_tok = p["cur_token"];
+            parser_next_token(p);  // move to pattern
+            let pattern_val = parser_parse_expression(p, prec_pkg.LOWEST);
+            if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+                return null;
+            }
+            let case_body = parser_parse_block_ref(p, start_tok["col"]);
+            push(cases, ast_pkg.new_match_case(when_tok, pattern_val, case_body));
+        } else if parser_peek_token_is(p, tok_pkg.TOKEN_OTHERWISE) {
+            parser_next_token(p);  // consume 'otherwise'
+            if !parser_expect_peek(p, tok_pkg.TOKEN_COLON) {
+                return null;
+            }
+            default_case = parser_parse_block_ref(p, start_tok["col"]);
+            break;
+        }
+    }
+
+    return ast_pkg.new_match_statement(start_tok, expr, cases, default_case);
+};
+
+let parse_return_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    let ret_val = null;
+
+    if !parser_peek_token_is(p, tok_pkg.TOKEN_EOF) && p["peek_token"]["line"] == start_tok["line"] {
+        let pt = p["peek_token"]["type"];
+        if pt != tok_pkg.TOKEN_COLON && pt != tok_pkg.TOKEN_RPAREN && pt != tok_pkg.TOKEN_RBRACKET {
+            parser_next_token(p);
+            ret_val = parser_parse_expression(p, prec_pkg.LOWEST);
+        }
+    }
+
+    return ast_pkg.new_return_statement(start_tok, ret_val);
+};
+
+let parse_spawn_statement = fn(p) {
+    let start_tok = p["cur_token"];
+
+    if !parser_expect_peek(p, tok_pkg.TOKEN_TASK) {
+        return null;
+    }
+
+    parser_next_token(p);  // advance to call expression
+    let call_expr = parser_parse_expression(p, prec_pkg.LOWEST);
+    return ast_pkg.new_spawn_task_statement(start_tok, call_expr);
+};
+
+let parse_display_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    parser_next_token(p);  // advance to expression
+    let expr = parser_parse_expression(p, prec_pkg.LOWEST);
+    return ast_pkg.new_display_statement(start_tok, expr);
+};
+
+let parse_expression_statement = fn(p) {
+    let start_tok = p["cur_token"];
+    let expr = parser_parse_expression(p, prec_pkg.LOWEST);
+    return ast_pkg.new_expression_statement(start_tok, expr);
+};
+
+// Dispatches statement parsing based on current token type
+let parser_parse_statement = fn(p) {
+    let tok_type = p["cur_token"]["type"];
+    if tok_type == tok_pkg.TOKEN_LET {
+        return parse_let_statement(p, false);
+    }
+    if tok_type == tok_pkg.TOKEN_CONSTANT {
+        return parse_let_statement(p, true);
+    }
+    if tok_type == tok_pkg.TOKEN_SET {
+        return parse_set_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_DEFINE {
+        return parse_define_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_CREATE {
+        return parse_create_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_IF {
+        return parse_if_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_REPEAT {
+        return parse_repeat_while_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_ITERATE {
+        return parse_iterate_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_MATCH {
+        return parse_match_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_RETURN {
+        return parse_return_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_SPAWN {
+        return parse_spawn_statement(p);
+    }
+    if tok_type == tok_pkg.TOKEN_DISPLAY {
+        return parse_display_statement(p);
+    }
+    return parse_expression_statement(p);
+};
+parser_parse_statement_ref = parser_parse_statement;
+
+// Parses a statement block delimited by indentation or top-level keyword boundaries
+let parser_parse_block = fn(p, parent_col, is_function) {
+    if is_function == null {
+        is_function = false;
+    }
+    let colon_tok = p["cur_token"];
+    let stmts = [];
+
+    if parser_peek_token_is(p, tok_pkg.TOKEN_EOF) {
+        return ast_pkg.new_block_statement(colon_tok, stmts);
+    }
+
+    let first_tok = p["peek_token"];
+    let first_col = first_tok["col"];
+    let is_indented = (first_col > parent_col);
+    let block_col = first_col;
+
+    while !parser_peek_token_is(p, tok_pkg.TOKEN_EOF) {
+        let pt = p["peek_token"]["type"];
+        if pt == tok_pkg.TOKEN_OTHERWISE || pt == tok_pkg.TOKEN_WHEN {
+            break;
+        }
+
+        if is_indented {
+            if p["peek_token"]["col"] < block_col {
+                break;
+            }
+        } else {
+            // Flat unindented mode
+            if pt == tok_pkg.TOKEN_DEFINE || pt == tok_pkg.TOKEN_CREATE {
+                break;
+            }
+            if !is_function && len(stmts) > 0 && p["peek_token"]["line"] >= p["cur_token"]["line"] + 2 {
+                break;
+            }
+        }
+
+        parser_next_token(p);  // advance to start of statement
+        let stmt = parser_parse_statement(p);
+        if stmt != null {
+            push(stmts, stmt);
+        }
+    }
+
+    return ast_pkg.new_block_statement(colon_tok, stmts);
+};
+parser_parse_block_ref = parser_parse_block;
+
+// Top-level program parser scanning statements until EOF
+let parse_program = fn(p) {
+    let program = ast_pkg.new_program([]);
+
+    while !parser_cur_token_is(p, tok_pkg.TOKEN_EOF) {
+        let stmt = parser_parse_statement(p);
+        if stmt != null {
+            push(program["statements"], stmt);
+        }
+        parser_next_token(p);
+    }
+
+    return program;
+};
+
+// Initializes and registers all Pratt prefix and infix dispatch tables
+let register_parser_tables = fn(p) {
+    // Prefix table
+    p["prefix_parse_fns"][tok_pkg.TOKEN_IDENTIFIER] = parse_identifier;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_INT] = parse_integer_literal;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_FLOAT] = parse_float_literal;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_STRING] = parse_string_literal;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_BOOLEAN] = parse_boolean_literal;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_NULL] = parse_null_literal;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_MINUS] = parse_prefix_expression;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_NOT] = parse_prefix_expression;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_LPAREN] = parse_grouped_expression;
+    p["prefix_parse_fns"][tok_pkg.TOKEN_LBRACKET] = parse_array_literal;
+
+    // Infix table
+    p["infix_parse_fns"][tok_pkg.TOKEN_PLUS] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_MINUS] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_TIMES] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_DIVIDED_BY] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_MODULO] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_RAISED_TO] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_EQUAL_TO] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_NOT_EQUAL_TO] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_GREATER_THAN] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_LESS_THAN] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_GREATER_THAN_OR_EQUAL] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_IS_LESS_THAN_OR_EQUAL] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_AND] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_OR] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_COMBINED_WITH] = parse_infix_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_LPAREN] = parse_call_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_LBRACKET] = parse_index_expression;
+    p["infix_parse_fns"][tok_pkg.TOKEN_DOT] = parse_property_expression;
+};
+
+// Constructor function creating an initialized Parser instance
+let new_parser = fn(l) {
+    let p = {
+        "lexer": l,
+        "cur_token": null,
+        "peek_token": null,
+        "errors": [],
+        "syntax_errors": [],
+        "source_code": l["input"],
+        "filename": l["filename"],
+        "prefix_parse_fns": {},
+        "infix_parse_fns": {}
+    };
+
+    register_parser_tables(p);
+
+    // Read two tokens so cur_token and peek_token are both set
+    parser_next_token(p);
+    parser_next_token(p);
+
+    // Attach object-style methods
+    p["parse_program"] = fn() { return parse_program(p); };
+    p["parse_statement"] = fn() { return parser_parse_statement(p); };
+    p["parse_expression"] = fn(prec) { return parser_parse_expression(p, prec); };
+    p["has_errors"] = fn() { return len(p["errors"]) > 0; };
+    p["get_errors"] = fn() { return p["errors"]; };
+    p["get_syntax_errors"] = fn() { return p["syntax_errors"]; };
+    p["next_token"] = fn() { return parser_next_token(p); };
+
+    return p;
+};
+
+// Aliases
+let create_parser = new_parser;
+let Parser = new_parser;

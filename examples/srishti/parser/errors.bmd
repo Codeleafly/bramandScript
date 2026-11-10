@@ -1,0 +1,84 @@
+// Srishti Programming Language :: Parser Diagnostics & Syntax Error Formatter
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Formats high-precision compiler diagnostics with source snippets and pointer arrows (^~~~~).
+
+import "../lexer/errors" as lex_err
+
+// Generates a formatted multi-line diagnostic string with source snippet and pointer
+let format_syntax_error = fn(message, filename, line, col, source_line, span_len) {
+    if filename == null || filename == "" {
+        filename = "<input>";
+    }
+    if span_len == null || span_len < 1 {
+        span_len = 1;
+    }
+
+    let line_str = str(line);
+    let col_str = str(col);
+    let num_width = len(line_str);
+    if num_width < 2 {
+        num_width = 2;
+    }
+    let gutter_margin = lex_err.repeat_str(" ", num_width);
+
+    // Build arrow pointer
+    let pointer_indent = col - 1;
+    if pointer_indent < 0 {
+        pointer_indent = 0;
+    }
+    let leading_spaces = lex_err.repeat_str(" ", pointer_indent);
+    let pointer = "^";
+    if span_len > 1 {
+        pointer = pointer + lex_err.repeat_str("~", span_len - 1);
+    }
+
+    let out = "✦ error[SyntaxError]: " + message + "\n";
+    out = out + "  --> " + filename + ":" + line_str + ":" + col_str + "\n";
+    if source_line != "" {
+        out = out + "   " + gutter_margin + " |\n";
+        out = out + "   " + lex_err.pad_line_number(line, num_width) + " | " + source_line + "\n";
+        out = out + "   " + gutter_margin + " | " + leading_spaces + pointer;
+    }
+
+    return out;
+};
+
+// SyntaxError struct encapsulates a single syntax error event with coordinates and context
+struct SyntaxError {
+    message,
+    filename,
+    line,
+    col,
+    span_len,
+    source_line,
+
+    // Returns the fully formatted multi-line diagnostic text
+    fn format() {
+        return format_syntax_error(message, filename, line, col, source_line, span_len);
+    }
+
+    // Short one-line summary
+    fn to_string() {
+        let fn_name = filename;
+        if fn_name == null || fn_name == "" {
+            fn_name = "<input>";
+        }
+        return "[ERROR] Syntax Error: " + message + " at " + fn_name + ":" + str(line) + ":" + str(col);
+    }
+
+    // Inspection alias
+    fn inspect() {
+        return to_string();
+    }
+}
+
+// Constructor function creating SyntaxError instances
+let new_syntax_error = fn(message, filename, line, col, source_line, span_len) {
+    if span_len == null || span_len < 1 {
+        span_len = 1;
+    }
+    if source_line == null {
+        source_line = "";
+    }
+    return SyntaxError(message, filename, line, col, span_len, source_line);
+};

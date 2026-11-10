@@ -1,0 +1,560 @@
+// Srishti Programming Language :: AST Statement Nodes
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Encapsulates variable declarations, assignments, functions, structs, conditionals, loops, matching, etc.
+
+import "./ast" as ast_base
+
+// Helper to indent a block of text by a given number of spaces
+let indent_block = fn(text, spaces) {
+    let pad = "";
+    let i = 0;
+    while i < spaces {
+        pad = pad + " ";
+        i = i + 1;
+    }
+    let lines = split(text, "\n");
+    let out = "";
+    let k = 0;
+    while k < len(lines) {
+        let l = lines[k];
+        if len(l) > 0 {
+            out = out + pad + l;
+        }
+        if k < len(lines) - 1 {
+            out = out + "\n";
+        }
+        k = k + 1;
+    }
+    return out;
+};
+
+// --- Block Statement Node ---
+struct BlockStatement {
+    token,
+    statements,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return ":";
+    }
+
+    fn to_string() {
+        let out = "";
+        let i = 0;
+        while i < len(statements) {
+            let s = statements[i];
+            if s != null {
+                out = out + "    " + s.to_string();
+                if i < len(statements) - 1 {
+                    out = out + "\n";
+                }
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    fn inspect() {
+        return "BlockStatement(" + str(len(statements)) + " stmts)";
+    }
+}
+
+let new_block_statement = fn(token, statements) {
+    if statements == null {
+        statements = [];
+    }
+    let blk = BlockStatement(token, statements, ast_base.NODE_BLOCK);
+    blk["node_type"] = ast_base.NODE_BLOCK;
+    return blk;
+};
+
+// --- Let Statement Node (Variables & Constants) ---
+struct LetStatement {
+    token,
+    name,
+    value,
+    is_constant,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        if is_constant { return "constant"; }
+        return "let";
+    }
+
+    fn to_string() {
+        let kw = "let ";
+        if is_constant {
+            kw = "constant ";
+        }
+        let n_str = "";
+        let v_str = "";
+        if name != null { n_str = name.to_string(); }
+        if value != null { v_str = value.to_string(); }
+        return kw + n_str + " be " + v_str;
+    }
+
+    fn inspect() {
+        let n_str = "nil";
+        if name != null { n_str = name.to_string(); }
+        return "LetStatement(" + n_str + ", const=" + str(is_constant) + ")";
+    }
+}
+
+let new_let_statement = fn(token, name, value, is_constant) {
+    if is_constant == null {
+        is_constant = false;
+    }
+    let stmt = LetStatement(token, name, value, is_constant, ast_base.NODE_LET);
+    stmt["node_type"] = ast_base.NODE_LET;
+    return stmt;
+};
+
+// --- Set Statement Node (Assignment) ---
+struct SetStatement {
+    token,
+    target,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "set";
+    }
+
+    fn to_string() {
+        let t_str = "";
+        let v_str = "";
+        if target != null { t_str = target.to_string(); }
+        if value != null { v_str = value.to_string(); }
+        return "set " + t_str + " to " + v_str;
+    }
+
+    fn inspect() {
+        let t_insp = "nil";
+        let v_insp = "nil";
+        if target != null { t_insp = target.inspect(); }
+        if value != null { v_insp = value.inspect(); }
+        return "SetStatement(" + t_insp + ", " + v_insp + ")";
+    }
+}
+
+let new_set_statement = fn(token, target, value) {
+    let stmt = SetStatement(token, target, value, ast_base.NODE_SET);
+    stmt["node_type"] = ast_base.NODE_SET;
+    return stmt;
+};
+
+// --- Define Function Statement Node ---
+struct DefineFunctionStatement {
+    token,
+    name,
+    parameters,
+    body,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "define";
+    }
+
+    fn to_string() {
+        let n_str = "";
+        if name != null { n_str = name.to_string(); }
+        let params_str = "";
+        let i = 0;
+        while i < len(parameters) {
+            let p = parameters[i];
+            if p != null {
+                if i > 0 { params_str = params_str + ", "; }
+                params_str = params_str + p.to_string();
+            }
+            i = i + 1;
+        }
+
+        let header = "define function " + n_str;
+        if len(parameters) > 0 {
+            header = header + " with " + params_str;
+        }
+        header = header + ":";
+        let b_str = "";
+        if body != null { b_str = "\n" + body.to_string(); }
+        return header + b_str;
+    }
+
+    fn inspect() {
+        let n_str = "nil";
+        if name != null { n_str = name.to_string(); }
+        return "DefineFunctionStatement(" + n_str + ", " + str(len(parameters)) + " params)";
+    }
+}
+
+let new_define_function_statement = fn(token, name, parameters, body) {
+    if parameters == null {
+        parameters = [];
+    }
+    let stmt = DefineFunctionStatement(token, name, parameters, body, ast_base.NODE_DEFINE_FUNCTION);
+    stmt["node_type"] = ast_base.NODE_DEFINE_FUNCTION;
+    return stmt;
+};
+
+// --- Create Struct Statement Node ---
+struct CreateStructStatement {
+    token,
+    name,
+    fields,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "create";
+    }
+
+    fn to_string() {
+        let n_str = "";
+        if name != null { n_str = name.to_string(); }
+        let fields_str = "";
+        let i = 0;
+        while i < len(fields) {
+            let f = fields[i];
+            if f != null {
+                if i > 0 { fields_str = fields_str + ", "; }
+                fields_str = fields_str + f.to_string();
+            }
+            i = i + 1;
+        }
+        let out = "create struct " + n_str;
+        if len(fields) > 0 {
+            out = out + " with " + fields_str;
+        }
+        return out;
+    }
+
+    fn inspect() {
+        let n_str = "nil";
+        if name != null { n_str = name.to_string(); }
+        return "CreateStructStatement(" + n_str + ", " + str(len(fields)) + " fields)";
+    }
+}
+
+let new_create_struct_statement = fn(token, name, fields) {
+    if fields == null {
+        fields = [];
+    }
+    let stmt = CreateStructStatement(token, name, fields, ast_base.NODE_CREATE_STRUCT);
+    stmt["node_type"] = ast_base.NODE_CREATE_STRUCT;
+    return stmt;
+};
+
+// --- If Statement Node ---
+struct IfStatement {
+    token,
+    condition,
+    consequence,
+    alternative,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "if";
+    }
+
+    fn to_string() {
+        let c_str = "";
+        if condition != null { c_str = condition.to_string(); }
+        let cons_str = "";
+        if consequence != null { cons_str = "\n" + consequence.to_string(); }
+
+        let out = "if " + c_str + " then:" + cons_str;
+        if alternative != null {
+            out = out + "\notherwise:\n" + alternative.to_string();
+        }
+        return out;
+    }
+
+    fn inspect() {
+        let c_insp = "nil";
+        if condition != null { c_insp = condition.inspect(); }
+        let has_alt = (alternative != null);
+        return "IfStatement(" + c_insp + ", has_alt=" + str(has_alt) + ")";
+    }
+}
+
+let new_if_statement = fn(token, condition, consequence, alternative) {
+    let stmt = IfStatement(token, condition, consequence, alternative, ast_base.NODE_IF);
+    stmt["node_type"] = ast_base.NODE_IF;
+    return stmt;
+};
+
+// --- Repeat While Statement Node ---
+struct RepeatWhileStatement {
+    token,
+    condition,
+    body,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "repeat";
+    }
+
+    fn to_string() {
+        let c_str = "";
+        if condition != null { c_str = condition.to_string(); }
+        let b_str = "";
+        if body != null { b_str = "\n" + body.to_string(); }
+        return "repeat while " + c_str + ":" + b_str;
+    }
+
+    fn inspect() {
+        let c_insp = "nil";
+        if condition != null { c_insp = condition.inspect(); }
+        return "RepeatWhileStatement(" + c_insp + ")";
+    }
+}
+
+let new_repeat_while_statement = fn(token, condition, body) {
+    let stmt = RepeatWhileStatement(token, condition, body, ast_base.NODE_REPEAT_WHILE);
+    stmt["node_type"] = ast_base.NODE_REPEAT_WHILE;
+    return stmt;
+};
+
+// --- Iterate Statement Node ---
+struct IterateStatement {
+    token,
+    item_name,
+    collection,
+    body,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "iterate";
+    }
+
+    fn to_string() {
+        let it_str = "";
+        let coll_str = "";
+        if item_name != null { it_str = item_name.to_string(); }
+        if collection != null { coll_str = collection.to_string(); }
+        let b_str = "";
+        if body != null { b_str = "\n" + body.to_string(); }
+        return "iterate " + it_str + " through " + coll_str + ":" + b_str;
+    }
+
+    fn inspect() {
+        let it_str = "nil";
+        if item_name != null { it_str = item_name.to_string(); }
+        return "IterateStatement(" + it_str + ")";
+    }
+}
+
+let new_iterate_statement = fn(token, item_name, collection, body) {
+    let stmt = IterateStatement(token, item_name, collection, body, ast_base.NODE_ITERATE);
+    stmt["node_type"] = ast_base.NODE_ITERATE;
+    return stmt;
+};
+
+// --- Match Case Node ---
+struct MatchCase {
+    token,
+    pattern_value,
+    body,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "when";
+    }
+
+    fn to_string() {
+        let p_str = "";
+        if pattern_value != null { p_str = pattern_value.to_string(); }
+        let b_str = "";
+        if body != null { b_str = "\n" + body.to_string(); }
+        return "when " + p_str + ":" + b_str;
+    }
+
+    fn inspect() {
+        let p_insp = "nil";
+        if pattern_value != null { p_insp = pattern_value.inspect(); }
+        return "MatchCase(" + p_insp + ")";
+    }
+}
+
+let new_match_case = fn(token, pattern_value, body) {
+    let mc = MatchCase(token, pattern_value, body, ast_base.NODE_MATCH_CASE);
+    mc["node_type"] = ast_base.NODE_MATCH_CASE;
+    return mc;
+};
+
+// --- Match Statement Node ---
+struct MatchStatement {
+    token,
+    expression,
+    cases,
+    default_case,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "match";
+    }
+
+    fn to_string() {
+        let e_str = "";
+        if expression != null { e_str = expression.to_string(); }
+        let out = "match " + e_str + ":";
+        let i = 0;
+        while i < len(cases) {
+            let c = cases[i];
+            if c != null {
+                out = out + "\n" + indent_block(c.to_string(), 4);
+            }
+            i = i + 1;
+        }
+        if default_case != null {
+            let def_header = "otherwise:";
+            let def_body = "\n" + default_case.to_string();
+            out = out + "\n" + indent_block(def_header + def_body, 4);
+        }
+        return out;
+    }
+
+    fn inspect() {
+        let e_insp = "nil";
+        if expression != null { e_insp = expression.inspect(); }
+        return "MatchStatement(" + e_insp + ", " + str(len(cases)) + " cases)";
+    }
+}
+
+let new_match_statement = fn(token, expression, cases, default_case) {
+    if cases == null {
+        cases = [];
+    }
+    let stmt = MatchStatement(token, expression, cases, default_case, ast_base.NODE_MATCH);
+    stmt["node_type"] = ast_base.NODE_MATCH;
+    return stmt;
+};
+
+// --- Return Statement Node ---
+struct ReturnStatement {
+    token,
+    return_value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "return";
+    }
+
+    fn to_string() {
+        if return_value != null {
+            return "return " + return_value.to_string();
+        }
+        return "return";
+    }
+
+    fn inspect() {
+        let val_insp = "void";
+        if return_value != null { val_insp = return_value.inspect(); }
+        return "ReturnStatement(" + val_insp + ")";
+    }
+}
+
+let new_return_statement = fn(token, return_value) {
+    let stmt = ReturnStatement(token, return_value, ast_base.NODE_RETURN);
+    stmt["node_type"] = ast_base.NODE_RETURN;
+    return stmt;
+};
+
+// --- Spawn Task Statement Node ---
+struct SpawnTaskStatement {
+    token,
+    call_expression,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "spawn";
+    }
+
+    fn to_string() {
+        let c_str = "";
+        if call_expression != null { c_str = call_expression.to_string(); }
+        return "spawn task " + c_str;
+    }
+
+    fn inspect() {
+        let c_insp = "nil";
+        if call_expression != null { c_insp = call_expression.inspect(); }
+        return "SpawnTaskStatement(" + c_insp + ")";
+    }
+}
+
+let new_spawn_task_statement = fn(token, call_expression) {
+    let stmt = SpawnTaskStatement(token, call_expression, ast_base.NODE_SPAWN_TASK);
+    stmt["node_type"] = ast_base.NODE_SPAWN_TASK;
+    return stmt;
+};
+
+// --- Display Statement Node ---
+struct DisplayStatement {
+    token,
+    expression,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "display";
+    }
+
+    fn to_string() {
+        let e_str = "";
+        if expression != null { e_str = expression.to_string(); }
+        return "display " + e_str;
+    }
+
+    fn inspect() {
+        let e_insp = "nil";
+        if expression != null { e_insp = expression.inspect(); }
+        return "DisplayStatement(" + e_insp + ")";
+    }
+}
+
+let new_display_statement = fn(token, expression) {
+    let stmt = DisplayStatement(token, expression, ast_base.NODE_DISPLAY);
+    stmt["node_type"] = ast_base.NODE_DISPLAY;
+    return stmt;
+};
+
+// --- Expression Statement Node ---
+struct ExpressionStatement {
+    token,
+    expression,
+    node_type,
+
+    fn token_literal() {
+        if expression != null { return expression.token_literal(); }
+        if token != null { return token["literal"]; }
+        return "";
+    }
+
+    fn to_string() {
+        if expression != null { return expression.to_string(); }
+        return "";
+    }
+
+    fn inspect() {
+        let e_insp = "nil";
+        if expression != null { e_insp = expression.inspect(); }
+        return "ExpressionStatement(" + e_insp + ")";
+    }
+}
+
+let new_expression_statement = fn(token, expression) {
+    let stmt = ExpressionStatement(token, expression, ast_base.NODE_EXPRESSION_STMT);
+    stmt["node_type"] = ast_base.NODE_EXPRESSION_STMT;
+    return stmt;
+};

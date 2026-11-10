@@ -1,0 +1,64 @@
+// Srishti Programming Language :: Operator Precedence Specifications
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Defines operator precedence levels and token-to-precedence lookup mappings.
+
+import "../token/index" as tok_pkg
+
+// Precedence Level Hierarchy (Lowest to Highest)
+let LOWEST = 1;
+let LOGICAL_OR = 2;  // 'or'
+let LOGICAL_AND = 3;  // 'and'
+let EQUALS = 4;  // 'is equal to', 'is not equal to', '==', '!='
+let LESSGREATER = 5;  // 'is greater than', 'is less than', '>=', '<=', '>', '<'
+let SUM = 6;  // 'plus', 'minus', '+', '-', 'combined with'
+let PRODUCT = 7;  // 'times', 'divided by', 'modulo', '*', '/', '%'
+let POWER = 8;  // 'raised to', '^'
+let PREFIX = 9;  // 'not', '-'
+let CALL = 10;  // '(' function call
+let INDEX = 11;  // '[' array indexing
+let PROPERTY = 12;  // '.' property access
+
+// Lookup Table Mapping Token Types to Precedence Levels
+let PRECEDENCE_MAP = {
+    // Logical
+    tok_pkg.TOKEN_OR: LOGICAL_OR,
+    tok_pkg.TOKEN_AND: LOGICAL_AND,
+
+    // Relational Comparisons (Multi-word and symbolic)
+    tok_pkg.TOKEN_IS_EQUAL_TO: EQUALS,
+    tok_pkg.TOKEN_IS_NOT_EQUAL_TO: EQUALS,
+    tok_pkg.TOKEN_IS_GREATER_THAN: LESSGREATER,
+    tok_pkg.TOKEN_IS_LESS_THAN: LESSGREATER,
+    tok_pkg.TOKEN_IS_GREATER_THAN_OR_EQUAL: LESSGREATER,
+    tok_pkg.TOKEN_IS_LESS_THAN_OR_EQUAL: LESSGREATER,
+
+    // Additive & String Combinator
+    tok_pkg.TOKEN_PLUS: SUM,
+    tok_pkg.TOKEN_MINUS: SUM,
+    tok_pkg.TOKEN_COMBINED_WITH: SUM,
+
+    // Multiplicative
+    tok_pkg.TOKEN_TIMES: PRODUCT,
+    tok_pkg.TOKEN_DIVIDED_BY: PRODUCT,
+    tok_pkg.TOKEN_MODULO: PRODUCT,
+
+    // Exponentiation
+    tok_pkg.TOKEN_RAISED_TO: POWER,
+
+    // Postfix / Infix Delimiters
+    tok_pkg.TOKEN_LPAREN: CALL,
+    tok_pkg.TOKEN_LBRACKET: INDEX,
+    tok_pkg.TOKEN_DOT: PROPERTY
+};
+
+// Resolves the precedence level for a given token type, defaulting to LOWEST (1)
+let get_precedence = fn(token_type) {
+    if token_type == null {
+        return LOWEST;
+    }
+    let p = PRECEDENCE_MAP[token_type];
+    if p != null {
+        return p;
+    }
+    return LOWEST;
+};

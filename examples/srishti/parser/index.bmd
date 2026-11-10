@@ -1,0 +1,33 @@
+// Srishti Programming Language :: Parser Package Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Re-exports Pratt parser, precedence tables, and syntax error formatters.
+
+import "./precedence" as prec_pkg
+import "./errors" as err_pkg
+import "./parser" as parse_pkg
+
+// --- Precedence Levels ---
+let LOWEST = prec_pkg.LOWEST;
+let LOGICAL_OR = prec_pkg.LOGICAL_OR;
+let LOGICAL_AND = prec_pkg.LOGICAL_AND;
+let EQUALS = prec_pkg.EQUALS;
+let LESSGREATER = prec_pkg.LESSGREATER;
+let SUM = prec_pkg.SUM;
+let PRODUCT = prec_pkg.PRODUCT;
+let POWER = prec_pkg.POWER;
+let PREFIX = prec_pkg.PREFIX;
+let CALL = prec_pkg.CALL;
+let INDEX = prec_pkg.INDEX;
+let PROPERTY = prec_pkg.PROPERTY;
+let get_precedence = prec_pkg.get_precedence;
+
+// --- Diagnostics & Errors ---
+let SyntaxError = err_pkg.SyntaxError;
+let new_syntax_error = err_pkg.new_syntax_error;
+let format_syntax_error = err_pkg.format_syntax_error;
+
+// --- Parser Engine ---
+let Parser = parse_pkg.Parser;
+let new_parser = parse_pkg.new_parser;
+let create_parser = parse_pkg.create_parser;
+let parse_program = parse_pkg.parse_program;

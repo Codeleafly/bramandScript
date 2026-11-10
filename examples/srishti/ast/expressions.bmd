@@ -1,0 +1,390 @@
+// Srishti Programming Language :: AST Expression Nodes
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Encapsulates identifiers, literals, prefix, infix, call, index, property, and array expressions.
+
+import "./ast" as ast_base
+
+// --- Identifier Node ---
+struct Identifier {
+    token,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return value;
+    }
+
+    fn to_string() {
+        return value;
+    }
+
+    fn inspect() {
+        return "Identifier(" + value + ")";
+    }
+}
+
+let new_identifier = fn(token, value) {
+    let id = Identifier(token, value, ast_base.NODE_IDENTIFIER);
+    id["node_type"] = ast_base.NODE_IDENTIFIER;
+    return id;
+};
+
+// --- Integer Literal Node ---
+struct IntegerLiteral {
+    token,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return str(value);
+    }
+
+    fn to_string() {
+        return str(value);
+    }
+
+    fn inspect() {
+        return "IntegerLiteral(" + str(value) + ")";
+    }
+}
+
+let new_integer_literal = fn(token, value) {
+    let lit = IntegerLiteral(token, value, ast_base.NODE_INTEGER_LITERAL);
+    lit["node_type"] = ast_base.NODE_INTEGER_LITERAL;
+    return lit;
+};
+
+// --- Float Literal Node ---
+struct FloatLiteral {
+    token,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return str(value);
+    }
+
+    fn to_string() {
+        let s = str(value);
+        if !contains(s, ".") {
+            s = s + ".0";
+        }
+        return s;
+    }
+
+    fn inspect() {
+        return "FloatLiteral(" + str(value) + ")";
+    }
+}
+
+let new_float_literal = fn(token, value) {
+    let lit = FloatLiteral(token, value, ast_base.NODE_FLOAT_LITERAL);
+    lit["node_type"] = ast_base.NODE_FLOAT_LITERAL;
+    return lit;
+};
+
+// --- String Literal Node ---
+struct StringLiteral {
+    token,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return value;
+    }
+
+    fn to_string() {
+        return "\"" + value + "\"";
+    }
+
+    fn inspect() {
+        return "StringLiteral(\"" + value + "\")";
+    }
+}
+
+let new_string_literal = fn(token, value) {
+    let lit = StringLiteral(token, value, ast_base.NODE_STRING_LITERAL);
+    lit["node_type"] = ast_base.NODE_STRING_LITERAL;
+    return lit;
+};
+
+// --- Boolean Literal Node ---
+struct BooleanLiteral {
+    token,
+    value,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        if value { return "true"; }
+        return "false";
+    }
+
+    fn to_string() {
+        if value { return "true"; }
+        return "false";
+    }
+
+    fn inspect() {
+        if value { return "BooleanLiteral(true)"; }
+        return "BooleanLiteral(false)";
+    }
+}
+
+let new_boolean_literal = fn(token, value) {
+    let lit = BooleanLiteral(token, value, ast_base.NODE_BOOLEAN_LITERAL);
+    lit["node_type"] = ast_base.NODE_BOOLEAN_LITERAL;
+    return lit;
+};
+
+// --- Null Literal Node ---
+struct NullLiteral {
+    token,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "null";
+    }
+
+    fn to_string() {
+        return "null";
+    }
+
+    fn inspect() {
+        return "NullLiteral()";
+    }
+}
+
+let new_null_literal = fn(token) {
+    let lit = NullLiteral(token, ast_base.NODE_NULL_LITERAL);
+    lit["node_type"] = ast_base.NODE_NULL_LITERAL;
+    return lit;
+};
+
+// --- Prefix Expression Node ---
+struct PrefixExpression {
+    token,
+    operator,
+    right,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return operator;
+    }
+
+    fn to_string() {
+        let r_str = "";
+        if right != null { r_str = right.to_string(); }
+        if operator == "not" {
+            return "(not " + r_str + ")";
+        }
+        return "(" + operator + r_str + ")";
+    }
+
+    fn inspect() {
+        let r_insp = "nil";
+        if right != null { r_insp = right.inspect(); }
+        return "PrefixExpression(" + operator + ", " + r_insp + ")";
+    }
+}
+
+let new_prefix_expression = fn(token, operator, right) {
+    let expr = PrefixExpression(token, operator, right, ast_base.NODE_PREFIX_EXPR);
+    expr["node_type"] = ast_base.NODE_PREFIX_EXPR;
+    return expr;
+};
+
+// --- Infix Expression Node ---
+struct InfixExpression {
+    token,
+    left,
+    operator,
+    right,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return operator;
+    }
+
+    fn to_string() {
+        let l_str = "";
+        let r_str = "";
+        if left != null { l_str = left.to_string(); }
+        if right != null { r_str = right.to_string(); }
+        return "(" + l_str + " " + operator + " " + r_str + ")";
+    }
+
+    fn inspect() {
+        let l_insp = "nil";
+        let r_insp = "nil";
+        if left != null { l_insp = left.inspect(); }
+        if right != null { r_insp = right.inspect(); }
+        return "InfixExpression(" + l_insp + ", " + operator + ", " + r_insp + ")";
+    }
+}
+
+let new_infix_expression = fn(token, left, operator, right) {
+    let expr = InfixExpression(token, left, operator, right, ast_base.NODE_INFIX_EXPR);
+    expr["node_type"] = ast_base.NODE_INFIX_EXPR;
+    return expr;
+};
+
+// --- Call Expression Node ---
+struct CallExpression {
+    token,
+    function,
+    arguments,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "(";
+    }
+
+    fn to_string() {
+        let fn_str = "";
+        if function != null { fn_str = function.to_string(); }
+        let args_str = "";
+        let i = 0;
+        while i < len(arguments) {
+            let a = arguments[i];
+            if a != null {
+                if i > 0 { args_str = args_str + ", "; }
+                args_str = args_str + a.to_string();
+            }
+            i = i + 1;
+        }
+        return fn_str + "(" + args_str + ")";
+    }
+
+    fn inspect() {
+        let fn_insp = "nil";
+        if function != null { fn_insp = function.inspect(); }
+        return "CallExpression(" + fn_insp + ", " + str(len(arguments)) + " args)";
+    }
+}
+
+let new_call_expression = fn(token, function, arguments) {
+    if arguments == null {
+        arguments = [];
+    }
+    let expr = CallExpression(token, function, arguments, ast_base.NODE_CALL_EXPR);
+    expr["node_type"] = ast_base.NODE_CALL_EXPR;
+    return expr;
+};
+
+// --- Index Expression Node ---
+struct IndexExpression {
+    token,
+    left,
+    index,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "[";
+    }
+
+    fn to_string() {
+        let l_str = "";
+        let idx_str = "";
+        if left != null { l_str = left.to_string(); }
+        if index != null { idx_str = index.to_string(); }
+        return l_str + "[" + idx_str + "]";
+    }
+
+    fn inspect() {
+        let l_insp = "nil";
+        let idx_insp = "nil";
+        if left != null { l_insp = left.inspect(); }
+        if index != null { idx_insp = index.inspect(); }
+        return "IndexExpression(" + l_insp + ", " + idx_insp + ")";
+    }
+}
+
+let new_index_expression = fn(token, left, index) {
+    let expr = IndexExpression(token, left, index, ast_base.NODE_INDEX_EXPR);
+    expr["node_type"] = ast_base.NODE_INDEX_EXPR;
+    return expr;
+};
+
+// --- Property Expression Node ---
+struct PropertyExpression {
+    token,
+    object,
+    property,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return ".";
+    }
+
+    fn to_string() {
+        let obj_str = "";
+        let prop_str = "";
+        if object != null { obj_str = object.to_string(); }
+        if property != null { prop_str = property.to_string(); }
+        return obj_str + "." + prop_str;
+    }
+
+    fn inspect() {
+        let obj_insp = "nil";
+        let prop_insp = "nil";
+        if object != null { obj_insp = object.inspect(); }
+        if property != null { prop_insp = property.inspect(); }
+        return "PropertyExpression(" + obj_insp + ", " + prop_insp + ")";
+    }
+}
+
+let new_property_expression = fn(token, object, property) {
+    let expr = PropertyExpression(token, object, property, ast_base.NODE_PROPERTY_EXPR);
+    expr["node_type"] = ast_base.NODE_PROPERTY_EXPR;
+    return expr;
+};
+
+// --- Array Literal Node ---
+struct ArrayLiteral {
+    token,
+    elements,
+    node_type,
+
+    fn token_literal() {
+        if token != null { return token["literal"]; }
+        return "[";
+    }
+
+    fn to_string() {
+        let elems_str = "";
+        let i = 0;
+        while i < len(elements) {
+            let el = elements[i];
+            if el != null {
+                if i > 0 { elems_str = elems_str + ", "; }
+                elems_str = elems_str + el.to_string();
+            }
+            i = i + 1;
+        }
+        return "[" + elems_str + "]";
+    }
+
+    fn inspect() {
+        return "ArrayLiteral(" + str(len(elements)) + " elements)";
+    }
+}
+
+let new_array_literal = fn(token, elements) {
+    if elements == null {
+        elements = [];
+    }
+    let lit = ArrayLiteral(token, elements, ast_base.NODE_ARRAY_LITERAL);
+    lit["node_type"] = ast_base.NODE_ARRAY_LITERAL;
+    return lit;
+};

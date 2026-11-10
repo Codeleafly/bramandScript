@@ -1,0 +1,708 @@
+// Srishti Programming Language :: Pratt Parser & AST Automated Test Suite
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Verifies Pratt precedence, AST construction, statement and expression grammar, and diagnostics.
+
+import "../index" as sri
+
+// Helper function to parse code and assert zero syntax errors
+let parse_clean = fn(code, test_name) {
+    let l = sri.new_lexer(code, test_name);
+    let p = sri.new_parser(l);
+    let prog = p.parse_program();
+    if p.has_errors() {
+        let errs = p.get_errors();
+        let i = 0;
+        while i < len(errs) {
+            println("PARSE ERROR in " + test_name + ": " + errs[i]);
+            i = i + 1;
+        }
+    }
+    assert(!p.has_errors(), "Expected zero syntax errors in " + test_name);
+    return prog;
+};
+
+describe("Literals and Primitive Expressions", fn() {
+        test("Integer, Float, and String literals", fn() {
+                let code = "42\n3.14159\n\"Hello, Srishti!\"";
+                let prog = parse_clean(code, "test_literals.sri");
+                assert_eq(len(prog.statements), 3);
+
+                // Statement 0: Integer
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_EXPRESSION_STMT);
+                assert_eq(s0.expression.node_type, sri.NODE_INTEGER_LITERAL);
+                assert_eq(s0.expression.value, 42);
+                assert_eq(s0.expression.to_string(), "42");
+
+                // Statement 1: Float
+                let s1 = prog.statements[1];
+                assert_eq(s1.node_type, sri.NODE_EXPRESSION_STMT);
+                assert_eq(s1.expression.node_type, sri.NODE_FLOAT_LITERAL);
+                assert_eq(s1.expression.value, 3.14159);
+
+                // Statement 2: String
+                let s2 = prog.statements[2];
+                assert_eq(s2.node_type, sri.NODE_EXPRESSION_STMT);
+                assert_eq(s2.expression.node_type, sri.NODE_STRING_LITERAL);
+                assert_eq(s2.expression.value, "Hello, Srishti!");
+                assert_eq(s2.expression.to_string(), "\"Hello, Srishti!\"");
+        });
+
+        test("Boolean and Null literals", fn() {
+                let code = "true\nfalse\nnull";
+                let prog = parse_clean(code, "test_bool_null.sri");
+                assert_eq(len(prog.statements), 3);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.expression.node_type, sri.NODE_BOOLEAN_LITERAL);
+                assert_eq(s0.expression.value, true);
+                assert_eq(s0.expression.to_string(), "true");
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.expression.node_type, sri.NODE_BOOLEAN_LITERAL);
+                assert_eq(s1.expression.value, false);
+                assert_eq(s1.expression.to_string(), "false");
+
+                let s2 = prog.statements[2];
+                assert_eq(s2.expression.node_type, sri.NODE_NULL_LITERAL);
+                assert_eq(s2.expression.to_string(), "null");
+        });
+
+        test("Identifiers and Array literals", fn() {
+                let code = "my_identifier\n[]\n[1, 2, 3]\n[\"alpha\", true, null]";
+                let prog = parse_clean(code, "test_arrays.sri");
+                assert_eq(len(prog.statements), 4);
+
+                // Identifier
+                let s0 = prog.statements[0];
+                assert_eq(s0.expression.node_type, sri.NODE_IDENTIFIER);
+                assert_eq(s0.expression.value, "my_identifier");
+                assert_eq(s0.expression.to_string(), "my_identifier");
+
+                // Empty Array
+                let s1 = prog.statements[1];
+                assert_eq(s1.expression.node_type, sri.NODE_ARRAY_LITERAL);
+                assert_eq(len(s1.expression.elements), 0);
+                assert_eq(s1.expression.to_string(), "[]");
+
+                // Numbers Array
+                let s2 = prog.statements[2];
+                assert_eq(s2.expression.node_type, sri.NODE_ARRAY_LITERAL);
+                assert_eq(len(s2.expression.elements), 3);
+                assert_eq(s2.expression.elements[0].value, 1);
+                assert_eq(s2.expression.elements[1].value, 2);
+                assert_eq(s2.expression.elements[2].value, 3);
+                assert_eq(s2.expression.to_string(), "[1, 2, 3]");
+
+                // Mixed Array
+                let s3 = prog.statements[3];
+                assert_eq(len(s3.expression.elements), 3);
+                assert_eq(s3.expression.elements[0].value, "alpha");
+                assert_eq(s3.expression.elements[1].value, true);
+        });
+});
+
+describe("Prefix and Grouped Expressions", fn() {
+        test("Prefix minus and not operators", fn() {
+                let code = "-5\n-count\nnot active\nnot false";
+                let prog = parse_clean(code, "test_prefix.sri");
+                assert_eq(len(prog.statements), 4);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.expression.node_type, sri.NODE_PREFIX_EXPR);
+                assert_eq(s0.expression.operator, "-");
+                assert_eq(s0.expression.right.value, 5);
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.expression.node_type, sri.NODE_PREFIX_EXPR);
+                assert_eq(s1.expression.operator, "-");
+                assert_eq(s1.expression.right.value, "count");
+
+                let s2 = prog.statements[2];
+                assert_eq(s2.expression.node_type, sri.NODE_PREFIX_EXPR);
+                assert_eq(s2.expression.operator, "not");
+                assert_eq(s2.expression.right.value, "active");
+                assert_eq(s2.expression.to_string(), "(not active)");
+
+                let s3 = prog.statements[3];
+                assert_eq(s3.expression.operator, "not");
+                assert_eq(s3.expression.right.value, false);
+        });
+
+        test("Grouped expressions with parentheses", fn() {
+                let code = "(10 plus 20)\n(x times (y minus z))";
+                let prog = parse_clean(code, "test_grouped.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.expression.node_type, sri.NODE_INFIX_EXPR);
+                assert_eq(s0.expression.operator, "plus");
+                assert_eq(s0.expression.left.value, 10);
+                assert_eq(s0.expression.right.value, 20);
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.expression.operator, "times");
+                assert_eq(s1.expression.left.value, "x");
+                assert_eq(s1.expression.right.node_type, sri.NODE_INFIX_EXPR);
+                assert_eq(s1.expression.right.operator, "minus");
+        });
+});
+
+describe("Infix Arithmetic and Precedence", fn() {
+        test("Operator precedence: plus vs times", fn() {
+                let code = "a plus b times c";
+                let prog = parse_clean(code, "test_prec_arith.sri");
+                assert_eq(len(prog.statements), 1);
+
+                // a plus (b times c)
+                let expr = prog.statements[0].expression;
+                assert_eq(expr.node_type, sri.NODE_INFIX_EXPR);
+                assert_eq(expr.operator, "plus");
+                assert_eq(expr.left.value, "a");
+
+                let right = expr.right;
+                assert_eq(right.node_type, sri.NODE_INFIX_EXPR);
+                assert_eq(right.operator, "times");
+                assert_eq(right.left.value, "b");
+                assert_eq(right.right.value, "c");
+        });
+
+        test("Parenthesized override: (a plus b) times c", fn() {
+                let code = "(a plus b) times c";
+                let prog = parse_clean(code, "test_prec_parens.sri");
+                assert_eq(len(prog.statements), 1);
+
+                // ((a plus b) times c)
+                let expr = prog.statements[0].expression;
+                assert_eq(expr.operator, "times");
+                assert_eq(expr.right.value, "c");
+
+                let left = expr.left;
+                assert_eq(left.operator, "plus");
+                assert_eq(left.left.value, "a");
+                assert_eq(left.right.value, "b");
+        });
+
+        test("Power operator: raised to has higher precedence than times", fn() {
+                let code = "x raised to 2\na times b raised to 3";
+                let prog = parse_clean(code, "test_power.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0].expression;
+                assert_eq(s0.operator, "raised to");
+                assert_eq(s0.left.value, "x");
+                assert_eq(s0.right.value, 2);
+
+                // a times (b raised to 3)
+                let s1 = prog.statements[1].expression;
+                assert_eq(s1.operator, "times");
+                assert_eq(s1.left.value, "a");
+                assert_eq(s1.right.operator, "raised to");
+                assert_eq(s1.right.left.value, "b");
+                assert_eq(s1.right.right.value, 3);
+        });
+
+        test("All English arithmetic operators: divided by and modulo", fn() {
+                let code = "total divided by 100\ncount modulo 2";
+                let prog = parse_clean(code, "test_div_mod.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0].expression;
+                assert_eq(s0.operator, "divided by");
+                assert_eq(s0.left.value, "total");
+                assert_eq(s0.right.value, 100);
+
+                let s1 = prog.statements[1].expression;
+                assert_eq(s1.operator, "modulo");
+                assert_eq(s1.left.value, "count");
+                assert_eq(s1.right.value, 2);
+        });
+});
+
+describe("Relational Comparisons and Logic", fn() {
+        test("Multi-word comparisons: greater, less, equal", fn() {
+                let code = "x is greater than 10\ny is less than or equal to 50\na is equal to b\nc is not equal to d";
+                let prog = parse_clean(code, "test_relational.sri");
+                assert_eq(len(prog.statements), 4);
+
+                assert_eq(prog.statements[0].expression.operator, "is greater than");
+                assert_eq(prog.statements[1].expression.operator, "is less than or equal to");
+                assert_eq(prog.statements[2].expression.operator, "is equal to");
+                assert_eq(prog.statements[3].expression.operator, "is not equal to");
+        });
+
+        test("Logical and / or with comparison precedence", fn() {
+                let code = "a is equal to b and c is less than or equal to d";
+                let prog = parse_clean(code, "test_logical_prec.sri");
+                assert_eq(len(prog.statements), 1);
+
+                // (a is equal to b) and (c is less than or equal to d)
+                let expr = prog.statements[0].expression;
+                assert_eq(expr.operator, "and");
+                assert_eq(expr.left.operator, "is equal to");
+                assert_eq(expr.right.operator, "is less than or equal to");
+        });
+
+        test("String combinator: combined with", fn() {
+                let code = "first combined with \" \" combined with last";
+                let prog = parse_clean(code, "test_combinator.sri");
+                assert_eq(len(prog.statements), 1);
+
+                // ((first combined with " ") combined with last)
+                let expr = prog.statements[0].expression;
+                assert_eq(expr.operator, "combined with");
+                assert_eq(expr.right.value, "last");
+                assert_eq(expr.left.operator, "combined with");
+                assert_eq(expr.left.left.value, "first");
+                assert_eq(expr.left.right.value, " ");
+        });
+});
+
+describe("Variable and Constant Declarations", fn() {
+        test("Let variable declarations", fn() {
+                let code = "let x be 42\nlet greeting be \"Namaste\"";
+                let prog = parse_clean(code, "test_let.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_LET);
+                assert_eq(s0.is_constant, false);
+                assert_eq(s0.name.value, "x");
+                assert_eq(s0.value.value, 42);
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.name.value, "greeting");
+                assert_eq(s1.value.value, "Namaste");
+        });
+
+        test("Constant declarations", fn() {
+                let code = "constant PI be 3.14159\nconstant MAX_USERS be 1000";
+                let prog = parse_clean(code, "test_constant.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_LET);
+                assert_eq(s0.is_constant, true);
+                assert_eq(s0.name.value, "PI");
+                assert_eq(s0.value.value, 3.14159);
+                assert(contains(s0.to_string(), "constant PI be"), "String must use 'constant'");
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.is_constant, true);
+                assert_eq(s1.name.value, "MAX_USERS");
+                assert_eq(s1.value.value, 1000);
+        });
+});
+
+describe("Assignment Statements", fn() {
+        test("Simple, property, and index set statements", fn() {
+                let code = "set count to 10\nset user.age to 25\nset items[0] to \"val\"\nset accounts[0].balance to 5000";
+                let prog = parse_clean(code, "test_set.sri");
+                assert_eq(len(prog.statements), 4);
+
+                // set count to 10
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_SET);
+                assert_eq(s0.target.node_type, sri.NODE_IDENTIFIER);
+                assert_eq(s0.target.value, "count");
+                assert_eq(s0.value.value, 10);
+
+                // set user.age to 25
+                let s1 = prog.statements[1];
+                assert_eq(s1.target.node_type, sri.NODE_PROPERTY_EXPR);
+                assert_eq(s1.target.object.value, "user");
+                assert_eq(s1.target.property.value, "age");
+                assert_eq(s1.value.value, 25);
+
+                // set items[0] to "val"
+                let s2 = prog.statements[2];
+                assert_eq(s2.target.node_type, sri.NODE_INDEX_EXPR);
+                assert_eq(s2.target.left.value, "items");
+                assert_eq(s2.target.index.value, 0);
+                assert_eq(s2.value.value, "val");
+
+                // set accounts[0].balance to 5000
+                let s3 = prog.statements[3];
+                assert_eq(s3.target.node_type, sri.NODE_PROPERTY_EXPR);
+                assert_eq(s3.target.object.node_type, sri.NODE_INDEX_EXPR);
+                assert_eq(s3.target.property.value, "balance");
+                assert_eq(s3.value.value, 5000);
+        });
+});
+
+describe("Function Definitions and Calls", fn() {
+        test("Function without parameters", fn() {
+                let code = "define function main:\n    display \"Hello World\"\n    return 0";
+                let prog = parse_clean(code, "test_fn_main.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let fn_stmt = prog.statements[0];
+                assert_eq(fn_stmt.node_type, sri.NODE_DEFINE_FUNCTION);
+                assert_eq(fn_stmt.name.value, "main");
+                assert_eq(len(fn_stmt.parameters), 0);
+                assert_eq(len(fn_stmt.body.statements), 2);
+
+                let b0 = fn_stmt.body.statements[0];
+                assert_eq(b0.node_type, sri.NODE_DISPLAY);
+                assert_eq(b0.expression.value, "Hello World");
+
+                let b1 = fn_stmt.body.statements[1];
+                assert_eq(b1.node_type, sri.NODE_RETURN);
+                assert_eq(b1.return_value.value, 0);
+        });
+
+        test("Function with parameters", fn() {
+                let code = "define function add with a, b:\n    return a plus b";
+                let prog = parse_clean(code, "test_fn_add.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let fn_stmt = prog.statements[0];
+                assert_eq(fn_stmt.name.value, "add");
+                assert_eq(len(fn_stmt.parameters), 2);
+                assert_eq(fn_stmt.parameters[0].value, "a");
+                assert_eq(fn_stmt.parameters[1].value, "b");
+
+                let ret = fn_stmt.body.statements[0];
+                assert_eq(ret.node_type, sri.NODE_RETURN);
+                assert_eq(ret.return_value.operator, "plus");
+        });
+
+        test("Function calls and chained property access", fn() {
+                let code = "create_account(101, \"Arya\", 5000.0)\nuser.get_account().deposit(100)";
+                let prog = parse_clean(code, "test_call.sri");
+                assert_eq(len(prog.statements), 2);
+
+                // Call 1
+                let c1 = prog.statements[0].expression;
+                assert_eq(c1.node_type, sri.NODE_CALL_EXPR);
+                assert_eq(c1.function.value, "create_account");
+                assert_eq(len(c1.arguments), 3);
+                assert_eq(c1.arguments[0].value, 101);
+                assert_eq(c1.arguments[1].value, "Arya");
+
+                // Chained Call 2: user.get_account().deposit(100)
+                let c2 = prog.statements[1].expression;
+                assert_eq(c2.node_type, sri.NODE_CALL_EXPR);
+                assert_eq(c2.function.node_type, sri.NODE_PROPERTY_EXPR);
+                assert_eq(c2.function.property.value, "deposit");
+                assert_eq(len(c2.arguments), 1);
+                assert_eq(c2.arguments[0].value, 100);
+        });
+});
+
+describe("Struct Declarations", fn() {
+        test("Struct with fields", fn() {
+                let code = "create struct Point with x, y\ncreate struct Account with id, owner, balance, is_active:";
+                let prog = parse_clean(code, "test_structs.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_CREATE_STRUCT);
+                assert_eq(s0.name.value, "Point");
+                assert_eq(len(s0.fields), 2);
+                assert_eq(s0.fields[0].value, "x");
+                assert_eq(s0.fields[1].value, "y");
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.name.value, "Account");
+                assert_eq(len(s1.fields), 4);
+                assert_eq(s1.fields[0].value, "id");
+                assert_eq(s1.fields[1].value, "owner");
+                assert_eq(s1.fields[2].value, "balance");
+                assert_eq(s1.fields[3].value, "is_active");
+        });
+});
+
+describe("Conditionals and Control Flow", fn() {
+        test("If-Then statement without otherwise", fn() {
+                let code = "if x is greater than 10 then:\n    display \"high\"";
+                let prog = parse_clean(code, "test_if_simple.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let stmt = prog.statements[0];
+                assert_eq(stmt.node_type, sri.NODE_IF);
+                assert_eq(stmt.condition.operator, "is greater than");
+                assert_eq(len(stmt.consequence.statements), 1);
+                assert_eq(stmt.alternative, null);
+        });
+
+        test("If-Then-Otherwise statement", fn() {
+                let code = "if amount is less than or equal to 0 then:\n    display \"invalid\"\n    return false\notherwise:\n    display \"ok\"\n    return true";
+                let prog = parse_clean(code, "test_if_otherwise.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let stmt = prog.statements[0];
+                assert_eq(stmt.node_type, sri.NODE_IF);
+                assert_eq(len(stmt.consequence.statements), 2);
+                assert(stmt.alternative != null, "Must contain alternative block");
+                assert_eq(len(stmt.alternative.statements), 2);
+        });
+
+        test("Repeat-While loop", fn() {
+                let code = "repeat while active is equal to true:\n    do_work()\n    set count to count plus 1";
+                let prog = parse_clean(code, "test_repeat.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let stmt = prog.statements[0];
+                assert_eq(stmt.node_type, sri.NODE_REPEAT_WHILE);
+                assert_eq(stmt.condition.operator, "is equal to");
+                assert_eq(len(stmt.body.statements), 2);
+        });
+
+        test("Iterate-Through loop", fn() {
+                let code = "iterate item through items:\n    display item";
+                let prog = parse_clean(code, "test_iterate.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let stmt = prog.statements[0];
+                assert_eq(stmt.node_type, sri.NODE_ITERATE);
+                assert_eq(stmt.item_name.value, "item");
+                assert_eq(stmt.collection.value, "items");
+                assert_eq(len(stmt.body.statements), 1);
+        });
+});
+
+describe("Pattern Matching", fn() {
+        test("Match-When statement with multiple cases and otherwise", fn() {
+                let code = "match code:\n    when 1:\n        display \"One\"\n    when 2:\n        display \"Two\"\n    otherwise:\n        display \"Other\"";
+                let prog = parse_clean(code, "test_match.sri");
+                assert_eq(len(prog.statements), 1);
+
+                let stmt = prog.statements[0];
+                assert_eq(stmt.node_type, sri.NODE_MATCH);
+                assert_eq(stmt.expression.value, "code");
+                assert_eq(len(stmt.cases), 2);
+
+                // Case 1
+                let c1 = stmt.cases[0];
+                assert_eq(c1.node_type, sri.NODE_MATCH_CASE);
+                assert_eq(c1.pattern_value.value, 1);
+                assert_eq(len(c1.body.statements), 1);
+
+                // Case 2
+                let c2 = stmt.cases[1];
+                assert_eq(c2.pattern_value.value, 2);
+                assert_eq(len(c2.body.statements), 1);
+
+                // Default Case
+                assert(stmt.default_case != null, "Must have default_case");
+                assert_eq(len(stmt.default_case.statements), 1);
+        });
+});
+
+describe("Concurrency and Special Statements", fn() {
+        test("Spawn task statement", fn() {
+                let code = "spawn task worker(arg)\nspawn task audit_accounts([my_account])";
+                let prog = parse_clean(code, "test_spawn.sri");
+                assert_eq(len(prog.statements), 2);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_SPAWN_TASK);
+                assert_eq(s0.call_expression.node_type, sri.NODE_CALL_EXPR);
+                assert_eq(s0.call_expression.function.value, "worker");
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.call_expression.function.value, "audit_accounts");
+                assert_eq(len(s1.call_expression.arguments), 1);
+        });
+
+        test("Display and Return statements", fn() {
+                let code = "display \"Output message\"\nreturn total\nreturn";
+                let prog = parse_clean(code, "test_disp_ret.sri");
+                assert_eq(len(prog.statements), 3);
+
+                let s0 = prog.statements[0];
+                assert_eq(s0.node_type, sri.NODE_DISPLAY);
+                assert_eq(s0.expression.value, "Output message");
+
+                let s1 = prog.statements[1];
+                assert_eq(s1.node_type, sri.NODE_RETURN);
+                assert_eq(s1.return_value.value, "total");
+
+                let s2 = prog.statements[2];
+                assert_eq(s2.node_type, sri.NODE_RETURN);
+                assert_eq(s2.return_value, null);
+        });
+});
+
+describe("AST Diagnostics and Formatting", fn() {
+        test("Pretty printer and tree dumper output", fn() {
+                let code = "let count be 10 plus 20\ndefine function main:\n    display count";
+                let prog = parse_clean(code, "test_printer.sri");
+
+                let dumped = sri.dump_ast(prog, 0);
+                assert(contains(dumped, "Program (2 statements)"), "Must dump program root");
+                assert(contains(dumped, "LetStatement"), "Must dump LetStatement");
+                assert(contains(dumped, "DefineFunctionStatement"), "Must dump DefineFunctionStatement");
+
+                let pretty = sri.pretty_print(prog);
+                assert(contains(pretty, "let count be"), "Must pretty print let");
+                assert(contains(pretty, "define function main:"), "Must pretty print function");
+        });
+
+        test("Syntax error diagnostics formatting", fn() {
+                let code = "let x 10";  // missing 'be'
+                let l = sri.new_lexer(code, "bad_syntax.sri");
+                let p = sri.new_parser(l);
+                let prog = p.parse_program();
+
+                assert(p.has_errors(), "Parser must report syntax error for missing 'be'");
+                let errs = p.get_syntax_errors();
+                assert_eq(len(errs), 1);
+
+                let formatted = errs[0].format();
+                assert(contains(formatted, "✦ error[SyntaxError]"), "Formatted error must contain standard header");
+                assert(contains(formatted, "bad_syntax.sri:1:7"), "Formatted error must reference line and column");
+                assert(contains(formatted, "^"), "Formatted error must include pointer arrow");
+        });
+});
+
+describe("Full Realistic Srishti Banking Program (50+ Lines)", fn() {
+        test("End-to-end parsing of simulation script into complete AST", fn() {
+                let sample_program = "---
+                Srishti Simulation Engine
+                Demonstrates OOP structs, algorithms, pattern matching, concurrency, and arithmetic.
+                ---
+
+                constant MAX_TRANSACTIONS be 1000
+                constant BANK_NAME be \"Srishti National Bank\"
+
+                create struct Account with id, owner, balance, is_active:
+
+                define function create_account with id, owner, initial_balance:
+                let acc be Account(id, owner, initial_balance, true)
+                return acc
+
+                define function deposit with account, amount:
+                if amount is less than or equal to 0 then:
+                display \"Deposit amount must be positive\"
+                return false
+                otherwise:
+                set account.balance to account.balance plus amount
+                display \"Deposited successfully\"
+                return true
+
+                define function withdraw with account, amount:
+                if amount is greater than account.balance then:
+                display \"Insufficient funds\"
+                return false
+                otherwise:
+                set account.balance to account.balance minus amount
+                return true
+
+                define function calculate_interest with principal, rate, years:
+                let factor be 1.0 plus(rate divided by 100.0)
+                let compounded be factor raised to years
+                let total be principal times compounded
+                return total
+
+                define function process_transaction with tx_code, account, amount:
+                match tx_code:
+                when 1:
+                deposit(account, amount)
+                when 2:
+                withdraw(account, amount)
+                when 3:
+                display \"Account balance: \" combined with account.balance
+
+                define function audit_accounts with accounts_list:
+                iterate acc through accounts_list:
+                if acc.balance is greater than or equal to 100000 then:
+                display \"VIP Account: \" combined with acc.owner
+                otherwise:
+                display \"Standard Account: \" combined with acc.owner
+
+                define function main:
+                let my_account be create_account(101, \"Aryabhata\", 50000.0)
+                process_transaction(1, my_account, 15000.0)
+                process_transaction(2, my_account, 5000.0)
+                let future_wealth be calculate_interest(my_account.balance, 7.5, 5)
+                display \"Projected balance: \" combined with future_wealth
+
+                repeat while my_account.is_active is equal to true:
+                spawn task audit_accounts([my_account])
+                set my_account.is_active to false
+
+                display \"Audit complete for \" combined with BANK_NAME
+                ";
+
+                let l = sri.new_lexer(sample_program, "srishti_simulation.sri");
+                let p = sri.new_parser(l);
+                let prog = p.parse_program();
+
+                assert(!p.has_errors(), "Realistic sample program must parse with 0 syntax errors");
+                assert_eq(len(prog.statements), 10);
+
+                // Statement 0: constant MAX_TRANSACTIONS be 1000
+                assert_eq(prog.statements[0].node_type, sri.NODE_LET);
+                assert_eq(prog.statements[0].is_constant, true);
+                assert_eq(prog.statements[0].name.value, "MAX_TRANSACTIONS");
+                assert_eq(prog.statements[0].value.value, 1000);
+
+                // Statement 1: constant BANK_NAME be "Srishti National Bank"
+                assert_eq(prog.statements[1].is_constant, true);
+                assert_eq(prog.statements[1].name.value, "BANK_NAME");
+                assert_eq(prog.statements[1].value.value, "Srishti National Bank");
+
+                // Statement 2: create struct Account with id, owner, balance, is_active:
+                assert_eq(prog.statements[2].node_type, sri.NODE_CREATE_STRUCT);
+                assert_eq(prog.statements[2].name.value, "Account");
+                assert_eq(len(prog.statements[2].fields), 4);
+
+                // Statement 3: define function create_account
+                let fn_create = prog.statements[3];
+                assert_eq(fn_create.node_type, sri.NODE_DEFINE_FUNCTION);
+                assert_eq(fn_create.name.value, "create_account");
+                assert_eq(len(fn_create.parameters), 3);
+                assert_eq(len(fn_create.body.statements), 2);
+
+                // Statement 4: define function deposit
+                let fn_deposit = prog.statements[4];
+                assert_eq(fn_deposit.name.value, "deposit");
+                assert_eq(len(fn_deposit.parameters), 2);
+                assert_eq(fn_deposit.body.statements[0].node_type, sri.NODE_IF);
+
+                // Statement 5: define function withdraw
+                let fn_withdraw = prog.statements[5];
+                assert_eq(fn_withdraw.name.value, "withdraw");
+                assert_eq(fn_withdraw.body.statements[0].node_type, sri.NODE_IF);
+
+                // Statement 6: define function calculate_interest
+                let fn_interest = prog.statements[6];
+                assert_eq(fn_interest.name.value, "calculate_interest");
+                assert_eq(len(fn_interest.parameters), 3);
+                assert_eq(len(fn_interest.body.statements), 4);
+
+                // Statement 7: define function process_transaction
+                let fn_tx = prog.statements[7];
+                assert_eq(fn_tx.name.value, "process_transaction");
+                assert_eq(fn_tx.body.statements[0].node_type, sri.NODE_MATCH);
+                assert_eq(len(fn_tx.body.statements[0].cases), 3);
+
+                // Statement 8: define function audit_accounts
+                let fn_audit = prog.statements[8];
+                assert_eq(fn_audit.name.value, "audit_accounts");
+                assert_eq(fn_audit.body.statements[0].node_type, sri.NODE_ITERATE);
+
+                // Statement 9: define function main
+                let fn_main = prog.statements[9];
+                assert_eq(fn_main.name.value, "main");
+                assert_eq(len(fn_main.parameters), 0);
+                assert_eq(len(fn_main.body.statements), 7);
+
+                // Main statements verification
+                assert_eq(fn_main.body.statements[0].node_type, sri.NODE_LET);
+                assert_eq(fn_main.body.statements[1].node_type, sri.NODE_EXPRESSION_STMT);
+                assert_eq(fn_main.body.statements[2].node_type, sri.NODE_EXPRESSION_STMT);
+                assert_eq(fn_main.body.statements[3].node_type, sri.NODE_LET);
+                assert_eq(fn_main.body.statements[4].node_type, sri.NODE_DISPLAY);
+                assert_eq(fn_main.body.statements[5].node_type, sri.NODE_REPEAT_WHILE);
+                assert_eq(fn_main.body.statements[6].node_type, sri.NODE_DISPLAY);
+
+                // Inside repeat while: spawn task and set
+                let rep_stmt = fn_main.body.statements[5];
+                assert_eq(len(rep_stmt.body.statements), 2);
+                assert_eq(rep_stmt.body.statements[0].node_type, sri.NODE_SPAWN_TASK);
+                assert_eq(rep_stmt.body.statements[1].node_type, sri.NODE_SET);
+        });
+});

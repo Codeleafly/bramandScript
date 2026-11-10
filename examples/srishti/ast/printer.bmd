@@ -1,0 +1,240 @@
+// Srishti Programming Language :: AST Pretty Printer & Diagnostic Inspector
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Renders AST hierarchies as canonical Srishti code or tree-view diagnostics.
+
+import "./ast" as ast_base
+
+// Repeats a string n times
+let repeat_spaces = fn(count) {
+    if count <= 0 { return ""; }
+    let s = "";
+    let i = 0;
+    while i < count {
+        s = s + " ";
+        i = i + 1;
+    }
+    return s;
+};
+
+// Generates an indented tree dump of an AST node hierarchy
+let dump_ast = fn(node, indent) {
+    if node == null {
+        return repeat_spaces(indent) + "<null>";
+    }
+    if indent == null {
+        indent = 0;
+    }
+    let pad = repeat_spaces(indent);
+    let n_type = node["node_type"];
+
+    if n_type == ast_base.NODE_PROGRAM {
+        let out = pad + "Program (" + str(len(node["statements"])) + " statements)\n";
+        let i = 0;
+        while i < len(node["statements"]) {
+            out = out + dump_ast(node["statements"][i], indent + 2);
+            if i < len(node["statements"]) - 1 {
+                out = out + "\n";
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    if n_type == ast_base.NODE_LET {
+        let out = pad + (node["is_constant"] ? "ConstantStatement" : "LetStatement") + "\n";
+        out = out + pad + "  Name: " + dump_ast(node["name"], 0) + "\n";
+        out = out + pad + "  Value: " + dump_ast(node["value"], 0);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_SET {
+        let out = pad + "SetStatement\n";
+        out = out + pad + "  Target: " + dump_ast(node["target"], 0) + "\n";
+        out = out + pad + "  Value: " + dump_ast(node["value"], 0);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_DEFINE_FUNCTION {
+        let out = pad + "DefineFunctionStatement (" + node["name"].to_string() + ")\n";
+        let params_str = "";
+        let i = 0;
+        while i < len(node["parameters"]) {
+            if i > 0 { params_str = params_str + ", "; }
+            params_str = params_str + node["parameters"][i].to_string();
+            i = i + 1;
+        }
+        out = out + pad + "  Params: [" + params_str + "]\n";
+        out = out + pad + "  Body:\n" + dump_ast(node["body"], indent + 4);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_CREATE_STRUCT {
+        let fields_str = "";
+        let i = 0;
+        while i < len(node["fields"]) {
+            if i > 0 { fields_str = fields_str + ", "; }
+            fields_str = fields_str + node["fields"][i].to_string();
+            i = i + 1;
+        }
+        return pad + "CreateStructStatement (" + node["name"].to_string() + ") fields: [" + fields_str + "]";
+    }
+
+    if n_type == ast_base.NODE_IF {
+        let out = pad + "IfStatement\n";
+        out = out + pad + "  Condition: " + dump_ast(node["condition"], 0) + "\n";
+        out = out + pad + "  Consequence:\n" + dump_ast(node["consequence"], indent + 4);
+        if node["alternative"] != null {
+            out = out + "\n" + pad + "  Alternative:\n" + dump_ast(node["alternative"], indent + 4);
+        }
+        return out;
+    }
+
+    if n_type == ast_base.NODE_REPEAT_WHILE {
+        let out = pad + "RepeatWhileStatement\n";
+        out = out + pad + "  Condition: " + dump_ast(node["condition"], 0) + "\n";
+        out = out + pad + "  Body:\n" + dump_ast(node["body"], indent + 4);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_ITERATE {
+        let out = pad + "IterateStatement (" + node["item_name"].to_string() + ")\n";
+        out = out + pad + "  Collection: " + dump_ast(node["collection"], 0) + "\n";
+        out = out + pad + "  Body:\n" + dump_ast(node["body"], indent + 4);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_MATCH {
+        let out = pad + "MatchStatement\n";
+        out = out + pad + "  Expression: " + dump_ast(node["expression"], 0) + "\n";
+        out = out + pad + "  Cases (" + str(len(node["cases"])) + "):\n";
+        let i = 0;
+        while i < len(node["cases"]) {
+            out = out + dump_ast(node["cases"][i], indent + 4);
+            if i < len(node["cases"]) - 1 {
+                out = out + "\n";
+            }
+            i = i + 1;
+        }
+        if node["default_case"] != null {
+            out = out + "\n" + pad + "  Default:\n" + dump_ast(node["default_case"], indent + 4);
+        }
+        return out;
+    }
+
+    if n_type == ast_base.NODE_MATCH_CASE {
+        let out = pad + "MatchCase\n";
+        out = out + pad + "  Pattern: " + dump_ast(node["pattern_value"], 0) + "\n";
+        out = out + pad + "  Body:\n" + dump_ast(node["body"], indent + 4);
+        return out;
+    }
+
+    if n_type == ast_base.NODE_RETURN {
+        if node["return_value"] != null {
+            return pad + "ReturnStatement (" + dump_ast(node["return_value"], 0) + ")";
+        }
+        return pad + "ReturnStatement (void)";
+    }
+
+    if n_type == ast_base.NODE_SPAWN_TASK {
+        return pad + "SpawnTaskStatement (" + dump_ast(node["call_expression"], 0) + ")";
+    }
+
+    if n_type == ast_base.NODE_DISPLAY {
+        return pad + "DisplayStatement (" + dump_ast(node["expression"], 0) + ")";
+    }
+
+    if n_type == ast_base.NODE_EXPRESSION_STMT {
+        return pad + "ExpressionStatement (" + dump_ast(node["expression"], 0) + ")";
+    }
+
+    if n_type == ast_base.NODE_BLOCK {
+        let out = pad + "Block (" + str(len(node["statements"])) + " statements)\n";
+        let i = 0;
+        while i < len(node["statements"]) {
+            out = out + dump_ast(node["statements"][i], indent + 2);
+            if i < len(node["statements"]) - 1 {
+                out = out + "\n";
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    // Expressions & Literals
+    if n_type == ast_base.NODE_IDENTIFIER {
+        return pad + "Identifier(" + node["value"] + ")";
+    }
+    if n_type == ast_base.NODE_INTEGER_LITERAL {
+        return pad + "Int(" + str(node["value"]) + ")";
+    }
+    if n_type == ast_base.NODE_FLOAT_LITERAL {
+        return pad + "Float(" + str(node["value"]) + ")";
+    }
+    if n_type == ast_base.NODE_STRING_LITERAL {
+        return pad + "String(\"" + node["value"] + "\")";
+    }
+    if n_type == ast_base.NODE_BOOLEAN_LITERAL {
+        return pad + "Bool(" + (node["value"] ? "true" : "false") + ")";
+    }
+    if n_type == ast_base.NODE_NULL_LITERAL {
+        return pad + "Null()";
+    }
+    if n_type == ast_base.NODE_PREFIX_EXPR {
+        return pad + "Prefix(" + node["operator"] + " " + dump_ast(node["right"], 0) + ")";
+    }
+    if n_type == ast_base.NODE_INFIX_EXPR {
+        return pad + "Infix(" + dump_ast(node["left"], 0) + " " + node["operator"] + " " + dump_ast(node["right"], 0) + ")";
+    }
+    if n_type == ast_base.NODE_CALL_EXPR {
+        let args_str = "";
+        let i = 0;
+        while i < len(node["arguments"]) {
+            if i > 0 { args_str = args_str + ", "; }
+            args_str = args_str + dump_ast(node["arguments"][i], 0);
+            i = i + 1;
+        }
+        return pad + "Call(" + dump_ast(node["function"], 0) + ", [" + args_str + "])";
+    }
+    if n_type == ast_base.NODE_INDEX_EXPR {
+        return pad + "Index(" + dump_ast(node["left"], 0) + "[" + dump_ast(node["index"], 0) + "])";
+    }
+    if n_type == ast_base.NODE_PROPERTY_EXPR {
+        return pad + "Property(" + dump_ast(node["object"], 0) + "." + node["property"].to_string() + ")";
+    }
+    if n_type == ast_base.NODE_ARRAY_LITERAL {
+        let elems_str = "";
+        let i = 0;
+        while i < len(node["elements"]) {
+            if i > 0 { elems_str = elems_str + ", "; }
+            elems_str = elems_str + dump_ast(node["elements"][i], 0);
+            i = i + 1;
+        }
+        return pad + "Array([" + elems_str + "])";
+    }
+
+    if node.inspect != null {
+        return pad + node.inspect();
+    }
+    if node.to_string != null {
+        return pad + node.to_string();
+    }
+    return pad + "<Node>";
+};
+
+// Formats an AST root or node back into canonical Srishti source text
+let pretty_print = fn(node) {
+    if node == null { return ""; }
+    if node.to_string != null {
+        return node.to_string();
+    }
+    return "";
+};
+
+// Returns a brief inspector summary
+let inspect_ast = fn(node) {
+    if node == null { return "<null>"; }
+    if node.inspect != null {
+        return node.inspect();
+    }
+    return dump_ast(node, 0);
+};

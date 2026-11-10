@@ -1,0 +1,102 @@
+// Srishti Programming Language :: AST Package Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Re-exports all AST node types, structs, factory constructors, and tree printers.
+
+import "./ast" as ast_base
+import "./expressions" as expr_pkg
+import "./statements" as stmt_pkg
+import "./printer" as print_pkg
+
+// --- Node Type Constants ---
+let NODE_PROGRAM = ast_base.NODE_PROGRAM;
+let NODE_LET = ast_base.NODE_LET;
+let NODE_SET = ast_base.NODE_SET;
+let NODE_DEFINE_FUNCTION = ast_base.NODE_DEFINE_FUNCTION;
+let NODE_CREATE_STRUCT = ast_base.NODE_CREATE_STRUCT;
+let NODE_IF = ast_base.NODE_IF;
+let NODE_REPEAT_WHILE = ast_base.NODE_REPEAT_WHILE;
+let NODE_ITERATE = ast_base.NODE_ITERATE;
+let NODE_MATCH = ast_base.NODE_MATCH;
+let NODE_MATCH_CASE = ast_base.NODE_MATCH_CASE;
+let NODE_RETURN = ast_base.NODE_RETURN;
+let NODE_SPAWN_TASK = ast_base.NODE_SPAWN_TASK;
+let NODE_DISPLAY = ast_base.NODE_DISPLAY;
+let NODE_EXPRESSION_STMT = ast_base.NODE_EXPRESSION_STMT;
+let NODE_BLOCK = ast_base.NODE_BLOCK;
+
+let NODE_IDENTIFIER = ast_base.NODE_IDENTIFIER;
+let NODE_INTEGER_LITERAL = ast_base.NODE_INTEGER_LITERAL;
+let NODE_FLOAT_LITERAL = ast_base.NODE_FLOAT_LITERAL;
+let NODE_STRING_LITERAL = ast_base.NODE_STRING_LITERAL;
+let NODE_BOOLEAN_LITERAL = ast_base.NODE_BOOLEAN_LITERAL;
+let NODE_NULL_LITERAL = ast_base.NODE_NULL_LITERAL;
+let NODE_PREFIX_EXPR = ast_base.NODE_PREFIX_EXPR;
+let NODE_INFIX_EXPR = ast_base.NODE_INFIX_EXPR;
+let NODE_CALL_EXPR = ast_base.NODE_CALL_EXPR;
+let NODE_INDEX_EXPR = ast_base.NODE_INDEX_EXPR;
+let NODE_PROPERTY_EXPR = ast_base.NODE_PROPERTY_EXPR;
+let NODE_ARRAY_LITERAL = ast_base.NODE_ARRAY_LITERAL;
+
+// --- Root & Statements ---
+let Program = ast_base.Program;
+let new_program = ast_base.new_program;
+
+let BlockStatement = stmt_pkg.BlockStatement;
+let new_block_statement = stmt_pkg.new_block_statement;
+let LetStatement = stmt_pkg.LetStatement;
+let new_let_statement = stmt_pkg.new_let_statement;
+let SetStatement = stmt_pkg.SetStatement;
+let new_set_statement = stmt_pkg.new_set_statement;
+let DefineFunctionStatement = stmt_pkg.DefineFunctionStatement;
+let new_define_function_statement = stmt_pkg.new_define_function_statement;
+let CreateStructStatement = stmt_pkg.CreateStructStatement;
+let new_create_struct_statement = stmt_pkg.new_create_struct_statement;
+let IfStatement = stmt_pkg.IfStatement;
+let new_if_statement = stmt_pkg.new_if_statement;
+let RepeatWhileStatement = stmt_pkg.RepeatWhileStatement;
+let new_repeat_while_statement = stmt_pkg.new_repeat_while_statement;
+let IterateStatement = stmt_pkg.IterateStatement;
+let new_iterate_statement = stmt_pkg.new_iterate_statement;
+let MatchStatement = stmt_pkg.MatchStatement;
+let new_match_statement = stmt_pkg.new_match_statement;
+let MatchCase = stmt_pkg.MatchCase;
+let new_match_case = stmt_pkg.new_match_case;
+let ReturnStatement = stmt_pkg.ReturnStatement;
+let new_return_statement = stmt_pkg.new_return_statement;
+let SpawnTaskStatement = stmt_pkg.SpawnTaskStatement;
+let new_spawn_task_statement = stmt_pkg.new_spawn_task_statement;
+let DisplayStatement = stmt_pkg.DisplayStatement;
+let new_display_statement = stmt_pkg.new_display_statement;
+let ExpressionStatement = stmt_pkg.ExpressionStatement;
+let new_expression_statement = stmt_pkg.new_expression_statement;
+
+// --- Expressions & Literals ---
+let Identifier = expr_pkg.Identifier;
+let new_identifier = expr_pkg.new_identifier;
+let IntegerLiteral = expr_pkg.IntegerLiteral;
+let new_integer_literal = expr_pkg.new_integer_literal;
+let FloatLiteral = expr_pkg.FloatLiteral;
+let new_float_literal = expr_pkg.new_float_literal;
+let StringLiteral = expr_pkg.StringLiteral;
+let new_string_literal = expr_pkg.new_string_literal;
+let BooleanLiteral = expr_pkg.BooleanLiteral;
+let new_boolean_literal = expr_pkg.new_boolean_literal;
+let NullLiteral = expr_pkg.NullLiteral;
+let new_null_literal = expr_pkg.new_null_literal;
+let PrefixExpression = expr_pkg.PrefixExpression;
+let new_prefix_expression = expr_pkg.new_prefix_expression;
+let InfixExpression = expr_pkg.InfixExpression;
+let new_infix_expression = expr_pkg.new_infix_expression;
+let CallExpression = expr_pkg.CallExpression;
+let new_call_expression = expr_pkg.new_call_expression;
+let IndexExpression = expr_pkg.IndexExpression;
+let new_index_expression = expr_pkg.new_index_expression;
+let PropertyExpression = expr_pkg.PropertyExpression;
+let new_property_expression = expr_pkg.new_property_expression;
+let ArrayLiteral = expr_pkg.ArrayLiteral;
+let new_array_literal = expr_pkg.new_array_literal;
+
+// --- Printer & Diagnostics ---
+let dump_ast = print_pkg.dump_ast;
+let pretty_print = print_pkg.pretty_print;
+let inspect_ast = print_pkg.inspect_ast;
