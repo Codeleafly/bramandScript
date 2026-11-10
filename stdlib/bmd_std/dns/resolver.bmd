@@ -1,0 +1,158 @@
+// BramandScript Standard Library :: DNS Resolver & Cache (std/dns/resolver)
+// 100% Self-Hosted Pure BramandScript UDP DNS Resolver with RFC 1035 packet decoding and TTL caching.
+
+import "std/dns/packet" as packet;
+import "std/net" as net;
+
+// In-memory DNS cache mapping "domain:qtype" -> { "records": [...], "expires_at": float, "ttl": int }
+let CACHE = {};
+
+// Clears all in-memory cached DNS records.
+let clear_cache = fn() {
+    CACHE = {};
+    return true;
+};
+
+// Returns a reference to the active in-memory DNS cache.
+let get_cache = fn() {
+    return CACHE;
+};
+
+// Manually sets a cached record entry with an explicit TTL in seconds.
+let set_cache = fn(domain, qtype, records, ttl_seconds = 300) {
+    let dom = to_lower(trim(str(domain)));
+    let cache_key = dom + ":" + str(qtype);
+    let expires_at = time_now() + float(ttl_seconds);
+    CACHE[cache_key] = {
+        "domain": dom,
+        "type": int(qtype),
+        "records": records,
+        "expires_at": expires_at,
+        "ttl": int(ttl_seconds)
+    };
+    return true;
+};
+
+// Resolves resource records for a domain name over UDP.
+// Returns an array of answer record hashes: [ { "name", "type", "class", "ttl", "data" } ].
+let resolve_records = fn(domain, qtype = 1, dns_server = "8.8.8.8:53", timeout_ms = 2000) {
+    if (domain == null) { return []; }
+    let dom = to_lower(trim(str(domain)));
+    if (len(dom) == 0) { return []; }
+
+    let target_type = int(qtype);
+    let cache_key = dom + ":" + str(target_type);
+    let now = time_now();
+
+    // Check in-memory TTL cache first
+    if (CACHE[cache_key] != null) {
+        let entry = CACHE[cache_key];
+        if (now < entry["expires_at"]) {
+            return entry["full_records"];
+        } else {
+            delete(CACHE, cache_key);
+        }
+    }
+
+    // Normalize server address
+    let srv_addr = str(dns_server);
+    if (!contains(srv_addr, ":")) {
+        srv_addr = srv_addr + ":53";
+    }
+
+    // Construct RFC 1035 query datagram
+    let query_pkt = packet.encode_query(dom, target_type);
+
+    // Create ephemeral UDP socket
+    let sock = net.create_udp_socket();
+    if (sock == null || type(sock) == "ERROR") {
+        return [];
+    }
+
+    sock.set_timeout(int(timeout_ms));
+
+    let send_res = sock.send_to(query_pkt, srv_addr);
+    if (type(send_res) == "ERROR") {
+        sock.close();
+        return [];
+    }
+
+    let pkt = sock.recv_from(4096);
+    sock.close();
+
+    if (pkt == null || type(pkt) == "ERROR" || pkt["data"] == null) {
+        return [];
+    }
+
+    let decoded = packet.decode_response(pkt["data"]);
+    if (decoded == null || decoded["rcode"] != 0) {
+        return [];
+    }
+
+    let records = [];
+    let record_data_list = [];
+    let min_ttl = 300;
+
+    let ai = 0;
+    while (ai < len(decoded["answers"])) {
+        let ans = decoded["answers"][ai];
+        if (ans["type"] == target_type) {
+            records = push(records, ans);
+            record_data_list = push(record_data_list, ans["data"]);
+            if (ans["ttl"] > 0 && ans["ttl"] < min_ttl) {
+                min_ttl = ans["ttl"];
+            }
+        }
+        ai = ai + 1;
+    }
+
+    // Cache results if records were found
+    if (len(records) > 0) {
+        let exp = now + float(min_ttl);
+        CACHE[cache_key] = {
+            "domain": dom,
+            "type": target_type,
+            "records": record_data_list,
+            "full_records": records,
+            "expires_at": exp,
+            "ttl": min_ttl
+        };
+    }
+
+    return records;
+};
+
+// Resolves a domain name and returns a list of answer data strings (e.g. IPv4 strings for TYPE_A).
+let resolve = fn(domain, qtype = 1, dns_server = "8.8.8.8:53", timeout_ms = 2000) {
+    if (domain == null) { return []; }
+    let dom = to_lower(trim(str(domain)));
+    let target_type = int(qtype);
+    let cache_key = dom + ":" + str(target_type);
+    let now = time_now();
+
+    // Check cache
+    if (CACHE[cache_key] != null) {
+        let entry = CACHE[cache_key];
+        if (now < entry["expires_at"]) {
+            return entry["records"];
+        }
+    }
+
+    let full_records = resolve_records(dom, target_type, dns_server, timeout_ms);
+    let results = [];
+    let i = 0;
+    while (i < len(full_records)) {
+        results = push(results, full_records[i]["data"]);
+        i = i + 1;
+    }
+    return results;
+};
+
+// Convenience helper returning the first resolved IPv4 address string, or null if none found.
+let lookup = fn(domain, dns_server = "8.8.8.8:53", timeout_ms = 2000) {
+    let ips = resolve(domain, packet.TYPE_A, dns_server, timeout_ms);
+    if (len(ips) > 0) {
+        return ips[0];
+    }
+    return null;
+};

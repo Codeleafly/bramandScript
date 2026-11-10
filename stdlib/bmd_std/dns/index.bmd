@@ -1,0 +1,43 @@
+// BramandScript Standard Library :: DNS Protocol Suite (std/dns)
+// 100% Self-Hosted Pure BramandScript RFC 1035 UDP DNS Codec and Resolver.
+
+import "std/dns/packet" as packet;
+import "std/dns/resolver" as resolver;
+
+// --- Resolver Primitives ---
+let resolve = resolver.resolve;
+let resolve_records = resolver.resolve_records;
+let lookup = resolver.lookup;
+let clear_cache = resolver.clear_cache;
+let get_cache = resolver.get_cache;
+let set_cache = resolver.set_cache;
+
+// --- Packet Codec Primitives ---
+let encode_query = packet.encode_query;
+let decode_response = packet.decode_response;
+let encode_header = packet.encode_header;
+let decode_header = packet.decode_header;
+let encode_qname = packet.encode_qname;
+let decode_qname = packet.decode_qname;
+let encode_response = packet.encode_response;
+
+// --- RFC 1035 Resource Record Types ---
+let TYPE_A     = packet.TYPE_A;
+let TYPE_NS    = packet.TYPE_NS;
+let TYPE_CNAME = packet.TYPE_CNAME;
+let TYPE_SOA   = packet.TYPE_SOA;
+let TYPE_PTR   = packet.TYPE_PTR;
+let TYPE_MX    = packet.TYPE_MX;
+let TYPE_TXT   = packet.TYPE_TXT;
+let TYPE_AAAA  = packet.TYPE_AAAA;
+
+// --- RFC 1035 Classes ---
+let CLASS_IN   = packet.CLASS_IN;
+
+// --- RFC 1035 Response Codes ---
+let RCODE_NOERROR  = packet.RCODE_NOERROR;
+let RCODE_FORMERR  = packet.RCODE_FORMERR;
+let RCODE_SERVFAIL = packet.RCODE_SERVFAIL;
+let RCODE_NXDOMAIN = packet.RCODE_NXDOMAIN;
+let RCODE_NOTIMP   = packet.RCODE_NOTIMP;
+let RCODE_REFUSED  = packet.RCODE_REFUSED;

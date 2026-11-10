@@ -1,0 +1,405 @@
+// tests/38_pure_bmd_dns_https_test.bmd
+// BramandScript System Verification :: Pure BramandScript DNS & HTTPS Protocols (Agent 8)
+// Validates 100% Self-Hosted RFC 1035 UDP DNS Codec, Resolver, Cache, and HTTPS Engine over TLS.
+
+import "std/dns" as dns;
+import "std/dns/packet" as dns_packet;
+import "std/https" as https;
+import "std/https/client" as https_client;
+import "std/net" as net;
+import "std/net/router" as router;
+
+describe("RFC 1035 DNS Header & QNAME Codec (std/dns/packet)", fn() {
+    test("RFC 1035 QNAME label encoding and decoding", fn() {
+        // Standard domain: bramand.org
+        let qn1 = dns_packet.encode_qname("bramand.org");
+        assert_eq(len(qn1), 13); // 1 + 7 + 1 + 3 + 1 = 13 bytes
+        let dec1 = dns_packet.decode_qname(qn1, 0);
+        assert_eq(dec1["name"], "bramand.org");
+        assert_eq(dec1["bytes_consumed"], 13);
+
+        // Subdomain: api.service.io
+        let qn2 = dns_packet.encode_qname("api.service.io");
+        assert_eq(len(qn2), 16); // 1 + 3 + 1 + 7 + 1 + 2 + 1 = 16 bytes
+        let dec2 = dns_packet.decode_qname(qn2, 0);
+        assert_eq(dec2["name"], "api.service.io");
+        assert_eq(dec2["bytes_consumed"], 16);
+
+        // Root domain: "." or empty string
+        let qn_root = dns_packet.encode_qname(".");
+        assert_eq(len(qn_root), 1);
+        assert_eq(qn_root[0], 0);
+        let dec_root = dns_packet.decode_qname(qn_root, 0);
+        assert_eq(dec_root["name"], "");
+        assert_eq(dec_root["bytes_consumed"], 1);
+    });
+
+    test("RFC 1035 12-byte header encoding and flag bitfields", fn() {
+        let hdr_bytes = dns_packet.encode_header({
+            "id": 0x4321,
+            "qr": 1,
+            "opcode": 0,
+            "aa": 1,
+            "tc": 0,
+            "rd": 1,
+            "ra": 1,
+            "rcode": dns.RCODE_NOERROR,
+            "qdcount": 1,
+            "ancount": 3
+        });
+
+        assert_eq(len(hdr_bytes), 12);
+        let dec = dns_packet.decode_header(hdr_bytes, 0);
+        assert(dec != null);
+        assert_eq(dec["id"], 0x4321);
+        assert_eq(dec["qr"], 1);
+        assert_eq(dec["opcode"], 0);
+        assert_eq(dec["aa"], 1);
+        assert_eq(dec["tc"], 0);
+        assert_eq(dec["rd"], 1);
+        assert_eq(dec["ra"], 1);
+        assert_eq(dec["rcode"], 0);
+        assert_eq(dec["qdcount"], 1);
+        assert_eq(dec["ancount"], 3);
+
+        // Error response header: NXDOMAIN (3)
+        let err_hdr = dns_packet.encode_header({
+            "id": 0x9999,
+            "qr": 1,
+            "rcode": dns.RCODE_NXDOMAIN,
+            "qdcount": 1,
+            "ancount": 0
+        });
+        let dec_err = dns_packet.decode_header(err_hdr, 0);
+        assert_eq(dec_err["rcode"], dns.RCODE_NXDOMAIN);
+    });
+
+    test("RFC 1035 compression pointer decoding (0xC0 | offset)", fn() {
+        // Construct a packet containing "bramand.org" at offset 12,
+        // and a compression pointer 0xC00C at offset 26 referencing offset 12.
+        let qname = dns_packet.encode_qname("bramand.org"); // 13 bytes (12..24)
+        let pkt = bytes(30);
+
+        let i = 0;
+        while (i < len(qname)) {
+            pkt[12 + i] = qname[i];
+            i = i + 1;
+        }
+
+        // Write compression pointer at offset 26: 0xC0 (flag) | 12 (offset)
+        pkt[26] = 0xC0;
+        pkt[27] = 12;
+
+        let ptr_dec = dns_packet.decode_qname(pkt, 26);
+        assert_eq(ptr_dec["name"], "bramand.org");
+        assert_eq(ptr_dec["bytes_consumed"], 2);
+        assert_eq(ptr_dec["next_offset"], 28);
+
+        // Prefix label + compression pointer: "node" + pointer to offset 12 -> "node.bramand.org"
+        let pkt2 = bytes(40);
+        i = 0;
+        while (i < len(qname)) {
+            pkt2[12 + i] = qname[i];
+            i = i + 1;
+        }
+
+        // At offset 28: label "node" (len 4)
+        pkt2[28] = 4;
+        pkt2[29] = ord("n");
+        pkt2[30] = ord("o");
+        pkt2[31] = ord("d");
+        pkt2[32] = ord("e");
+        // Pointer to 12
+        pkt2[33] = 0xC0;
+        pkt2[34] = 12;
+
+        let comp_dec = dns_packet.decode_qname(pkt2, 28);
+        assert_eq(comp_dec["name"], "node.bramand.org");
+        assert_eq(comp_dec["bytes_consumed"], 7); // 1 len + 4 chars + 2 pointer = 7
+    });
+
+    test("encode_query constructs valid RFC 1035 binary query datagram", fn() {
+        let q_pkt = dns_packet.encode_query("google.com", dns.TYPE_A, 0x1234);
+        assert(q_pkt != null);
+        assert(len(q_pkt) >= 12 + 12 + 4);
+
+        let dec = dns_packet.decode_response(q_pkt);
+        assert(dec != null);
+        assert_eq(dec["id"], 0x1234);
+        assert_eq(dec["qr"], 0); // Query
+        assert_eq(dec["opcode"], 0);
+        assert_eq(dec["rd"], 1); // Recursion Desired
+        assert_eq(dec["qdcount"], 1);
+        assert_eq(dec["ancount"], 0);
+        assert_eq(len(dec["questions"]), 1);
+
+        let q = dec["questions"][0];
+        assert_eq(q["name"], "google.com");
+        assert_eq(q["type"], dns.TYPE_A);
+        assert_eq(q["class"], dns.CLASS_IN);
+    });
+
+    test("decode_response parses A record IPv4 addresses and CNAME records", fn() {
+        let resp_bytes = dns_packet.encode_response({
+            "id": 0x55AA,
+            "rcode": dns.RCODE_NOERROR,
+            "questions": [{ "name": "service.io", "type": dns.TYPE_A }],
+            "answers": [
+                { "name": "service.io", "type": dns.TYPE_A, "ttl": 300, "data": "104.21.55.2" },
+                { "name": "service.io", "type": dns.TYPE_A, "ttl": 180, "data": "172.67.180.3" },
+                { "name": "alias.io", "type": dns.TYPE_CNAME, "ttl": 600, "data": "service.io" }
+            ]
+        });
+
+        let dec = dns_packet.decode_response(resp_bytes);
+        assert(dec != null);
+        assert_eq(dec["id"], 0x55AA);
+        assert_eq(dec["qr"], 1); // Response
+        assert_eq(dec["ancount"], 3);
+        assert_eq(len(dec["answers"]), 3);
+
+        let a1 = dec["answers"][0];
+        assert_eq(a1["name"], "service.io");
+        assert_eq(a1["type"], dns.TYPE_A);
+        assert_eq(a1["ttl"], 300);
+        assert_eq(a1["data"], "104.21.55.2");
+
+        let a2 = dec["answers"][1];
+        assert_eq(a2["name"], "service.io");
+        assert_eq(a2["type"], dns.TYPE_A);
+        assert_eq(a2["ttl"], 180);
+        assert_eq(a2["data"], "172.67.180.3");
+
+        let a3 = dec["answers"][2];
+        assert_eq(a3["name"], "alias.io");
+        assert_eq(a3["type"], dns.TYPE_CNAME);
+        assert_eq(a3["ttl"], 600);
+        assert_eq(a3["data"], "service.io");
+    });
+});
+
+describe("Pure BramandScript DNS Resolver & In-Memory Cache (std/dns/resolver)", fn() {
+    test("In-memory cache insertion, lookup, and TTL eviction", fn() {
+        dns.clear_cache();
+        let initial_cache = dns.get_cache();
+        assert_eq(len(initial_cache), 0);
+
+        dns.set_cache("example.org", dns.TYPE_A, ["93.184.216.34"], 300);
+        let updated_cache = dns.get_cache();
+        assert_eq(len(updated_cache), 1);
+        assert(updated_cache["example.org:1"] != null);
+        assert_eq(updated_cache["example.org:1"]["records"][0], "93.184.216.34");
+
+        // Resolver resolve hits in-memory cache directly without network
+        let cached_ips = dns.resolve("example.org", dns.TYPE_A);
+        assert_eq(len(cached_ips), 1);
+        assert_eq(cached_ips[0], "93.184.216.34");
+
+        // Lookup convenience helper hits cache
+        let first_ip = dns.lookup("example.org");
+        assert_eq(first_ip, "93.184.216.34");
+
+        // Manual clearing
+        dns.clear_cache();
+        assert_eq(len(dns.get_cache()), 0);
+    });
+
+    test("Mock loopback UDP DNS server full resolution cycle", fn() {
+        dns.clear_cache();
+        let port = 29853;
+        let srv_sock = net.create_udp_socket("127.0.0.1:" + str(port));
+        assert(srv_sock != null);
+        assert(len(srv_sock.local_addr()) > 0);
+
+        // Spawn mock UDP DNS server handling query
+        spawn fn() {
+            let req = srv_sock.recv_from(4096);
+            if (req != null && req["data"] != null) {
+                let dec = dns.decode_response(req["data"]);
+                let q_name = "bramand.internal";
+                if (len(dec["questions"]) > 0) {
+                    q_name = dec["questions"][0]["name"];
+                }
+
+                let resp = dns.encode_response({
+                    "id": dec["id"],
+                    "rcode": dns.RCODE_NOERROR,
+                    "questions": dec["questions"],
+                    "answers": [
+                        { "name": q_name, "type": dns.TYPE_A, "ttl": 120, "data": "127.0.0.1" },
+                        { "name": q_name, "type": dns.TYPE_A, "ttl": 120, "data": "127.0.0.2" }
+                    ]
+                });
+
+                srv_sock.send_to(resp, req["addr"]);
+            }
+        }();
+
+        sleep(30);
+
+        // Client performs resolution against local mock server
+        let resolved = dns.resolve("bramand.internal", dns.TYPE_A, "127.0.0.1:" + str(port), 2000);
+        assert_eq(len(resolved), 2);
+        assert_eq(resolved[0], "127.0.0.1");
+        assert_eq(resolved[1], "127.0.0.2");
+
+        // Client lookup convenience returns first IP
+        let single_ip = dns.lookup("bramand.internal", "127.0.0.1:" + str(port), 2000);
+        assert_eq(single_ip, "127.0.0.1");
+
+        // Confirm resolver cached the record
+        let cache = dns.get_cache();
+        assert(cache["bramand.internal:1"] != null);
+        assert_eq(len(cache["bramand.internal:1"]["records"]), 2);
+
+        srv_sock.close();
+        dns.clear_cache();
+    });
+});
+
+describe("Pure BramandScript HTTPS Client & Server (std/https)", fn() {
+    test("HTTPS URL parser handles https schema, default port 443, and paths", fn() {
+        let u1 = https_client.parse_url("https://api.bramand.org/v1/users?limit=10");
+        assert_eq(u1["schema"], "https");
+        assert_eq(u1["is_https"], true);
+        assert_eq(u1["host"], "api.bramand.org");
+        assert_eq(u1["port"], 443);
+        assert_eq(u1["path"], "/v1/users?limit=10");
+        assert_eq(u1["host_port"], "api.bramand.org");
+
+        let u2 = https_client.parse_url("https://secure.gateway.io:8443/auth/token");
+        assert_eq(u2["schema"], "https");
+        assert_eq(u2["host"], "secure.gateway.io");
+        assert_eq(u2["port"], 8443);
+        assert_eq(u2["path"], "/auth/token");
+        assert_eq(u2["host_port"], "secure.gateway.io:8443");
+    });
+
+    test("HTTPS GET request and 200 OK encrypted text response", fn() {
+        let port = 29801;
+        let srv = https.create_server(fn(req, res) {
+            assert_eq(req["method"], "GET");
+            assert_eq(req["path"], "/secure/status");
+            res.status(200).send("SECURE_BMD_ENCRYPTED_OK");
+        });
+
+        srv.listen(port);
+        assert(srv["is_listening"]);
+        sleep(50);
+
+        let resp = https.get("https://127.0.0.1:" + str(port) + "/secure/status", {
+            "insecure_skip_verify": true,
+            "timeout": 5000
+        });
+
+        assert(resp != null);
+        assert_eq(resp["status"], 200);
+        assert_eq(resp["status_text"], "OK");
+        assert_eq(resp["body"], "SECURE_BMD_ENCRYPTED_OK");
+        assert_eq(resp.text(), "SECURE_BMD_ENCRYPTED_OK");
+
+        srv.close();
+    });
+
+    test("HTTPS POST request with JSON payload, server req.json(), and res.json() response", fn() {
+        let port = 29802;
+        let srv = https.create_server(fn(req, res) {
+            assert_eq(req["method"], "POST");
+            assert_eq(req["path"], "/api/secure-data");
+
+            let input = req.json();
+            assert(input != null);
+            assert_eq(input["protocol"], "bmd-tls");
+
+            res.status(200).json({
+                "received": input["payload"],
+                "secure": true,
+                "cipher": "TLS_AES_256_GCM_SHA384"
+            });
+        });
+
+        srv.listen(port);
+        sleep(50);
+
+        let resp = https.post("https://127.0.0.1:" + str(port) + "/api/secure-data", {
+            "protocol": "bmd-tls",
+            "payload": "secret_quantum_keys"
+        }, {
+            "insecure_skip_verify": true,
+            "timeout": 5000
+        });
+
+        assert(resp != null);
+        assert_eq(resp["status"], 200);
+
+        let data = resp.json();
+        assert(data != null);
+        assert_eq(data["received"], "secret_quantum_keys");
+        assert_eq(data["secure"], true);
+        assert_eq(data["cipher"], "TLS_AES_256_GCM_SHA384");
+
+        srv.close();
+    });
+
+    test("HTTPS Router mounting and 404 handler", fn() {
+        let port = 29803;
+        let r = router.new_router();
+
+        r.get("/api/v1/users/:id", fn(req, res) {
+            res.json({
+                "user_id": req["params"]["id"],
+                "tier": "enterprise"
+            });
+        });
+
+        let srv = https.create_server(r);
+        srv.listen(port);
+        sleep(50);
+
+        // Found route: /api/v1/users/42
+        let resp1 = https.get("https://127.0.0.1:" + str(port) + "/api/v1/users/42", {
+            "insecure_skip_verify": true,
+            "timeout": 5000
+        });
+        assert_eq(resp1["status"], 200);
+        let u_data = resp1.json();
+        assert_eq(u_data["user_id"], "42");
+        assert_eq(u_data["tier"], "enterprise");
+
+        // 404 route: /api/v1/nonexistent
+        let resp2 = https.get("https://127.0.0.1:" + str(port) + "/api/v1/nonexistent", {
+            "insecure_skip_verify": true,
+            "timeout": 5000
+        });
+        assert_eq(resp2["status"], 404);
+
+        srv.close();
+    });
+
+    test("HTTPS custom headers and case-insensitive header lookup", fn() {
+        let port = 29804;
+        let srv = https.create_server(fn(req, res) {
+            let auth = req.header("X-Secure-Auth-Token");
+            assert_eq(auth, "Bearer bmd_tls_9988");
+            res.set_header("X-Response-Id", "RESP_001");
+            res.send("HEADER_OK");
+        });
+
+        srv.listen(port);
+        sleep(50);
+
+        let resp = https.get("https://127.0.0.1:" + str(port) + "/check-auth", {
+            "headers": {
+                "X-Secure-Auth-Token": "Bearer bmd_tls_9988"
+            },
+            "insecure_skip_verify": true,
+            "timeout": 5000
+        });
+
+        assert_eq(resp["status"], 200);
+        assert_eq(resp["body"], "HEADER_OK");
+        assert_eq(resp.header("x-response-id"), "RESP_001");
+
+        srv.close();
+    });
+});

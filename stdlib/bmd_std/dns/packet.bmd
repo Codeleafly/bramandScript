@@ -1,0 +1,621 @@
+// BramandScript Standard Library :: RFC 1035 DNS Packet Codec (std/dns/packet)
+// 100% Self-Hosted Pure BramandScript implementation of DNS packet encoder and decoder.
+
+// --- RFC 1035 Resource Record Types ---
+let TYPE_A     = 1;
+let TYPE_NS    = 2;
+let TYPE_CNAME = 5;
+let TYPE_SOA   = 6;
+let TYPE_PTR   = 12;
+let TYPE_MX    = 15;
+let TYPE_TXT   = 16;
+let TYPE_AAAA  = 28;
+
+// --- RFC 1035 Classes ---
+let CLASS_IN   = 1;
+
+// --- RFC 1035 Response Codes (RCODE) ---
+let RCODE_NOERROR  = 0;
+let RCODE_FORMERR  = 1;
+let RCODE_SERVFAIL = 2;
+let RCODE_NXDOMAIN = 3;
+let RCODE_NOTIMP   = 4;
+let RCODE_REFUSED  = 5;
+
+// Encodes a 12-byte RFC 1035 DNS Header into a BYTES buffer.
+let encode_header = fn(opts = {}) {
+    if (opts == null) { opts = {}; }
+
+    let id = 0;
+    if (opts["id"] != null) { id = int(opts["id"]); }
+
+    let qr = 0;
+    if (opts["qr"] != null) { qr = int(opts["qr"]); }
+
+    let opcode = 0;
+    if (opts["opcode"] != null) { opcode = int(opts["opcode"]); }
+
+    let aa = 0;
+    if (opts["aa"] != null) { aa = int(opts["aa"]); }
+
+    let tc = 0;
+    if (opts["tc"] != null) { tc = int(opts["tc"]); }
+
+    let rd = 1; // Recursion Desired default 1
+    if (opts["rd"] != null) { rd = int(opts["rd"]); }
+
+    let ra = 0;
+    if (opts["ra"] != null) { ra = int(opts["ra"]); }
+
+    let z = 0;
+    if (opts["z"] != null) { z = int(opts["z"]); }
+
+    let rcode = 0;
+    if (opts["rcode"] != null) { rcode = int(opts["rcode"]); }
+
+    let qdcount = 0;
+    if (opts["qdcount"] != null) { qdcount = int(opts["qdcount"]); }
+
+    let ancount = 0;
+    if (opts["ancount"] != null) { ancount = int(opts["ancount"]); }
+
+    let nscount = 0;
+    if (opts["nscount"] != null) { nscount = int(opts["nscount"]); }
+
+    let arcount = 0;
+    if (opts["arcount"] != null) { arcount = int(opts["arcount"]); }
+
+    let buf = bytes(12);
+    buf.write_u16(0, id, "be");
+
+    // Byte 2: QR (1 bit) | Opcode (4 bits) | AA (1 bit) | TC (1 bit) | RD (1 bit)
+    buf[2] = ((qr & 1) << 7) | ((opcode & 0x0F) << 3) | ((aa & 1) << 2) | ((tc & 1) << 1) | (rd & 1);
+
+    // Byte 3: RA (1 bit) | Z (3 bits) | RCODE (4 bits)
+    buf[3] = ((ra & 1) << 7) | ((z & 0x07) << 4) | (rcode & 0x0F);
+
+    buf.write_u16(4, qdcount, "be");
+    buf.write_u16(6, ancount, "be");
+    buf.write_u16(8, nscount, "be");
+    buf.write_u16(10, arcount, "be");
+
+    return buf;
+};
+
+// Decodes a 12-byte RFC 1035 DNS Header from raw bytes.
+let decode_header = fn(raw_bytes, offset = 0) {
+    let b = raw_bytes;
+    if (type(b) != "BYTES") {
+        b = bytes(b);
+    }
+    if (len(b) < offset + 12) {
+        return null;
+    }
+
+    let id = b.read_u16(offset, "be");
+    let byte2 = b[offset + 2];
+    let byte3 = b[offset + 3];
+
+    let qr = (byte2 >> 7) & 1;
+    let opcode = (byte2 >> 3) & 0x0F;
+    let aa = (byte2 >> 2) & 1;
+    let tc = (byte2 >> 1) & 1;
+    let rd = byte2 & 1;
+
+    let ra = (byte3 >> 7) & 1;
+    let z = (byte3 >> 4) & 0x07;
+    let rcode = byte3 & 0x0F;
+
+    let qdcount = b.read_u16(offset + 4, "be");
+    let ancount = b.read_u16(offset + 6, "be");
+    let nscount = b.read_u16(offset + 8, "be");
+    let arcount = b.read_u16(offset + 10, "be");
+
+    return {
+        "id": id,
+        "qr": qr,
+        "opcode": opcode,
+        "aa": aa,
+        "tc": tc,
+        "rd": rd,
+        "ra": ra,
+        "z": z,
+        "rcode": rcode,
+        "qdcount": qdcount,
+        "ancount": ancount,
+        "nscount": nscount,
+        "arcount": arcount,
+        "length": 12
+    };
+};
+
+// Encodes a human-readable domain name (e.g. "example.com") into RFC 1035 QNAME wire format.
+// Returns a BYTES object ending with a 0x00 null octet.
+let encode_qname = fn(domain) {
+    if (domain == null) {
+        let b = bytes(1);
+        b[0] = 0;
+        return b;
+    }
+
+    let d = trim(str(domain));
+    // Strip trailing dot if present
+    if (len(d) > 0 && slice(d, len(d) - 1, len(d)) == ".") {
+        d = slice(d, 0, len(d) - 1);
+    }
+
+    if (len(d) == 0) {
+        let b = bytes(1);
+        b[0] = 0;
+        return b;
+    }
+
+    let labels = split(d, ".");
+    let total_len = 1; // For terminating 0x00
+    let i = 0;
+    while (i < len(labels)) {
+        total_len = total_len + 1 + len(labels[i]);
+        i = i + 1;
+    }
+
+    let buf = bytes(total_len);
+    let off = 0;
+    i = 0;
+    while (i < len(labels)) {
+        let lbl = labels[i];
+        let lbl_len = len(lbl);
+        buf[off] = lbl_len;
+        off = off + 1;
+
+        let j = 0;
+        while (j < lbl_len) {
+            buf[off] = ord(lbl[j]);
+            off = off + 1;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    buf[off] = 0; // Terminating null octet
+    return buf;
+};
+
+// Decodes a QNAME from raw bytes starting at offset, supporting RFC 1035 compression pointers (0xC0 | offset).
+// Returns { "name": "...", "bytes_consumed": N, "next_offset": offset + N }.
+let decode_qname = fn(raw_bytes, offset = 0) {
+    let b = raw_bytes;
+    if (type(b) != "BYTES") {
+        b = bytes(b);
+    }
+
+    let labels = [];
+    let curr = offset;
+    let bytes_consumed = -1;
+    let hops = 0;
+    let max_hops = 32;
+
+    while (hops < max_hops) {
+        if (curr >= len(b)) {
+            break;
+        }
+        let octet = b[curr];
+        if (octet == 0) {
+            // Null octet terminates domain
+            if (bytes_consumed == -1) {
+                bytes_consumed = (curr + 1) - offset;
+            }
+            break;
+        }
+
+        if ((octet & 0xC0) == 0xC0) {
+            // RFC 1035 Compression Pointer: 2 octets
+            if (curr + 1 >= len(b)) {
+                break;
+            }
+            let ptr_offset = ((octet & 0x3F) << 8) | b[curr + 1];
+            if (bytes_consumed == -1) {
+                bytes_consumed = (curr + 2) - offset;
+            }
+            curr = ptr_offset;
+            hops = hops + 1;
+        } else {
+            // Direct Label
+            let label_len = octet;
+            curr = curr + 1;
+            let lbl_str = "";
+            let j = 0;
+            while (j < label_len && curr < len(b)) {
+                lbl_str = lbl_str + chr(b[curr]);
+                curr = curr + 1;
+                j = j + 1;
+            }
+            labels = push(labels, lbl_str);
+        }
+    }
+
+    if (bytes_consumed == -1) {
+        bytes_consumed = curr - offset;
+    }
+
+    let domain = join(labels, ".");
+    return {
+        "name": domain,
+        "bytes_consumed": bytes_consumed,
+        "next_offset": offset + bytes_consumed
+    };
+};
+
+// Constructs a complete RFC 1035 binary UDP query datagram.
+let encode_query = fn(domain, qtype = 1, id = null) {
+    let query_id = id;
+    if (query_id == null) {
+        query_id = random_int(1, 65535);
+    }
+
+    let hdr = encode_header({
+        "id": query_id,
+        "qr": 0,
+        "opcode": 0,
+        "aa": 0,
+        "tc": 0,
+        "rd": 1,
+        "ra": 0,
+        "rcode": 0,
+        "qdcount": 1,
+        "ancount": 0,
+        "nscount": 0,
+        "arcount": 0
+    });
+
+    let qname = encode_qname(domain);
+    let total_len = 12 + len(qname) + 4; // 12-byte header + qname + 2-byte QTYPE + 2-byte QCLASS
+    let pkt = bytes(total_len);
+
+    // Copy 12-byte header
+    let i = 0;
+    while (i < 12) {
+        pkt[i] = hdr[i];
+        i = i + 1;
+    }
+
+    // Copy QNAME
+    let off = 12;
+    i = 0;
+    while (i < len(qname)) {
+        pkt[off + i] = qname[i];
+        i = i + 1;
+    }
+    off = off + len(qname);
+
+    // QTYPE and QCLASS (CLASS_IN = 1)
+    pkt.write_u16(off, int(qtype), "be");
+    pkt.write_u16(off + 2, CLASS_IN, "be");
+
+    return pkt;
+};
+
+// Parses a complete RFC 1035 DNS response datagram.
+// Extracts header flags, questions, and resource records (RR) including IPv4 A records and CNAMEs.
+let decode_response = fn(raw_bytes) {
+    let b = raw_bytes;
+    if (type(b) != "BYTES") {
+        b = bytes(b);
+    }
+    if (len(b) < 12) {
+        return null;
+    }
+
+    let hdr = decode_header(b, 0);
+    if (hdr == null) {
+        return null;
+    }
+
+    let questions = [];
+    let answers = [];
+    let authorities = [];
+    let additionals = [];
+
+    let off = 12;
+
+    // Decode Question Section
+    let qi = 0;
+    while (qi < hdr["qdcount"] && off < len(b)) {
+        let q_dec = decode_qname(b, off);
+        off = q_dec["next_offset"];
+        if (off + 4 > len(b)) {
+            break;
+        }
+        let q_type = b.read_u16(off, "be");
+        let q_class = b.read_u16(off + 2, "be");
+        off = off + 4;
+
+        questions = push(questions, {
+            "name": q_dec["name"],
+            "type": q_type,
+            "class": q_class
+        });
+        qi = qi + 1;
+    }
+
+    // Helper to decode a Resource Record
+    let decode_rr = fn() {
+        if (off >= len(b)) { return null; }
+        let name_dec = decode_qname(b, off);
+        off = name_dec["next_offset"];
+        if (off + 10 > len(b)) { return null; }
+
+        let r_type = b.read_u16(off, "be");
+        let r_class = b.read_u16(off + 2, "be");
+        let ttl = b.read_u32(off + 4, "be");
+        let rd_len = b.read_u16(off + 8, "be");
+        off = off + 10;
+
+        if (off + rd_len > len(b)) { return null; }
+
+        let rdata_start = off;
+        let parsed_data = null;
+
+        if (r_type == TYPE_A && rd_len == 4) {
+            // IPv4 dotted-quad address
+            let ip_parts = [
+                str(b[off]),
+                str(b[off + 1]),
+                str(b[off + 2]),
+                str(b[off + 3])
+            ];
+            parsed_data = join(ip_parts, ".");
+        } else if (r_type == TYPE_CNAME) {
+            // CNAME domain name (handles internal pointers)
+            let cname_dec = decode_qname(b, off);
+            parsed_data = cname_dec["name"];
+        } else if (r_type == TYPE_TXT) {
+            // TXT character-string: 1-byte length followed by string
+            let txt_len = b[off];
+            let txt_str = "";
+            let ti = 0;
+            while (ti < txt_len && (off + 1 + ti) < (rdata_start + rd_len)) {
+                txt_str = txt_str + chr(b[off + 1 + ti]);
+                ti = ti + 1;
+            }
+            parsed_data = txt_str;
+        } else if (r_type == TYPE_AAAA && rd_len == 16) {
+            // IPv6 address formatted from raw bytes
+            let raw_sub = b.slice(off, off + rd_len);
+            let hex_all = raw_sub.to_hex();
+            let hex_groups = [];
+            let gi = 0;
+            while (gi < 8) {
+                let part = slice(hex_all, gi * 4, (gi + 1) * 4);
+                hex_groups = push(hex_groups, part);
+                gi = gi + 1;
+            }
+            parsed_data = join(hex_groups, ":");
+        } else {
+            // Fallback raw string representation
+            let raw_sub = b.slice(off, off + rd_len);
+            parsed_data = raw_sub.to_hex();
+        }
+
+        off = rdata_start + rd_len;
+
+        return {
+            "name": name_dec["name"],
+            "type": r_type,
+            "class": r_class,
+            "ttl": ttl,
+            "rdlength": rd_len,
+            "data": parsed_data
+        };
+    };
+
+    // Decode Answer Section
+    let ai = 0;
+    while (ai < hdr["ancount"] && off < len(b)) {
+        let rr = decode_rr();
+        if (rr != null) {
+            answers = push(answers, rr);
+        }
+        ai = ai + 1;
+    }
+
+    // Decode Authority Section
+    let nsi = 0;
+    while (nsi < hdr["nscount"] && off < len(b)) {
+        let rr = decode_rr();
+        if (rr != null) {
+            authorities = push(authorities, rr);
+        }
+        nsi = nsi + 1;
+    }
+
+    // Decode Additional Section
+    let ari = 0;
+    while (ari < hdr["arcount"] && off < len(b)) {
+        let rr = decode_rr();
+        if (rr != null) {
+            additionals = push(additionals, rr);
+        }
+        ari = ari + 1;
+    }
+
+    return {
+        "id": hdr["id"],
+        "qr": hdr["qr"],
+        "opcode": hdr["opcode"],
+        "aa": hdr["aa"],
+        "tc": hdr["tc"],
+        "rd": hdr["rd"],
+        "ra": hdr["ra"],
+        "z": hdr["z"],
+        "rcode": hdr["rcode"],
+        "qdcount": hdr["qdcount"],
+        "ancount": hdr["ancount"],
+        "nscount": hdr["nscount"],
+        "arcount": hdr["arcount"],
+        "questions": questions,
+        "answers": answers,
+        "authorities": authorities,
+        "additionals": additionals
+    };
+};
+
+// Constructs an RFC 1035 DNS response datagram for server and mock implementations.
+// Parameters:
+//   opts: {
+//       "id": integer,
+//       "rcode": integer (0 = NOERROR, 3 = NXDOMAIN),
+//       "questions": [ { "name": "...", "type": 1 } ],
+//       "answers": [ { "name": "...", "type": 1, "ttl": 300, "data": "1.2.3.4" } ]
+//   }
+let encode_response = fn(opts = {}) {
+    if (opts == null) { opts = {}; }
+
+    let req_id = 0;
+    if (opts["id"] != null) { req_id = int(opts["id"]); }
+
+    let rcode = 0;
+    if (opts["rcode"] != null) { rcode = int(opts["rcode"]); }
+
+    let questions = [];
+    if (opts["questions"] != null) { questions = opts["questions"]; }
+
+    let answers = [];
+    if (opts["answers"] != null) { answers = opts["answers"]; }
+
+    let hdr = encode_header({
+        "id": req_id,
+        "qr": 1, // Response
+        "opcode": 0,
+        "aa": 1, // Authoritative
+        "tc": 0,
+        "rd": 1,
+        "ra": 1, // Recursion Available
+        "rcode": rcode,
+        "qdcount": len(questions),
+        "ancount": len(answers),
+        "nscount": 0,
+        "arcount": 0
+    });
+
+    // Precalculate total packet size
+    let total_len = 12;
+
+    // Encoded questions
+    let enc_questions = [];
+    let qi = 0;
+    while (qi < len(questions)) {
+        let q = questions[qi];
+        let qname_bytes = encode_qname(q["name"]);
+        enc_questions = push(enc_questions, {
+            "qname": qname_bytes,
+            "type": int(q["type"]),
+            "class": CLASS_IN
+        });
+        total_len = total_len + len(qname_bytes) + 4;
+        qi = qi + 1;
+    }
+
+    // Encoded answers
+    let enc_answers = [];
+    let ai = 0;
+    while (ai < len(answers)) {
+        let a = answers[ai];
+        let aname_bytes = encode_qname(a["name"]);
+        let a_type = TYPE_A;
+        if (a["type"] != null) { a_type = int(a["type"]); }
+        let ttl = 300;
+        if (a["ttl"] != null) { ttl = int(a["ttl"]); }
+
+        let rdata_bytes = bytes(0);
+        if (a_type == TYPE_A) {
+            let ip_str = str(a["data"]);
+            let parts = split(ip_str, ".");
+            rdata_bytes = bytes(4);
+            rdata_bytes[0] = int(parts[0]);
+            rdata_bytes[1] = int(parts[1]);
+            rdata_bytes[2] = int(parts[2]);
+            rdata_bytes[3] = int(parts[3]);
+        } else if (a_type == TYPE_CNAME) {
+            rdata_bytes = encode_qname(a["data"]);
+        } else if (a_type == TYPE_TXT) {
+            let txt = str(a["data"]);
+            rdata_bytes = bytes(1 + len(txt));
+            rdata_bytes[0] = len(txt);
+            let ti = 0;
+            while (ti < len(txt)) {
+                rdata_bytes[1 + ti] = ord(txt[ti]);
+                ti = ti + 1;
+            }
+        }
+
+        enc_answers = push(enc_answers, {
+            "name": aname_bytes,
+            "type": a_type,
+            "class": CLASS_IN,
+            "ttl": ttl,
+            "rdata": rdata_bytes
+        });
+
+        // Name length + 2 (type) + 2 (class) + 4 (ttl) + 2 (rdlen) + rdata_len
+        total_len = total_len + len(aname_bytes) + 10 + len(rdata_bytes);
+        ai = ai + 1;
+    }
+
+    // Allocate packet buffer
+    let pkt = bytes(total_len);
+
+    // Write header
+    let i = 0;
+    while (i < 12) {
+        pkt[i] = hdr[i];
+        i = i + 1;
+    }
+
+    let off = 12;
+
+    // Write questions
+    qi = 0;
+    while (qi < len(enc_questions)) {
+        let eq = enc_questions[qi];
+        let qb = eq["qname"];
+        let j = 0;
+        while (j < len(qb)) {
+            pkt[off + j] = qb[j];
+            j = j + 1;
+        }
+        off = off + len(qb);
+        pkt.write_u16(off, eq["type"], "be");
+        pkt.write_u16(off + 2, eq["class"], "be");
+        off = off + 4;
+        qi = qi + 1;
+    }
+
+    // Write answers
+    ai = 0;
+    while (ai < len(enc_answers)) {
+        let ea = enc_answers[ai];
+        let ab = ea["name"];
+        let j = 0;
+        while (j < len(ab)) {
+            pkt[off + j] = ab[j];
+            j = j + 1;
+        }
+        off = off + len(ab);
+
+        pkt.write_u16(off, ea["type"], "be");
+        pkt.write_u16(off + 2, ea["class"], "be");
+        pkt.write_u32(off + 4, ea["ttl"], "be");
+        pkt.write_u16(off + 8, len(ea["rdata"]), "be");
+        off = off + 10;
+
+        let rd = ea["rdata"];
+        j = 0;
+        while (j < len(rd)) {
+            pkt[off + j] = rd[j];
+            j = j + 1;
+        }
+        off = off + len(rd);
+        ai = ai + 1;
+    }
+
+    return pkt;
+};

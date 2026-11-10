@@ -1,0 +1,98 @@
+// BramandScript Standard Library :: Pure HTTPS Server (std/https/server)
+// 100% Self-Hosted HTTPS/1.1 Server implementation on top of TLS sockets.
+
+import "std/http/server" as http_server;
+
+let Server = fn(handler, opts = {}) {
+    if (opts == null) { opts = {}; }
+
+    let srv_obj = {
+        "raw_server": null,
+        "is_listening": false,
+        "target_addr": ""
+    };
+
+    srv_obj["listen"] = fn(port_or_addr, on_listening = null) {
+        let addr = "127.0.0.1:0";
+        if (type(port_or_addr) == "INTEGER") {
+            addr = "127.0.0.1:" + str(port_or_addr);
+        } else if (port_or_addr != null) {
+            addr = str(port_or_addr);
+            if (!contains(addr, ":")) {
+                addr = "127.0.0.1:" + addr;
+            }
+        }
+
+        let raw = tls_listen(addr);
+        if (type(raw) == "ERROR") {
+            return raw;
+        }
+
+        srv_obj["raw_server"] = raw;
+        srv_obj["is_listening"] = true;
+        srv_obj["target_addr"] = raw.addr;
+
+        if (on_listening != null) {
+            on_listening(srv_obj);
+        }
+
+        spawn fn() {
+            while (srv_obj["is_listening"]) {
+                let conn = tcp_accept(srv_obj["raw_server"]);
+                if (conn != null && type(conn) != "ERROR") {
+                    spawn fn() {
+                        http_server.handle_client_connection(conn, handler);
+                    }();
+                } else {
+                    if (!srv_obj["is_listening"]) {
+                        break;
+                    }
+                }
+            }
+        }();
+
+        return srv_obj;
+    };
+
+    srv_obj["close"] = fn() {
+        srv_obj["is_listening"] = false;
+        if (srv_obj["raw_server"] != null) {
+            tcp_close(srv_obj["raw_server"]);
+            srv_obj["raw_server"] = null;
+        }
+        return true;
+    };
+
+    srv_obj["addr"] = fn() {
+        if (srv_obj["raw_server"] != null) {
+            return srv_obj["raw_server"].addr;
+        }
+        return srv_obj["target_addr"];
+    };
+
+    return srv_obj;
+};
+
+// Creates an HTTPS Server instance.
+// Usage:
+//   https.create_server(handler)
+//   https.create_server(opts, handler)
+let create_server = fn(arg1, arg2 = null) {
+    let handler = null;
+    let opts = {};
+
+    let t1 = type(arg1);
+    if (t1 == "CLOSURE" || t1 == "FUNCTION" || t1 == "BUILTIN" || (t1 == "HASH" && arg1["lookup"] != null)) {
+        handler = arg1;
+        if (arg2 != null && type(arg2) == "HASH") {
+            opts = arg2;
+        }
+    } else if (t1 == "HASH") {
+        opts = arg1;
+        handler = arg2;
+    } else {
+        handler = arg1;
+    }
+
+    return Server(handler, opts);
+};

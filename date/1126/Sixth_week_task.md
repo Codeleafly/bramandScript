@@ -16,6 +16,11 @@
 - [x] Master Standard Library Integration and Test Suite (std/ws & tests/37_pure_bmd_ws_test.bmd): Integrate WebSocket module into stdlib with RoomHub interop and comprehensive test suite — Integrate WebSocket module into standard library with RoomHub re-exports and comprehensive integration test suite for handshake, framing, and duplex communication (Includes: stdlib/bmd_std/ws/index.bmd, RFC 6455 test vectors, duplex client-server echo)
 ## Day 38
 
+- [x] Pure BramandScript RFC 1035 DNS Packet Codec (std/dns/packet): Implement RFC 1035 DNS packet encoder and decoder with 12-byte header, QName label compression, A and CNAME record parsing (Includes: encode_query, decode_response, label compression pointers 0xC0, A and CNAME parsing, TTL decoding)
+- [x] Pure BramandScript DNS Resolver and In-Memory Cache (std/dns/resolver): Implement UDP DNS resolver over raw sockets with in-memory TTL caching, query timeouts, and convenience lookup helpers (Includes: dns.resolve, dns.lookup, net.create_udp_socket, query datagram transmission, TTL cache expiration)
+- [x] Pure BramandScript HTTPS Client over TLS Sockets (std/https/client): Implement self-hosted HTTPS client over raw TLS sockets with SNI verification, URL parsing, and HTTP parser integration (Includes: https.get, https.post, https.request, URL parsing with port 443 default, TLS dial with SNI, structured response)
+- [x] Pure BramandScript HTTPS Server and Standard Library Exports (std/https/server & index): Implement self-hosted HTTPS server wrapping TLS listeners and dispatching to HTTP/1.1 request pipeline with stdlib exports (Includes: https.create_server, tls_listen, TLS listener dispatch, stdlib/bmd_std/dns/index.bmd, stdlib/bmd_std/https/index.bmd)
+- [x] Automated Pure BMD DNS & HTTPS Test Suite (tests/38_pure_bmd_dns_https_test.bmd): Comprehensive integration test suite validating RFC 1035 DNS codec, mock UDP DNS server, resolver cache, and HTTPS requests (Includes: RFC 1035 QNAME encoding/decoding, pointer compression, mock UDP DNS server, cache eviction, HTTPS TLS request)
 ## Day 39
 
 ## Day 40

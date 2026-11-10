@@ -1,0 +1,334 @@
+// BramandScript Standard Library :: Pure HTTPS Client (std/https/client)
+// 100% Self-Hosted HTTPS/1.1 Client implementation over secure TLS sockets.
+
+import "std/http/parser" as parser;
+
+let starts_with = fn(s, prefix) {
+    if (s == null || prefix == null) { return false; }
+    if (len(prefix) > len(s)) { return false; }
+    return slice(s, 0, len(prefix)) == prefix;
+};
+
+// Parse URL into schema, host, port, path, and host_port components for HTTPS
+let parse_url = fn(raw_url) {
+    let u = trim(str(raw_url));
+    let schema = "https";
+    let is_https = true;
+
+    if (starts_with(u, "https://")) {
+        u = slice(u, 8, len(u));
+    } else if (starts_with(u, "http://")) {
+        schema = "http";
+        is_https = false;
+        u = slice(u, 7, len(u));
+    }
+
+    let slash_idx = -1;
+    let i = 0;
+    while (i < len(u)) {
+        if (u[i] == "/") {
+            slash_idx = i;
+            break;
+        }
+        i = i + 1;
+    }
+
+    let host_port = u;
+    let path = "/";
+    if (slash_idx >= 0) {
+        host_port = slice(u, 0, slash_idx);
+        path = slice(u, slash_idx, len(u));
+    }
+
+    let host = host_port;
+    let default_port = 443;
+    if (!is_https) { default_port = 80; }
+    let port = default_port;
+
+    let colon_idx = -1;
+    i = 0;
+    while (i < len(host_port)) {
+        if (host_port[i] == ":") {
+            colon_idx = i;
+            break;
+        }
+        i = i + 1;
+    }
+
+    if (colon_idx >= 0) {
+        host = slice(host_port, 0, colon_idx);
+        let port_str = slice(host_port, colon_idx + 1, len(host_port));
+        port = int(port_str);
+    }
+
+    return {
+        "schema": schema,
+        "is_https": is_https,
+        "host": host,
+        "port": port,
+        "path": path,
+        "host_port": host_port
+    };
+};
+
+let request = fn(opts = {}) {
+    if (opts == null) { opts = {}; }
+
+    let raw_url = opts["url"];
+    if (raw_url == null) {
+        return {
+            "status": 0,
+            "status_text": "Missing URL",
+            "headers": {},
+            "body": "",
+            "json": fn() { return null; },
+            "text": fn() { return ""; }
+        };
+    }
+
+    let parsed_url = parse_url(raw_url);
+    let method = "GET";
+    if (opts["method"] != null) { method = to_upper(str(opts["method"])); }
+
+    let timeout_ms = 5000;
+    if (opts["timeout"] != null) { timeout_ms = int(opts["timeout"]); }
+
+    let hdrs = {};
+    if (opts["headers"] != null) {
+        let hk = keys(opts["headers"]);
+        let i = 0;
+        while (i < len(hk)) {
+            let k = hk[i];
+            hdrs[k] = opts["headers"][k];
+            i = i + 1;
+        }
+    }
+
+    // Ensure Host header is present
+    let has_host = false;
+    let hk = keys(hdrs);
+    let i = 0;
+    while (i < len(hk)) {
+        if (to_lower(hk[i]) == "host") {
+            has_host = true;
+            break;
+        }
+        i = i + 1;
+    }
+    if (!has_host) {
+        hdrs["Host"] = parsed_url["host_port"];
+    }
+
+    // Default Connection: close for single-request HTTP/1.1
+    let has_conn = false;
+    hk = keys(hdrs);
+    i = 0;
+    while (i < len(hk)) {
+        if (to_lower(hk[i]) == "connection") {
+            has_conn = true;
+            break;
+        }
+        i = i + 1;
+    }
+    if (!has_conn) {
+        hdrs["Connection"] = "close";
+    }
+
+    // Body serialization
+    let body_str = "";
+    if (opts["body"] != null) {
+        let b_type = type(opts["body"]);
+        if (b_type == "HASH" || b_type == "ARRAY") {
+            body_str = json_stringify(opts["body"]);
+            let has_ct = false;
+            hk = keys(hdrs);
+            i = 0;
+            while (i < len(hk)) {
+                if (to_lower(hk[i]) == "content-type") {
+                    has_ct = true;
+                    break;
+                }
+                i = i + 1;
+            }
+            if (!has_ct) {
+                hdrs["Content-Type"] = "application/json";
+            }
+        } else {
+            body_str = str(opts["body"]);
+        }
+    }
+
+    // Target address and TLS connection
+    let target_addr = parsed_url["host"] + ":" + str(parsed_url["port"]);
+    let conn = null;
+
+    if (parsed_url["is_https"]) {
+        let tls_opts = {};
+        if (opts["insecure_skip_verify"] == true) {
+            tls_opts["insecure_skip_verify"] = true;
+        }
+        conn = tls_dial(target_addr, parsed_url["host"], timeout_ms, tls_opts);
+    } else {
+        conn = net_dial_tcp(target_addr, timeout_ms);
+    }
+
+    if (conn == null || type(conn) == "ERROR") {
+        return {
+            "status": 0,
+            "status_text": "Connection Failed: " + str(conn),
+            "headers": {},
+            "body": "",
+            "json": fn() { return null; },
+            "text": fn() { return ""; }
+        };
+    }
+
+    // Format RFC 7230 request
+    let wire_req = parser.format_request({
+        "method": method,
+        "path": parsed_url["path"],
+        "headers": hdrs,
+        "body": body_str
+    });
+
+    tcp_set_timeout(conn, timeout_ms);
+    let write_res = tcp_write(conn, wire_req);
+    if (type(write_res) == "ERROR") {
+        tcp_close(conn);
+        return {
+            "status": 0,
+            "status_text": "Write Failed: " + str(write_res),
+            "headers": {},
+            "body": "",
+            "json": fn() { return null; },
+            "text": fn() { return ""; }
+        };
+    }
+
+    // Read response with Content-Length awareness for fast completion
+    let raw_resp = "";
+    let expected_len = -1;
+
+    while (true) {
+        let chunk = tcp_read(conn, 4096);
+        if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+            break;
+        }
+        raw_resp = raw_resp + chunk;
+
+        // Check if header section is fully received
+        if (expected_len == -1 && (contains(raw_resp, "\r\n\r\n") || contains(raw_resp, "\n\n"))) {
+            let split_res = parser.find_header_split(raw_resp);
+            let hdr_lower = to_lower(split_res[0]);
+            let cl_pos = -1;
+            let ci = 0;
+            while (ci <= len(hdr_lower) - 15) {
+                if (slice(hdr_lower, ci, ci + 15) == "content-length:") {
+                    cl_pos = ci + 15;
+                    break;
+                }
+                ci = ci + 1;
+            }
+            if (cl_pos >= 0) {
+                let rest_hdr = slice(split_res[0], cl_pos, len(split_res[0]));
+                let nl_idx = -1;
+                let ni = 0;
+                while (ni < len(rest_hdr)) {
+                    if (rest_hdr[ni] == "\r" || rest_hdr[ni] == "\n") {
+                        nl_idx = ni;
+                        break;
+                    }
+                    ni = ni + 1;
+                }
+                if (nl_idx >= 0) {
+                    expected_len = int(trim(slice(rest_hdr, 0, nl_idx)));
+                } else {
+                    expected_len = int(trim(rest_hdr));
+                }
+            } else {
+                expected_len = -2; // No Content-Length, read until EOF
+            }
+        }
+
+        // If content-length was specified and full body has arrived, stop reading
+        if (expected_len >= 0) {
+            let split_res = parser.find_header_split(raw_resp);
+            if (len(split_res[1]) >= expected_len) {
+                break;
+            }
+        }
+    }
+    tcp_close(conn);
+
+    let parsed_resp = parser.parse_response(raw_resp);
+    if (parsed_resp == null) {
+        return {
+            "status": 0,
+            "status_text": "Malformed Response",
+            "headers": {},
+            "body": raw_resp,
+            "json": fn() { return null; },
+            "text": fn() { return raw_resp; }
+        };
+    }
+
+    let resp_body = parsed_resp["body"];
+    let resp_headers = parsed_resp["headers"];
+
+    return {
+        "status": parsed_resp["status"],
+        "status_text": parsed_resp["status_text"],
+        "headers": resp_headers,
+        "body": resp_body,
+        "version": parsed_resp["version"],
+        "json": fn() {
+            if (len(resp_body) == 0) { return null; }
+            return json_parse(resp_body);
+        },
+        "text": fn() {
+            return resp_body;
+        },
+        "header": fn(name) {
+            return resp_headers[to_lower(name)];
+        }
+    };
+};
+
+let get = fn(url, opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "GET";
+    return request(opts);
+};
+
+let post = fn(url, body = "", opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "POST";
+    opts["body"] = body;
+    return request(opts);
+};
+
+let put = fn(url, body = "", opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "PUT";
+    opts["body"] = body;
+    return request(opts);
+};
+
+let delete_req = fn(url, opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "DELETE";
+    return request(opts);
+};
+
+let patch = fn(url, body = "", opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "PATCH";
+    opts["body"] = body;
+    return request(opts);
+};
+
+let head = fn(url, opts = {}) {
+    opts["url"] = url;
+    opts["method"] = "HEAD";
+    return request(opts);
+};
