@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	crand "crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -142,6 +143,11 @@ func init() {
 			data := []byte(args[0].Inspect())
 			if strObj, ok := args[0].(*object.String); ok {
 				data = []byte(strObj.Value)
+			} else if bytesObj, ok := args[0].(*object.Bytes); ok {
+				bytesObj.Mu.RLock()
+				data = make([]byte, len(bytesObj.Value))
+				copy(data, bytesObj.Value)
+				bytesObj.Mu.RUnlock()
 			}
 			return &object.String{Value: base64.StdEncoding.EncodeToString(data)}
 		},
@@ -244,6 +250,29 @@ func init() {
 			return &object.String{Value: hex.EncodeToString(h[:])}
 		},
 	})
+
+	sha1Builtin := &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) < 1 || len(args) > 2 {
+				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1 or 2", len(args))}
+			}
+			data := []byte(args[0].Inspect())
+			if strObj, ok := args[0].(*object.String); ok {
+				data = []byte(strObj.Value)
+			} else if bytesObj, ok := args[0].(*object.Bytes); ok {
+				bytesObj.Mu.RLock()
+				data = make([]byte, len(bytesObj.Value))
+				copy(data, bytesObj.Value)
+				bytesObj.Mu.RUnlock()
+			}
+			h := sha1.Sum(data)
+			if len(args) == 2 && isTruthy(args[1]) {
+				return &object.String{Value: string(h[:])}
+			}
+			return &object.String{Value: hex.EncodeToString(h[:])}
+		},
+	}
+	RegisterBuiltinAliases(sha1Builtin, "sha1", "crypto_sha1")
 
 	hmacBuiltin := &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {

@@ -425,6 +425,75 @@ func init() {
 				return b
 			},
 		},
+		"read_u64": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 || len(args) > 3 {
+					return &object.Error{Message: "read_u64 expected 2 or 3 arguments (bytes, offset, [endian])"}
+				}
+				b, ok := args[0].(*object.Bytes)
+				if !ok {
+					return &object.Error{Message: "read_u64 first argument must be BYTES"}
+				}
+				offset, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "offset must be an INTEGER"}
+				}
+				endian := "be"
+				if len(args) == 3 {
+					if e, ok := args[2].(*object.String); ok {
+						endian = strings.ToLower(e.Value)
+					}
+				}
+				b.Mu.RLock()
+				defer b.Mu.RUnlock()
+				if offset.Value < 0 || offset.Value+8 > int64(len(b.Value)) {
+					return &object.Error{Message: fmt.Sprintf("read_u64 offset %d out of bounds (length %d)", offset.Value, len(b.Value))}
+				}
+				var val uint64
+				if endian == "le" {
+					val = binary.LittleEndian.Uint64(b.Value[offset.Value:])
+				} else {
+					val = binary.BigEndian.Uint64(b.Value[offset.Value:])
+				}
+				return &object.Integer{Value: int64(val)}
+			},
+		},
+		"write_u64": {
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 3 || len(args) > 4 {
+					return &object.Error{Message: "write_u64 expected 3 or 4 arguments (bytes, offset, value, [endian])"}
+				}
+				b, ok := args[0].(*object.Bytes)
+				if !ok {
+					return &object.Error{Message: "write_u64 first argument must be BYTES"}
+				}
+				offset, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "offset must be an INTEGER"}
+				}
+				val, ok := args[2].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "value must be an INTEGER"}
+				}
+				endian := "be"
+				if len(args) == 4 {
+					if e, ok := args[3].(*object.String); ok {
+						endian = strings.ToLower(e.Value)
+					}
+				}
+				b.Mu.Lock()
+				defer b.Mu.Unlock()
+				if offset.Value < 0 || offset.Value+8 > int64(len(b.Value)) {
+					return &object.Error{Message: fmt.Sprintf("write_u64 offset %d out of bounds (length %d)", offset.Value, len(b.Value))}
+				}
+				if endian == "le" {
+					binary.LittleEndian.PutUint64(b.Value[offset.Value:], uint64(val.Value))
+				} else {
+					binary.BigEndian.PutUint64(b.Value[offset.Value:], uint64(val.Value))
+				}
+				return b
+			},
+		},
 		"ord": {
 			Fn: func(args ...object.Object) object.Object {
 				if len(args) != 1 {

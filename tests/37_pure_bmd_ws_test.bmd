@@ -1,0 +1,362 @@
+// tests/37_pure_bmd_ws_test.bmd
+// BramandScript System Verification :: Pure BramandScript WebSocket Engine (Agent 7)
+// Validates 100% Self-Hosted RFC 6455 Handshake, Frame Codec, Connection, Server, Client, and RoomHub.
+
+import "std/ws" as ws;
+import "std/ws/handshake" as handshake;
+import "std/ws/frame" as frame;
+
+describe("RFC 6455 WebSocket Handshake (std/ws/handshake)", fn() {
+    test("compute_accept_key matches official RFC 6455 test vectors", fn() {
+        let client_key = "dGhlIHNhbXBsZSBub25jZQ==";
+        let expected_accept = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
+        let computed = handshake.compute_accept_key(client_key);
+
+        assert_eq(computed, expected_accept);
+    });
+
+    test("build_server_handshake formats HTTP/1.1 101 Switching Protocols", fn() {
+        let accept_key = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
+        let wire = handshake.build_server_handshake(accept_key);
+
+        assert(contains(wire, "HTTP/1.1 101 Switching Protocols\r\n"));
+        assert(contains(wire, "Upgrade: websocket\r\n"));
+        assert(contains(wire, "Connection: Upgrade\r\n"));
+        assert(contains(wire, "Sec-WebSocket-Accept: " + accept_key + "\r\n\r\n"));
+    });
+
+    test("build_client_handshake formats HTTP/1.1 GET upgrade request", fn() {
+        let key = "dGhlIHNhbXBsZSBub25jZQ==";
+        let wire = handshake.build_client_handshake("bramand.org:8080", "/live/chat", key);
+
+        assert(contains(wire, "GET /live/chat HTTP/1.1\r\n"));
+        assert(contains(wire, "Host: bramand.org:8080\r\n"));
+        assert(contains(wire, "Upgrade: websocket\r\n"));
+        assert(contains(wire, "Connection: Upgrade\r\n"));
+        assert(contains(wire, "Sec-WebSocket-Key: " + key + "\r\n"));
+        assert(contains(wire, "Sec-WebSocket-Version: 13\r\n\r\n"));
+    });
+
+    test("parse_handshake_request parses client upgrade request and extracts key", fn() {
+        let wire = "GET /ws/feed HTTP/1.1\r\nHost: api.bramand.io\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\nSec-WebSocket-Version: 13\r\n\r\n";
+        let parsed = handshake.parse_handshake_request(wire);
+
+        assert(parsed["valid"]);
+        assert_eq(parsed["method"], "GET");
+        assert_eq(parsed["path"], "/ws/feed");
+        assert_eq(parsed["key"], "x3JJHMbDL1EzLkh9GBhXDw==");
+        assert_eq(parsed["ws_version"], "13");
+        assert_eq(parsed["headers"]["upgrade"], "websocket");
+    });
+
+    test("parse_handshake_response validates 101 Switching Protocols and accept key", fn() {
+        let wire = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n";
+        let parsed = handshake.parse_handshake_response(wire);
+
+        assert(parsed["valid"]);
+        assert_eq(parsed["status"], 101);
+        assert_eq(parsed["accept_key"], "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+    });
+});
+
+describe("RFC 6455 Frame Codec (std/ws/frame)", fn() {
+    test("encode_frame and decode_frame unmasked server text frame", fn() {
+        let message = "BramandScript Pure WebSocket Architecture";
+        let enc = frame.encode_frame(message, frame.OP_TEXT, false);
+
+        assert_eq(type(enc), "BYTES");
+        // Byte 0: FIN=1 (0x80) | OP_TEXT (0x01) -> 0x81 (129)
+        assert_eq(enc[0], 129);
+        // Byte 1: Masked=0, len = len(message)
+        assert_eq(enc[1], len(message));
+
+        let dec = frame.decode_frame(enc);
+        assert(dec["valid"]);
+        assert(dec["fin"]);
+        assert_eq(dec["opcode"], frame.OP_TEXT);
+        assert_eq(dec["masked"], false);
+        assert_eq(dec["payload"], message);
+        assert_eq(dec["payload_len"], len(message));
+    });
+
+    test("encode_frame and decode_frame masked client frame with XOR masking", fn() {
+        let message = "Hello from Client!";
+        let mask = [0xAA, 0xBB, 0xCC, 0xDD];
+        let enc = frame.encode_frame(message, frame.OP_TEXT, true, mask);
+
+        assert_eq(type(enc), "BYTES");
+        assert_eq(enc[0], 129);
+        // Byte 1: Masked=1 (0x80) | len
+        assert_eq(enc[1], 128 | len(message));
+        // Mask key bytes
+        assert_eq(enc[2], 0xAA);
+        assert_eq(enc[3], 0xBB);
+        assert_eq(enc[4], 0xCC);
+        assert_eq(enc[5], 0xDD);
+
+        let dec = frame.decode_frame(enc);
+        assert(dec["valid"]);
+        assert_eq(dec["masked"], true);
+        assert_eq(dec["mask_key"][0], 0xAA);
+        assert_eq(dec["payload"], message);
+    });
+
+    test("encode_frame and decode_frame 16-bit extended payload length", fn() {
+        let chunk_500 = "";
+        let i = 0;
+        while (i < 500) {
+            chunk_500 = chunk_500 + "X";
+            i = i + 1;
+        }
+
+        let enc = frame.encode_frame(chunk_500, frame.OP_TEXT, false);
+        // Byte 1 must be 126 for 16-bit length
+        assert_eq(enc[1], 126);
+        assert_eq(enc.read_u16(2, "be"), 500);
+
+        let dec = frame.decode_frame(enc);
+        assert(dec["valid"]);
+        assert_eq(dec["payload_len"], 500);
+        assert_eq(dec["payload"], chunk_500);
+    });
+
+    test("encode_frame and decode_frame 64-bit extended payload length", fn() {
+        let chunk_70k = bytes(70000);
+        let i = 0;
+        while (i < 10) {
+            chunk_70k[i] = 90; // 'Z'
+            i = i + 1;
+        }
+
+        let enc = frame.encode_frame(chunk_70k, frame.OP_BIN, false);
+        // Byte 1 must be 127 for 64-bit length
+        assert_eq(enc[1], 127);
+        assert_eq(enc.read_u64(2, "be"), 70000);
+
+        let dec = frame.decode_frame(enc);
+        assert(dec["valid"]);
+        assert_eq(dec["payload_len"], 70000);
+        assert_eq(len(dec["payload_bytes"]), 70000);
+        assert_eq(dec["payload_bytes"][0], 90);
+    });
+
+    test("Close control frame encoding and payload parsing", fn() {
+        let close_frame = frame.encode_close_frame(1000, "Normal Closure", false);
+        let dec = frame.decode_frame(close_frame);
+
+        assert(dec["valid"]);
+        assert(dec["is_close"]);
+        assert_eq(dec["opcode"], frame.OP_CLOSE);
+
+        let parsed = frame.parse_close_payload(dec["payload"]);
+        assert_eq(parsed["code"], 1000);
+        assert_eq(parsed["reason"], "Normal Closure");
+    });
+
+    test("Ping and Pong control frame encoding and decoding", fn() {
+        let ping_frame = frame.encode_ping_frame("heartbeat_pulse", true);
+        let dec_ping = frame.decode_frame(ping_frame);
+
+        assert(dec_ping["valid"]);
+        assert(dec_ping["is_ping"]);
+        assert_eq(dec_ping["payload"], "heartbeat_pulse");
+
+        let pong_frame = frame.encode_pong_frame(dec_ping["payload"], false);
+        let dec_pong = frame.decode_frame(pong_frame);
+
+        assert(dec_pong["valid"]);
+        assert(dec_pong["is_pong"]);
+        assert_eq(dec_pong["payload"], "heartbeat_pulse");
+    });
+});
+
+describe("Pure BramandScript WebSocket Server & Client (std/ws)", fn() {
+    test("Full duplex client-server echo communication over raw TCP", fn() {
+        let port = 29701;
+        let server_received = "";
+        let client_received = "";
+
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("message", fn(msg) {
+                server_received = msg;
+                conn.send("ECHO:" + msg);
+            });
+        });
+
+        sleep(40);
+
+        let client = ws.connect("ws://127.0.0.1:" + str(port) + "/echo", fn(c) {
+            c.send("Aryabhata");
+        });
+
+        client.on("message", fn(msg) {
+            client_received = msg;
+            client.close(1000, "Done testing");
+        });
+
+        let waited = 0;
+        while (waited < 1000 && len(client_received) == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+
+        assert_eq(server_received, "Aryabhata");
+        assert_eq(client_received, "ECHO:Aryabhata");
+    });
+
+    test("Server multi-client broadcast event distribution", fn() {
+        let port = 29702;
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("message", fn(msg) {
+                if (msg == "trigger_broadcast") {
+                    server.broadcast("SYSTEM_UPDATE_V2");
+                }
+            });
+        });
+
+        sleep(40);
+
+        let c1_msg = "";
+        let c2_msg = "";
+
+        let c1 = ws.connect("ws://127.0.0.1:" + str(port) + "/stream");
+        c1.on("message", fn(m) { c1_msg = m; });
+
+        let c2 = ws.connect("ws://127.0.0.1:" + str(port) + "/stream");
+        c2.on("message", fn(m) { c2_msg = m; });
+
+        sleep(50);
+        c1.send("trigger_broadcast");
+
+        let waited = 0;
+        while (waited < 1000 && (len(c1_msg) == 0 || len(c2_msg) == 0)) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+        c1.close();
+        c2.close();
+
+        assert_eq(c1_msg, "SYSTEM_UPDATE_V2");
+        assert_eq(c2_msg, "SYSTEM_UPDATE_V2");
+    });
+
+    test("Ping-pong automatic heartbeat negotiation", fn() {
+        let port = 29703;
+        let server_ping_payload = "";
+        let client_pong_payload = "";
+
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("ping", fn(p) {
+                server_ping_payload = p;
+            });
+        });
+
+        sleep(40);
+
+        let client = ws.connect("ws://127.0.0.1:" + str(port) + "/heartbeat");
+        client.on("pong", fn(p) {
+            client_pong_payload = p;
+        });
+
+        sleep(50);
+        client.ping("keep_alive_123");
+
+        let waited = 0;
+        while (waited < 1000 && len(client_pong_payload) == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+        client.close();
+
+        assert_eq(server_ping_payload, "keep_alive_123");
+        assert_eq(client_pong_payload, "keep_alive_123");
+    });
+
+    test("Clean connection closure with status code and reason propagation", fn() {
+        let port = 29704;
+        let server_code = 0;
+        let server_reason = "";
+
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("close", fn(code, reason) {
+                server_code = code;
+                server_reason = reason;
+            });
+        });
+
+        sleep(40);
+
+        let client = ws.connect("ws://127.0.0.1:" + str(port) + "/close_test");
+        sleep(50);
+
+        client.close(1000, "Client session complete");
+
+        let waited = 0;
+        while (waited < 1000 && server_code == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+
+        assert_eq(server_code, 1000);
+        assert_eq(server_reason, "Client session complete");
+    });
+
+    test("Multi-room pub-sub event dispatching via RoomHub", fn() {
+        let port = 29705;
+        let hub = ws.new_room_hub();
+
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("message", fn(msg) {
+                if (msg == "join_finance") {
+                    hub.join("finance", conn.remote_addr(), conn, {"dept": "finance"});
+                } else if (msg == "join_dev") {
+                    hub.join("dev", conn.remote_addr(), conn, {"dept": "dev"});
+                }
+            });
+        });
+
+        sleep(40);
+
+        let c_finance_msg = "";
+        let c_dev_msg = "";
+
+        let c_fin = ws.connect("ws://127.0.0.1:" + str(port) + "/hub");
+        c_fin.on("message", fn(m) { c_finance_msg = m; });
+
+        let c_dev = ws.connect("ws://127.0.0.1:" + str(port) + "/hub");
+        c_dev.on("message", fn(m) { c_dev_msg = m; });
+
+        sleep(50);
+        c_fin.send("join_finance");
+        c_dev.send("join_dev");
+
+        sleep(60);
+        assert_eq(hub.room_count("finance"), 1);
+        assert_eq(hub.room_count("dev"), 1);
+
+        // Broadcast specifically to "finance" room
+        hub.broadcast("finance", "Q4_BUDGET_APPROVED", null);
+
+        let waited = 0;
+        while (waited < 500 && len(c_finance_msg) == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+        c_fin.close();
+        c_dev.close();
+
+        // Finance received message, Dev remained untouched (room isolation)
+        assert_eq(c_finance_msg, "Q4_BUDGET_APPROVED");
+        assert_eq(c_dev_msg, "");
+    });
+});

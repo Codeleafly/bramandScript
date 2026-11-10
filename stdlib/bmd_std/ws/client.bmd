@@ -1,0 +1,163 @@
+// BramandScript Standard Library :: WebSocket Client (std/ws/client)
+// 100% Self-Hosted Pure BramandScript WebSocket Client on top of raw TCP sockets.
+
+import "std/ws/handshake" as handshake;
+import "std/ws/connection" as connection;
+
+let starts_with = fn(s, prefix) {
+    if (s == null || prefix == null) { return false; }
+    if (len(prefix) > len(s)) { return false; }
+    return slice(s, 0, len(prefix)) == prefix;
+};
+
+// Parses a ws:// or wss:// URL into scheme, host, port, and path components.
+let parse_ws_url = fn(url) {
+    let scheme = "ws";
+    let rest = url;
+    if (starts_with(url, "ws://")) {
+        scheme = "ws";
+        rest = slice(url, 5, len(url));
+    } else if (starts_with(url, "wss://")) {
+        scheme = "wss";
+        rest = slice(url, 6, len(url));
+    }
+
+    let slash_idx = -1;
+    let i = 0;
+    while (i < len(rest)) {
+        if (rest[i] == "/") {
+            slash_idx = i;
+            break;
+        }
+        i = i + 1;
+    }
+
+    let host_port = rest;
+    let path = "/";
+    if (slash_idx >= 0) {
+        host_port = slice(rest, 0, slash_idx);
+        path = slice(rest, slash_idx, len(rest));
+    }
+
+    let host = host_port;
+    let port = 80;
+    if (scheme == "wss") {
+        port = 443;
+    }
+
+    let colon_idx = -1;
+    let ci = 0;
+    while (ci < len(host_port)) {
+        if (host_port[ci] == ":") {
+            colon_idx = ci;
+            break;
+        }
+        ci = ci + 1;
+    }
+
+    if (colon_idx >= 0) {
+        host = slice(host_port, 0, colon_idx);
+        port = int(slice(host_port, colon_idx + 1, len(host_port)));
+    }
+
+    return {
+        "scheme": scheme,
+        "host": host,
+        "port": port,
+        "path": path,
+        "is_tls": scheme == "wss"
+    };
+};
+
+// Connects to a remote WebSocket server via TCP and negotiates RFC 6455 upgrade.
+let connect = fn(url, on_open = null) {
+    let parsed_url = parse_ws_url(url);
+    let target_addr = parsed_url["host"] + ":" + str(parsed_url["port"]);
+
+    let raw_conn = null;
+    if (parsed_url["is_tls"]) {
+        raw_conn = tls_dial(target_addr);
+    } else {
+        raw_conn = net_dial_tcp(target_addr);
+    }
+
+    if (raw_conn == null || type(raw_conn) == "ERROR") {
+        return raw_conn;
+    }
+
+    // Set 10-second timeout for handshake
+    tcp_set_timeout(raw_conn, 10000);
+
+    let client_key = handshake.generate_client_key();
+    let host_header = parsed_url["host"];
+    if ((parsed_url["scheme"] == "ws" && parsed_url["port"] != 80) ||
+        (parsed_url["scheme"] == "wss" && parsed_url["port"] != 443)) {
+        host_header = host_header + ":" + str(parsed_url["port"]);
+    }
+
+    let req_wire = handshake.build_client_handshake(host_header, parsed_url["path"], client_key);
+    let write_res = tcp_write(raw_conn, req_wire);
+    if (write_res == null || type(write_res) == "ERROR") {
+        tcp_close(raw_conn);
+        return write_res;
+    }
+
+    let raw_res = tcp_read(raw_conn, 4096);
+    if (raw_res == null || type(raw_res) == "ERROR" || len(raw_res) == 0) {
+        tcp_close(raw_conn);
+        return null;
+    }
+
+    while (!contains(raw_res, "\r\n\r\n") && !contains(raw_res, "\n\n")) {
+        let chunk = tcp_read(raw_conn, 4096);
+        if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+            break;
+        }
+        raw_res = raw_res + chunk;
+    }
+
+    let parsed_hs = handshake.parse_handshake_response(raw_res);
+    if (!parsed_hs["valid"] || parsed_hs["status"] != 101) {
+        tcp_close(raw_conn);
+        return null;
+    }
+
+    let expected_accept = handshake.compute_accept_key(client_key);
+    if (parsed_hs["accept_key"] != expected_accept) {
+        tcp_close(raw_conn);
+        return null;
+    }
+
+    // Reset read timeout to 0 for persistent connection
+    tcp_set_timeout(raw_conn, 0);
+
+    let ws = connection.WebSocket(raw_conn, false);
+
+    // If leftover bytes were read beyond HTTP headers, place them in WebSocket buffer
+    let double_nl = "\r\n\r\n";
+    let sep_idx = -1;
+    let i = 0;
+    while (i <= len(raw_res) - 4) {
+        if (raw_res[i] == "\r" && raw_res[i+1] == "\n" && raw_res[i+2] == "\r" && raw_res[i+3] == "\n") {
+            sep_idx = i;
+            break;
+        }
+        i = i + 1;
+    }
+    if (sep_idx >= 0 && len(raw_res) > sep_idx + 4) {
+        let leftover = slice(raw_res, sep_idx + 4, len(raw_res));
+        ws["buffer"] = bytes(leftover);
+    }
+
+    ws.start_reader();
+
+    if (on_open != null) {
+        on_open(ws);
+    }
+
+    return ws;
+};
+
+let Client = fn(url, on_open = null) {
+    return connect(url, on_open);
+};

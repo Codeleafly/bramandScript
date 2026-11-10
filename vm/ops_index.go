@@ -738,6 +738,69 @@ func (vm *VM) executeBytesMethod(left, index object.Object) (bool, error) {
 				return b
 			},
 		})
+	case "read_u64":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 || len(args) > 2 {
+					return &object.Error{Message: "read_u64 expected 1 or 2 arguments (offset, [endian])"}
+				}
+				offset, ok := args[0].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "offset must be an INTEGER"}
+				}
+				endian := "be"
+				if len(args) == 2 {
+					if e, ok := args[1].(*object.String); ok {
+						endian = strings.ToLower(e.Value)
+					}
+				}
+				b.Mu.RLock()
+				defer b.Mu.RUnlock()
+				if offset.Value < 0 || offset.Value+8 > int64(len(b.Value)) {
+					return &object.Error{Message: fmt.Sprintf("read_u64 offset %d out of bounds (length %d)", offset.Value, len(b.Value))}
+				}
+				var val uint64
+				if endian == "le" {
+					val = binary.LittleEndian.Uint64(b.Value[offset.Value:])
+				} else {
+					val = binary.BigEndian.Uint64(b.Value[offset.Value:])
+				}
+				return &object.Integer{Value: int64(val)}
+			},
+		})
+	case "write_u64":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 2 || len(args) > 3 {
+					return &object.Error{Message: "write_u64 expected 2 or 3 arguments (offset, value, [endian])"}
+				}
+				offset, ok := args[0].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "offset must be an INTEGER"}
+				}
+				val, ok := args[1].(*object.Integer)
+				if !ok {
+					return &object.Error{Message: "value must be an INTEGER"}
+				}
+				endian := "be"
+				if len(args) == 3 {
+					if e, ok := args[2].(*object.String); ok {
+						endian = strings.ToLower(e.Value)
+					}
+				}
+				b.Mu.Lock()
+				defer b.Mu.Unlock()
+				if offset.Value < 0 || offset.Value+8 > int64(len(b.Value)) {
+					return &object.Error{Message: fmt.Sprintf("write_u64 offset %d out of bounds (length %d)", offset.Value, len(b.Value))}
+				}
+				if endian == "le" {
+					binary.LittleEndian.PutUint64(b.Value[offset.Value:], uint64(val.Value))
+				} else {
+					binary.BigEndian.PutUint64(b.Value[offset.Value:], uint64(val.Value))
+				}
+				return b
+			},
+		})
 	case "slice":
 		return true, vm.push(&object.Builtin{
 			Fn: func(args ...object.Object) object.Object {

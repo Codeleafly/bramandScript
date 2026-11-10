@@ -345,4 +345,8 @@ var Builtins = []BuiltinDef{
 	{Name: "udp_set_timeout"},
 	{Name: "tls_dial"},
 	{Name: "tls_listen"},
+	{Name: "read_u64"},
+	{Name: "write_u64"},
+	{Name: "sha1"},
+	{Name: "crypto_sha1"},
 }

@@ -29,6 +29,11 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 		return vm.executeBinaryBigIntOperation(op, left, right)
 	case leftType == object.BIG_FLOAT_OBJ || rightType == object.BIG_FLOAT_OBJ:
 		return vm.executeBinaryBigFloatOperation(op, left, right)
+	case leftType == object.BYTES_OBJ || rightType == object.BYTES_OBJ:
+		if op == code.OpAdd {
+			return vm.executeBytesConcatenation(left, right)
+		}
+		return fmt.Errorf("unsupported operator %d for bytes", op)
 	case leftType == object.STRING_OBJ || rightType == object.STRING_OBJ:
 		if op == code.OpAdd {
 			return vm.executeStringConcatenation(left, right)
@@ -435,6 +440,38 @@ func (vm *VM) executeBinaryBigFloatOperation(op code.Opcode, left, right object.
 	}
 
 	return vm.push(&object.BigFloat{Value: result})
+}
+
+func (vm *VM) executeBytesConcatenation(left, right object.Object) error {
+	var leftBytes, rightBytes []byte
+	switch l := left.(type) {
+	case *object.Bytes:
+		l.Mu.RLock()
+		leftBytes = make([]byte, len(l.Value))
+		copy(leftBytes, l.Value)
+		l.Mu.RUnlock()
+	case *object.String:
+		leftBytes = []byte(l.Value)
+	default:
+		return fmt.Errorf("unsupported types for bytes concatenation: %s + %s", left.Type(), right.Type())
+	}
+
+	switch r := right.(type) {
+	case *object.Bytes:
+		r.Mu.RLock()
+		rightBytes = make([]byte, len(r.Value))
+		copy(rightBytes, r.Value)
+		r.Mu.RUnlock()
+	case *object.String:
+		rightBytes = []byte(r.Value)
+	default:
+		return fmt.Errorf("unsupported types for bytes concatenation: %s + %s", left.Type(), right.Type())
+	}
+
+	combined := make([]byte, len(leftBytes)+len(rightBytes))
+	copy(combined, leftBytes)
+	copy(combined[len(leftBytes):], rightBytes)
+	return vm.push(&object.Bytes{Value: combined})
 }
 
 func (vm *VM) executeStringConcatenation(left, right object.Object) error {

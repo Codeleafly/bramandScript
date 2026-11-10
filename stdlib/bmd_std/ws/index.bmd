@@ -1,0 +1,50 @@
+// BramandScript Standard Library :: WebSocket Ecosystem (std/ws)
+// 100% Self-Hosted RFC 6455 WebSocket Engine in Pure BramandScript.
+// Provides handshake derivation, binary frame codec, duplex WebSocket connection,
+// server, client, and multi-room pub-sub hub integration.
+
+import "std/ws/handshake" as handshake;
+import "std/ws/frame" as frame;
+import "std/ws/connection" as connection;
+import "std/ws/server" as server;
+import "std/ws/client" as client;
+import "std/net/ws_room" as ws_room;
+
+// --- Handshake Exports ---
+let compute_accept_key = handshake.compute_accept_key;
+let build_server_handshake = handshake.build_server_handshake;
+let build_client_handshake = handshake.build_client_handshake;
+let generate_client_key = handshake.generate_client_key;
+let parse_handshake_request = handshake.parse_handshake_request;
+let parse_handshake_response = handshake.parse_handshake_response;
+
+// --- Frame Codec Exports ---
+let encode_frame = frame.encode_frame;
+let decode_frame = frame.decode_frame;
+let encode_close_frame = frame.encode_close_frame;
+let parse_close_payload = frame.parse_close_payload;
+let encode_ping_frame = frame.encode_ping_frame;
+let encode_pong_frame = frame.encode_pong_frame;
+
+let OP_CONT  = frame.OP_CONT;
+let OP_TEXT  = frame.OP_TEXT;
+let OP_BIN   = frame.OP_BIN;
+let OP_CLOSE = frame.OP_CLOSE;
+let OP_PING  = frame.OP_PING;
+let OP_PONG  = frame.OP_PONG;
+
+// --- Connection Abstraction ---
+let WebSocket = connection.WebSocket;
+
+// --- Server Exports ---
+let create_server = server.create_server;
+let Server = server.Server;
+
+// --- Client Exports ---
+let connect = client.connect;
+let Client = client.Client;
+
+// --- Room Hub Interop ---
+let RoomHub = ws_room.RoomHub;
+let new_room_hub = ws_room.new_room_hub;
+let create_room_hub = ws_room.create_room_hub;

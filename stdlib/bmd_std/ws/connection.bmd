@@ -1,0 +1,164 @@
+// BramandScript Standard Library :: WebSocket Connection (std/ws/connection)
+// 100% Self-Hosted Pure BramandScript duplex WebSocket connection over raw TCP.
+
+import "std/ws/frame" as frame;
+
+let WebSocket = fn(raw_conn, is_server = false) {
+    let listeners = {
+        "message": [],
+        "close": [],
+        "ping": [],
+        "pong": [],
+        "error": []
+    };
+
+    let self = {
+        "conn": raw_conn,
+        "is_server": is_server,
+        "is_closed": false,
+        "buffer": bytes(0)
+    };
+
+    self["on"] = fn(event, callback) {
+        if (listeners[event] != null) {
+            push(listeners[event], callback);
+        }
+        return self;
+    };
+
+    self["emit"] = fn(event, arg1 = null, arg2 = null) {
+        let list = listeners[event];
+        if (list != null) {
+            let i = 0;
+            while (i < len(list)) {
+                let cb = list[i];
+                if (cb != null) {
+                    if (arg2 != null) {
+                        cb(arg1, arg2);
+                    } else if (arg1 != null) {
+                        cb(arg1);
+                    } else {
+                        cb();
+                    }
+                }
+                i = i + 1;
+            }
+        }
+    };
+
+    self["send"] = fn(data) {
+        if (self["is_closed"]) {
+            return false;
+        }
+        let should_mask = !self["is_server"];
+        let opcode = frame.OP_TEXT;
+        if (type(data) == "BYTES") {
+            opcode = frame.OP_BIN;
+        }
+        let encoded = frame.encode_frame(data, opcode, should_mask);
+        let res = tcp_write(self["conn"], encoded);
+        return res != null && type(res) != "ERROR";
+    };
+
+    self["send_binary"] = fn(data) {
+        if (self["is_closed"]) {
+            return false;
+        }
+        let should_mask = !self["is_server"];
+        let encoded = frame.encode_frame(data, frame.OP_BIN, should_mask);
+        let res = tcp_write(self["conn"], encoded);
+        return res != null && type(res) != "ERROR";
+    };
+
+    self["ping"] = fn(payload = "") {
+        if (self["is_closed"]) {
+            return false;
+        }
+        let should_mask = !self["is_server"];
+        let encoded = frame.encode_ping_frame(payload, should_mask);
+        let res = tcp_write(self["conn"], encoded);
+        return res != null && type(res) != "ERROR";
+    };
+
+    self["pong"] = fn(payload = "") {
+        if (self["is_closed"]) {
+            return false;
+        }
+        let should_mask = !self["is_server"];
+        let encoded = frame.encode_pong_frame(payload, should_mask);
+        let res = tcp_write(self["conn"], encoded);
+        return res != null && type(res) != "ERROR";
+    };
+
+    self["close"] = fn(code = 1000, reason = "") {
+        if (self["is_closed"]) {
+            return true;
+        }
+        self["is_closed"] = true;
+        let should_mask = !self["is_server"];
+        let encoded = frame.encode_close_frame(code, reason, should_mask);
+        tcp_write(self["conn"], encoded);
+        tcp_close(self["conn"]);
+        self["emit"]("close", code, reason);
+        return true;
+    };
+
+    self["remote_addr"] = fn() {
+        return tcp_remote_addr(self["conn"]);
+    };
+
+    self["local_addr"] = fn() {
+        return tcp_local_addr(self["conn"]);
+    };
+
+    self["start_reader"] = fn() {
+        spawn fn() {
+            while (!self["is_closed"]) {
+                // If sufficient bytes exist in buffer, try decoding frame
+                if (len(self["buffer"]) >= 2) {
+                    let dec = frame.decode_frame(self["buffer"]);
+                    if (dec["valid"]) {
+                        let consumed = dec["raw_len"];
+                        self["buffer"] = self["buffer"].slice(consumed);
+
+                        if (dec["is_ping"]) {
+                            self["emit"]("ping", dec["payload"]);
+                            self["pong"](dec["payload"]);
+                        } else if (dec["is_pong"]) {
+                            self["emit"]("pong", dec["payload"]);
+                        } else if (dec["is_close"]) {
+                            let parsed_close = frame.parse_close_payload(dec["payload"]);
+                            if (!self["is_closed"]) {
+                                self["is_closed"] = true;
+                                let should_mask = !self["is_server"];
+                                let reply_close = frame.encode_close_frame(parsed_close["code"], parsed_close["reason"], should_mask);
+                                tcp_write(self["conn"], reply_close);
+                                tcp_close(self["conn"]);
+                                self["emit"]("close", parsed_close["code"], parsed_close["reason"]);
+                            }
+                            break;
+                        } else if (dec["is_text"] || dec["is_binary"]) {
+                            self["emit"]("message", dec["payload"]);
+                        }
+                        continue;
+                    }
+                }
+
+                // Incomplete frame, read more bytes from TCP connection
+                let chunk = tcp_read(self["conn"], 4096);
+                if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+                    if (!self["is_closed"]) {
+                        self["is_closed"] = true;
+                        tcp_close(self["conn"]);
+                        self["emit"]("close", 1006, "Abnormal closure");
+                    }
+                    break;
+                }
+                self["buffer"] = self["buffer"] + chunk;
+            }
+        }();
+        return self;
+    };
+
+    return self;
+};

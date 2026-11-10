@@ -1,0 +1,245 @@
+// BramandScript Standard Library :: RFC 6455 Frame Codec (std/ws/frame)
+// 100% Self-Hosted Pure BramandScript implementation of WebSocket framing protocol.
+
+// RFC 6455 Opcode Constants
+let OP_CONT  = 0x0;
+let OP_TEXT  = 0x1;
+let OP_BIN   = 0x2;
+let OP_CLOSE = 0x8;
+let OP_PING  = 0x9;
+let OP_PONG  = 0xA;
+
+// Helper to normalize or generate a 4-byte mask key.
+let normalize_mask_key = fn(k) {
+    if (k == null) {
+        let rnd = bytes(hex_decode(random_bytes(4)));
+        return [rnd[0], rnd[1], rnd[2], rnd[3]];
+    }
+    if (type(k) == "ARRAY") {
+        return [int(k[0]), int(k[1]), int(k[2]), int(k[3])];
+    }
+    let b = bytes(k);
+    return [b[0], b[1], b[2], b[3]];
+};
+
+// Encodes data into an RFC 6455 binary frame.
+// Parameters:
+//   data: string, bytes, or null
+//   opcode: integer opcode (0x1 Text, 0x2 Binary, 0x8 Close, 0x9 Ping, 0xA Pong)
+//   masked: boolean indicating if client-side masking is applied
+//   mask_key: optional 4-byte array, string, or bytes
+let encode_frame = fn(data, opcode = 0x1, masked = false, mask_key = null) {
+    let payload_bytes = bytes(0);
+    if (data != null) {
+        if (type(data) == "BYTES") {
+            payload_bytes = data;
+        } else {
+            payload_bytes = bytes("" + data);
+        }
+    }
+    let payload_len = len(payload_bytes);
+
+    let header_len = 2;
+    if (payload_len >= 126 && payload_len <= 65535) {
+        header_len = header_len + 2;
+    } else if (payload_len > 65535) {
+        header_len = header_len + 8;
+    }
+
+    let mask_arr = null;
+    if (masked) {
+        header_len = header_len + 4;
+        mask_arr = normalize_mask_key(mask_key);
+    }
+
+    let total_len = header_len + payload_len;
+    let frame_buf = bytes(total_len);
+
+    // Byte 0: FIN (0x80) | (opcode & 0x0F)
+    frame_buf[0] = 0x80 | (opcode & 0x0F);
+
+    // Byte 1: Mask bit | payload length indicator
+    let mask_bit = 0;
+    if (masked) {
+        mask_bit = 0x80;
+    }
+
+    let offset = 2;
+    if (payload_len <= 125) {
+        frame_buf[1] = mask_bit | payload_len;
+    } else if (payload_len <= 65535) {
+        frame_buf[1] = mask_bit | 126;
+        frame_buf.write_u16(offset, payload_len, "be");
+        offset = offset + 2;
+    } else {
+        frame_buf[1] = mask_bit | 127;
+        frame_buf.write_u64(offset, payload_len, "be");
+        offset = offset + 8;
+    }
+
+    if (masked) {
+        frame_buf[offset]     = mask_arr[0];
+        frame_buf[offset + 1] = mask_arr[1];
+        frame_buf[offset + 2] = mask_arr[2];
+        frame_buf[offset + 3] = mask_arr[3];
+        offset = offset + 4;
+
+        let i = 0;
+        while (i < payload_len) {
+            frame_buf[offset + i] = payload_bytes[i] ^ mask_arr[i % 4];
+            i = i + 1;
+        }
+    } else {
+        let i = 0;
+        while (i < payload_len) {
+            frame_buf[offset + i] = payload_bytes[i];
+            i = i + 1;
+        }
+    }
+
+    return frame_buf;
+};
+
+// Decodes raw bytes or string into an RFC 6455 frame.
+// Returns a hash containing frame details, or {"valid": false, ...} if incomplete.
+let decode_frame = fn(raw_input) {
+    if (raw_input == null) {
+        return {"valid": false, "error": "Null input", "raw_len": 0};
+    }
+    let b = null;
+    if (type(raw_input) == "BYTES") {
+        b = raw_input;
+    } else {
+        b = bytes(raw_input);
+    }
+
+    if (len(b) < 2) {
+        return {"valid": false, "error": "IncompleteHeader", "raw_len": 0};
+    }
+
+    let b0 = b[0];
+    let fin = (b0 & 0x80) != 0;
+    let rsv1 = (b0 & 0x40) != 0;
+    let rsv2 = (b0 & 0x20) != 0;
+    let rsv3 = (b0 & 0x10) != 0;
+    let opcode = b0 & 0x0F;
+
+    let b1 = b[1];
+    let masked = (b1 & 0x80) != 0;
+    let len_indicator = b1 & 0x7F;
+
+    let offset = 2;
+    let payload_len = len_indicator;
+
+    if (len_indicator == 126) {
+        if (len(b) < offset + 2) {
+            return {"valid": false, "error": "IncompleteExtendedLength16", "raw_len": 0};
+        }
+        payload_len = b.read_u16(offset, "be");
+        offset = offset + 2;
+    } else if (len_indicator == 127) {
+        if (len(b) < offset + 8) {
+            return {"valid": false, "error": "IncompleteExtendedLength64", "raw_len": 0};
+        }
+        payload_len = b.read_u64(offset, "be");
+        offset = offset + 8;
+    }
+
+    let mask_arr = null;
+    if (masked) {
+        if (len(b) < offset + 4) {
+            return {"valid": false, "error": "IncompleteMaskKey", "raw_len": 0};
+        }
+        mask_arr = [b[offset], b[offset + 1], b[offset + 2], b[offset + 3]];
+        offset = offset + 4;
+    }
+
+    let total_len = offset + payload_len;
+    if (len(b) < total_len) {
+        return {
+            "valid": false,
+            "error": "IncompletePayload",
+            "needed": total_len - len(b),
+            "expected_len": total_len,
+            "raw_len": 0
+        };
+    }
+
+    let payload_bytes = bytes(payload_len);
+    if (masked) {
+        let i = 0;
+        while (i < payload_len) {
+            payload_bytes[i] = b[offset + i] ^ mask_arr[i % 4];
+            i = i + 1;
+        }
+    } else {
+        let i = 0;
+        while (i < payload_len) {
+            payload_bytes[i] = b[offset + i];
+            i = i + 1;
+        }
+    }
+
+    let payload_str = payload_bytes.to_string();
+
+    return {
+        "valid": true,
+        "fin": fin,
+        "opcode": opcode,
+        "payload": payload_str,
+        "payload_bytes": payload_bytes,
+        "masked": masked,
+        "mask_key": mask_arr,
+        "is_continuation": opcode == 0x0,
+        "is_text": opcode == 0x1,
+        "is_binary": opcode == 0x2,
+        "is_close": opcode == 0x8,
+        "is_ping": opcode == 0x9,
+        "is_pong": opcode == 0xA,
+        "header_len": offset,
+        "payload_len": payload_len,
+        "total_len": total_len,
+        "raw_len": total_len
+    };
+};
+
+// Encodes an RFC 6455 Close control frame with status code and reason string.
+let encode_close_frame = fn(code = 1000, reason = "", masked = false, mask_key = null) {
+    let r_bytes = bytes("" + reason);
+    let p_len = 2 + len(r_bytes);
+    let p_buf = bytes(p_len);
+    p_buf.write_u16(0, code, "be");
+    let i = 0;
+    while (i < len(r_bytes)) {
+        p_buf[2 + i] = r_bytes[i];
+        i = i + 1;
+    }
+    return encode_frame(p_buf, OP_CLOSE, masked, mask_key);
+};
+
+// Parses a close frame payload extracting status code and optional reason string.
+let parse_close_payload = fn(payload) {
+    if (payload == null) {
+        return {"code": 1000, "reason": ""};
+    }
+    let b = bytes(payload);
+    if (len(b) < 2) {
+        return {"code": 1000, "reason": ""};
+    }
+    let code = b.read_u16(0, "be");
+    let reason = "";
+    if (len(b) > 2) {
+        reason = b.slice(2, len(b)).to_string();
+    }
+    return {"code": code, "reason": reason};
+};
+
+// Encodes a Ping control frame.
+let encode_ping_frame = fn(payload = "", masked = false, mask_key = null) {
+    return encode_frame(payload, OP_PING, masked, mask_key);
+};
+
+// Encodes a Pong control frame.
+let encode_pong_frame = fn(payload = "", masked = false, mask_key = null) {
+    return encode_frame(payload, OP_PONG, masked, mask_key);
+};

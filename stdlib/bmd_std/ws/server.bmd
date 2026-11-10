@@ -1,0 +1,183 @@
+// BramandScript Standard Library :: WebSocket Server (std/ws/server)
+// 100% Self-Hosted Pure BramandScript WebSocket Server on top of raw TCP sockets.
+
+import "std/ws/handshake" as handshake;
+import "std/ws/connection" as connection;
+
+let create_server = fn(arg1 = null, arg2 = null) {
+    let on_connection = null;
+    let initial_port = null;
+
+    let t1 = type(arg1);
+    if (t1 == "INTEGER" || t1 == "STRING") {
+        initial_port = arg1;
+        on_connection = arg2;
+    } else if (t1 == "CLOSURE" || t1 == "FUNCTION" || t1 == "BUILTIN") {
+        on_connection = arg1;
+    }
+
+    let clients = [];
+    let srv_obj = {
+        "raw": null,
+        "is_listening": false,
+        "clients": clients,
+        "port": initial_port
+    };
+
+    let remove_client = fn(c) {
+        let new_list = [];
+        let i = 0;
+        while (i < len(clients)) {
+            if (clients[i] != c && !clients[i]["is_closed"]) {
+                push(new_list, clients[i]);
+            }
+            i = i + 1;
+        }
+        clients = new_list;
+        srv_obj["clients"] = clients;
+    };
+
+    srv_obj["listen"] = fn(port, on_listening = null) {
+        let addr = "127.0.0.1:" + str(port);
+        let raw_srv = net_listen_tcp(addr);
+        if (type(raw_srv) == "ERROR") {
+            return raw_srv;
+        }
+        srv_obj["raw"] = raw_srv;
+        srv_obj["is_listening"] = true;
+        srv_obj["port"] = port;
+
+        if (on_listening != null) {
+            on_listening(srv_obj);
+        }
+
+        spawn fn() {
+            while (srv_obj["is_listening"]) {
+                let raw_conn = tcp_accept(srv_obj["raw"]);
+                if (raw_conn == null || type(raw_conn) == "ERROR") {
+                    if (!srv_obj["is_listening"]) {
+                        break;
+                    }
+                    continue;
+                }
+
+                // Handle handshake in a dedicated coroutine per client
+                spawn fn() {
+                    tcp_set_timeout(raw_conn, 10000);
+
+                    let raw_req = tcp_read(raw_conn, 4096);
+                    if (raw_req == null || type(raw_req) == "ERROR" || len(raw_req) == 0) {
+                        tcp_close(raw_conn);
+                        return;
+                    }
+
+                    while (!contains(raw_req, "\r\n\r\n") && !contains(raw_req, "\n\n")) {
+                        let chunk = tcp_read(raw_conn, 4096);
+                        if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+                            break;
+                        }
+                        raw_req = raw_req + chunk;
+                    }
+
+                    let parsed = handshake.parse_handshake_request(raw_req);
+                    if (!parsed["valid"]) {
+                        tcp_write(raw_conn, "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nInvalid WebSocket Handshake");
+                        tcp_close(raw_conn);
+                        return;
+                    }
+
+                    let accept_key = handshake.compute_accept_key(parsed["key"]);
+                    let res_wire = handshake.build_server_handshake(accept_key);
+                    let write_res = tcp_write(raw_conn, res_wire);
+                    if (write_res == null || type(write_res) == "ERROR") {
+                        tcp_close(raw_conn);
+                        return;
+                    }
+
+                    // Reset socket timeout to 0 (no read timeout for persistent WebSocket)
+                    tcp_set_timeout(raw_conn, 0);
+
+                    let ws = connection.WebSocket(raw_conn, true);
+                    ws["request"] = parsed;
+                    push(clients, ws);
+                    srv_obj["clients"] = clients;
+
+                    // If leftover bytes were read beyond HTTP headers, place them in buffer
+                    let sep_idx = -1;
+                    let si = 0;
+                    while (si <= len(raw_req) - 4) {
+                        if (raw_req[si] == "\r" && raw_req[si+1] == "\n" && raw_req[si+2] == "\r" && raw_req[si+3] == "\n") {
+                            sep_idx = si;
+                            break;
+                        }
+                        si = si + 1;
+                    }
+                    if (sep_idx >= 0 && len(raw_req) > sep_idx + 4) {
+                        let leftover = slice(raw_req, sep_idx + 4, len(raw_req));
+                        ws["buffer"] = bytes(leftover);
+                    }
+
+                    ws.on("close", fn(code, reason) {
+                        remove_client(ws);
+                    });
+
+                    if (on_connection != null) {
+                        on_connection(ws);
+                    }
+
+                    ws.start_reader();
+                }();
+            }
+        }();
+
+        return srv_obj;
+    };
+
+    srv_obj["broadcast"] = fn(message) {
+        let delivered = 0;
+        let i = 0;
+        while (i < len(clients)) {
+            let c = clients[i];
+            if (!c["is_closed"]) {
+                if (c.send(message)) {
+                    delivered = delivered + 1;
+                }
+            }
+            i = i + 1;
+        }
+        return delivered;
+    };
+
+    srv_obj["close"] = fn() {
+        srv_obj["is_listening"] = false;
+        let i = 0;
+        while (i < len(clients)) {
+            let c = clients[i];
+            if (!c["is_closed"]) {
+                c.close(1001, "Server shutting down");
+            }
+            i = i + 1;
+        }
+        clients = [];
+        srv_obj["clients"] = clients;
+
+        if (srv_obj["raw"] != null) {
+            tcp_close(srv_obj["raw"]);
+            srv_obj["raw"] = null;
+        }
+        return true;
+    };
+
+    if (initial_port != null) {
+        let res = srv_obj["listen"](initial_port);
+        if (type(res) == "ERROR") {
+            return res;
+        }
+    }
+
+    return srv_obj;
+};
+
+let Server = fn(handler) {
+    return create_server(handler);
+};
