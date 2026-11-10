@@ -195,6 +195,13 @@
             <li><a href="stdlib.html#ch-stream" class="nav-link pl-4 text-xs"><span>·</span> std/stream (Reactive Streams)</a></li>
             <li><a href="stdlib.html#ch-sql" class="nav-link pl-4 text-xs"><span>·</span> std/sql (Relational SQL Engine)</a></li>
             <li><a href="stdlib.html#ch-ai" class="nav-link pl-4 text-xs"><span>·</span> std/ai (Vector Metrics &amp; KNN)</a></li>
+            <li><a href="stdlib.html#ch-net-tier" class="nav-link pl-4 text-xs font-semibold text-blue-600 dark:text-blue-400"><span>✦</span> std/net (Raw Sockets)</a></li>
+            <li><a href="stdlib.html#ch-http-tier" class="nav-link pl-4 text-xs font-semibold text-emerald-600 dark:text-emerald-400"><span>✦</span> std/http (Pure BMD HTTP)</a></li>
+            <li><a href="stdlib.html#ch-ws-tier" class="nav-link pl-4 text-xs font-semibold text-purple-600 dark:text-purple-400"><span>✦</span> std/ws (RFC 6455 WebSockets)</a></li>
+            <li><a href="stdlib.html#ch-dns-tier" class="nav-link pl-4 text-xs font-semibold text-cyan-600 dark:text-cyan-400"><span>✦</span> std/dns (RFC 1035 DNS)</a></li>
+            <li><a href="stdlib.html#ch-https-tier" class="nav-link pl-4 text-xs font-semibold text-indigo-600 dark:text-indigo-400"><span>✦</span> std/https (Secure TLS)</a></li>
+            <li><a href="stdlib.html#ch-process-tier" class="nav-link pl-4 text-xs font-semibold text-amber-600 dark:text-amber-400"><span>✦</span> std/process &amp; std/os</a></li>
+            <li><a href="stdlib.html#ch-buffer-tier" class="nav-link pl-4 text-xs font-semibold text-pink-600 dark:text-pink-400"><span>✦</span> std/buffer &amp; std/io</a></li>
             <li><a href="stdlib.html#ch-tui" class="nav-link"><span>✦</span> Terminal UI &amp; CLI (std/tui)</a></li>
             <li><a href="stdlib.html#ch-bigmath" class="nav-link"><span>✦</span> BigInt &amp; BigFloat</a></li>
             <li><a href="stdlib.html#ch-linearalgebra" class="nav-link"><span>✦</span> Vectors &amp; Matrices</a></li>
@@ -2304,6 +2311,421 @@ println("Result:", success.unwrap()) // 50
 let failure = calculate_average("", "60")
 println("Failure caught:", failure.is_err()) // true
 println("Fallback:", failure.unwrap_or(0))   // 0</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 1: STD/NET ================= -->
+
+      <section id="ch-net-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Tier 1 Networking</span>
+          <span class="badge badge-emerald">Go Host Primitives</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Low-Level Sockets &amp; Networking (<code class="font-mono">std/net</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/net</code> module provides low-level duplex streaming TCP sockets, high-throughput UDP packet sockets, and TLS encryption primitives implemented directly in the Go standard library with zero external dependencies.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Functions &amp; Factory Methods</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">net.create_server</code></td><td><code class="font-mono">net.create_server([addr], handler)</code></td><td><code class="font-mono">Server</code></td><td>Instantiates a TCP server wrapping <code class="font-mono">net_listen_tcp</code>. Dispatches incoming connections asynchronously.</td></tr>
+              <tr><td><code class="font-mono font-bold">net.connect</code></td><td><code class="font-mono">net.connect(host, port, [on_connect])</code></td><td><code class="font-mono">Socket</code></td><td>Dials a remote TCP server and returns a bidirectional streaming <code class="font-mono">Socket</code> instance.</td></tr>
+              <tr><td><code class="font-mono font-bold">net.create_udp_socket</code></td><td><code class="font-mono">net.create_udp_socket([port_or_addr])</code></td><td><code class="font-mono">UDPSocket</code></td><td>Binds a local UDP socket on specified port/address (default ephemeral port <code class="font-mono">0</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">net.dial_tls</code></td><td><code class="font-mono">net.dial_tls(addr, sni_name, timeout, [opts])</code></td><td><code class="font-mono">Socket</code></td><td>Dials an encrypted TLS connection with mandatory Server Name Indication (SNI) verification.</td></tr>
+              <tr><td><code class="font-mono font-bold">net.listen_tls</code></td><td><code class="font-mono">net.listen_tls(addr, cert_file, key_file)</code></td><td><code class="font-mono">Server</code></td><td>Binds an encrypted TLS listener using PEM certificate and private key files.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Socket Instance Methods</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">sock.read</code></td><td><code class="font-mono">sock.read([max_bytes])</code></td><td><code class="font-mono">STRING</code></td><td>Reads up to <code class="font-mono">max_bytes</code> (default 4096) from the socket; returns null or EOF on close.</td></tr>
+              <tr><td><code class="font-mono font-bold">sock.read_line</code></td><td><code class="font-mono">sock.read_line()</code></td><td><code class="font-mono">STRING</code></td><td>Reads a single line delimited by <code class="font-mono">\n</code> or <code class="font-mono">\r\n</code> from the internal buffer.</td></tr>
+              <tr><td><code class="font-mono font-bold">sock.write</code></td><td><code class="font-mono">sock.write(data)</code></td><td><code class="font-mono">INTEGER</code></td><td>Writes string or byte slice data to the socket stream; returns number of bytes written.</td></tr>
+              <tr><td><code class="font-mono font-bold">sock.set_timeout</code></td><td><code class="font-mono">sock.set_timeout(ms)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Sets read and write deadline timeout in milliseconds (0 clears timeout).</td></tr>
+              <tr><td><code class="font-mono font-bold">sock.remote_addr</code></td><td><code class="font-mono">sock.remote_addr()</code></td><td><code class="font-mono">STRING</code></td><td>Returns remote peer IP and port address string (e.g. <code class="font-mono">"192.168.1.5:49152"</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">sock.close</code></td><td><code class="font-mono">sock.close()</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Closes the TCP connection and flushes remaining buffers.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Multi-Client TCP Socket Server &amp; Client</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/net" as net;
+
+let server = net.create_server(fn(sock) {
+    sock.set_timeout(5000);
+    let line = sock.read_line();
+    sock.write("ECHO: " + trim(line) + "\n");
+    sock.close();
+});
+server.listen(9001);
+
+let client = net.connect("127.0.0.1", 9001);
+client.write("Hello Bramand!\n");
+let reply = client.read_line();
+println("Received:", trim(reply));
+client.close();
+server.close();</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: STD/HTTP ================= -->
+
+      <section id="ch-http-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Tier 2 Protocol</span>
+          <span class="badge badge-blue">100% Pure BMD</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript HTTP/1.1 Engine (<code class="font-mono">std/http</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A 100% self-hosted RFC 7230 HTTP/1.1 engine written entirely in BramandScript on top of raw TCP sockets.
+          Includes an RFC 7230 wire parser, server with Request and Response abstractions, client convenience helpers, Radix Trie router, and middleware.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. HTTP Client &amp; Server API</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">http.create_server</code></td><td><code class="font-mono">http.create_server(handler)</code></td><td><code class="font-mono">Server</code></td><td>Instantiates an HTTP server taking a callback <code class="font-mono">fn(req, res)</code> or a Trie <code class="font-mono">Router</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.create_router</code></td><td><code class="font-mono">http.create_router()</code></td><td><code class="font-mono">Router</code></td><td>Constructs a Radix-Trie URL router with <code class="font-mono">get</code>, <code class="font-mono">post</code>, <code class="font-mono">put</code>, <code class="font-mono">delete_req</code>, <code class="font-mono">group</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.get</code></td><td><code class="font-mono">http.get(url, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Sends HTTP GET request; response contains <code class="font-mono">status</code>, <code class="font-mono">headers</code>, <code class="font-mono">body</code>, <code class="font-mono">json()</code>, <code class="font-mono">text()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.post</code></td><td><code class="font-mono">http.post(url, body, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Sends HTTP POST request with automatic JSON body serialization.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.put</code></td><td><code class="font-mono">http.put(url, body, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Sends HTTP PUT request with payload and optional custom headers.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.delete_req</code></td><td><code class="font-mono">http.delete_req(url, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Sends HTTP DELETE request to target endpoint.</td></tr>
+              <tr><td><code class="font-mono font-bold">http.request</code></td><td><code class="font-mono">http.request(options)</code></td><td><code class="font-mono">Response</code></td><td>Executes customized request with <code class="font-mono">{"method", "url", "body", "headers", "timeout"}</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — REST API Service with Router &amp; Middleware</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/http" as http;
+
+let router = http.create_router();
+
+router.get("/api/items/:id", fn(req, res) {
+    let id = req.params["id"];
+    res.json({ "id": id, "name": "Quantum CPU", "price": 4999 });
+});
+
+router.post("/api/items", fn(req, res) {
+    let data = req.json();
+    res.status(201).json({ "created": data, "id": 101 });
+});
+
+let server = http.create_server(router);
+server.listen(8080);</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: STD/WS ================= -->
+
+      <section id="ch-ws-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Tier 2 Protocol</span>
+          <span class="badge badge-blue">RFC 6455 Pure BMD</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript WebSocket Engine (<code class="font-mono">std/ws</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A 100% self-hosted RFC 6455 WebSocket engine written entirely in BramandScript atop raw TCP sockets.
+          Includes handshake key derivation (<code class="font-mono">Sec-WebSocket-Accept</code> with SHA-1 and Base64), binary frame encoder/decoder with FIN bit, opcode bitfields, 4-byte client XOR payload masking, 7-bit/16-bit/64-bit payload lengths, and room broadcast.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. WebSocket Server &amp; Client API</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">ws.create_server</code></td><td><code class="font-mono">ws.create_server(port, on_connection)</code></td><td><code class="font-mono">Server</code></td><td>Instantiates a WebSocket server negotiating RFC 6455 handshakes and connection lifecycle.</td></tr>
+              <tr><td><code class="font-mono font-bold">ws.connect</code></td><td><code class="font-mono">ws.connect(url, [on_open])</code></td><td><code class="font-mono">Client</code></td><td>Dials a remote WebSocket endpoint (<code class="font-mono">ws://</code>), performs handshake, and returns connection.</td></tr>
+              <tr><td><code class="font-mono font-bold">server.broadcast</code></td><td><code class="font-mono">server.broadcast(message)</code></td><td><code class="font-mono">INTEGER</code></td><td>Transmits text message to all active, non-closed client connections; returns count delivered.</td></tr>
+              <tr><td><code class="font-mono font-bold">conn.send</code></td><td><code class="font-mono">conn.send(message)</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Encodes and transmits an RFC 6455 text frame across the duplex socket.</td></tr>
+              <tr><td><code class="font-mono font-bold">conn.ping</code></td><td><code class="font-mono">conn.ping([payload])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Sends an RFC 6455 Ping control frame to verify peer liveness.</td></tr>
+              <tr><td><code class="font-mono font-bold">conn.close</code></td><td><code class="font-mono">conn.close([code], [reason])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Initiates graceful close handshake with status code (default 1000) and reason text.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Realtime WebSocket Broadcast &amp; Telemetry</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/ws" as ws;
+
+let server = ws.create_server(8081, fn(conn) {
+    conn.on("message", fn(msg) {
+        conn.send("ACK: " + msg);
+        server.broadcast("ANNOUNCE: " + msg);
+    });
+});
+
+let client = ws.connect("ws://127.0.0.1:8081/feed", fn(c) {
+    c.send("TELEMETRY_ONLINE");
+});
+
+client.on("message", fn(msg) {
+    println("Received:", msg);
+});</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: STD/DNS ================= -->
+
+      <section id="ch-dns-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-cyan">Tier 2 Protocol</span>
+          <span class="badge badge-blue">RFC 1035 Pure BMD</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript UDP DNS Resolver (<code class="font-mono">std/dns</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A 100% self-hosted RFC 1035 UDP DNS packet codec and resolver engine. Directly formats binary queries, parses 12-byte headers, resolves QNAME labels with <code class="font-mono">0xC0</code> compression pointers, and manages an in-memory TTL cache.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Functions Reference</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">dns.resolve</code></td><td><code class="font-mono">dns.resolve(domain, [type], [server], [timeout])</code></td><td><code class="font-mono">ARRAY</code></td><td>Resolves domain to array of record values (default type A, server <code class="font-mono">"8.8.8.8:53"</code>).</td></tr>
+              <tr><td><code class="font-mono font-bold">dns.lookup</code></td><td><code class="font-mono">dns.lookup(domain, [server], [timeout])</code></td><td><code class="font-mono">STRING</code></td><td>Convenience lookup returning the primary IPv4 address or null if unresolvable.</td></tr>
+              <tr><td><code class="font-mono font-bold">dns.clear_cache</code></td><td><code class="font-mono">dns.clear_cache()</code></td><td><code class="font-mono">NULL</code></td><td>Flushes all in-memory DNS cache entries.</td></tr>
+              <tr><td><code class="font-mono font-bold">dns.get_cache</code></td><td><code class="font-mono">dns.get_cache()</code></td><td><code class="font-mono">HASH</code></td><td>Returns snapshot of current cached domain records with expiration timestamps.</td></tr>
+              <tr><td><code class="font-mono font-bold">dns.encode_query</code></td><td><code class="font-mono">dns.encode_query(domain, [type], [id])</code></td><td><code class="font-mono">BYTES</code></td><td>Encodes RFC 1035 binary query packet ready for UDP socket transmission.</td></tr>
+              <tr><td><code class="font-mono font-bold">dns.decode_response</code></td><td><code class="font-mono">dns.decode_response(bytes)</code></td><td><code class="font-mono">HASH</code></td><td>Parses binary DNS datagram, handling QNAME pointer compression (<code class="font-mono">0xC0</code>) and record sections.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — DNS Query &amp; In-Memory TTL Cache</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/dns" as dns;
+
+// Resolve domain via UDP query datagram
+let ips = dns.resolve("bramand.org", dns.TYPE_A, "8.8.8.8:53");
+println("Resolved IPs:", ips);
+
+// Secondary lookup resolves instantly from in-memory TTL cache (0ms latency)
+let primary_ip = dns.lookup("bramand.org");
+println("Primary IP:", primary_ip);</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: STD/HTTPS ================= -->
+
+      <section id="ch-https-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-indigo">Tier 2 Protocol</span>
+          <span class="badge badge-emerald">Secure TLS</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript HTTPS Engine (<code class="font-mono">std/https</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Combines raw TLS dialer sockets (<code class="font-mono">tls_dial</code>) with the pure BMD HTTP wire parser and client pipeline. Enforces Server Name Indication (SNI) verification and TLS certificate validation by default.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Functions Reference</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">https.get</code></td><td><code class="font-mono">https.get(url, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Executes TLS-encrypted HTTPS GET request with automatic SNI negotiation.</td></tr>
+              <tr><td><code class="font-mono font-bold">https.post</code></td><td><code class="font-mono">https.post(url, body, [opts])</code></td><td><code class="font-mono">Response</code></td><td>Executes TLS-encrypted HTTPS POST request with JSON payload serialization.</td></tr>
+              <tr><td><code class="font-mono font-bold">https.request</code></td><td><code class="font-mono">https.request(options)</code></td><td><code class="font-mono">Response</code></td><td>Generic encrypted request dispatcher supporting all standard HTTP methods over TLS.</td></tr>
+              <tr><td><code class="font-mono font-bold">https.create_server</code></td><td><code class="font-mono">https.create_server(handler)</code></td><td><code class="font-mono">Server</code></td><td>Instantiates an HTTPS server wrapping a TLS listener with PEM certificate and key.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Secure HTTPS GET &amp; POST</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/https" as https;
+
+let res = https.get("https://api.github.com/zen", {
+    "headers": { "User-Agent": "BramandScript/1.0" }
+});
+println("HTTPS Status:", res["status"], "Body:", res.text());</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= STD/PROCESS & STD/OS ================= -->
+
+      <section id="ch-process-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-amber">System &amp; IPC</span>
+          <span class="badge badge-blue">Process Streaming</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Process IPC &amp; Operating System (<code class="font-mono">std/process</code> &amp; <code class="font-mono">std/os</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/process</code> and <code class="font-mono">std/os</code> modules deliver native child process lifecycle management, standard I/O streaming pipes, Unix IPC pipelines, exit code verification, and host system introspection.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Subprocess &amp; Stream Pipeline API (<code class="font-mono">std/process</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function / Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">process.spawn</code></td><td><code class="font-mono">process.spawn(command, [args])</code></td><td><code class="font-mono">ChildProcess</code></td><td>Spawns an asynchronous child process with connected <code class="font-mono">stdin</code>, <code class="font-mono">stdout</code>, <code class="font-mono">stderr</code> streams.</td></tr>
+              <tr><td><code class="font-mono font-bold">process.exec</code></td><td><code class="font-mono">process.exec(command, [opts])</code></td><td><code class="font-mono">HASH</code></td><td>Executes command synchronously; returns <code class="font-mono">{"exit_code", "stdout", "stderr"}</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">process.pipe</code></td><td><code class="font-mono">process.pipe(proc1, proc2)</code></td><td><code class="font-mono">ChildProcess</code></td><td>Pipes <code class="font-mono">proc1.stdout</code> directly into <code class="font-mono">proc2.stdin</code> via an asynchronous transfer coroutine.</td></tr>
+              <tr><td><code class="font-mono font-bold">proc.stdin.write</code></td><td><code class="font-mono">proc.stdin.write(data)</code></td><td><code class="font-mono">INTEGER</code></td><td>Writes data to child process standard input stream.</td></tr>
+              <tr><td><code class="font-mono font-bold">proc.stdin.end</code></td><td><code class="font-mono">proc.stdin.end([final_data])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Closes subprocess standard input stream, triggering EOF in the child process.</td></tr>
+              <tr><td><code class="font-mono font-bold">proc.stdout.read_all</code></td><td><code class="font-mono">proc.stdout.read_all()</code></td><td><code class="font-mono">STRING</code></td><td>Consumes and buffers all remaining standard output from the child process.</td></tr>
+              <tr><td><code class="font-mono font-bold">proc.wait</code></td><td><code class="font-mono">proc.wait()</code></td><td><code class="font-mono">INTEGER</code></td><td>Waits for child process to terminate and returns integer exit status code.</td></tr>
+              <tr><td><code class="font-mono font-bold">proc.kill</code></td><td><code class="font-mono">proc.kill([signal])</code></td><td><code class="font-mono">BOOLEAN</code></td><td>Sends OS termination signal (<code class="font-mono">SIGTERM</code> or <code class="font-mono">SIGKILL</code>) to the child process.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. OS System Introspection (<code class="font-mono">std/os</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Field / Function</th><th>Type</th><th>Example</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">os.platform</code></td><td><code class="font-mono">STRING</code></td><td><code class="font-mono">"linux"</code>, <code class="font-mono">"darwin"</code></td><td>Host operating system name.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.arch</code></td><td><code class="font-mono">STRING</code></td><td><code class="font-mono">"arm64"</code>, <code class="font-mono">"amd64"</code></td><td>Host hardware CPU architecture.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.cpus()</code></td><td><code class="font-mono">INTEGER</code></td><td><code class="font-mono">8</code></td><td>Total number of logical CPU processing cores.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.memory()</code></td><td><code class="font-mono">HASH</code></td><td><code class="font-mono">{"alloc", "sys", "total_alloc"}</code></td><td>Current runtime memory allocations in bytes.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.get_env(key)</code></td><td><code class="font-mono">STRING</code></td><td><code class="font-mono">os.get_env("PATH")</code></td><td>Reads environment variable with optional default value.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.cwd()</code></td><td><code class="font-mono">STRING</code></td><td><code class="font-mono">"/home/bramand"</code></td><td>Returns current active working directory path.</td></tr>
+              <tr><td><code class="font-mono font-bold">os.pid()</code></td><td><code class="font-mono">INTEGER</code></td><td><code class="font-mono">14820</code></td><td>Process identifier of the current BramandScript process.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Unix Pipeline IPC: proc1.pipe(proc2)</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/process" as process;
+
+// IPC Unix pipeline: echo -> tr -> read
+let p1 = process.spawn("echo", ["hello world"]);
+let p2 = process.spawn("tr", ["a-z", "A-Z"]);
+p1.pipe(p2);
+
+let output = p2.stdout.read_all();
+p1.wait();
+p2.wait();
+println("Transformed output:", trim(output)); // "HELLO WORLD"</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= STD/BUFFER & STD/IO ================= -->
+
+      <section id="ch-buffer-tier" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-pink">Binary Codecs</span>
+          <span class="badge badge-blue">Stream Piping</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Byte Buffers &amp; Binary Stream Piping (<code class="font-mono">std/buffer</code> &amp; <code class="font-mono">std/io</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          The <code class="font-mono">std/buffer</code> and <code class="font-mono">std/io</code> modules deliver high-performance byte buffer manipulation, Big-Endian / Little-Endian numeric serialization, IEEE 754 float codecs, and streaming pipe combinators with zero data loss.
+        </p>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">1. Buffer Class &amp; Static Factory (<code class="font-mono">std/buffer</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Method</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">Buffer.alloc</code></td><td><code class="font-mono">Buffer.alloc(size, [fill])</code></td><td><code class="font-mono">Buffer</code></td><td>Allocates buffer of specified byte size pre-filled with integer value (default 0).</td></tr>
+              <tr><td><code class="font-mono font-bold">Buffer.from</code></td><td><code class="font-mono">Buffer.from(data, [encoding])</code></td><td><code class="font-mono">Buffer</code></td><td>Creates buffer from string (<code class="font-mono">"utf8"</code>, <code class="font-mono">"hex"</code>, <code class="font-mono">"base64"</code>), byte array, or raw bytes.</td></tr>
+              <tr><td><code class="font-mono font-bold">Buffer.concat</code></td><td><code class="font-mono">Buffer.concat(list, [total_len])</code></td><td><code class="font-mono">Buffer</code></td><td>Concatenates an array of buffers into a single continuous memory block.</td></tr>
+              <tr><td><code class="font-mono font-bold">Buffer.compare</code></td><td><code class="font-mono">Buffer.compare(a, b)</code></td><td><code class="font-mono">INTEGER</code></td><td>Compares buffers lexicographically; returns 0 if identical, -1 if a &lt; b, 1 if a &gt; b.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.read_uint32_be/le</code></td><td><code class="font-mono">buf.read_uint32_be(offset)</code></td><td><code class="font-mono">INTEGER</code></td><td>Reads a 32-bit unsigned integer in Big-Endian or Little-Endian order.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.write_uint32_be/le</code></td><td><code class="font-mono">buf.write_uint32_be(val, offset)</code></td><td><code class="font-mono">Buffer</code></td><td>Writes a 32-bit unsigned integer in Big-Endian or Little-Endian order.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.read_double_be/le</code></td><td><code class="font-mono">buf.read_double_be(offset)</code></td><td><code class="font-mono">FLOAT</code></td><td>Reads a 64-bit IEEE 754 double precision float at byte offset.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.write_double_be/le</code></td><td><code class="font-mono">buf.write_double_be(val, offset)</code></td><td><code class="font-mono">Buffer</code></td><td>Writes a 64-bit IEEE 754 double precision float at byte offset.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.copy</code></td><td><code class="font-mono">buf.copy(target, [tgt_start], [src_start], [src_end])</code></td><td><code class="font-mono">INTEGER</code></td><td>Fast bulk memory copy between buffers; returns number of bytes copied.</td></tr>
+              <tr><td><code class="font-mono font-bold">buf.slice</code></td><td><code class="font-mono">buf.slice([start], [end])</code></td><td><code class="font-mono">Buffer</code></td><td>Returns a sub-buffer slice sharing underlying memory.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-3 text-slate-800 dark:text-slate-200">2. Stream Combinators (<code class="font-mono">std/io</code>)</h3>
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">io.BufferReader</code></td><td><code class="font-mono">io.BufferReader(buf)</code></td><td><code class="font-mono">Reader</code></td><td>Creates streaming reader over buffer with <code class="font-mono">read(n)</code>, <code class="font-mono">read_all()</code>, <code class="font-mono">seek(pos)</code>, <code class="font-mono">is_eof()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">io.BufferWriter</code></td><td><code class="font-mono">io.BufferWriter([capacity])</code></td><td><code class="font-mono">Writer</code></td><td>Creates dynamically expanding buffer sink with <code class="font-mono">write(data)</code>, <code class="font-mono">to_buffer()</code>, <code class="font-mono">to_string()</code>.</td></tr>
+              <tr><td><code class="font-mono font-bold">io.pipe</code></td><td><code class="font-mono">io.pipe(readable, writable, [opts])</code></td><td><code class="font-mono">INTEGER</code></td><td>Pipes data from readable stream to writable stream using chunked buffering; returns total bytes transferred.</td></tr>
+              <tr><td><code class="font-mono font-bold">io.read_all</code></td><td><code class="font-mono">io.read_all(readable)</code></td><td><code class="font-mono">Buffer</code></td><td>Reads all remaining bytes from stream into a single contiguous <code class="font-mono">Buffer</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>bmd — Binary Buffer Codecs &amp; Stream Piping</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">import "std/buffer" as buffer;
+import "std/io" as io;
+
+let Buffer = buffer.Buffer;
+
+// 1. Pack binary header & float payload
+let buf = Buffer.alloc(16);
+buf.write_uint32_be(0xCAFEBABE, 0);
+buf.write_uint32_be(1024, 4);
+buf.write_double_be(3.14159265, 8);
+
+// 2. Stream piping through BufferReader -> BufferWriter
+let reader = io.BufferReader(buf);
+let writer = io.BufferWriter();
+let total = io.pipe(reader, writer, { "chunk_size": 4 });
+
+let cloned = writer.to_buffer();
+assert_eq(Buffer.compare(buf, cloned), 0);
+println("Piped bytes with 100% integrity:", total);</code></pre>
         </div>
       </section>
 

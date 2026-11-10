@@ -198,6 +198,7 @@
             <li><a href="architecture.html#ch16" class="nav-link"><span>16.</span> Intelligent Diagnostics</a></li>
             <li><a href="architecture.html#ch17" class="nav-link"><span>17.</span> Virtual Machine Pipeline</a></li>
             <li><a href="architecture.html#ch-disasm-profiler" class="nav-link pl-4 text-xs"><span>·</span> Disassembler &amp; Profiler</a></li>
+            <li><a href="architecture.html#ch-week6" class="nav-link"><span>✦</span> Week 6 Decoupled Architecture</a></li>
             <li><a href="architecture.html#ch18" class="nav-link"><span>18.</span> Contributing Guide</a></li>
           </ul>
         </div>
@@ -876,6 +877,76 @@ fn process_point({ x, y }) { return sqrt(x*x + y*y); }</code></pre>
           </p>
           <div class="p-3 bg-slate-100 dark:bg-slate-900 rounded font-mono text-xs text-slate-700 dark:text-slate-300">
             VM Loop Step ──▶ RecordStep (IP, Opcode, Stack, Locals) ──▶ trace.json ──▶ ReplayDebugger (Step / StepBack)
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= WEEK 6: DECOUPLED STDLIB & RUNTIME ENGINE ================= -->
+      <section id="ch-week6" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Week 6 Architecture</span>
+          <span class="badge badge-blue">Decoupled Engine</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Week 6 Decoupled Standard Library &amp; Runtime Separation</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+          Week 6 establishes the fundamental architectural decoupling of BramandScript into a <strong>Two-Tier Runtime Model</strong>, strictly adhering to the Lean VM Principle (Rule 12):
+        </p>
+
+        <!-- Two-Tier Visual Diagram -->
+        <div class="code-block-wrapper mb-6">
+          <div class="code-block-header">
+            <span>Runtime Architectural Hierarchy — Host Go Primitives vs Pure BramandScript Standard Library</span>
+          </div>
+          <pre><code>┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        USER APPLICATION CODE (.bmd) / EXAMPLES                         │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│           TIER 2: 100% PURE BRAMANDSCRIPT STANDARD LIBRARY (stdlib/bmd_std/)           │
+│  • std/http    : RFC 7230 Wire Parser, Server, Client, Radix-Trie Router               │
+│  • std/ws      : RFC 6455 Handshake, Frame Codec, Masking, Server, Client, Broadcast   │
+│  • std/dns     : RFC 1035 UDP DNS Codec, 0xC0 Pointer Compression, In-Memory TTL Cache │
+│  • std/https   : TLS HTTP/1.1 Client &amp; Server with SNI Certificate Verification        │
+│  • std/process : ChildProcess Class, Unix IPC Stream Piping (proc1.pipe(proc2))        │
+│  • std/buffer  : High-Level Buffer Struct, BE/LE Numeric Codecs, IEEE 754 Floats       │
+│  • std/io      : Stream Combinators, BufferReader, BufferWriter, io.pipe               │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│            TIER 1: LOW-LEVEL HOST PRIMITIVES IN PURE GO (stdlib/go_std/)               │
+│  • go_std/net.go    : Raw TCP listeners, dials, UDP sockets, TLS with SNI             │
+│  • go_std/os.go     : Subprocess spawn, wait, kill, stdin/stdout/stderr pipes, env    │
+│  • go_std/buffer.go : Fast slice allocation, bulk memory copy, binary read/write       │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│             STACK-BASED BYTECODE VM ENGINE &amp; UNIFIED TRUTHINESS (vm/vm.go)             │
+│  • Unified isTruthy(): Standardizes falsy evaluation across all opcodes                │
+│    Canonical Falsy Matrix: false, null, 0, 0.0, "", bytes(0)                          │
+│  • 100% Self-Contained Binary Bundling via pure Go embed.FS (Rule 21)                  │
+└────────────────────────────────────────────────────────────────────────────────────────┘</code></pre>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+              <span class="text-blue-500 font-mono">✦</span> Lean VM Principle (Rule 12)
+            </h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              High-level protocols (HTTP, WebSockets, DNS) and data processing utilities are not hardcoded inside the Go VM execution loop. Instead, the Go engine exposes minimal, fast system primitives (raw TCP sockets, subprocess stream handles, raw byte slices), while the entire application protocol logic is authored in clean, self-hosted BramandScript code.
+            </p>
+          </div>
+          <div class="border border-slate-200 dark:border-slate-800 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+              <span class="text-purple-500 font-mono">✦</span> Embedded Standalone Binary (Rule 21)
+            </h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              The entire standard library (<code class="font-mono">stdlib/</code>) is embedded directly inside the compiled binary using Go's standard <code class="font-mono">embed.FS</code>. Running the <code class="font-mono">bramand</code> binary from any directory on Linux, Android Termux, macOS, or Windows resolves <code class="font-mono">import "std/&lt;module&gt;"</code> seamlessly without external file dependencies.
+            </p>
           </div>
         </div>
 

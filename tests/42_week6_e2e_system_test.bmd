@@ -1,0 +1,387 @@
+// tests/42_week6_e2e_system_test.bmd
+// BramandScript System Verification :: End-to-End System Integration Test Suite (Agent 12)
+// Chains raw sockets, HTTP, WebSocket, DNS, process IPC, buffer codecs, and falsy semantics.
+
+import "std/net" as net;
+import "std/http" as http;
+import "std/ws" as ws;
+import "std/dns" as dns;
+import "std/dns/packet" as dns_packet;
+import "std/process" as process;
+import "std/buffer" as buffer;
+import "std/io" as io;
+import "std/os" as os;
+
+let Buffer = buffer.Buffer;
+
+describe("E2E Integration: Raw TCP Socket Layer (std/net)", fn() {
+    test("Raw duplex TCP echo server and client communication", fn() {
+        let port = 31001;
+        let server_received = "";
+
+        let server = net.create_server(fn(sock) {
+            let line = sock.read_line();
+            if (line != null) {
+                server_received = trim(line);
+                sock.write("ECHO:" + server_received + "\n");
+            }
+            sock.close();
+        });
+
+        server.listen(port);
+        sleep(40);
+
+        let client = net.connect("127.0.0.1", port);
+        assert(client != null);
+        client.write("RAW_TCP_PAYLOAD\n");
+
+        let response = client.read_line();
+        assert_eq(trim(response), "ECHO:RAW_TCP_PAYLOAD");
+        assert_eq(server_received, "RAW_TCP_PAYLOAD");
+
+        client.close();
+        server.close();
+    });
+});
+
+describe("E2E Integration: Pure BMD HTTP/1.1 Engine (std/http)", fn() {
+    test("HTTP GET and POST cycle with JSON serialization and routing", fn() {
+        let port = 31002;
+        let router = http.create_router();
+
+        router.get("/api/health", fn(req, res) {
+            res.json({ "status": "ok", "service": "e2e_http" });
+        });
+
+        router.post("/api/echo", fn(req, res) {
+            let body = req.json();
+            assert(body != null);
+            res.status(201).json({
+                "received": body,
+                "timestamp": 123456789
+            });
+        });
+
+        let server = http.create_server(router);
+        server.listen(port);
+        sleep(40);
+
+        let base_url = "http://127.0.0.1:" + str(port);
+
+        // GET request
+        let res_get = http.get(base_url + "/api/health");
+        assert_eq(res_get["status"], 200);
+        assert_eq(res_get.json()["status"], "ok");
+
+        // POST request
+        let res_post = http.post(base_url + "/api/echo", {
+            "key": "bmd_integration",
+            "val": 999
+        });
+        assert_eq(res_post["status"], 201);
+        let post_json = res_post.json();
+        assert_eq(post_json["received"]["key"], "bmd_integration");
+        assert_eq(post_json["received"]["val"], 999);
+
+        // 404 Not Found
+        let res_404 = http.get(base_url + "/api/missing");
+        assert_eq(res_404["status"], 404);
+
+        server.close();
+    });
+});
+
+describe("E2E Integration: RFC 6455 WebSocket Engine (std/ws)", fn() {
+    test("WebSocket handshake, full-duplex message framing, and close handshake", fn() {
+        let port = 31003;
+        let server_got_msg = "";
+        let client_got_msg = "";
+        let client_closed_cleanly = false;
+
+        let server = ws.create_server(port, fn(conn) {
+            conn.on("message", fn(msg) {
+                server_got_msg = msg;
+                conn.send("WS_ACK:" + msg);
+            });
+        });
+
+        sleep(40);
+
+        let client = ws.connect("ws://127.0.0.1:" + str(port) + "/stream", fn(c) {
+            c.send("TELEMETRY_PULSE");
+        });
+
+        client.on("message", fn(msg) {
+            client_got_msg = msg;
+            client.close(1000, "Normal E2E Closure");
+            client_closed_cleanly = true;
+        });
+
+        let waited = 0;
+        while (waited < 1000 && len(client_got_msg) == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        server.close();
+
+        assert_eq(server_got_msg, "TELEMETRY_PULSE");
+        assert_eq(client_got_msg, "WS_ACK:TELEMETRY_PULSE");
+        assert(client_closed_cleanly);
+    });
+});
+
+describe("E2E Integration: RFC 1035 UDP DNS Codec & Resolver (std/dns)", fn() {
+    test("Mock UDP DNS server with question decoding, answer encoding, and cache", fn() {
+        dns.clear_cache();
+        let port = 31004;
+        let srv_addr = "127.0.0.1:" + str(port);
+        let srv_sock = net.create_udp_socket(srv_addr);
+        assert(srv_sock != null);
+
+        let is_running = true;
+        spawn fn() {
+            while (is_running) {
+                srv_sock.set_timeout(100);
+                let req = srv_sock.recv_from(4096);
+                if (req != null && req["data"] != null && len(req["data"]) >= 12) {
+                    let dec = dns_packet.decode_response(req["data"]);
+                    if (dec != null && len(dec["questions"]) > 0) {
+                        let resp = dns_packet.encode_response({
+                            "id": dec["id"],
+                            "rcode": dns.RCODE_NOERROR,
+                            "questions": dec["questions"],
+                            "answers": [
+                                { "name": "service.internal", "type": dns.TYPE_A, "ttl": 180, "data": "10.0.0.42" }
+                            ]
+                        });
+                        srv_sock.send_to(resp, req["addr"]);
+                    }
+                }
+            }
+        }();
+
+        sleep(30);
+
+        // Network wire query
+        let ips = dns.resolve("service.internal", dns.TYPE_A, srv_addr, 2000);
+        assert_eq(len(ips), 1);
+        assert_eq(ips[0], "10.0.0.42");
+
+        // In-memory cache hit
+        let lookup_ip = dns.lookup("service.internal", srv_addr, 2000);
+        assert_eq(lookup_ip, "10.0.0.42");
+
+        is_running = false;
+        sleep(30);
+        srv_sock.close();
+    });
+});
+
+describe("E2E Integration: Subprocess IPC & Pipeline Streaming (std/process)", fn() {
+    test("Subprocess spawn, stdin writing, and stdout streaming pipe", fn() {
+        let proc = process.spawn("cat", []);
+        assert(proc.pid > 0);
+
+        proc.stdin.write("BRAMAND_IPC_STREAM\n");
+        proc.stdin.end();
+
+        let out = proc.stdout.read_all();
+        let code = proc.wait();
+
+        assert_eq(code, 0);
+        assert_eq(trim(out), "BRAMAND_IPC_STREAM");
+    });
+
+    test("Synchronous process.exec execution captures exit code and output", fn() {
+        let res = process.exec("echo BRAMAND_EXEC_TEST");
+        assert_eq(res["exit_code"], 0);
+        assert(contains(res["stdout"], "BRAMAND_EXEC_TEST"));
+    });
+});
+
+describe("E2E Integration: Fast Buffer Operations & Endian Codecs (std/buffer & std/io)", fn() {
+    test("Buffer binary numeric codecs and stream piping integrity", fn() {
+        let size = 8192;
+        let buf = Buffer.alloc(size);
+
+        // Write Big-Endian and Little-Endian 32-bit integers
+        buf.write_uint32_be(0xCAFEBABE, 0);
+        buf.write_uint32_le(0x11223344, 4);
+        buf.write_double_be(123456.789012, 8);
+
+        assert_eq(buf.read_uint32_be(0), 0xCAFEBABE);
+        assert_eq(buf.read_uint32_le(4), 0x11223344);
+        assert_eq(buf.read_double_be(8), 123456.789012);
+
+        // Stream pipe through BufferReader -> BufferWriter
+        let reader = io.BufferReader(buf);
+        let writer = io.BufferWriter();
+
+        let piped = io.pipe(reader, writer, { "chunk_size": 1024 });
+        assert_eq(piped, size);
+
+        let out_buf = writer.to_buffer();
+        assert_eq(out_buf.length, size);
+        assert_eq(Buffer.compare(buf, out_buf), 0);
+    });
+});
+
+describe("E2E Integration: VM Falsy Semantics Matrix & Control Flow", fn() {
+    test("Canonical falsy values matrix and boolean logic evaluation", fn() {
+        // 1. Falsy values evaluate to false
+        assert_false(false);
+        assert_false(null);
+        assert_false(0);
+        assert_false(0.0);
+        assert_false("");
+        assert_false(bytes(0));
+
+        // 2. Truthy values evaluate to true
+        assert_true(true);
+        assert_true(1);
+        assert_true(-1);
+        assert_true(0.1);
+        assert_true("hello");
+        assert_true("0");
+        assert_true([0]);
+        assert_true({"a": 0});
+
+        // 3. Bang operator inversion
+        assert_eq(!false, true);
+        assert_eq(!null, true);
+        assert_eq(!0, true);
+        assert_eq(!0.0, true);
+        assert_eq(!"", true);
+        assert_eq(!bytes(0), true);
+
+        // 4. Logical OR short-circuit fallback
+        assert_eq(null || "default", "default");
+        assert_eq(0 || 42, 42);
+        assert_eq("" || "fallback", "fallback");
+        assert_eq("present" || "ignored", "present");
+
+        // 5. Control flow branching
+        let branched = false;
+        if ("") {
+            branched = true;
+        }
+        assert_eq(branched, false);
+
+        let loop_count = 0;
+        while ("") {
+            loop_count = loop_count + 1;
+        }
+        assert_eq(loop_count, 0);
+
+        let ternary_res = "" ? "truthy" : "falsy";
+        assert_eq(ternary_res, "falsy");
+    });
+});
+
+describe("E2E Master Workflow: Chained Multi-Protocol Pipeline", fn() {
+    test("Chained Workflow: DNS resolution -> HTTP API token fetch -> WebSocket stream -> Binary Buffer packing", fn() {
+        // Step 1: Mock Authoritative DNS Server on port 31005
+        let dns_port = 31005;
+        let dns_srv = net.create_udp_socket("127.0.0.1:" + str(dns_port));
+        let http_port = 31006;
+        let ws_port = 31007;
+
+        let dns_active = true;
+        spawn fn() {
+            while (dns_active) {
+                dns_srv.set_timeout(100);
+                let req = dns_srv.recv_from(4096);
+                if (req != null && req["data"] != null && len(req["data"]) >= 12) {
+                    let dec = dns_packet.decode_response(req["data"]);
+                    if (dec != null && len(dec["questions"]) > 0) {
+                        let resp = dns_packet.encode_response({
+                            "id": dec["id"],
+                            "rcode": dns.RCODE_NOERROR,
+                            "questions": dec["questions"],
+                            "answers": [
+                                { "name": "service.hub", "type": dns.TYPE_A, "ttl": 300, "data": "127.0.0.1" }
+                            ]
+                        });
+                        dns_srv.send_to(resp, req["addr"]);
+                    }
+                }
+            }
+        }();
+
+        // Step 2: Pure BMD HTTP Auth Service on port 31006
+        let http_router = http.create_router();
+        http_router.get("/auth/token", fn(req, res) {
+            res.json({ "token": "BMD_E2E_AUTH_TOKEN_SECURE", "ttl": 3600 });
+        });
+        let http_srv = http.create_server(http_router);
+        http_srv.listen(http_port);
+
+        // Step 3: Pure BMD WebSocket Telemetry Sink on port 31007
+        let ws_srv_received = "";
+        let ws_srv = ws.create_server(ws_port, fn(conn) {
+            conn.on("message", fn(msg) {
+                ws_srv_received = msg;
+                conn.send("STREAM_ACCEPTED");
+            });
+        });
+
+        sleep(40);
+
+        // --- Execute E2E Chain ---
+
+        // 1. Resolve host via DNS
+        let resolved_host = dns.lookup("service.hub", "127.0.0.1:" + str(dns_port), 2000);
+        assert_eq(resolved_host, "127.0.0.1");
+
+        // 2. Fetch auth token from HTTP API
+        let http_res = http.get("http://" + resolved_host + ":" + str(http_port) + "/auth/token");
+        assert_eq(http_res["status"], 200);
+        let auth_token = http_res.json()["token"];
+        assert_eq(auth_token, "BMD_E2E_AUTH_TOKEN_SECURE");
+
+        // 3. Connect to WebSocket service using auth token
+        let ws_client_ack = "";
+        let ws_client = ws.connect("ws://" + resolved_host + ":" + str(ws_port) + "/live?token=" + auth_token, fn(c) {
+            c.send("TELEMETRY_PAYLOAD:ACTIVE");
+        });
+
+        ws_client.on("message", fn(msg) {
+            ws_client_ack = msg;
+            ws_client.close(1000, "E2E Complete");
+        });
+
+        let waited = 0;
+        while (waited < 1000 && len(ws_client_ack) == 0) {
+            sleep(20);
+            waited = waited + 20;
+        }
+
+        assert_eq(ws_srv_received, "TELEMETRY_PAYLOAD:ACTIVE");
+        assert_eq(ws_client_ack, "STREAM_ACCEPTED");
+
+        // 4. Pack telemetry metrics into a binary Buffer
+        let pack_buf = Buffer.alloc(16);
+        pack_buf.write_uint32_be(0xBADDCAFE, 0);
+        pack_buf.write_uint32_be(3600, 4);
+        pack_buf.write_double_be(99.98, 8);
+
+        assert_eq(pack_buf.read_uint32_be(0), 0xBADDCAFE);
+        assert_eq(pack_buf.read_uint32_be(4), 3600);
+        assert_eq(pack_buf.read_double_be(8), 99.98);
+
+        // 5. Pipe through stream writer
+        let stream_reader = io.BufferReader(pack_buf);
+        let stream_writer = io.BufferWriter();
+        io.pipe(stream_reader, stream_writer);
+
+        let final_buf = stream_writer.to_buffer();
+        assert_eq(Buffer.compare(pack_buf, final_buf), 0);
+
+        // Teardown
+        dns_active = false;
+        dns_srv.close();
+        http_srv.close();
+        ws_srv.close();
+    });
+});

@@ -1,0 +1,132 @@
+// examples/dns_lookup/main.bmd
+// BramandScript Real-World Dogfooding Application :: UDP DNS Resolver CLI
+// 100% Pure BramandScript using std/dns (RFC 1035) over raw UDP sockets (std/net).
+
+import "std/dns" as dns;
+import "std/dns/packet" as dns_packet;
+import "std/net" as net;
+
+let print_banner = fn() {
+    println("✦ BramandScript Pure DNS Lookup Utility (RFC 1035 UDP)");
+    println("────────────────────────────────────────────────────────────────────────────");
+};
+
+// Pretty-print DNS query results
+let display_dns_results = fn(domain, qtype, server_addr, answers, from_cache = false) {
+    println("· Domain:      " + domain);
+    println("· Query Type:  " + qtype);
+    println("· Nameserver:  " + server_addr);
+    if (from_cache) {
+        println("· Source:      In-Memory DNS Cache (TTL valid)");
+    } else {
+        println("· Source:      UDP Network Wire Datagram");
+    }
+    println("· Answer Count: " + str(len(answers)));
+    let i = 0;
+    while (i < len(answers)) {
+        println("  ❯ IP [" + str(i + 1) + "]: " + answers[i]);
+        i = i + 1;
+    }
+};
+
+let run_dns_demo = fn(port) {
+    let mock_server_addr = "127.0.0.1:" + str(port);
+    println("· Starting Mock UDP DNS Authoritative Server on " + mock_server_addr + "...");
+
+    let srv_sock = net.create_udp_socket(mock_server_addr);
+    let is_running = true;
+
+    // Authoritative DNS responder loop
+    spawn fn() {
+        while (is_running) {
+            srv_sock.set_timeout(200);
+            let req = srv_sock.recv_from(4096);
+            if (req != null && req["data"] != null && len(req["data"]) >= 12) {
+                let dec = dns_packet.decode_response(req["data"]);
+                if (dec != null && len(dec["questions"]) > 0) {
+                    let q = dec["questions"][0];
+                    let qname = q["name"];
+
+                    let answers = [];
+                    if (qname == "bramand.org" || qname == "api.bramand.org") {
+                        push(answers, {
+                            "name": qname,
+                            "type": dns.TYPE_A,
+                            "ttl": 300,
+                            "data": "104.21.42.1"
+                        });
+                        push(answers, {
+                            "name": qname,
+                            "type": dns.TYPE_A,
+                            "ttl": 300,
+                            "data": "172.67.142.2"
+                        });
+                    } else {
+                        push(answers, {
+                            "name": qname,
+                            "type": dns.TYPE_A,
+                            "ttl": 60,
+                            "data": "127.0.0.1"
+                        });
+                    }
+
+                    let resp_wire = dns_packet.encode_response({
+                        "id": dec["id"],
+                        "rcode": dns.RCODE_NOERROR,
+                        "questions": dec["questions"],
+                        "answers": answers
+                    });
+
+                    srv_sock.send_to(resp_wire, req["addr"]);
+                }
+            }
+        }
+    }();
+
+    sleep(40);
+    println("  [OK] Mock DNS Server ready.");
+
+    // Query 1: First resolution over UDP wire
+    dns.clear_cache();
+    let domain = "bramand.org";
+    println("· Resolving '" + domain + "' via UDP datagram from " + mock_server_addr + "...");
+
+    let answers1 = dns.resolve(domain, dns.TYPE_A, mock_server_addr, 2000);
+    assert(answers1 != null);
+    assert_eq(len(answers1), 2);
+    assert_eq(answers1[0], "104.21.42.1");
+    assert_eq(answers1[1], "172.67.142.2");
+
+    display_dns_results(domain, "A", mock_server_addr, answers1, false);
+
+    // Query 2: Second resolution hits in-memory cache
+    println("· Resolving '" + domain + "' again (Cache Hit Verification)...");
+    let cache_before = dns.get_cache();
+    assert(len(cache_before) > 0);
+
+    let answers2 = dns.resolve(domain, dns.TYPE_A, mock_server_addr, 2000);
+    assert_eq(len(answers2), 2);
+    assert_eq(answers2[0], "104.21.42.1");
+
+    display_dns_results(domain, "A", mock_server_addr, answers2, true);
+
+    // Query 3: Lookup convenience helper
+    let first_ip = dns.lookup(domain, mock_server_addr, 2000);
+    assert_eq(first_ip, "104.21.42.1");
+    println("  [OK] dns.lookup('" + domain + "') -> " + first_ip);
+
+    // Shutdown
+    is_running = false;
+    sleep(50);
+    srv_sock.close();
+    println("  [OK] Mock DNS Server closed cleanly.");
+    println("✦ DNS lookup demonstration completed successfully!");
+};
+
+let main = fn() {
+    print_banner();
+    let port = 29854;
+    run_dns_demo(port);
+};
+
+main();

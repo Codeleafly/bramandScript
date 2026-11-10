@@ -209,9 +209,34 @@
   - `import "std/strings" as str` (`capitalize`, `pad_left`, `pad_right`, `slugify`, `reverse`)
   - `import "std/collections" as coll` (`map`, `filter`, `reduce`, `find`, `unique`, `chunk`, `group_by`)
   - `import "std/iter" as iter` (resumable coroutine generators, `yield`, lazy stream evaluation)
-  - `import "std/io" as io` (`read_text`, `write_text`, `append_text`, `exists`, `remove`)
+  - `import "std/io" as io` (`read_text`, `write_text`, `BufferReader`, `BufferWriter`, `pipe`, `read_all`)
   - `import "std/json" as json` (`parse`, `stringify`, `safe_parse`)
   - `import "std/testing" as t` (`assert_true`, `assert_false`, `assert_null`)
+  - `import "std/net" as net` (raw duplex TCP sockets, UDP datagrams, TLS dial/listen)
+  - `import "std/http" as http` (100% pure BMD RFC 7230 server, client, router, middleware)
+  - `import "std/ws" as ws` (100% pure BMD RFC 6455 WebSocket engine, client, server, broadcast)
+  - `import "std/dns" as dns` (100% pure BMD RFC 1035 UDP DNS packet codec, resolver, TTL cache)
+  - `import "std/https" as https` (100% pure BMD secure HTTPS client and server over TLS)
+  - `import "std/process" as process` (ChildProcess, standard I/O streaming, Unix IPC pipelines)
+  - `import "std/os" as os` (platform, architecture, CPU count, memory allocation, environment)
+  - `import "std/buffer" as buffer` (Buffer class, Big-Endian / Little-Endian codecs, IEEE 754 floats)
+- **Decoupled Two-Tier Networking & System Architecture (Week 6)**:
+  - **Tier 1: Low-Level Host Primitives in Go (`stdlib/go_std/`)**:
+    - Raw Duplex TCP Sockets: `net.create_server`, `net.connect`, `sock.read_line`, `sock.write`, `sock.set_timeout`, `sock.close`
+    - Raw UDP Datagrams: `net.create_udp_socket`, `sock.send_to`, `sock.recv_from`
+    - Encrypted TLS Sockets: `net.dial_tls` with SNI verification and `net.listen_tls`
+    - Subprocess IPC: Low-level child process spawning, stdin/stdout/stderr streaming pipes, process wait/kill, and OS host metrics (`os.platform`, `os.arch`, `os.cpus`, `os.memory`)
+    - Binary Memory Buffers: Low-level byte slice allocation, bulk memory copy (`buf_copy`), binary integer and IEEE 754 float read/write
+  - **Tier 2: 100% Pure BramandScript Application Protocols (`stdlib/bmd_std/`)**:
+    - **Pure BMD HTTP/1.1 Engine (`std/http`)**: RFC 7230 wire parser, server (`http.create_server`), client (`http.get`, `http.post`, `http.put`, `http.delete_req`), Radix-Trie Router (`http.create_router`), and middleware
+    - **Pure BMD RFC 6455 WebSocket Engine (`std/ws`)**: Complete handshake accept key derivation (SHA-1 & Base64), binary frame encoder/decoder, 4-byte client XOR masking, server, client (`ws.connect`), and multi-client broadcast
+    - **Pure BMD RFC 1035 UDP DNS Codec & Resolver (`std/dns`)**: Binary query encoder, response decoder with QNAME label compression pointers (`0xC0`), UDP resolver (`dns.resolve`), and in-memory TTL cache
+    - **Pure BMD HTTPS Engine (`std/https`)**: Secure TLS-encrypted HTTP client and server with SNI verification
+    - **ChildProcess Class & Unix Pipelines (`std/process`)**: Subprocess standard I/O streaming, Unix IPC pipeline coroutine (`proc1.pipe(proc2)`), and synchronous runner (`process.exec`)
+    - **Buffer Class & Stream Combinators (`std/buffer` & `std/io`)**: High-level `Buffer` struct, Big-Endian / Little-Endian numeric codecs, `BufferReader`, `BufferWriter`, and chunked stream piping (`io.pipe`) with 100% byte integrity
+  - **Core VM Truthiness Standardization**:
+    - Unified `isTruthy` semantics across the virtual machine and compiler.
+    - Standardized Canonical Falsy Matrix: `false`, `null`, `0`, `0.0`, `""` (empty string), and `bytes(0)` (empty buffer) evaluate cleanly to `false` across all VM opcodes (`OpJumpNotTruthy`, `OpJumpTruthy`, `OpAnd`, `OpOr`), logical NOT (`!`), ternary expressions, loops, and `bool()` coercion.
 - **Centralized Package & Module Architecture (`$HOME/.bmd_libs/`)**:
   - **Zero `node_modules` Bloat**: Shared system-wide store eliminating per-project disk waste.
   - **4-Stage Import Resolution Pipeline**: Stage 1 (`embed:stdlib/`), Stage 2 (relative paths), Stage 3 (`~/.bmd_libs/registry/`), Stage 4 (immutable singleton exports with `OpModule`).
@@ -505,7 +530,7 @@ The documentation is organized into dedicated, fast-loading modular guides:
 - [Language Fundamentals](https://codeleafly.github.io/bramandScript/fundamentals.html) — Syntax, variables, operators (`??`, `?.`, `?:`, `?`), default parameters, fixed tuples `(a, b)`, `async fn`, LIFO `defer`, and `try-catch-finally` exceptions.
 - [Data Structures & OOP](https://codeleafly.github.io/bramandScript/data-structures.html) — Arrays, hash maps, dot access, structs, fixed immutable tuples, hashable tuple keys, and deep pattern matching with guards (`match-case ... if ...`).
 - [Concurrency & System I/O](https://codeleafly.github.io/bramandScript/concurrency.html) — Lightweight actors & mailboxes, supervision trees (`one_for_one`, `one_for_all`, `rest_for_one`), uncolored async/await, continuation frames, cooperative multitasking (`yield`), structured task groups (`task_group`), channels, mutexes, semaphores, and worker pools.
-- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 25 embedded modules: `std/datetime`, `std/fs`, `std/path`, `std/encoding`, `std/actor`, `std/concurrency`, `std/math`, `std/strings`, `std/collections`, `std/json`, `std/io`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
+- [Modular Standard Library](https://codeleafly.github.io/bramandScript/stdlib.html) — 32+ embedded modules: `std/net`, `std/http`, `std/ws`, `std/dns`, `std/https`, `std/process`, `std/buffer`, `std/io`, `std/os`, `std/datetime`, `std/fs`, `std/path`, `std/encoding`, `std/actor`, `std/concurrency`, `std/math`, `std/strings`, `std/collections`, `std/json`, `std/log`, `std/retry`, `std/config`, `std/uuid`, `std/semaphore`, `std/circuitbreaker`, `std/pool`, BigInt/BigFloat, and 180+ builtins reference.
 - [Networking, Web & AI](https://codeleafly.github.io/bramandScript/networking.html) — HTTP server/client, WebSockets, TCP/UDP sockets, resilient network requests, AI streaming, and vector search.
 - [Developer Tooling](https://codeleafly.github.io/bramandScript/tooling.html) — Centralized package manager (`bmd install`, `bmd get`, `bmd cache`), test runner (`bmd test`), formatter (`bmd fmt`), compiler (`bmd build`), disassembler, profiler, and permission flags.
 - [Architecture & Internals](https://codeleafly.github.io/bramandScript/architecture.html) — 4-stage runtime import resolution pipeline, inter-process atomic locking, SemVer diamond dependency resolution, 64-bit opcode VM, dynamic stack frames, thread safety, embedded filesystem (`embed.FS`), diagnostics engine, and contributing guide.

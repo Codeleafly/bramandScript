@@ -1,0 +1,144 @@
+// examples/ws_dashboard/main.bmd
+// BramandScript Real-World Dogfooding Application :: Live Telemetry & WebSocket Dashboard
+// 100% Pure BramandScript using std/ws (RFC 6455) and std/os for live metric distribution.
+
+import "std/ws" as ws;
+import "std/os" as os;
+
+let print_banner = fn() {
+    println("✦ BramandScript Live Telemetry & WebSocket Dashboard");
+    println("────────────────────────────────────────────────────────────────────────────");
+};
+
+// Telemetry Metric Collector
+let collect_system_metrics = fn(seq_num, active_clients) {
+    let mem = os.memory();
+    return {
+        "event": "telemetry_pulse",
+        "seq": seq_num,
+        "platform": os.platform,
+        "arch": os.arch,
+        "cpus": os.cpus(),
+        "active_clients": active_clients,
+        "memory": {
+            "alloc_bytes": mem["alloc"],
+            "sys_bytes": mem["sys"],
+            "total_alloc_bytes": mem["total_alloc"]
+        }
+    };
+};
+
+let run_dashboard_demo = fn(port) {
+    println("· Initializing WebSocket Dashboard Server on port " + str(port) + "...");
+
+    let client_count = 0;
+    let m = mutex();
+    let is_running = true;
+
+    let server = ws.create_server(port, fn(conn) {
+        m.lock();
+        client_count = client_count + 1;
+        m.unlock();
+
+        // Send initial handshake welcome
+        conn.send(json_stringify({
+            "event": "connected",
+            "message": "Welcome to BramandScript Telemetry Stream",
+            "server_version": "1.0.0"
+        }));
+
+        conn.on("message", fn(msg) {
+            let parsed = json_parse(msg);
+            if (parsed != null && parsed["action"] == "ping") {
+                conn.send(json_stringify({
+                    "event": "pong",
+                    "seq": parsed["seq"]
+                }));
+            }
+        });
+
+        conn.on("close", fn(code, reason) {
+            m.lock();
+            if (client_count > 0) {
+                client_count = client_count - 1;
+            }
+            m.unlock();
+        });
+    });
+
+    sleep(40);
+    println("  [OK] WebSocket Dashboard listening on ws://127.0.0.1:" + str(port));
+
+    // Spawn periodic background telemetry broadcaster
+    let tick_count = 0;
+    spawn fn() {
+        while (is_running) {
+            sleep(80);
+            if (!is_running) { break; }
+            tick_count = tick_count + 1;
+            m.lock();
+            let c_count = client_count;
+            m.unlock();
+
+            let payload = collect_system_metrics(tick_count, c_count);
+            server.broadcast(json_stringify(payload));
+        }
+    }();
+
+    // Connect Telemetry Client
+    println("· Connecting Dashboard Client to ws://127.0.0.1:" + str(port) + "/live...");
+    let received_events = [];
+    let received_pulses = 0;
+    let pong_received = false;
+
+    let client = ws.connect("ws://127.0.0.1:" + str(port) + "/live", fn(c) {
+        // Send ping once connection opens
+        c.send(json_stringify({
+            "action": "ping",
+            "seq": 42
+        }));
+    });
+
+    client.on("message", fn(wire) {
+        let ev = json_parse(wire);
+        if (ev != null) {
+            push(received_events, ev);
+            if (ev["event"] == "connected") {
+                println("  [OK] Client connected: " + ev["message"]);
+            } else if (ev["event"] == "pong") {
+                println("  [OK] Received pong response (seq=" + str(ev["seq"]) + ")");
+                pong_received = true;
+            } else if (ev["event"] == "telemetry_pulse") {
+                received_pulses = received_pulses + 1;
+                println("  [INFO] Telemetry pulse #" + str(ev["seq"]) + ": CPU cores=" + str(ev["cpus"]) + " Platform=" + ev["platform"] + " Clients=" + str(ev["active_clients"]));
+            }
+        }
+    });
+
+    // Wait until we receive at least 3 telemetry pulses and pong
+    let timeout = 0;
+    while (timeout < 2000 && (received_pulses < 3 || !pong_received)) {
+        sleep(50);
+        timeout = timeout + 50;
+    }
+
+    assert(pong_received);
+    assert(received_pulses >= 3);
+
+    println("· Disconnecting Dashboard Client...");
+    client.close(1000, "Dashboard session closed");
+    sleep(40);
+
+    is_running = false;
+    server.close();
+    println("  [OK] WebSocket Dashboard shutdown cleanly.");
+    println("✦ Live Telemetry & WebSocket Dashboard demonstration completed successfully!");
+};
+
+let main = fn() {
+    print_banner();
+    let port = 29830;
+    run_dashboard_demo(port);
+};
+
+main();

@@ -1,0 +1,267 @@
+// examples/chat_server/main.bmd
+// BramandScript Real-World Dogfooding Application :: Multi-Client TCP Chat Server
+// 100% Pure BramandScript using std/net raw TCP sockets and mutex synchronization.
+
+import "std/net" as net;
+import "std/strings" as strings;
+
+let starts_with = strings.starts_with;
+
+let print_banner = fn() {
+    println("✦ BramandScript Multi-Client TCP Chat Server");
+    println("────────────────────────────────────────────────────────────────────────────");
+};
+
+// Chat Room State & Server
+let create_chat_room = fn() {
+    let clients = {};
+    let next_id = 1;
+    let m = mutex();
+
+    let broadcast = fn(sender_id, message) {
+        m.lock();
+        let client_ids = keys(clients);
+        let i = 0;
+        while (i < len(client_ids)) {
+            let cid = client_ids[i];
+            if (cid != sender_id) {
+                let client = clients[cid];
+                if (client != null && client["sock"] != null) {
+                    client["sock"].write(message + "\n");
+                }
+            }
+            i = i + 1;
+        }
+        m.unlock();
+    };
+
+    let send_direct = fn(sender_id, target_nick, message) {
+        m.lock();
+        let target_client = null;
+        let sender_client = clients[sender_id];
+        let client_ids = keys(clients);
+        let i = 0;
+        while (i < len(client_ids)) {
+            let c = clients[client_ids[i]];
+            if (c != null && c["nick"] == target_nick) {
+                target_client = c;
+                break;
+            }
+            i = i + 1;
+        }
+
+        if (target_client != null && sender_client != null) {
+            target_client["sock"].write("-> [Private from " + sender_client["nick"] + "]: " + message + "\n");
+            sender_client["sock"].write("<- [Private to " + target_nick + "]: " + message + "\n");
+        } else if (sender_client != null) {
+            sender_client["sock"].write("✦ [ERROR] User '" + target_nick + "' not found.\n");
+        }
+        m.unlock();
+    };
+
+    let list_users = fn(client_id) {
+        m.lock();
+        let client = clients[client_id];
+        if (client != null) {
+            let user_list = [];
+            let client_ids = keys(clients);
+            let i = 0;
+            while (i < len(client_ids)) {
+                let c = clients[client_ids[i]];
+                if (c != null) {
+                    push(user_list, c["nick"]);
+                }
+                i = i + 1;
+            }
+            client["sock"].write("✦ Online users (" + str(len(user_list)) + "): " + join(user_list, ", ") + "\n");
+        }
+        m.unlock();
+    };
+
+    let handle_client = fn(sock) {
+        m.lock();
+        let client_id = "client_" + str(next_id);
+        next_id = next_id + 1;
+        let nick = "Guest" + str(next_id - 1);
+
+        let client = {
+            "id": client_id,
+            "nick": nick,
+            "sock": sock
+        };
+        clients[client_id] = client;
+        m.unlock();
+
+        // Welcome banner
+        sock.write("✦ Welcome to BramandScript TCP Chat Server!\n");
+        sock.write("· You are connected as '" + nick + "'. Type /help for command list.\n");
+
+        broadcast(client_id, "· " + nick + " joined the room.");
+
+        // Read loop
+        while (true) {
+            let line = sock.read_line();
+            if (line == null || type(line) == "ERROR") {
+                break;
+            }
+
+            line = trim(line);
+            if (len(line) == 0) {
+                continue;
+            }
+
+            if (line == "/help") {
+                sock.write("✦ Chat Commands:\n");
+                sock.write("  /nick <name>          Change your chat nickname\n");
+                sock.write("  /who                  List all online users\n");
+                sock.write("  /msg <user> <message> Send private message\n");
+                sock.write("  /quit                 Leave the chat room\n");
+                sock.write("  /help                 Display this manual\n");
+            } else if (starts_with(line, "/nick ")) {
+                let new_nick = trim(slice(line, 6, len(line)));
+                if (len(new_nick) > 0) {
+                    let old_nick = client["nick"];
+                    client["nick"] = new_nick;
+                    sock.write("· Nickname changed to '" + new_nick + "'.\n");
+                    broadcast(client_id, "· " + old_nick + " is now known as " + new_nick + ".");
+                } else {
+                    sock.write("✦ [WARN] Usage: /nick <new_name>\n");
+                }
+            } else if (line == "/who" || line == "/list") {
+                list_users(client_id);
+            } else if (starts_with(line, "/msg ")) {
+                let rem = trim(slice(line, 5, len(line)));
+                let space_idx = -1;
+                let si = 0;
+                while (si < len(rem)) {
+                    if (rem[si] == " ") {
+                        space_idx = si;
+                        break;
+                    }
+                    si = si + 1;
+                }
+
+                if (space_idx > 0) {
+                    let target = slice(rem, 0, space_idx);
+                    let msg = trim(slice(rem, space_idx + 1, len(rem)));
+                    send_direct(client_id, target, msg);
+                } else {
+                    sock.write("✦ [WARN] Usage: /msg <user> <message>\n");
+                }
+            } else if (line == "/quit" || line == "/exit") {
+                sock.write("✦ Goodbye!\n");
+                break;
+            } else {
+                // Broadcast regular message
+                broadcast(client_id, "[" + client["nick"] + "]: " + line);
+            }
+        }
+
+        // Cleanup on disconnect
+        m.lock();
+        let final_nick = client["nick"];
+        delete(clients, client_id);
+        m.unlock();
+
+        broadcast(client_id, "· " + final_nick + " left the chat.");
+        sock.close();
+    };
+
+    return {
+        "handle_client": handle_client,
+        "clients": clients,
+        "active_count": fn() {
+            m.lock();
+            let c = len(keys(clients));
+            m.unlock();
+            return c;
+        }
+    };
+};
+
+let run_chat_demo = fn(port) {
+    println("· Starting TCP Chat Server on port " + str(port) + "...");
+    let room = create_chat_room();
+    let server = net.create_server(fn(sock) {
+        room.handle_client(sock);
+    });
+
+    server.listen(port);
+    sleep(50);
+    println("  [OK] Server listening at " + server.addr());
+
+    // Connect Alice
+    println("· Connecting Client 1 (Alice)...");
+    let sock1 = net.connect("127.0.0.1", port);
+    sock1.set_timeout(2000);
+    let banner1 = sock1.read_line();
+    let info1 = sock1.read_line();
+    println("  [INFO] Alice received: " + trim(banner1));
+
+    sock1.write("/nick Alice\n");
+    sleep(30);
+    let nick_resp1 = sock1.read_line();
+    println("  [OK] " + trim(nick_resp1));
+
+    // Connect Bob
+    println("· Connecting Client 2 (Bob)...");
+    let sock2 = net.connect("127.0.0.1", port);
+    sock2.set_timeout(2000);
+    let banner2 = sock2.read_line();
+    let info2 = sock2.read_line();
+
+    // Alice receives notice that Guest joined
+    let alice_notice = sock1.read_line();
+
+    sock2.write("/nick Bob\n");
+    sleep(30);
+    let bob_nick_resp = sock2.read_line();
+    println("  [OK] " + trim(bob_nick_resp));
+    // Alice receives notice of Bob's nick change
+    let alice_notice_nick = sock1.read_line();
+
+    // Alice sends broadcast message
+    println("· Alice broadcasts message: 'Hello BramandScript!'");
+    sock1.write("Hello BramandScript!\n");
+    sleep(30);
+
+    let bob_recv = sock2.read_line();
+    println("  [OK] Bob received broadcast: " + trim(bob_recv));
+
+    // Bob requests online user list
+    println("· Bob queries online users (/who)...");
+    sock2.write("/who\n");
+    sleep(30);
+    let who_resp = sock2.read_line();
+    println("  [OK] Bob received: " + trim(who_resp));
+
+    // Bob sends direct message to Alice
+    println("· Bob sends private message to Alice (/msg Alice Secret message)...");
+    sock2.write("/msg Alice Secret message\n");
+    sleep(30);
+    let bob_ack = sock2.read_line();
+    let alice_priv = sock1.read_line();
+    println("  [OK] Bob received confirmation: " + trim(bob_ack));
+    println("  [OK] Alice received private message: " + trim(alice_priv));
+
+    // Clean disconnect
+    println("· Disconnecting clients (/quit)...");
+    sock1.write("/quit\n");
+    sock2.write("/quit\n");
+    sleep(30);
+    sock1.close();
+    sock2.close();
+
+    server.close();
+    println("  [OK] Chat Server shutdown cleanly.");
+    println("✦ TCP Chat Server demonstration completed successfully!");
+};
+
+let main = fn() {
+    print_banner();
+    let cli_args = args();
+    let port = 29810;
+    run_chat_demo(port);
+};
+
+main();

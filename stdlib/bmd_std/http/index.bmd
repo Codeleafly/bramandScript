@@ -19,7 +19,6 @@ let post = client.post;
 let put = client.put;
 let delete_req = client.delete_req;
 let del = client.delete_req;
-let delete = client.delete_req;
 let patch = client.patch;
 let head = client.head;
 

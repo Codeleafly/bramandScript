@@ -137,6 +137,7 @@
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Defensive Engineering</h3>
           <ul class="space-y-1">
+            <li><a href="#err-truthiness" class="nav-link"><span>✦</span> Truthiness &amp; Falsy Semantics</a></li>
             <li><a href="#err-recovery" class="nav-link"><span>✦</span> Try-Catch &amp; Defer Recovery</a></li>
             <li><a href="#err-monadic" class="nav-link"><span>✦</span> Monadic Safety &amp; ? Operator</a></li>
             <li><a href="#err-patterns" class="nav-link"><span>✦</span> Safe Nav &amp; Nullish Operators</a></li>
@@ -726,6 +727,73 @@ spawn(fn() {
               Deeply nested or circular structures (e.g. <code class="font-mono">a[0] = a; a == a</code>) use pointer identity shortcuts and depth tracking to prevent infinite recursion.
             </p>
           </div>
+        </div>
+      </section>
+
+      <!-- Section: Canonical Truthiness & Falsy Semantics -->
+      <section id="err-truthiness" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-purple">Core Semantics</span>
+          <span class="badge badge-blue">VM Hardened</span>
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">
+          Canonical Language Truthiness &amp; Falsy Evaluation Semantics
+        </h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+          BramandScript enforces an unambiguous, standardized truthiness model across the Pratt parser, bytecode compiler, and VM runtime execution loop. The evaluation logic is synchronized between <code class="font-mono">vm.isTruthy()</code>, opcode jumps (<code class="font-mono">OpJumpNotTruthy</code>, <code class="font-mono">OpJumpTruthy</code>), short-circuit operators (<code class="font-mono">&amp;&amp;</code>, <code class="font-mono">||</code>), logical negation (<code class="font-mono">!</code>), and builtin conversions (<code class="font-mono">bool()</code>).
+        </p>
+
+        <!-- Truthiness & Falsy Table -->
+        <div class="overflow-x-auto mb-6">
+          <table class="doc-table">
+            <thead>
+              <tr><th>Type Category</th><th>Values</th><th>Truthiness</th><th>Evaluation Rule &amp; VM Behavior</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="font-mono font-bold">BOOLEAN</code></td><td><code class="font-mono">false</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Evaluates directly to false.</td></tr>
+              <tr><td><code class="font-mono font-bold">BOOLEAN</code></td><td><code class="font-mono">true</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>Evaluates directly to true.</td></tr>
+              <tr><td><code class="font-mono font-bold">NULL</code></td><td><code class="font-mono">null</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Absence of value is always falsy.</td></tr>
+              <tr><td><code class="font-mono font-bold">INTEGER</code></td><td><code class="font-mono">0</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Integer zero is canonically falsy.</td></tr>
+              <tr><td><code class="font-mono font-bold">INTEGER</code></td><td><code class="font-mono">1</code>, <code class="font-mono">-1</code>, <code class="font-mono">42</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>Any non-zero integer is truthy.</td></tr>
+              <tr><td><code class="font-mono font-bold">FLOAT</code></td><td><code class="font-mono">0.0</code>, <code class="font-mono">-0.0</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Floating point zero is canonically falsy.</td></tr>
+              <tr><td><code class="font-mono font-bold">FLOAT</code></td><td><code class="font-mono">0.1</code>, <code class="font-mono">-3.14</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>Any non-zero floating point value is truthy.</td></tr>
+              <tr><td><code class="font-mono font-bold">STRING</code></td><td><code class="font-mono">""</code> (empty string)</td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Zero-length strings evaluate to false in all conditions.</td></tr>
+              <tr><td><code class="font-mono font-bold">STRING</code></td><td><code class="font-mono">"0"</code>, <code class="font-mono">"false"</code>, <code class="font-mono">"text"</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>Any string with length &gt; 0 is truthy.</td></tr>
+              <tr><td><code class="font-mono font-bold">BYTES</code></td><td><code class="font-mono">bytes(0)</code>, empty buffer</td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-400">Falsy</span></td><td>Zero-length byte buffers evaluate to false.</td></tr>
+              <tr><td><code class="font-mono font-bold">BYTES</code></td><td><code class="font-mono">bytes(1)</code>, <code class="font-mono">bytes("a")</code></td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>Any byte buffer with length &gt; 0 is truthy.</td></tr>
+              <tr><td><code class="font-mono font-bold">COMPLEX / OBJECTS</code></td><td><code class="font-mono">[]</code>, <code class="font-mono">{}</code>, functions, structs</td><td><span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400">Truthy</span></td><td>References and compound data structures are always truthy.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Code Example: Falsy Semantics -->
+        <div class="code-block-wrapper mb-6">
+          <div class="code-header">
+            <span class="code-lang">Falsy Semantics &amp; Short-Circuit Fallback</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+          <pre><code class="language-bmd">// 1. Logical OR Fallback (Preserves operands)
+let user_name = "" || "Guest";       // "Guest" (empty string is falsy)
+let timeout = 0 || 30;               // 30 (0 is falsy)
+let buffer = bytes(0) || bytes(128); // bytes(128)
+
+// 2. Control Flow Branching (Direct falsy jumping)
+if ("") {
+    println("Will not execute");
+} else {
+    println("Empty string is cleanly falsy");
+}
+
+// 3. Logical NOT Inversion
+println(!0);        // true
+println(!"");       // true
+println(!bytes(0)); // true
+println(!null);     // true
+
+// 4. Canonical Boolean Coercion
+println(bool(""));        // false
+println(bool(0));         // false
+println(bool("Bramand")); // true</code></pre>
         </div>
       </section>
 

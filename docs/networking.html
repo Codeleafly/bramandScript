@@ -173,9 +173,11 @@
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Networking, Web &amp; AI</h3>
           <ul class="space-y-1">
-            <li><a href="networking.html#ch-sockets" class="nav-link active"><span>✦</span> TCP &amp; UDP Sockets</a></li>
-            <li><a href="networking.html#ch-http" class="nav-link"><span>✦</span> HTTP Client &amp; Server</a></li>
-            <li><a href="networking.html#ch-websockets" class="nav-link"><span>✦</span> RFC 6455 WebSockets</a></li>
+            <li><a href="networking.html#ch-sockets" class="nav-link active"><span>✦</span> Tier 1: Raw TCP &amp; UDP</a></li>
+            <li><a href="networking.html#ch-http" class="nav-link"><span>✦</span> Tier 2: Pure BMD HTTP/1.1</a></li>
+            <li><a href="networking.html#ch-websockets" class="nav-link"><span>✦</span> Tier 2: RFC 6455 WebSockets</a></li>
+            <li><a href="networking.html#ch-dns" class="nav-link"><span>✦</span> Tier 2: RFC 1035 UDP DNS</a></li>
+            <li><a href="networking.html#ch-https" class="nav-link"><span>✦</span> Tier 2: Pure BMD HTTPS</a></li>
             <li><a href="networking.html#ch-ai-integrations" class="nav-link"><span>✦</span> AI Streaming &amp; LLMs</a></li>
             <li><a href="networking.html#ch-vector-search" class="nav-link"><span>✦</span> Vector Similarity &amp; Search</a></li>
           </ul>
@@ -218,224 +220,265 @@
         </p>
       </div>
   
-            <section id="ch-sockets" class="section-anchor">
+      <!-- ================= TWO-TIER NETWORKING ARCHITECTURE OVERVIEW ================= -->
+      <div class="mb-8 p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900/60 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/60">
         <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-blue">Sockets</span>
+          <span class="badge badge-blue">Architecture</span>
+          <span class="badge badge-purple">Two-Tier Engine</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">TCP & UDP Client & Server Sockets</h2>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">The Two-Tier Network Stack</h2>
+        <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          BramandScript enforces a clean architectural separation between host operating system primitives and high-level application protocols (Rule 12).
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div class="p-4 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div class="font-bold text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1.5">
+              <span>✦</span> Tier 1: Low-Level Host Primitives (<code class="text-slate-900 dark:text-slate-100">std/net</code>)
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 font-sans text-xs mb-2">Built in Go standard library with zero external dependencies:</p>
+            <ul class="space-y-1 text-slate-700 dark:text-slate-300">
+              <li>• Raw TCP Sockets: <code class="text-blue-600 dark:text-blue-400">listen_tcp</code>, <code class="text-blue-600 dark:text-blue-400">dial_tcp</code>, <code class="text-blue-600 dark:text-blue-400">tcp_read_line</code></li>
+              <li>• Raw UDP Datagrams: <code class="text-blue-600 dark:text-blue-400">listen_udp</code>, <code class="text-blue-600 dark:text-blue-400">send_to</code>, <code class="text-blue-600 dark:text-blue-400">recv_from</code></li>
+              <li>• Encrypted TLS Sockets: <code class="text-blue-600 dark:text-blue-400">tls_dial</code> with SNI &amp; <code class="text-blue-600 dark:text-blue-400">tls_listen</code></li>
+            </ul>
+          </div>
+          <div class="p-4 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div class="font-bold text-purple-600 dark:text-purple-400 mb-1 flex items-center gap-1.5">
+              <span>✦</span> Tier 2: 100% Pure BramandScript Protocols (<code class="text-slate-900 dark:text-slate-100">.bmd</code>)
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 font-sans text-xs mb-2">Implemented entirely in BramandScript atop Tier 1 sockets:</p>
+            <ul class="space-y-1 text-slate-700 dark:text-slate-300">
+              <li>• <code class="text-purple-600 dark:text-purple-400">std/http</code>: RFC 7230 Wire Parser, Server, Client, Router</li>
+              <li>• <code class="text-purple-600 dark:text-purple-400">std/ws</code>: RFC 6455 Handshake, Frame Codec, Client/Server</li>
+              <li>• <code class="text-purple-600 dark:text-purple-400">std/dns</code>: RFC 1035 UDP Codec, 0xC0 Compression, Cache</li>
+              <li>• <code class="text-purple-600 dark:text-purple-400">std/https</code>: Pure BMD HTTPS Client &amp; Server over TLS</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TIER 1: RAW TCP & UDP SOCKETS ================= -->
+
+      <section id="ch-sockets" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">Tier 1 Primitives</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Raw TCP &amp; UDP Sockets (<code class="font-mono">std/net</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          Low-level networking primitives built on pure Go stdlib (<code class="font-mono">net</code>). Supports both streaming TCP connections with line-by-line buffers and high-throughput UDP packet sockets.
+          Low-level networking primitives built directly on the Go standard library (<code class="font-mono">net</code>). Provides full duplex streaming TCP connections with line-by-line buffering, idle timeouts, and high-throughput UDP packet sockets.
         </p>
 
         <div class="code-block-wrapper">
           <div class="code-block-header">
-            <span>bramand — TCP and UDP Socket Communication</span>
+            <span>bramand — Raw TCP and UDP Socket Communication</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code><span class="token-comment">// Start TCP Listener</span>
-<span class="token-kw">let</span> <span class="token-fn">srv</span> <span class="token-op">=</span> <span class="token-fn">tcp_listen</span>(<span class="token-str">"127.0.0.1:8080"</span>)
-<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
-    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">srv</span>.<span class="token-fn">accept</span>()
-    <span class="token-kw">let</span> <span class="token-fn">line</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">read_line</span>()
-    <span class="token-fn">conn</span>.<span class="token-fn">write</span>(<span class="token-str">"echo:"</span> <span class="token-op">+</span> <span class="token-fn">line</span> <span class="token-op">+</span> <span class="token-str">"\n"</span>)
-    <span class="token-fn">conn</span>.<span class="token-fn">close</span>()
-}()
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/net"</span> <span class="token-kw">as</span> <span class="token-fn">net</span>;
 
-<span class="token-comment">// Connect TCP Client</span>
-<span class="token-kw">let</span> <span class="token-fn">client</span> <span class="token-op">=</span> <span class="token-fn">tcp_connect</span>(<span class="token-str">"127.0.0.1:8080"</span>)
-<span class="token-fn">client</span>.<span class="token-fn">write</span>(<span class="token-str">"Hello Network\n"</span>)
-<span class="token-kw">let</span> <span class="token-fn">response</span> <span class="token-op">=</span> <span class="token-fn">client</span>.<span class="token-fn">read_line</span>()
-<span class="token-fn">client</span>.<span class="token-fn">close</span>()
-<span class="token-fn">srv</span>.<span class="token-fn">close</span>()
+<span class="token-comment">// 1. Raw TCP Server</span>
+<span class="token-kw">let</span> <span class="token-fn">srv</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">create_server</span>(<span class="token-kw">fn</span>(<span class="token-fn">sock</span>) {
+    <span class="token-fn">sock</span>.<span class="token-fn">set_timeout</span>(<span class="token-num">5000</span>);
+    <span class="token-kw">let</span> <span class="token-fn">line</span> <span class="token-op">=</span> <span class="token-fn">sock</span>.<span class="token-fn">read_line</span>();
+    <span class="token-kw">if</span> (<span class="token-fn">line</span> <span class="token-op">!=</span> <span class="token-kw">null</span>) {
+        <span class="token-fn">sock</span>.<span class="token-fn">write</span>(<span class="token-str">"ECHO: "</span> <span class="token-op">+</span> <span class="token-fn">trim</span>(<span class="token-fn">line</span>) <span class="token-op">+</span> <span class="token-str">"\n"</span>);
+    }
+    <span class="token-fn">sock</span>.<span class="token-fn">close</span>();
+});
+<span class="token-fn">srv</span>.<span class="token-fn">listen</span>(<span class="token-num">8080</span>);
 
-<span class="token-comment">// UDP Datagrams</span>
-<span class="token-kw">let</span> <span class="token-fn">udpSrv</span> <span class="token-op">=</span> <span class="token-fn">udp_listen</span>(<span class="token-str">"127.0.0.1:9090"</span>)
-<span class="token-kw">let</span> <span class="token-fn">udpCli</span> <span class="token-op">=</span> <span class="token-fn">udp_connect</span>(<span class="token-str">"127.0.0.1:9090"</span>)
-<span class="token-fn">udpCli</span>.<span class="token-fn">write</span>(<span class="token-str">"fast_packet"</span>)
-<span class="token-kw">let</span> <span class="token-fn">pkt</span> <span class="token-op">=</span> <span class="token-fn">udpSrv</span>.<span class="token-fn">recv_from</span>()
-<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"data"</span>], <span class="token-str">"from"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"addr"</span>])</code></pre>
+<span class="token-comment">// 2. Raw TCP Client</span>
+<span class="token-kw">let</span> <span class="token-fn">client</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">connect</span>(<span class="token-str">"127.0.0.1"</span>, <span class="token-num">8080</span>);
+<span class="token-fn">client</span>.<span class="token-fn">write</span>(<span class="token-str">"Hello BramandNet\n"</span>);
+<span class="token-kw">let</span> <span class="token-fn">ack</span> <span class="token-op">=</span> <span class="token-fn">client</span>.<span class="token-fn">read_line</span>();
+<span class="token-fn">println</span>(<span class="token-fn">trim</span>(<span class="token-fn">ack</span>)); <span class="token-comment">// "ECHO: Hello BramandNet"</span>
+<span class="token-fn">client</span>.<span class="token-fn">close</span>();
+<span class="token-fn">srv</span>.<span class="token-fn">close</span>();
+
+<span class="token-comment">// 3. Raw UDP Datagrams</span>
+<span class="token-kw">let</span> <span class="token-fn">udp_srv</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">create_udp_socket</span>(<span class="token-num">9090</span>);
+<span class="token-kw">let</span> <span class="token-fn">udp_cli</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">create_udp_socket</span>();
+<span class="token-fn">udp_cli</span>.<span class="token-fn">send_to</span>(<span class="token-str">"FAST_DATAGRAM"</span>, <span class="token-str">"127.0.0.1:9090"</span>);
+
+<span class="token-kw">let</span> <span class="token-fn">pkt</span> <span class="token-op">=</span> <span class="token-fn">udp_srv</span>.<span class="token-fn">recv_from</span>(<span class="token-num">4096</span>);
+<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"data"</span>], <span class="token-str">"from"</span>, <span class="token-fn">pkt</span>[<span class="token-str">"addr"</span>]);
+<span class="token-fn">udp_srv</span>.<span class="token-fn">close</span>();
+<span class="token-fn">udp_cli</span>.<span class="token-fn">close</span>();</code></pre>
         </div>
       </section>
 
-      <!-- ================= DAY 6: HTTP CLIENT & SERVER ================= -->
+      <!-- ================= TIER 2: PURE BMD HTTP/1.1 ENGINE ================= -->
 
       <section id="ch-http" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-green">Web Framework</span>
+          <span class="badge badge-green">Pure BramandScript</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">HTTP/HTTPS Client & Built-in Web Server</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript HTTP/1.1 Engine (<code class="font-mono">std/http</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          BramandScript provides two layers of HTTP routing:
-          <br><strong>1. Low-level Engine (<code class="font-mono">http_server()</code>)</strong>: A lightweight built-in server for static endpoints, asset serving, and basic REST endpoints.
-          <br><strong>2. Advanced Radix Trie Router (<code class="font-mono">std/net</code>)</strong>: A modular web framework with parameterized dynamic URL matching (<code class="font-mono">:id</code>), wildcard routes (<code class="font-mono">*filepath</code>), Route Groups (<code class="font-mono">/api/v1</code>), and middleware chains (<code class="font-mono">cors</code>, <code class="font-mono">rate_limit</code>).
+          A 100% self-hosted RFC 7230 HTTP/1.1 protocol engine written entirely in BramandScript on top of raw TCP sockets.
+          Includes a strict wire protocol parser (<code class="font-mono">std/http/parser</code>), high-performance HTTP server (<code class="font-mono">http.create_server</code>), flexible HTTP client (<code class="font-mono">http.get</code>, <code class="font-mono">http.post</code>, <code class="font-mono">http.put</code>, <code class="font-mono">http.delete_req</code>), and native Trie Router integration.
         </p>
 
         <div class="code-block-wrapper">
           <div class="code-block-header">
-            <span>bramand — HTTP Server & Client API</span>
+            <span>bramand — Pure BMD HTTP Server, Client &amp; Router</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code><span class="token-comment">// Instantiate Web Server</span>
-<span class="token-kw">let</span> <span class="token-fn">app</span> <span class="token-op">=</span> <span class="token-fn">http_server</span>()
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/http"</span> <span class="token-kw">as</span> <span class="token-fn">http</span>;
 
-<span class="token-comment">// Register Routes</span>
-<span class="token-fn">app</span>.<span class="token-fn">get</span>(<span class="token-str">"/api/users"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
-    <span class="token-fn">res</span>.<span class="token-fn">json</span>([{<span class="token-str">"id"</span>: <span class="token-num">1</span>, <span class="token-str">"name"</span>: <span class="token-str">"Alice"</span>}, {<span class="token-str">"id"</span>: <span class="token-num">2</span>, <span class="token-str">"name"</span>: <span class="token-str">"Bob"</span>}])
-})
+<span class="token-comment">// 1. Initialize Radix-Trie Router</span>
+<span class="token-kw">let</span> <span class="token-fn">router</span> <span class="token-op">=</span> <span class="token-fn">http</span>.<span class="token-fn">create_router</span>();
 
-<span class="token-fn">app</span>.<span class="token-fn">post</span>(<span class="token-str">"/api/login"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
-    <span class="token-kw">let</span> <span class="token-fn">body</span> <span class="token-op">=</span> <span class="token-fn">req</span>.<span class="token-fn">json</span>()
-    <span class="token-fn">res</span>.<span class="token-fn">status</span>(<span class="token-num">201</span>).<span class="token-fn">json</span>({<span class="token-str">"token"</span>: <span class="token-fn">uuid</span>(), <span class="token-str">"user"</span>: <span class="token-fn">body</span>[<span class="token-str">"user"</span>]})
-})
+<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/api/users"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-fn">res</span>.<span class="token-fn">json</span>([{ <span class="token-str">"id"</span>: <span class="token-num">1</span>, <span class="token-str">"name"</span>: <span class="token-str">"Aryabhata"</span> }]);
+});
 
-<span class="token-comment">// Host static directory and listen</span>
-<span class="token-fn">app</span>.<span class="token-fn">static</span>(<span class="token-str">"/public"</span>, <span class="token-str">"./dist"</span>)
-<span class="token-fn">app</span>.<span class="token-fn">listen</span>(<span class="token-num">3000</span>, <span class="token-kw">fn</span>() {
-    <span class="token-fn">println</span>(<span class="token-str">"Server listening on http://127.0.0.1:3000"</span>)
-})
+<span class="token-fn">router</span>.<span class="token-fn">post</span>(<span class="token-str">"/api/users"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">body</span> <span class="token-op">=</span> <span class="token-fn">req</span>.<span class="token-fn">json</span>();
+    <span class="token-fn">res</span>.<span class="token-fn">status</span>(<span class="token-num">201</span>).<span class="token-fn">json</span>({ <span class="token-str">"created"</span>: <span class="token-fn">body</span>, <span class="token-str">"id"</span>: <span class="token-num">2</span> });
+});
 
-<span class="token-comment">// HTTP Client calls</span>
-<span class="token-kw">let</span> <span class="token-fn">resp</span> <span class="token-op">=</span> <span class="token-fn">http_get</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>)
-<span class="token-fn">println</span>(<span class="token-str">"Status:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">status</span>, <span class="token-str">"Users:"</span>, <span class="token-fn">resp</span>.<span class="token-fn">json</span>())
+<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/api/users/:id"</span>, <span class="token-kw">fn</span>(<span class="token-fn">req</span>, <span class="token-fn">res</span>) {
+    <span class="token-kw">let</span> <span class="token-fn">uid</span> <span class="token-op">=</span> <span class="token-fn">req</span>.<span class="token-fn">params</span>[<span class="token-str">"id"</span>];
+    <span class="token-fn">res</span>.<span class="token-fn">json</span>({ <span class="token-str">"user_id"</span>: <span class="token-fn">uid</span>, <span class="token-str">"found"</span>: <span class="token-kw">true</span> });
+});
 
-<span class="token-comment">// HTTP POST with JSON body and custom headers</span>
-<span class="token-kw">let</span> <span class="token-fn">postResp</span> <span class="token-op">=</span> <span class="token-fn">http_post</span>(<span class="token-str">"http://127.0.0.1:3000/api/users"</span>, {<span class="token-str">"name"</span>: <span class="token-str">"Charlie"</span>}, {<span class="token-str">"Content-Type"</span>: <span class="token-str">"application/json"</span>})
-<span class="token-fn">println</span>(<span class="token-str">"POST Status:"</span>, <span class="token-fn">postResp</span>.<span class="token-fn">status</span>)
+<span class="token-comment">// 2. Start HTTP Server with Router</span>
+<span class="token-kw">let</span> <span class="token-fn">server</span> <span class="token-op">=</span> <span class="token-fn">http</span>.<span class="token-fn">create_server</span>(<span class="token-fn">router</span>);
+<span class="token-fn">server</span>.<span class="token-fn">listen</span>(<span class="token-num">8080</span>);
 
-<span class="token-comment">// HTTP PUT and DELETE</span>
-<span class="token-kw">let</span> <span class="token-fn">putResp</span> <span class="token-op">=</span> <span class="token-fn">http_put</span>(<span class="token-str">"http://127.0.0.1:3000/api/users/2"</span>, {<span class="token-str">"name"</span>: <span class="token-str">"Robert"</span>})
-<span class="token-kw">let</span> <span class="token-fn">delResp</span> <span class="token-op">=</span> <span class="token-fn">http_delete</span>(<span class="token-str">"http://127.0.0.1:3000/api/users/1"</span>)
+<span class="token-comment">// 3. Pure BMD HTTP Client Requests</span>
+<span class="token-kw">let</span> <span class="token-fn">res1</span> <span class="token-op">=</span> <span class="token-fn">http</span>.<span class="token-fn">get</span>(<span class="token-str">"http://127.0.0.1:8080/api/users"</span>);
+<span class="token-fn">println</span>(<span class="token-str">"GET Status:"</span>, <span class="token-fn">res1</span>[<span class="token-str">"status"</span>], <span class="token-str">"Body:"</span>, <span class="token-fn">res1</span>.<span class="token-fn">json</span>());
 
-<span class="token-comment">// Low-level http_request with timeout</span>
-<span class="token-kw">let</span> <span class="token-fn">customResp</span> <span class="token-op">=</span> <span class="token-fn">http_request</span>({
-    <span class="token-str">"method"</span>: <span class="token-str">"POST"</span>,
-    <span class="token-str">"url"</span>: <span class="token-str">"http://127.0.0.1:3000/api/users"</span>,
-    <span class="token-str">"body"</span>: {<span class="token-str">"name"</span>: <span class="token-str">"Eve"</span>},
-    <span class="token-str">"headers"</span>: {<span class="token-str">"X-App-ID"</span>: <span class="token-str">"bmd-client"</span>},
-    <span class="token-str">"timeout"</span>: <span class="token-num">3000</span>
-})
-<span class="token-fn">println</span>(<span class="token-str">"Custom Request Status:"</span>, <span class="token-fn">customResp</span>.<span class="token-fn">status</span>)</code></pre>
+<span class="token-kw">let</span> <span class="token-fn">res2</span> <span class="token-op">=</span> <span class="token-fn">http</span>.<span class="token-fn">post</span>(<span class="token-str">"http://127.0.0.1:8080/api/users"</span>, { <span class="token-str">"name"</span>: <span class="token-str">"Varahamihira"</span> });
+<span class="token-fn">println</span>(<span class="token-str">"POST Status:"</span>, <span class="token-fn">res2</span>[<span class="token-str">"status"</span>]);
+
+<span class="token-kw">let</span> <span class="token-fn">res3</span> <span class="token-op">=</span> <span class="token-fn">http</span>.<span class="token-fn">delete_req</span>(<span class="token-str">"http://127.0.0.1:8080/api/users/2"</span>);
+<span class="token-fn">server</span>.<span class="token-fn">close</span>();</code></pre>
         </div>
 
         <h3 class="text-xl font-semibold mt-6 mb-3">HTTP Client Reference Table</h3>
         <div class="overflow-x-auto mb-4">
           <table class="doc-table">
             <thead>
-              <tr><th>Function</th><th>Exact Signature</th><th>Return</th><th>Description</th></tr>
+              <tr><th>Function</th><th>Signature</th><th>Return</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <tr><td><code class="font-mono">http_get</code></td><td><code class="font-mono">http_get(url, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP GET request; returns response hash with <code class="font-mono">status</code>, <code class="font-mono">headers</code>, <code class="font-mono">body</code>, and <code class="font-mono">json()</code>.</td></tr>
-              <tr><td><code class="font-mono">http_post</code></td><td><code class="font-mono">http_post(url, body, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP POST request; automatically serializes non-string body into JSON string.</td></tr>
-              <tr><td><code class="font-mono">http_put</code></td><td><code class="font-mono">http_put(url, body, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP PUT request with payload and optional headers.</td></tr>
-              <tr><td><code class="font-mono">http_delete</code></td><td><code class="font-mono">http_delete(url, [headers])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP DELETE request to target endpoint.</td></tr>
-              <tr><td><code class="font-mono">http_request</code></td><td><code class="font-mono">http_request(options)</code></td><td><code class="font-mono">HASH</code></td><td>Executes customized request with <code class="font-mono">{"method", "url", "body", "headers", "timeout"}</code>.</td></tr>
+              <tr><td><code class="font-mono">http.get</code></td><td><code class="font-mono">http.get(url, [opts])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP GET request; returns response hash with <code class="font-mono">status</code>, <code class="font-mono">headers</code>, <code class="font-mono">body</code>, <code class="font-mono">json()</code>, <code class="font-mono">text()</code>.</td></tr>
+              <tr><td><code class="font-mono">http.post</code></td><td><code class="font-mono">http.post(url, body, [opts])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP POST request; automatically serializes map/array body to JSON.</td></tr>
+              <tr><td><code class="font-mono">http.put</code></td><td><code class="font-mono">http.put(url, body, [opts])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP PUT request with payload and optional headers.</td></tr>
+              <tr><td><code class="font-mono">http.delete_req</code></td><td><code class="font-mono">http.delete_req(url, [opts])</code></td><td><code class="font-mono">HASH</code></td><td>Sends HTTP DELETE request to target endpoint.</td></tr>
+              <tr><td><code class="font-mono">http.request</code></td><td><code class="font-mono">http.request(options)</code></td><td><code class="font-mono">HASH</code></td><td>Executes customized request with <code class="font-mono">{"method", "url", "body", "headers", "timeout"}</code>.</td></tr>
             </tbody>
           </table>
         </div>
-
-        <h3 class="text-xl font-semibold mt-8 mb-3">Distributed Resiliency: Retries &amp; Circuit Breakers</h3>
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          For production microservice resilience, network calls can be wrapped in <code class="font-mono">std/retry</code> with exponential backoff and guarded by <code class="font-mono">std/circuitbreaker</code> to prevent cascading failures during downstream outages:
-        </p>
-
-        <div class="code-block-wrapper mb-6">
-          <div class="code-block-header">
-            <span>bmd — Resilient HTTP with Retry &amp; Circuit Breaker</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
-          </div>
-          <pre><code>import "std/retry" as retry
-import "std/circuitbreaker" as cb_mod
-
-let breaker = cb_mod.new({
-    "failure_threshold": 3,
-    "reset_timeout": 5000,
-    "fallback": fn() {
-        return {"status": 200, "data": "cached-fallback"}
-    }
-})
-
-// Call wrapped in circuit breaker and exponential backoff retry:
-let outcome = breaker.execute(fn() {
-    return retry.with_backoff(fn() {
-        let resp = http_get("https://api.external/data", {"Accept": "application/json"})
-        if resp.status >= 500 {
-            throw f"Server error: {resp.status}"
-        }
-        return resp.json()
-    }, 3, 50, 1000, 2)
-})
-
-println("Call succeeded:", outcome.ok)
-println("Data payload:", outcome.result)</code></pre>
-        </div>
-
-        <div class="code-block-wrapper mt-6">
-          <div class="code-block-header">
-            <span>bramand — High-Level std/net Trie Router (:id and *path)</span>
-            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
-          </div>
-          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/net"</span> <span class="token-kw">as</span> <span class="token-fn">net</span>
-
-<span class="token-kw">let</span> <span class="token-fn">router</span> <span class="token-op">=</span> <span class="token-fn">net</span>.<span class="token-fn">new_router</span>()
-
-<span class="token-comment">// Parameterized route: :id</span>
-<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/users/:id"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
-    <span class="token-kw">let</span> <span class="token-fn">user_id</span> <span class="token-op">=</span> <span class="token-fn">ctx</span>.<span class="token-fn">param</span>(<span class="token-str">"id"</span>)
-    <span class="token-fn">ctx</span>.<span class="token-fn">json</span>(<span class="token-num">200</span>, {<span class="token-str">"user_id"</span>: <span class="token-fn">user_id</span>})
-})
-
-<span class="token-comment">// Wildcard route: *filepath</span>
-<span class="token-fn">router</span>.<span class="token-fn">get</span>(<span class="token-str">"/static/*filepath"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
-    <span class="token-kw">let</span> <span class="token-fn">file</span> <span class="token-op">=</span> <span class="token-fn">ctx</span>.<span class="token-fn">param</span>(<span class="token-str">"filepath"</span>)
-    <span class="token-fn">ctx</span>.<span class="token-fn">text</span>(<span class="token-num">200</span>, <span class="token-str">"Serving: "</span> <span class="token-op">+</span> <span class="token-fn">file</span>)
-})
-
-<span class="token-comment">// Route Groups &amp; Middleware</span>
-<span class="token-kw">let</span> <span class="token-fn">api</span> <span class="token-op">=</span> <span class="token-fn">router</span>.<span class="token-fn">group</span>(<span class="token-str">"/api/v1"</span>)
-<span class="token-fn">api</span>.<span class="token-fn">use</span>(<span class="token-fn">net</span>.<span class="token-fn">cors</span>(<span class="token-str">"*"</span>))
-<span class="token-fn">api</span>.<span class="token-fn">get</span>(<span class="token-str">"/metrics"</span>, <span class="token-kw">fn</span>(<span class="token-fn">ctx</span>) {
-    <span class="token-fn">ctx</span>.<span class="token-fn">json</span>(<span class="token-num">200</span>, {<span class="token-str">"uptime"</span>: <span class="token-num">3600</span>})
-})</code></pre>
-        </div>
       </section>
 
-      <!-- ================= DAY 6: RFC 6455 WEBSOCKETS ================= -->
+      <!-- ================= TIER 2: PURE BMD RFC 6455 WEBSOCKET ENGINE ================= -->
 
       <section id="ch-websockets" class="section-anchor">
         <div class="flex items-center gap-2 mb-2">
-          <span class="badge badge-purple">Realtime</span>
+          <span class="badge badge-purple">RFC 6455 Pure BMD</span>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">RFC 6455 WebSockets (Zero-Dependency)</h2>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript RFC 6455 WebSocket Engine (<code class="font-mono">std/ws</code>)</h2>
 
         <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          A complete, compliant implementation of the RFC 6455 WebSocket protocol built entirely with the Go Standard Library. Includes automatic client-side frame masking, server-side unmasking, ping/pong heartbeats, and binary/text frame streams.
+          A 100% self-hosted RFC 6455 WebSocket protocol engine implemented entirely in pure BramandScript atop raw TCP sockets.
+          Features official SHA-1/Base64 accept key derivation, binary frame encoding with FIN and opcode bitfields, client XOR 4-byte payload masking, 7-bit/16-bit/64-bit payload lengths, ping/pong heartbeats, and room broadcasting.
         </p>
 
         <div class="code-block-wrapper">
           <div class="code-block-header">
-            <span>bramand — Realtime WebSocket Communication</span>
+            <span>bramand — Realtime WebSocket Server &amp; Client</span>
             <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
           </div>
-          <pre><code><span class="token-comment">// Start WebSocket Server</span>
-<span class="token-kw">let</span> <span class="token-fn">wsSrv</span> <span class="token-op">=</span> <span class="token-fn">ws_server</span>(<span class="token-str">"127.0.0.1:8081"</span>, <span class="token-str">"/ws"</span>)
-<span class="token-kw">spawn</span> <span class="token-kw">fn</span>() {
-    <span class="token-kw">let</span> <span class="token-fn">conn</span> <span class="token-op">=</span> <span class="token-fn">wsSrv</span>.<span class="token-fn">accept</span>()
-    <span class="token-kw">while</span> <span class="token-fn">conn</span>.<span class="token-fn">is_open</span> {
-        <span class="token-kw">let</span> <span class="token-fn">msg</span> <span class="token-op">=</span> <span class="token-fn">conn</span>.<span class="token-fn">recv</span>()
-        <span class="token-kw">if</span> <span class="token-fn">msg</span> <span class="token-op">==</span> <span class="token-kw">null</span> { <span class="token-kw">break</span> }
-        <span class="token-fn">conn</span>.<span class="token-fn">send</span>(<span class="token-str">"Server Ack: "</span> <span class="token-op">+</span> <span class="token-fn">msg</span>)
-    }
-}()
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/ws"</span> <span class="token-kw">as</span> <span class="token-fn">ws</span>;
 
-<span class="token-comment">// Connect WebSocket Client</span>
-<span class="token-kw">let</span> <span class="token-fn">ws</span> <span class="token-op">=</span> <span class="token-fn">ws_connect</span>(<span class="token-str">"ws://127.0.0.1:8081/ws"</span>)
-<span class="token-fn">ws</span>.<span class="token-fn">send</span>(<span class="token-str">"Hello Bramand WebSocket!"</span>)
-<span class="token-kw">let</span> <span class="token-fn">reply</span> <span class="token-op">=</span> <span class="token-fn">ws</span>.<span class="token-fn">recv</span>()
-<span class="token-fn">println</span>(<span class="token-str">"Received:"</span>, <span class="token-fn">reply</span>)
-<span class="token-fn">ws</span>.<span class="token-fn">close</span>()
-<span class="token-fn">wsSrv</span>.<span class="token-fn">close</span>()</code></pre>
+<span class="token-comment">// 1. Start WebSocket Server</span>
+<span class="token-kw">let</span> <span class="token-fn">server</span> <span class="token-op">=</span> <span class="token-fn">ws</span>.<span class="token-fn">create_server</span>(<span class="token-num">8081</span>, <span class="token-kw">fn</span>(<span class="token-fn">conn</span>) {
+    <span class="token-fn">conn</span>.<span class="token-fn">on</span>(<span class="token-str">"message"</span>, <span class="token-kw">fn</span>(<span class="token-fn">msg</span>) {
+        <span class="token-fn">conn</span>.<span class="token-fn">send</span>(<span class="token-str">"ACK:"</span> <span class="token-op">+</span> <span class="token-fn">msg</span>);
+        <span class="token-fn">server</span>.<span class="token-fn">broadcast</span>(<span class="token-str">"ANNOUNCE: New message received"</span>);
+    });
+});
+
+<span class="token-comment">// 2. Connect WebSocket Client</span>
+<span class="token-kw">let</span> <span class="token-fn">client</span> <span class="token-op">=</span> <span class="token-fn">ws</span>.<span class="token-fn">connect</span>(<span class="token-str">"ws://127.0.0.1:8081/chat"</span>, <span class="token-kw">fn</span>(<span class="token-fn">c</span>) {
+    <span class="token-fn">c</span>.<span class="token-fn">send</span>(<span class="token-str">"Hello WebSocket"</span>);
+});
+
+<span class="token-fn">client</span>.<span class="token-fn">on</span>(<span class="token-str">"message"</span>, <span class="token-kw">fn</span>(<span class="token-fn">reply</span>) {
+    <span class="token-fn">println</span>(<span class="token-str">"Client received:"</span>, <span class="token-fn">reply</span>);
+    <span class="token-fn">client</span>.<span class="token-fn">close</span>(<span class="token-num">1000</span>, <span class="token-str">"Done"</span>);
+    <span class="token-fn">server</span>.<span class="token-fn">close</span>();
+});</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: PURE BMD RFC 1035 UDP DNS RESOLVER ================= -->
+
+      <section id="ch-dns" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-blue">RFC 1035 Pure BMD</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript UDP DNS Resolver (<code class="font-mono">std/dns</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          A 100% self-hosted RFC 1035 UDP DNS packet codec and resolver engine. Directly formats binary queries, parses 12-byte headers, resolves QNAME labels with <code class="font-mono">0xC0</code> compression pointers, and manages an in-memory TTL cache.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — RFC 1035 DNS Resolver &amp; In-Memory Cache</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/dns"</span> <span class="token-kw">as</span> <span class="token-fn">dns</span>;
+
+<span class="token-comment">// 1. Direct Resolution with In-Memory TTL Cache</span>
+<span class="token-kw">let</span> <span class="token-fn">ips</span> <span class="token-op">=</span> <span class="token-fn">dns</span>.<span class="token-fn">resolve</span>(<span class="token-str">"bramand.org"</span>, <span class="token-fn">dns</span>.<span class="token-fn">TYPE_A</span>, <span class="token-str">"8.8.8.8:53"</span>);
+<span class="token-fn">println</span>(<span class="token-str">"Resolved A records:"</span>, <span class="token-fn">ips</span>);
+
+<span class="token-comment">// 2. Convenience Single-IP Lookup</span>
+<span class="token-kw">let</span> <span class="token-fn">ip</span> <span class="token-op">=</span> <span class="token-fn">dns</span>.<span class="token-fn">lookup</span>(<span class="token-str">"bramand.org"</span>);
+<span class="token-fn">println</span>(<span class="token-str">"Primary IP:"</span>, <span class="token-fn">ip</span>);
+
+<span class="token-comment">// 3. Low-Level Packet Codec</span>
+<span class="token-kw">let</span> <span class="token-fn">query_pkt</span> <span class="token-op">=</span> <span class="token-fn">dns</span>.<span class="token-fn">encode_query</span>(<span class="token-str">"example.com"</span>, <span class="token-fn">dns</span>.<span class="token-fn">TYPE_A</span>, <span class="token-num">0x1234</span>);
+<span class="token-kw">let</span> <span class="token-fn">parsed</span> <span class="token-op">=</span> <span class="token-fn">dns</span>.<span class="token-fn">decode_response</span>(<span class="token-fn">query_pkt</span>);
+<span class="token-fn">println</span>(<span class="token-str">"Decoded Question:"</span>, <span class="token-fn">parsed</span>[<span class="token-str">"questions"</span>][<span class="token-num">0</span>][<span class="token-str">"name"</span>]);</code></pre>
+        </div>
+      </section>
+
+      <!-- ================= TIER 2: PURE BMD SECURE HTTPS ================= -->
+
+      <section id="ch-https" class="section-anchor">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-emerald">Pure BMD HTTPS</span>
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">Pure BramandScript HTTPS Client &amp; Server (<code class="font-mono">std/https</code>)</h2>
+
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+          Combines raw TLS dialer sockets (<code class="font-mono">tls_dial</code>) with the pure BMD HTTP wire parser and client pipeline. Enforces Server Name Indication (SNI) verification and TLS certificate validation by default.
+        </p>
+
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span>bramand — Secure HTTPS Request &amp; Server</span>
+            <button class="copy-btn"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Copy</span></button>
+          </div>
+          <pre><code><span class="token-kw">import</span> <span class="token-str">"std/https"</span> <span class="token-kw">as</span> <span class="token-fn">https</span>;
+
+<span class="token-comment">// 1. Secure HTTPS GET</span>
+<span class="token-kw">let</span> <span class="token-fn">res</span> <span class="token-op">=</span> <span class="token-fn">https</span>.<span class="token-fn">get</span>(<span class="token-str">"https://api.github.com/zen"</span>, {
+    <span class="token-str">"headers"</span>: { <span class="token-str">"User-Agent"</span>: <span class="token-str">"BramandScript/1.0"</span> }
+});
+<span class="token-fn">println</span>(<span class="token-str">"HTTPS Status:"</span>, <span class="token-fn">res</span>[<span class="token-str">"status"</span>], <span class="token-str">"Zen:"</span>, <span class="token-fn">res</span>.<span class="token-fn">text</span>());
+
+<span class="token-comment">// 2. Secure HTTPS POST with JSON</span>
+<span class="token-kw">let</span> <span class="token-fn">post_res</span> <span class="token-op">=</span> <span class="token-fn">https</span>.<span class="token-fn">post</span>(<span class="token-str">"https://httpbin.org/post"</span>, { <span class="token-str">"auth"</span>: <span class="token-str">"secure_token"</span> });
+<span class="token-fn">println</span>(<span class="token-str">"POST Response:"</span>, <span class="token-fn">post_res</span>.<span class="token-fn">json</span>());</code></pre>
         </div>
       </section>
 

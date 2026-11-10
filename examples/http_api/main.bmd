@@ -1,0 +1,283 @@
+// examples/http_api/main.bmd
+// BramandScript Real-World Dogfooding Application :: Pure BMD REST API
+// 100% Pure BramandScript using std/http with Router, Middleware, and JSON CRUD.
+
+import "std/http" as http;
+
+let print_banner = fn() {
+    println("✦ BramandScript Pure REST API Service");
+    println("────────────────────────────────────────────────────────────────────────────");
+};
+
+// In-Memory Database Store
+let create_db = fn() {
+    let items = {};
+    let next_id = 1;
+    let m = mutex();
+
+    return {
+        "all": fn() {
+            m.lock();
+            let res = [];
+            let item_keys = keys(items);
+            let i = 0;
+            while (i < len(item_keys)) {
+                push(res, items[item_keys[i]]);
+                i = i + 1;
+            }
+            m.unlock();
+            return res;
+        },
+        "get": fn(id) {
+            m.lock();
+            let item = items[str(id)];
+            m.unlock();
+            return item;
+        },
+        "insert": fn(data) {
+            m.lock();
+            let id = str(next_id);
+            next_id = next_id + 1;
+            let record = {
+                "id": id,
+                "name": data["name"],
+                "category": data["category"],
+                "price": data["price"],
+                "active": true
+            };
+            items[id] = record;
+            m.unlock();
+            return record;
+        },
+        "update": fn(id, data) {
+            m.lock();
+            let id_str = str(id);
+            let item = items[id_str];
+            if (item == null) {
+                m.unlock();
+                return null;
+            }
+            if (data["name"] != null) { item["name"] = data["name"]; }
+            if (data["category"] != null) { item["category"] = data["category"]; }
+            if (data["price"] != null) { item["price"] = data["price"]; }
+            if (data["active"] != null) { item["active"] = data["active"]; }
+            items[id_str] = item;
+            m.unlock();
+            return item;
+        },
+        "remove": fn(id) {
+            m.lock();
+            let id_str = str(id);
+            let exists = items[id_str] != null;
+            if (exists) {
+                delete(items, id_str);
+            }
+            m.unlock();
+            return exists;
+        }
+    };
+};
+
+// Setup Router & Handlers
+let setup_api_router = fn(db) {
+    let router = http.create_router();
+
+    // 1. Root & Health Check
+    router.get("/", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        res.json({
+            "service": "BramandScript REST API",
+            "status": "healthy",
+            "version": "1.0.0",
+            "endpoints": [
+                "GET    /",
+                "GET    /api/v1/items",
+                "POST   /api/v1/items",
+                "GET    /api/v1/items/:id",
+                "PUT    /api/v1/items/:id",
+                "DELETE /api/v1/items/:id"
+            ]
+        });
+    });
+
+    // 2. List all items
+    router.get("/api/v1/items", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        let list = db.all();
+        res.json({
+            "count": len(list),
+            "items": list
+        });
+    });
+
+    // 3. Create new item
+    router.post("/api/v1/items", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        let body = req.json();
+        if (body == null || body["name"] == null || body["price"] == null) {
+            res.status(400).json({
+                "error": "ValidationFailed",
+                "message": "Fields 'name' and 'price' are required."
+            });
+            return;
+        }
+
+        let record = db.insert(body);
+        res.status(201).json({
+            "success": true,
+            "created": record
+        });
+    });
+
+    // 4. Retrieve single item by ID
+    router.get("/api/v1/items/:id", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        let id = req.params["id"];
+        let item = db.get(id);
+        if (item == null) {
+            res.status(404).json({
+                "error": "NotFound",
+                "message": "Item with ID " + str(id) + " does not exist."
+            });
+            return;
+        }
+        res.json({
+            "item": item
+        });
+    });
+
+    // 5. Update item by ID
+    router.put("/api/v1/items/:id", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        let id = req.params["id"];
+        let body = req.json();
+        if (body == null) {
+            res.status(400).json({ "error": "InvalidBody" });
+            return;
+        }
+        let updated = db.update(id, body);
+        if (updated == null) {
+            res.status(404).json({
+                "error": "NotFound",
+                "message": "Item with ID " + str(id) + " does not exist."
+            });
+            return;
+        }
+        res.json({
+            "success": true,
+            "updated": updated
+        });
+    });
+
+    // 6. Delete item by ID
+    router.delete("/api/v1/items/:id", fn(req, res) {
+        res.set_header("X-Powered-By", "BramandScript/1.0");
+        let id = req.params["id"];
+        let deleted = db.remove(id);
+        if (!deleted) {
+            res.status(404).json({
+                "error": "NotFound",
+                "message": "Item with ID " + str(id) + " does not exist."
+            });
+            return;
+        }
+        res.json({
+            "success": true,
+            "deleted_id": id
+        });
+    });
+
+    return router;
+};
+
+let run_api_demo = fn(port) {
+    println("· Initializing In-Memory Data Store...");
+    let db = create_db();
+
+    println("· Configuring HTTP Router & REST Endpoints...");
+    let router = setup_api_router(db);
+
+    println("· Starting Pure HTTP/1.1 Server on port " + str(port) + "...");
+    let server = http.create_server(router);
+    server.listen(port);
+    sleep(50);
+    println("  [OK] HTTP Server listening at " + server.addr());
+
+    let base_url = "http://127.0.0.1:" + str(port);
+
+    // 1. GET /
+    println("· Testing GET / (API Metadata)...");
+    let res_root = http.get(base_url + "/");
+    assert_eq(res_root["status"], 200);
+    let root_data = res_root.json();
+    println("  [OK] Service: " + root_data["service"] + " (status: " + root_data["status"] + ")");
+
+    // 2. POST /api/v1/items (Create Item 1)
+    println("· Testing POST /api/v1/items (Create Quantum CPU)...");
+    let res_post1 = http.post(base_url + "/api/v1/items", {
+        "name": "Quantum CPU",
+        "category": "processor",
+        "price": 2999
+    });
+    assert_eq(res_post1["status"], 201);
+    let item1 = res_post1.json()["created"];
+    println("  [OK] Created ID=" + item1["id"] + ", Name=" + item1["name"] + ", Price=$" + str(item1["price"]));
+
+    // 3. POST /api/v1/items (Create Item 2)
+    println("· Testing POST /api/v1/items (Create Optical Bus)...");
+    let res_post2 = http.post(base_url + "/api/v1/items", {
+        "name": "Optical Bus",
+        "category": "interconnect",
+        "price": 899
+    });
+    assert_eq(res_post2["status"], 201);
+    let item2 = res_post2.json()["created"];
+    println("  [OK] Created ID=" + item2["id"] + ", Name=" + item2["name"] + ", Price=$" + str(item2["price"]));
+
+    // 4. GET /api/v1/items (List Items)
+    println("· Testing GET /api/v1/items (List Items)...");
+    let res_list = http.get(base_url + "/api/v1/items");
+    assert_eq(res_list["status"], 200);
+    let list_data = res_list.json();
+    println("  [OK] Total Items: " + str(list_data["count"]));
+
+    // 5. GET /api/v1/items/:id (Get Single Item)
+    println("· Testing GET /api/v1/items/1 (Get Single Item)...");
+    let res_get1 = http.get(base_url + "/api/v1/items/1");
+    assert_eq(res_get1["status"], 200);
+    let single_item = res_get1.json()["item"];
+    println("  [OK] Retrieved Item 1: " + single_item["name"]);
+
+    // 6. PUT /api/v1/items/:id (Update Item Price)
+    println("· Testing PUT /api/v1/items/1 (Price Update -> $3499)...");
+    let res_put1 = http.put(base_url + "/api/v1/items/1", {
+        "price": 3499
+    });
+    assert_eq(res_put1["status"], 200);
+    let updated_item = res_put1.json()["updated"];
+    println("  [OK] Updated Item 1 Price: $" + str(updated_item["price"]));
+
+    // 7. DELETE /api/v1/items/:id (Delete Item 2)
+    println("· Testing DELETE /api/v1/items/2 (Delete Item 2)...");
+    let res_del2 = http.delete_req(base_url + "/api/v1/items/2");
+    assert_eq(res_del2["status"], 200);
+    println("  [OK] Deleted Item ID: " + res_del2.json()["deleted_id"]);
+
+    // 8. GET /api/v1/items/:id (Verify 404 for deleted item)
+    println("· Testing GET /api/v1/items/2 (Verify 404 Not Found)...");
+    let res_del_verify = http.get(base_url + "/api/v1/items/2");
+    assert_eq(res_del_verify["status"], 404);
+    println("  [OK] Confirmed 404 Not Found: " + res_del_verify.json()["message"]);
+
+    server.close();
+    println("  [OK] HTTP Server shutdown cleanly.");
+    println("✦ Pure REST API demonstration completed successfully!");
+};
+
+let main = fn() {
+    print_banner();
+    let port = 29820;
+    run_api_demo(port);
+};
+
+main();
