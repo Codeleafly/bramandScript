@@ -1,0 +1,281 @@
+// BramandScript Test Suite: VM Falsy & Truthiness Semantics (Day 41)
+// Validates complete truthiness/falsy matrix across all language types,
+// logical operators, short-circuit jumps, loops, conditionals, and assertions.
+
+import "std/testing" as t;
+
+describe("VM Truthiness and Falsy Matrix Evaluation", fn() {
+    test("Canonical falsy types evaluate to false with logical NOT", fn() {
+        assert_eq(!false, true);
+        assert_eq(!null, true);
+        assert_eq(!0, true);
+        assert_eq(!0.0, true);
+        assert_eq(!(-0), true);
+        assert_eq(!"", true);
+        assert_eq(!bytes(), true);
+    });
+
+    test("Canonical truthy types evaluate to false with logical NOT", fn() {
+        assert_eq(!true, false);
+        assert_eq(!1, false);
+        assert_eq(!(-1), false);
+        assert_eq(!42, false);
+        assert_eq(!0.0001, false);
+        assert_eq(!(-3.14159), false);
+        assert_eq(!"a", false);
+        assert_eq(!"hello world", false);
+        assert_eq(!"0", false);
+        assert_eq(!"false", false);
+        assert_eq(!"null", false);
+        assert_eq(!" ", false);
+        assert_eq(!bytes([1]), false);
+        assert_eq(!bytes([0]), false);
+        assert_eq(![], false);
+        assert_eq(![0], false);
+        assert_eq(!{}, false);
+        assert_eq(!{"k": 0}, false);
+    });
+
+    test("Double negation preserves boolean truthiness value", fn() {
+        // Falsy values
+        assert_eq(!!false, false);
+        assert_eq(!!null, false);
+        assert_eq(!!0, false);
+        assert_eq(!!0.0, false);
+        assert_eq(!!"", false);
+        assert_eq(!!bytes(), false);
+
+        // Truthy values
+        assert_eq(!!true, true);
+        assert_eq(!!1, true);
+        assert_eq(!!(-1), true);
+        assert_eq(!!"non-empty", true);
+        assert_eq(!!"0", true);
+        assert_eq(!!bytes([255]), true);
+        assert_eq(!![], true);
+        assert_eq(!!{}, true);
+    });
+
+    test("Builtin bool() type coercion aligns with isTruthy", fn() {
+        // Falsy coercions
+        assert_eq(bool(false), false);
+        assert_eq(bool(null), false);
+        assert_eq(bool(0), false);
+        assert_eq(bool(0.0), false);
+        assert_eq(bool(""), false);
+        assert_eq(bool(bytes()), false);
+
+        // Truthy coercions
+        assert_eq(bool(true), true);
+        assert_eq(bool(1), true);
+        assert_eq(bool(100), true);
+        assert_eq(bool(-1), true);
+        assert_eq(bool(2.71828), true);
+        assert_eq(bool("ok"), true);
+        assert_eq(bool("0"), true);
+        assert_eq(bool("false"), true);
+        assert_eq(bool(bytes([1, 2, 3])), true);
+        assert_eq(bool([]), true);
+        assert_eq(bool([1]), true);
+        assert_eq(bool({}), true);
+        assert_eq(bool({"a": 1}), true);
+    });
+});
+
+describe("Logical Operators & Short-Circuit Jump Semantics", fn() {
+    test("Logical OR (||) fallback semantics with falsy values", fn() {
+        assert_eq(false || "fallback", "fallback");
+        assert_eq(null || "fallback", "fallback");
+        assert_eq(0 || "fallback", "fallback");
+        assert_eq(0.0 || "fallback", "fallback");
+        assert_eq("" || "fallback", "fallback");
+        assert_eq(bytes() || "fallback", "fallback");
+
+        // When left is truthy, it returns left immediately
+        assert_eq("actual" || "fallback", "actual");
+        assert_eq(42 || "fallback", 42);
+        assert_eq(true || "fallback", true);
+        assert_eq(bytes([1]) || "fallback", bytes([1]));
+    });
+
+    test("Logical AND (&&) propagation semantics with falsy values", fn() {
+        assert_eq(false && "never", false);
+        assert_eq(null && "never", null);
+        assert_eq(0 && "never", 0);
+        assert_eq("" && "never", "");
+        assert_eq(bytes() && "never", bytes());
+
+        // When left is truthy, it evaluates and returns right
+        assert_eq(true && "reached", "reached");
+        assert_eq(1 && "reached", "reached");
+        assert_eq("truthy" && "reached", "reached");
+        assert_eq(bytes([1]) && 99, 99);
+    });
+
+    test("Short-circuit evaluation eliminates right-hand operand side-effects", fn() {
+        let side_effect_calls = 0;
+        let inc_effect = fn() {
+            side_effect_calls += 1;
+            return "invoked";
+        };
+
+        // Falsy left in && skips right operand
+        let r1 = "" && inc_effect();
+        assert_eq(r1, "");
+        assert_eq(side_effect_calls, 0);
+
+        let r2 = null && inc_effect();
+        assert_eq(r2, null);
+        assert_eq(side_effect_calls, 0);
+
+        let r3 = bytes() && inc_effect();
+        assert_eq(r3, bytes());
+        assert_eq(side_effect_calls, 0);
+
+        // Truthy left in || skips right operand
+        let r4 = "already_set" || inc_effect();
+        assert_eq(r4, "already_set");
+        assert_eq(side_effect_calls, 0);
+
+        let r5 = 123 || inc_effect();
+        assert_eq(r5, 123);
+        assert_eq(side_effect_calls, 0);
+
+        // When not short-circuited, right operand executes exactly once
+        let r6 = "" || inc_effect();
+        assert_eq(r6, "invoked");
+        assert_eq(side_effect_calls, 1);
+    });
+});
+
+describe("Control Flow Branching & Loop Jump Semantics", fn() {
+    test("Ternary conditional expressions (? :) with falsy conditions", fn() {
+        assert_eq("" ? "yes" : "no", "no");
+        assert_eq(bytes() ? "yes" : "no", "no");
+        assert_eq(0 ? "yes" : "no", "no");
+        assert_eq(0.0 ? "yes" : "no", "no");
+        assert_eq(null ? "yes" : "no", "no");
+        assert_eq(false ? "yes" : "no", "no");
+
+        assert_eq("valid" ? "yes" : "no", "yes");
+        assert_eq(bytes([10]) ? "yes" : "no", "yes");
+        assert_eq(1 ? "yes" : "no", "yes");
+        assert_eq(true ? "yes" : "no", "yes");
+    });
+
+    test("If and Else branching with falsy conditions", fn() {
+        let branch = 0;
+        if "" {
+            branch = 1;
+        } else {
+            branch = 2;
+        }
+        assert_eq(branch, 2);
+
+        branch = 0;
+        if bytes() {
+            branch = 1;
+        } else {
+            branch = 2;
+        }
+        assert_eq(branch, 2);
+
+        branch = 0;
+        if 0 {
+            branch = 1;
+        } else if "" {
+            branch = 2;
+        } else if bytes() {
+            branch = 3;
+        } else if "truthy_branch" {
+            branch = 4;
+        } else {
+            branch = 5;
+        }
+        assert_eq(branch, 4);
+    });
+
+    test("While loop conditional jump guards against falsy entry", fn() {
+        let iterations = 0;
+        while "" {
+            iterations += 1;
+        }
+        assert_eq(iterations, 0);
+
+        while bytes() {
+            iterations += 1;
+        }
+        assert_eq(iterations, 0);
+
+        while 0 {
+            iterations += 1;
+        }
+        assert_eq(iterations, 0);
+
+        while null {
+            iterations += 1;
+        }
+        assert_eq(iterations, 0);
+
+        while false {
+            iterations += 1;
+        }
+        assert_eq(iterations, 0);
+
+        // Loop runs when condition is truthy and terminates when condition becomes falsy
+        let countdown = 3;
+        let count = 0;
+        while countdown {
+            count += 1;
+            countdown -= 1;
+        }
+        assert_eq(count, 3);
+    });
+});
+
+describe("Assertion Builtins & Standard Library Integration", fn() {
+    test("Builtin assert_false and assert_true validation", fn() {
+        // Direct VM builtins
+        assert_false(false);
+        assert_false(null);
+        assert_false(0);
+        assert_false(0.0);
+        assert_false("");
+        assert_false(bytes());
+
+        assert_true(true);
+        assert_true(1);
+        assert_true("hello");
+        assert_true("0");
+        assert_true(bytes([1]));
+        assert_true([]);
+        assert_true({});
+    });
+
+    test("std/testing module assertions alignment", fn() {
+        t.assert_false(false, "false should be falsy");
+        t.assert_false(null, "null should be falsy");
+        t.assert_false(0, "0 should be falsy");
+        t.assert_false(0.0, "0.0 should be falsy");
+        t.assert_false("", "empty string should be falsy");
+        t.assert_false(bytes(), "empty bytes should be falsy");
+
+        t.assert_true(true, "true should be truthy");
+        t.assert_true(1, "1 should be truthy");
+        t.assert_true("content", "non-empty string should be truthy");
+        t.assert_true(bytes([65]), "non-empty bytes should be truthy");
+        t.assert_true([], "empty array should be truthy");
+        t.assert_true({}, "empty hash should be truthy");
+    });
+
+    test("Cyclic reference protection and structural comparison", fn() {
+        let cyclic_arr = [1, 2];
+        cyclic_arr[0] = cyclic_arr;
+        assert_eq(cyclic_arr == cyclic_arr, true);
+
+        let hash_a = {"key": "val", "num": 100, "flag": true};
+        let hash_b = {"key": "val", "num": 100, "flag": true};
+        assert_eq(hash_a == hash_b, true);
+        assert_eq(hash_a != hash_b, false);
+    });
+});

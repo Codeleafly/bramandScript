@@ -1536,6 +1536,9 @@ func objectsEqualDepth(left, right object.Object, depth int) bool {
 }
 
 func isTruthy(obj object.Object) bool {
+	if obj == nil {
+		return false
+	}
 	switch obj := obj.(type) {
 	case *object.Boolean:
 		return obj.Value
@@ -1545,9 +1548,24 @@ func isTruthy(obj object.Object) bool {
 		return obj.Value != 0
 	case *object.Float:
 		return obj.Value != 0.0
+	case *object.String:
+		return obj.Value != ""
+	case *object.Bytes:
+		obj.Mu.RLock()
+		defer obj.Mu.RUnlock()
+		return len(obj.Value) > 0
+	case *object.BigInt:
+		return obj.Value != nil && obj.Value.Sign() != 0
+	case *object.BigFloat:
+		return obj.Value != nil && obj.Value.Sign() != 0
 	default:
 		return true
 	}
+}
+
+// IsTruthy returns whether an object is considered truthy in BramandScript.
+func IsTruthy(obj object.Object) bool {
+	return isTruthy(obj)
 }
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {

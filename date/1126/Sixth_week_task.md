@@ -37,5 +37,10 @@
 - [x] Automated Pure BMD Buffer & Stream I/O Test Suite (tests/40_pure_bmd_buffer_io_test.bmd): Comprehensive automated test suite covering buffer allocation, numeric codecs, byte slicing, concatenation, search, and stream piping (Includes: buffer creation, encoding roundtrips, big/little endian integers, IEEE 754 floats, stream piping with 100% byte integrity)
 ## Day 41
 
+- [x] Core VM Falsy Semantics Root Cause Fix (vm/vm.go): Fix truthiness evaluation in VM isTruthy to properly treat empty strings and empty byte buffers as falsy values across all opcodes (Includes: vm/vm.go isTruthy, OpJumpNotTruthy, OpJumpTruthy, OpAnd, OpOr, empty string falsy, empty bytes falsy)
+- [x] Boolean Operator & Control Flow Semantics Hardening (vm/ & compiler/): Standardize truthiness and falsiness evaluation across logical NOT bang operator, ternary expressions, while loops, and short-circuit operators (Includes: vm/ops_binary.go executeBangOperator, compiler ternary, while loop jumps, short-circuit evaluation value preservation)
+- [x] Builtin Type Coercion & Assertion Consistency (vm/builtins_*): Align bool conversion and test assertion builtins with canonical language truthiness rules to ensure consistent behavior (Includes: vm/builtins_types.go bool(), vm/builtins_testing.go assert, assert_true, assert_false, std/testing)
+- [x] Language Edge-Case & Structural Integrity Hardening: Verify cyclic data structure comparison depth protection, non-zero number truthiness, and zero-defect runtime evaluation (Includes: ObjectsEqual cycle protection depth > 64, non-empty string truthiness, BigInt and BigFloat truthiness consistency)
+- [x] Automated VM Falsy Semantics Test Suite (tests/41_vm_falsy_semantics_test.bmd): Comprehensive automated test suite validating falsy and truthy matrix across all types, logical operators, builtins, and branching (Includes: falsy matrix null/false/0/0.0/""/bytes(), truthy matrix, !val logical negation, bool() builtin, assert_false, if/while branching)
 ## Day 42
 
