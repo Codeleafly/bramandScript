@@ -1,5 +1,9 @@
 // BramandScript Standard Library :: I/O Module (std/io)
-// Safe file operations, directory helpers, and console utilities.
+// Safe file operations, directory helpers, console utilities, and stream combinators.
+
+import "std/buffer" as buffer;
+
+let Buffer = buffer.Buffer;
 
 let read_text = fn(path) {
     return read_file(path);
@@ -34,4 +38,241 @@ let print_header = fn(title) {
     print(line);
     print("✦ " + str(title) + "\n");
     print(line);
+};
+
+// ---------------- Stream Combinators & In-Memory Buffers ----------------
+
+// In-Memory Stream Reader over a Buffer or Bytes
+let BufferReader = fn(buf_input) {
+    let buf = buf_input;
+    if (type(buf_input) == "STRING") {
+        buf = Buffer.from(buf_input);
+    } else if (type(buf_input) == "BYTES") {
+        buf = Buffer.from(buf_input);
+    } else if (type(buf_input) == "ARRAY") {
+        buf = Buffer.from(buf_input);
+    }
+
+    let total_len = buf.length;
+    if (total_len == null) {
+        total_len = len(buf);
+    }
+    let offset = 0;
+
+    let self = {
+        "length": total_len
+    };
+
+    self["read"] = fn(max_bytes = 4096) {
+        if (offset >= total_len) {
+            return null;
+        }
+        let remaining = total_len - offset;
+        let count = max_bytes;
+        if (count > remaining) {
+            count = remaining;
+        }
+        let chunk = buf.slice(offset, offset + count);
+        offset = offset + count;
+        return chunk;
+    };
+
+    self["read_all"] = fn() {
+        if (offset >= total_len) {
+            return Buffer.alloc(0);
+        }
+        let chunk = buf.slice(offset, total_len);
+        offset = total_len;
+        return chunk;
+    };
+
+    self["seek"] = fn(pos) {
+        let p = pos;
+        if (p < 0) {
+            p = 0;
+        }
+        if (p > total_len) {
+            p = total_len;
+        }
+        offset = p;
+        return offset;
+    };
+
+    self["tell"] = fn() {
+        return offset;
+    };
+
+    self["position"] = fn() {
+        return offset;
+    };
+
+    self["is_eof"] = fn() {
+        return offset >= total_len;
+    };
+
+    self["reset"] = fn() {
+        offset = 0;
+        return self;
+    };
+
+    return self;
+};
+
+// Dynamic Resizable In-Memory Buffer Writer
+let BufferWriter = fn(initial_capacity = 0) {
+    let chunks = [];
+    let total_len = 0;
+
+    let self = {
+        "length": 0
+    };
+
+    self["write"] = fn(data) {
+        if (data == null) {
+            return 0;
+        }
+        let chunk = data;
+        let t = type(data);
+        if (t == "STRING") {
+            chunk = Buffer.from(data);
+        } else if (t == "ARRAY") {
+            chunk = Buffer.from(data);
+        } else if (t == "BYTES") {
+            chunk = Buffer.from(data);
+        }
+        let chunk_len = chunk.length;
+        if (chunk_len == null) {
+            chunk_len = len(chunk);
+        }
+        push(chunks, chunk);
+        total_len = total_len + chunk_len;
+        self["length"] = total_len;
+        return chunk_len;
+    };
+
+    self["to_buffer"] = fn() {
+        if (len(chunks) == 0) {
+            return Buffer.alloc(0);
+        }
+        return Buffer.concat(chunks, total_len);
+    };
+
+    self["to_string"] = fn(enc = "utf8") {
+        let b = self.to_buffer();
+        return b.to_string(enc);
+    };
+
+    self["reset"] = fn() {
+        chunks = [];
+        total_len = 0;
+        self["length"] = 0;
+        return self;
+    };
+
+    self["clear"] = fn() {
+        return self.reset();
+    };
+
+    self["end"] = fn(final_data = null) {
+        if (final_data != null) {
+            self.write(final_data);
+        }
+        return self.to_buffer();
+    };
+
+    return self;
+};
+
+// Stream Piping: Streams data from readable stream to writable stream
+let pipe = fn(readable, writable, opts = null) {
+    let chunk_size = 4096;
+    let should_end = true;
+    let on_chunk = null;
+    let on_finish = null;
+    let cb = null;
+
+    if (opts != null) {
+        let opt_type = type(opts);
+        if (opt_type == "FUNCTION") {
+            cb = opts;
+        } else if (opt_type == "HASH") {
+            if (opts["chunk_size"] != null) {
+                chunk_size = opts["chunk_size"];
+            }
+            if (opts["end"] != null) {
+                should_end = opts["end"];
+            }
+            if (opts["on_chunk"] != null) {
+                on_chunk = opts["on_chunk"];
+            }
+            if (opts["on_finish"] != null) {
+                on_finish = opts["on_finish"];
+            }
+            if (opts["callback"] != null) {
+                cb = opts["callback"];
+            }
+        }
+    }
+
+    let total_bytes = 0;
+
+    while true {
+        let chunk = readable.read(chunk_size);
+        if (chunk == null) {
+            break;
+        }
+        let chunk_len = chunk.length;
+        if (chunk_len == null) {
+            chunk_len = len(chunk);
+        }
+        if (chunk_len == 0) {
+            break;
+        }
+        writable.write(chunk);
+        total_bytes = total_bytes + chunk_len;
+        if (on_chunk != null) {
+            on_chunk(chunk);
+        }
+    }
+
+    if (should_end) {
+        if (type(writable) == "HASH") {
+            if (writable["end"] != null) {
+                writable.end();
+            } else if (writable["close"] != null) {
+                writable.close();
+            }
+        }
+    }
+
+    if (on_finish != null) {
+        on_finish(total_bytes);
+    }
+    if (cb != null) {
+        cb(null, total_bytes);
+    }
+
+    return total_bytes;
+};
+
+// Reads all remaining data from a readable stream into a single Buffer or string
+let read_all = fn(readable) {
+    if (type(readable) == "HASH" && readable["read_all"] != null) {
+        return readable.read_all();
+    }
+    let chunks = [];
+    while true {
+        let chunk = readable.read(4096);
+        if (chunk == null) {
+            break;
+        }
+        if (len(chunk) == 0) {
+            break;
+        }
+        push(chunks, chunk);
+    }
+    if (len(chunks) == 0) {
+        return Buffer.alloc(0);
+    }
+    return Buffer.concat(chunks);
 };

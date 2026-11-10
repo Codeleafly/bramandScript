@@ -1,0 +1,281 @@
+// tests/40_pure_bmd_buffer_io_test.bmd
+// BramandScript System Verification :: Advanced Byte Buffers & Stream I/O (Agent 10)
+// Validates Buffer Allocation, Encodings, Numeric Codecs, Slicing, Search, and Stream Piping.
+
+import "std/buffer" as buffer;
+import "std/io" as io;
+
+let Buffer = buffer.Buffer;
+
+describe("Buffer Allocation and Inspection (std/buffer)", fn() {
+    test("Buffer allocation, zero-filling, and byte length", fn() {
+        let b1 = Buffer.alloc(16);
+        assert(b1 != null);
+        assert_eq(b1.length, 16);
+        assert_eq(len(b1), 16);
+
+        // Verify zero-filled
+        let i = 0;
+        while (i < 16) {
+            assert_eq(b1.read_uint8(i), 0);
+            i = i + 1;
+        }
+
+        // Custom fill byte
+        let b2 = Buffer.alloc(8, 0xAB);
+        assert_eq(b2.length, 8);
+        assert_eq(b2.read_uint8(0), 0xAB);
+        assert_eq(b2.read_uint8(7), 0xAB);
+    });
+
+    test("Buffer.is_buffer type validation", fn() {
+        let b = Buffer.alloc(4);
+        assert(Buffer.is_buffer(b));
+        assert(Buffer.is_buffer(bytes(4)));
+        assert(!Buffer.is_buffer("string"));
+        assert(!Buffer.is_buffer([1, 2, 3]));
+        assert(!Buffer.is_buffer(null));
+        assert(!Buffer.is_buffer(42));
+    });
+
+    test("Buffer comparison order and equality", fn() {
+        let a = Buffer.from("apple");
+        let b = Buffer.from("banana");
+        let c = Buffer.from("apple");
+
+        assert_eq(Buffer.compare(a, b), -1);
+        assert_eq(Buffer.compare(b, a), 1);
+        assert_eq(Buffer.compare(a, c), 0);
+    });
+});
+
+describe("Buffer Creation & Encoding Conversions (std/buffer)", fn() {
+    test("Buffer from UTF-8 string and roundtrip", fn() {
+        let str_data = "Hello BramandScript ✦";
+        let buf = Buffer.from(str_data, "utf8");
+        assert(buf != null);
+        assert(buf.length > 0);
+        assert_eq(buf.to_string("utf8"), str_data);
+    });
+
+    test("Buffer from Hex string and roundtrip", fn() {
+        let hex_str = "deadbeefcafe";
+        let buf = Buffer.from(hex_str, "hex");
+        assert_eq(buf.length, 6);
+        assert_eq(buf.read_uint8(0), 0xDE);
+        assert_eq(buf.read_uint8(1), 0xAD);
+        assert_eq(buf.read_uint8(2), 0xBE);
+        assert_eq(buf.read_uint8(3), 0xEF);
+        assert_eq(buf.to_hex(), hex_str);
+    });
+
+    test("Buffer from Base64 string and roundtrip", fn() {
+        let b64_str = "QnJhbWFuZFNjcmlwdA=="; // "BramandScript"
+        let buf = Buffer.from(b64_str, "base64");
+        assert_eq(buf.to_string("utf8"), "BramandScript");
+        assert_eq(buf.to_base64(), b64_str);
+    });
+
+    test("Buffer from integer array", fn() {
+        let arr = [72, 101, 108, 108, 111]; // "Hello"
+        let buf = Buffer.from(arr);
+        assert_eq(buf.length, 5);
+        assert_eq(buf.to_string("utf8"), "Hello");
+        assert_eq(buf.to_array(), arr);
+    });
+
+    test("Buffer from raw bytes object and buffer clone", fn() {
+        let raw = bytes("Pristine");
+        let b1 = Buffer.from(raw);
+        assert_eq(b1.to_string(), "Pristine");
+
+        let b2 = Buffer.from(b1);
+        assert_eq(b2.to_string(), "Pristine");
+        // Mutate b2 and ensure b1 is unaffected (copy)
+        b2.write_uint8(88, 0); // 'X'
+        assert_eq(b2.to_string(), "Xristine");
+        assert_eq(b1.to_string(), "Pristine");
+    });
+});
+
+describe("Binary Numeric Codecs (std/buffer)", fn() {
+    test("8-bit unsigned integer read and write", fn() {
+        let buf = Buffer.alloc(4);
+        buf.write_uint8(0, 0);
+        buf.write_uint8(127, 1);
+        buf.write_uint8(255, 2);
+
+        assert_eq(buf.read_uint8(0), 0);
+        assert_eq(buf.read_uint8(1), 127);
+        assert_eq(buf.read_uint8(2), 255);
+    });
+
+    test("16-bit Big-Endian and Little-Endian integers", fn() {
+        let buf = Buffer.alloc(8);
+        buf.write_uint16_be(0x1234, 0);
+        buf.write_uint16_le(0x1234, 2);
+
+        assert_eq(buf.read_uint16_be(0), 0x1234);
+        assert_eq(buf.read_uint16_le(2), 0x1234);
+
+        // Byte level inspection
+        assert_eq(buf.read_uint8(0), 0x12);
+        assert_eq(buf.read_uint8(1), 0x34);
+        assert_eq(buf.read_uint8(2), 0x34);
+        assert_eq(buf.read_uint8(3), 0x12);
+    });
+
+    test("32-bit unsigned and signed integers BE and LE", fn() {
+        let buf = Buffer.alloc(16);
+        buf.write_uint32_be(305419896, 0); // 0x12345678
+        buf.write_uint32_le(305419896, 4);
+
+        assert_eq(buf.read_uint32_be(0), 305419896);
+        assert_eq(buf.read_uint32_le(4), 305419896);
+
+        // Signed 32-bit integer (-42 and -999999)
+        buf.write_int32_be(-42, 8);
+        assert_eq(buf.read_int32_be(8), -42);
+
+        buf.write_int32_le(-999999, 12);
+        assert_eq(buf.read_int32_le(12), -999999);
+    });
+
+    test("IEEE 754 32-bit and 64-bit floating point numbers", fn() {
+        let buf = Buffer.alloc(16);
+        buf.write_float_be(1.5, 0);
+        let f32 = buf.read_float_be(0);
+        assert_eq(f32, 1.5);
+
+        buf.write_double_be(3.1415926535, 4);
+        let f64 = buf.read_double_be(4);
+        assert_eq(f64, 3.1415926535);
+
+        // Little-endian double
+        buf.write_double_le(-12345.678, 4);
+        let f64_le = buf.read_double_le(4);
+        assert_eq(f64_le, -12345.678);
+    });
+});
+
+describe("Buffer Manipulation & Substring Search (std/buffer)", fn() {
+    test("Fast memory copy buf.copy()", fn() {
+        let src = Buffer.from("Antigravity");
+        let dest = Buffer.alloc(15, 0x2E); // 15 dots '.'
+
+        let copied = src.copy(dest, 2, 0, 11);
+        assert_eq(copied, 11);
+        assert_eq(dest.to_string("utf8"), "..Antigravity..");
+    });
+
+    test("Buffer slicing buf.slice()", fn() {
+        let buf = Buffer.from("BramandScript Ecosystem");
+        let sub = buf.slice(0, 13);
+        assert_eq(sub.length, 13);
+        assert_eq(sub.to_string(), "BramandScript");
+
+        let eco = buf.slice(14, 23);
+        assert_eq(eco.to_string(), "Ecosystem");
+    });
+
+    test("Buffer filling buf.fill()", fn() {
+        let buf = Buffer.alloc(10);
+        buf.fill(0x58, 2, 6); // 'X'
+        assert_eq(buf.read_uint8(1), 0);
+        assert_eq(buf.read_uint8(2), 0x58);
+        assert_eq(buf.read_uint8(5), 0x58);
+        assert_eq(buf.read_uint8(6), 0);
+    });
+
+    test("Buffer concatenation Buffer.concat()", fn() {
+        let b1 = Buffer.from("Part1-");
+        let b2 = Buffer.from("Part2-");
+        let b3 = Buffer.from("Part3");
+
+        let combined = Buffer.concat([b1, b2, b3]);
+        assert_eq(combined.length, 17);
+        assert_eq(combined.to_string(), "Part1-Part2-Part3");
+    });
+
+    test("Byte and substring search buf.index_of()", fn() {
+        let buf = Buffer.from("abcdefg 123456 abcdefg");
+
+        assert_eq(buf.index_of("abcdefg"), 0);
+        assert_eq(buf.index_of("abcdefg", 1), 15);
+        assert_eq(buf.index_of("123"), 8);
+        assert_eq(buf.index_of("missing"), -1);
+
+        // Search single byte (ASCII '1' = 49)
+        assert_eq(buf.index_of(49), 8);
+    });
+});
+
+describe("Stream Combinators & High-Level Piping (std/io)", fn() {
+    test("BufferReader sequential reading and EOF", fn() {
+        let reader = io.BufferReader("Hello World Stream");
+        assert_eq(reader.length, 18);
+        assert(!reader.is_eof());
+
+        let chunk1 = reader.read(5);
+        assert_eq(chunk1.to_string(), "Hello");
+        assert_eq(reader.tell(), 5);
+
+        let chunk2 = reader.read(6);
+        assert_eq(chunk2.to_string(), " World");
+
+        let rest = reader.read_all();
+        assert_eq(rest.to_string(), " Stream");
+        assert(reader.is_eof());
+
+        let at_eof = reader.read(10);
+        assert_eq(at_eof, null);
+    });
+
+    test("BufferWriter dynamic writes and concatenation", fn() {
+        let writer = io.BufferWriter();
+        assert_eq(writer.length, 0);
+
+        writer.write("Chunk 1: Hello ");
+        writer.write("Chunk 2: Bramand ");
+        writer.write("Chunk 3: Stream!");
+
+        assert_eq(writer.length, 48);
+        let out_buf = writer.to_buffer();
+        assert_eq(out_buf.length, 48);
+        assert_eq(writer.to_string(), "Chunk 1: Hello Chunk 2: Bramand Chunk 3: Stream!");
+
+        writer.reset();
+        assert_eq(writer.length, 0);
+        assert_eq(writer.to_string(), "");
+    });
+
+    test("Stream piping: io.pipe(BufferReader, BufferWriter) with 100% byte integrity", fn() {
+        let payload = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+                      "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
+                      "Pure BramandScript Stream Engine ✦ 100% Offline-First Byte Pipe!";
+
+        let payload_buf = Buffer.from(payload);
+        let reader = io.BufferReader(payload);
+        let writer = io.BufferWriter();
+
+        let chunks_streamed = 0;
+        let total_piped = io.pipe(reader, writer, {
+            "chunk_size": 16,
+            "on_chunk": fn(chunk) {
+                chunks_streamed = chunks_streamed + 1;
+            }
+        });
+
+        assert_eq(total_piped, payload_buf.length);
+        assert(chunks_streamed > 5);
+
+        let output_text = writer.to_string();
+        assert_eq(output_text, payload);
+    });
+
+    test("io.read_all helper consumes entire stream into buffer", fn() {
+        let reader = io.BufferReader("Full stream content drain");
+        let drained = io.read_all(reader);
+        assert_eq(drained.to_string(), "Full stream content drain");
+    });
+});

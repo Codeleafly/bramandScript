@@ -30,6 +30,11 @@
 - [x] Automated Pure BMD Process & IPC Test Suite (tests/39_pure_bmd_process_ipc_test.bmd): Comprehensive test suite covering subprocess spawn, stream I/O, IPC Unix pipelines, kill, exit codes, and OS introspection (Includes: spawn stdout read, stdin pipe cat echo, IPC pipe proc1 to proc2, exit code verification, process kill, OS metrics)
 ## Day 40
 
+- [x] Low-Level Byte Buffer Host Primitives in Go (stdlib/go_std/buffer.go & vm/builtins_binary.go): Implement low-level byte buffer allocation, encoding conversions, fast slice copying, integer/float BE/LE read/write, comparison, and search in Go (Includes: buf_alloc, buf_from_string, buf_from_array, buf_to_string, buf_copy, buf_fill, buf_read_u8/u16/u32/i32/f32/f64, buf_write_u8/u16/u32/i32/f32/f64, buf_compare, buf_concat, buf_index_of)
+- [x] Pure BramandScript Buffer Class (stdlib/bmd_std/buffer/index.bmd): Implement high-level Buffer struct and static factory methods wrapping low-level byte primitives with full binary read/write operations (Includes: Buffer.alloc, Buffer.from, Buffer.concat, Buffer.is_buffer, Buffer.compare, read/write uint8/16/32, read/write float/double, copy, slice, fill, to_string, to_hex, to_base64, index_of)
+- [x] High-Level Stream Combinators & Piping (stdlib/bmd_std/io/index.bmd): Implement pure BramandScript stream piping, reader, and dynamic buffer writer utilities for binary and text streams (Includes: io.pipe, io.read_all, io.BufferReader, io.BufferWriter)
+- [x] Master Standard Library Integration and Re-Exports (std/buffer & std/io): Integrate Buffer and IO modules into stdlib search paths and embed.FS with transparent imports (Includes: stdlib/bmd_std/buffer/index.bmd, stdlib/bmd_std/io/index.bmd, embed.FS standard library re-exports)
+- [x] Automated Pure BMD Buffer & Stream I/O Test Suite (tests/40_pure_bmd_buffer_io_test.bmd): Comprehensive automated test suite covering buffer allocation, numeric codecs, byte slicing, concatenation, search, and stream piping (Includes: buffer creation, encoding roundtrips, big/little endian integers, IEEE 754 floats, stream piping with 100% byte integrity)
 ## Day 41
 
 ## Day 42

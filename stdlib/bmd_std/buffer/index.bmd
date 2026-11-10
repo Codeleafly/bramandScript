@@ -1,0 +1,260 @@
+// BramandScript Standard Library :: Buffer Module (std/buffer)
+// Production-grade byte buffer abstraction with binary codecs and numeric serializers.
+
+let _create_buffer_instance = fn(raw_bytes) {
+    let self = {
+        "_raw": raw_bytes,
+        "is_buffer": true
+    };
+
+    self["length"] = len(raw_bytes);
+
+    self["raw"] = fn() {
+        return raw_bytes;
+    };
+
+    self["read_uint8"] = fn(offset) {
+        return buf_read_u8(raw_bytes, offset);
+    };
+
+    self["write_uint8"] = fn(val, offset) {
+        buf_write_u8(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["read_uint16_be"] = fn(offset) {
+        return buf_read_u16_be(raw_bytes, offset);
+    };
+
+    self["read_uint16_le"] = fn(offset) {
+        return buf_read_u16_le(raw_bytes, offset);
+    };
+
+    self["write_uint16_be"] = fn(val, offset) {
+        buf_write_u16_be(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["write_uint16_le"] = fn(val, offset) {
+        buf_write_u16_le(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["read_uint32_be"] = fn(offset) {
+        return buf_read_u32_be(raw_bytes, offset);
+    };
+
+    self["read_uint32_le"] = fn(offset) {
+        return buf_read_u32_le(raw_bytes, offset);
+    };
+
+    self["write_uint32_be"] = fn(val, offset) {
+        buf_write_u32_be(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["write_uint32_le"] = fn(val, offset) {
+        buf_write_u32_le(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["read_int32_be"] = fn(offset) {
+        return buf_read_i32_be(raw_bytes, offset);
+    };
+
+    self["read_int32_le"] = fn(offset) {
+        return buf_read_i32_le(raw_bytes, offset);
+    };
+
+    self["write_int32_be"] = fn(val, offset) {
+        buf_write_i32_be(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["write_int32_le"] = fn(val, offset) {
+        buf_write_i32_le(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["read_float_be"] = fn(offset) {
+        return buf_read_f32_be(raw_bytes, offset);
+    };
+
+    self["read_float_le"] = fn(offset) {
+        return buf_read_f32_le(raw_bytes, offset);
+    };
+
+    self["write_float_be"] = fn(val, offset) {
+        buf_write_f32_be(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["write_float_le"] = fn(val, offset) {
+        buf_write_f32_le(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["read_double_be"] = fn(offset) {
+        return buf_read_f64_be(raw_bytes, offset);
+    };
+
+    self["read_double_le"] = fn(offset) {
+        return buf_read_f64_le(raw_bytes, offset);
+    };
+
+    self["write_double_be"] = fn(val, offset) {
+        buf_write_f64_be(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["write_double_le"] = fn(val, offset) {
+        buf_write_f64_le(raw_bytes, val, offset);
+        return self;
+    };
+
+    self["copy"] = fn(target, tgt_start = 0, src_start = 0, src_end = null) {
+        let tgt_raw = target;
+        if (type(target) == "HASH" && target["_raw"] != null) {
+            tgt_raw = target["_raw"];
+        }
+        if (src_end == null) {
+            src_end = len(raw_bytes);
+        }
+        return buf_copy(tgt_raw, tgt_start, raw_bytes, src_start, src_end);
+    };
+
+    self["slice"] = fn(start = 0, end = null) {
+        if (end == null) {
+            end = len(raw_bytes);
+        }
+        let sub = raw_bytes.slice(start, end);
+        return _create_buffer_instance(sub);
+    };
+
+    self["fill"] = fn(val, start = 0, end = null) {
+        if (end == null) {
+            end = len(raw_bytes);
+        }
+        buf_fill(raw_bytes, val, start, end);
+        return self;
+    };
+
+    self["to_string"] = fn(enc = "utf8") {
+        return buf_to_string(raw_bytes, enc);
+    };
+
+    self["to_hex"] = fn() {
+        return buf_to_string(raw_bytes, "hex");
+    };
+
+    self["to_base64"] = fn() {
+        return buf_to_string(raw_bytes, "base64");
+    };
+
+    self["to_array"] = fn() {
+        let arr = [];
+        let i = 0;
+        let l = len(raw_bytes);
+        while (i < l) {
+            push(arr, buf_read_u8(raw_bytes, i));
+            i = i + 1;
+        }
+        return arr;
+    };
+
+    self["index_of"] = fn(needle, offset = 0) {
+        let n_raw = needle;
+        if (type(needle) == "HASH" && needle["_raw"] != null) {
+            n_raw = needle["_raw"];
+        }
+        return buf_index_of(raw_bytes, n_raw, offset);
+    };
+
+    return self;
+};
+
+// Static Buffer Namespace and Factory
+let Buffer = {
+    "alloc": fn(size, fill = 0) {
+        let raw = buf_alloc(size, fill);
+        return _create_buffer_instance(raw);
+    },
+
+    "from": fn(data, encoding = "utf8") {
+        if (data == null) {
+            return _create_buffer_instance(buf_alloc(0));
+        }
+        let t = type(data);
+        if (t == "STRING") {
+            let raw = buf_from_string(data, encoding);
+            return _create_buffer_instance(raw);
+        }
+        if (t == "ARRAY") {
+            let raw = buf_from_array(data);
+            return _create_buffer_instance(raw);
+        }
+        if (t == "BYTES") {
+            let raw = buf_alloc(len(data));
+            buf_copy(raw, 0, data, 0, len(data));
+            return _create_buffer_instance(raw);
+        }
+        if (t == "HASH" && data["_raw"] != null) {
+            let src_raw = data["_raw"];
+            let raw = buf_alloc(len(src_raw));
+            buf_copy(raw, 0, src_raw, 0, len(src_raw));
+            return _create_buffer_instance(raw);
+        }
+        return null;
+    },
+
+    "concat": fn(list, total_len = null) {
+        let raw_list = [];
+        let i = 0;
+        while (i < len(list)) {
+            let item = list[i];
+            if (type(item) == "HASH" && item["_raw"] != null) {
+                push(raw_list, item["_raw"]);
+            } else if (type(item) == "BYTES") {
+                push(raw_list, item);
+            }
+            i = i + 1;
+        }
+        let raw = buf_concat(raw_list);
+        if (total_len != null && len(raw) > total_len) {
+            raw = raw.slice(0, total_len);
+        }
+        return _create_buffer_instance(raw);
+    },
+
+    "is_buffer": fn(obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (type(obj) == "BYTES") {
+            return true;
+        }
+        if (type(obj) == "HASH" && (obj["is_buffer"] == true || obj["_raw"] != null)) {
+            return true;
+        }
+        return false;
+    },
+
+    "compare": fn(a, b) {
+        let a_raw = a;
+        if (type(a) == "HASH" && a["_raw"] != null) {
+            a_raw = a["_raw"];
+        }
+        let b_raw = b;
+        if (type(b) == "HASH" && b["_raw"] != null) {
+            b_raw = b["_raw"];
+        }
+        return buf_compare(a_raw, b_raw);
+    }
+};
+
+let alloc = Buffer.alloc;
+let from = Buffer.from;
+let concat = Buffer.concat;
+let is_buffer = Buffer.is_buffer;
+let compare = Buffer.compare;
+let create_buffer = _create_buffer_instance;

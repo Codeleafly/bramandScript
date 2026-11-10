@@ -163,10 +163,39 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 	if strIdx, ok := index.(*object.String); ok {
 		if strIdx.Value == "length" || strIdx.Value == "len" {
 			hashObject.Mu.RLock()
+			rawPair, hasRaw := hashObject.Pairs[(&object.String{Value: "_raw"}).HashKey()]
+			if hasRaw {
+				if rb, isBytes := rawPair.Value.(*object.Bytes); isBytes {
+					rb.Mu.RLock()
+					blen := int64(len(rb.Value))
+					rb.Mu.RUnlock()
+					hashObject.Mu.RUnlock()
+					return vm.push(&object.Integer{Value: blen})
+				}
+			}
 			l := len(hashObject.Pairs)
 			hashObject.Mu.RUnlock()
 			return vm.push(&object.Integer{Value: int64(l)})
 		}
+	}
+
+	if intIdx, ok := index.(*object.Integer); ok {
+		hashObject.Mu.RLock()
+		rawPair, hasRaw := hashObject.Pairs[(&object.String{Value: "_raw"}).HashKey()]
+		if hasRaw {
+			if rb, isBytes := rawPair.Value.(*object.Bytes); isBytes {
+				rb.Mu.RLock()
+				i := intIdx.Value
+				if i >= 0 && i < int64(len(rb.Value)) {
+					v := int64(rb.Value[i])
+					rb.Mu.RUnlock()
+					hashObject.Mu.RUnlock()
+					return vm.push(&object.Integer{Value: v})
+				}
+				rb.Mu.RUnlock()
+			}
+		}
+		hashObject.Mu.RUnlock()
 	}
 
 	return vm.push(Null)
@@ -200,6 +229,22 @@ func (vm *VM) executeSetIndex(left, index, value object.Object) error {
 		defer l.Mu.Unlock()
 		if l.ReadOnly {
 			return fmt.Errorf("TypeError: cannot mutate read-only module namespace")
+		}
+		if intKey, isInt := index.(*object.Integer); isInt {
+			rawKey := (&object.String{Value: "_raw"}).HashKey()
+			if rawPair, hasRaw := l.Pairs[rawKey]; hasRaw {
+				if rb, isBytes := rawPair.Value.(*object.Bytes); isBytes {
+					if intVal, isValInt := value.(*object.Integer); isValInt {
+						rb.Mu.Lock()
+						defer rb.Mu.Unlock()
+						i := intKey.Value
+						if i >= 0 && i < int64(len(rb.Value)) {
+							rb.Value[i] = byte(intVal.Value & 0xFF)
+							return nil
+						}
+					}
+				}
+			}
 		}
 		l.Pairs[key.HashKey()] = object.HashPair{Key: index, Value: value}
 		return nil
@@ -857,6 +902,16 @@ func (vm *VM) executeBytesMethod(left, index object.Object) (bool, error) {
 	case "to_string":
 		return true, vm.push(&object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
+				enc := "utf8"
+				if len(args) > 0 {
+					if e, ok := args[0].(*object.String); ok {
+						enc = e.Value
+					}
+				}
+				fn := GetBuiltin("buf_to_string")
+				if fn != nil {
+					return fn.Fn(b, &object.String{Value: enc})
+				}
 				b.Mu.RLock()
 				defer b.Mu.RUnlock()
 				return &object.String{Value: string(b.Value)}
@@ -868,6 +923,290 @@ func (vm *VM) executeBytesMethod(left, index object.Object) (bool, error) {
 				b.Mu.RLock()
 				defer b.Mu.RUnlock()
 				return &object.String{Value: fmt.Sprintf("%x", b.Value)}
+			},
+		})
+	case "to_base64":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				fn := GetBuiltin("buf_to_string")
+				if fn != nil {
+					return fn.Fn(b, &object.String{Value: "base64"})
+				}
+				b.Mu.RLock()
+				defer b.Mu.RUnlock()
+				return &object.String{Value: string(b.Value)}
+			},
+		})
+	case "to_array":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				b.Mu.RLock()
+				defer b.Mu.RUnlock()
+				elements := make([]object.Object, len(b.Value))
+				for i, bt := range b.Value {
+					elements[i] = &object.Integer{Value: int64(bt)}
+				}
+				return &object.Array{Elements: elements}
+			},
+		})
+	case "read_uint8":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_uint8 expected 1 argument (offset), got %d", len(args))}
+				}
+				fn := GetBuiltin("buf_read_u8")
+				return fn.Fn(b, args[0])
+			},
+		})
+	case "write_uint8":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_uint8 expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				fn := GetBuiltin("buf_write_u8")
+				return fn.Fn(b, args[0], args[1])
+			},
+		})
+	case "read_uint16_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_uint16_be expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_u16_be").Fn(b, args[0])
+			},
+		})
+	case "read_uint16_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_uint16_le expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_u16_le").Fn(b, args[0])
+			},
+		})
+	case "write_uint16_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_uint16_be expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_u16_be").Fn(b, args[0], args[1])
+			},
+		})
+	case "write_uint16_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_uint16_le expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_u16_le").Fn(b, args[0], args[1])
+			},
+		})
+	case "read_uint32_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_uint32_be expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_u32_be").Fn(b, args[0])
+			},
+		})
+	case "read_uint32_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_uint32_le expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_u32_le").Fn(b, args[0])
+			},
+		})
+	case "write_uint32_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_uint32_be expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_u32_be").Fn(b, args[0], args[1])
+			},
+		})
+	case "write_uint32_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_uint32_le expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_u32_le").Fn(b, args[0], args[1])
+			},
+		})
+	case "read_int32_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_int32_be expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_i32_be").Fn(b, args[0])
+			},
+		})
+	case "read_int32_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_int32_le expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_i32_le").Fn(b, args[0])
+			},
+		})
+	case "write_int32_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_int32_be expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_i32_be").Fn(b, args[0], args[1])
+			},
+		})
+	case "write_int32_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_int32_le expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_i32_le").Fn(b, args[0], args[1])
+			},
+		})
+	case "read_float_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_float_be expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_f32_be").Fn(b, args[0])
+			},
+		})
+	case "read_float_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_float_le expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_f32_le").Fn(b, args[0])
+			},
+		})
+	case "write_float_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_float_be expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_f32_be").Fn(b, args[0], args[1])
+			},
+		})
+	case "write_float_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_float_le expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_f32_le").Fn(b, args[0], args[1])
+			},
+		})
+	case "read_double_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_double_be expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_f64_be").Fn(b, args[0])
+			},
+		})
+	case "read_double_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("read_double_le expected 1 argument (offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_read_f64_le").Fn(b, args[0])
+			},
+		})
+	case "write_double_be":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_double_be expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_f64_be").Fn(b, args[0], args[1])
+			},
+		})
+	case "write_double_le":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 2 {
+					return &object.Error{Message: fmt.Sprintf("write_double_le expected 2 arguments (val, offset), got %d", len(args))}
+				}
+				return GetBuiltin("buf_write_f64_le").Fn(b, args[0], args[1])
+			},
+		})
+	case "copy":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return &object.Error{Message: "copy expected at least 1 argument (target)"}
+				}
+				target := args[0]
+				var tgtStart object.Object = &object.Integer{Value: 0}
+				var srcStart object.Object = &object.Integer{Value: 0}
+				var srcEnd object.Object = Null
+				if len(args) >= 2 {
+					tgtStart = args[1]
+				}
+				if len(args) >= 3 {
+					srcStart = args[2]
+				}
+				if len(args) >= 4 {
+					srcEnd = args[3]
+				}
+				return GetBuiltin("buf_copy").Fn(target, tgtStart, b, srcStart, srcEnd)
+			},
+		})
+	case "fill":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return &object.Error{Message: "fill expected at least 1 argument (val)"}
+				}
+				callArgs := []object.Object{b, args[0]}
+				if len(args) >= 2 {
+					callArgs = append(callArgs, args[1])
+				}
+				if len(args) >= 3 {
+					callArgs = append(callArgs, args[2])
+				}
+				return GetBuiltin("buf_fill").Fn(callArgs...)
+			},
+		})
+	case "index_of":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return &object.Error{Message: "index_of expected at least 1 argument (needle)"}
+				}
+				callArgs := []object.Object{b, args[0]}
+				if len(args) >= 2 {
+					callArgs = append(callArgs, args[1])
+				}
+				return GetBuiltin("buf_index_of").Fn(callArgs...)
+			},
+		})
+	case "compare":
+		return true, vm.push(&object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return &object.Error{Message: fmt.Sprintf("compare expected 1 argument (other), got %d", len(args))}
+				}
+				return GetBuiltin("buf_compare").Fn(b, args[0])
 			},
 		})
 	}

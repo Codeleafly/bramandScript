@@ -128,6 +128,15 @@ func init() {
 				case *object.Hash:
 					arg.Mu.RLock()
 					defer arg.Mu.RUnlock()
+					rawKey := (&object.String{Value: "_raw"}).HashKey()
+					if rawPair, hasRaw := arg.Pairs[rawKey]; hasRaw {
+						if rb, isBytes := rawPair.Value.(*object.Bytes); isBytes {
+							rb.Mu.RLock()
+							blen := int64(len(rb.Value))
+							rb.Mu.RUnlock()
+							return &object.Integer{Value: blen}
+						}
+					}
 					return &object.Integer{Value: int64(len(arg.Pairs))}
 				case *object.Bytes:
 					arg.Mu.RLock()
