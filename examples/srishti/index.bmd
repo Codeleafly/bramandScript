@@ -6,6 +6,7 @@ import "./token/index" as tok_pkg
 import "./lexer/index" as lex_pkg
 import "./ast/index" as ast_pkg
 import "./parser/index" as parse_pkg
+import "./compiler/index" as comp_pkg
 
 // --- Token Specifications & Coordinates ---
 let Position = tok_pkg.Position;
@@ -225,4 +226,86 @@ let parse = fn(source_code, filename) {
     let l = new_lexer(source_code, filename);
     let p = new_parser(l);
     return p.parse_program();
+};
+
+// --- Compiler Subsystem Re-exports ---
+let OP_CONSTANT = comp_pkg.OP_CONSTANT;
+let OP_POP = comp_pkg.OP_POP;
+let OP_ADD = comp_pkg.OP_ADD;
+let OP_SUB = comp_pkg.OP_SUB;
+let OP_MUL = comp_pkg.OP_MUL;
+let OP_DIV = comp_pkg.OP_DIV;
+let OP_MOD = comp_pkg.OP_MOD;
+let OP_POW = comp_pkg.OP_POW;
+let OP_EQUAL = comp_pkg.OP_EQUAL;
+let OP_NOT_EQUAL = comp_pkg.OP_NOT_EQUAL;
+let OP_GREATER_THAN = comp_pkg.OP_GREATER_THAN;
+let OP_LESS_THAN = comp_pkg.OP_LESS_THAN;
+let OP_GREATER_EQUAL = comp_pkg.OP_GREATER_EQUAL;
+let OP_LESS_EQUAL = comp_pkg.OP_LESS_EQUAL;
+let OP_CONCAT = comp_pkg.OP_CONCAT;
+let OP_TRUE = comp_pkg.OP_TRUE;
+let OP_FALSE = comp_pkg.OP_FALSE;
+let OP_NULL = comp_pkg.OP_NULL;
+let OP_MINUS = comp_pkg.OP_MINUS;
+let OP_NOT = comp_pkg.OP_NOT;
+let OP_JUMP = comp_pkg.OP_JUMP;
+let OP_JUMP_NOT_TRUTHY = comp_pkg.OP_JUMP_NOT_TRUTHY;
+let OP_SET_GLOBAL = comp_pkg.OP_SET_GLOBAL;
+let OP_GET_GLOBAL = comp_pkg.OP_GET_GLOBAL;
+let OP_SET_LOCAL = comp_pkg.OP_SET_LOCAL;
+let OP_GET_LOCAL = comp_pkg.OP_GET_LOCAL;
+let OP_ARRAY = comp_pkg.OP_ARRAY;
+let OP_INDEX_GET = comp_pkg.OP_INDEX_GET;
+let OP_INDEX_SET = comp_pkg.OP_INDEX_SET;
+let OP_PROPERTY_GET = comp_pkg.OP_PROPERTY_GET;
+let OP_PROPERTY_SET = comp_pkg.OP_PROPERTY_SET;
+let OP_CALL = comp_pkg.OP_CALL;
+let OP_RETURN_VALUE = comp_pkg.OP_RETURN_VALUE;
+let OP_RETURN = comp_pkg.OP_RETURN;
+let OP_CLOSURE = comp_pkg.OP_CLOSURE;
+let OP_GET_FREE = comp_pkg.OP_GET_FREE;
+let OP_SET_FREE = comp_pkg.OP_SET_FREE;
+let OP_GET_BUILTIN = comp_pkg.OP_GET_BUILTIN;
+let OP_STRUCT_DEF = comp_pkg.OP_STRUCT_DEF;
+let OP_SPAWN = comp_pkg.OP_SPAWN;
+let OP_DISPLAY = comp_pkg.OP_DISPLAY;
+let OP_DUP = comp_pkg.OP_DUP;
+
+let OpcodeDefinition = comp_pkg.OpcodeDefinition;
+let opcode_definitions = comp_pkg.opcode_definitions;
+let lookup_opcode = comp_pkg.lookup_opcode;
+let make_instruction = comp_pkg.make_instruction;
+let read_operands = comp_pkg.read_operands;
+let disassemble = comp_pkg.disassemble;
+
+let SCOPE_GLOBAL = comp_pkg.SCOPE_GLOBAL;
+let SCOPE_LOCAL = comp_pkg.SCOPE_LOCAL;
+let SCOPE_FREE = comp_pkg.SCOPE_FREE;
+let SCOPE_BUILTIN = comp_pkg.SCOPE_BUILTIN;
+let SCOPE_FUNCTION = comp_pkg.SCOPE_FUNCTION;
+
+let Symbol = comp_pkg.Symbol;
+let new_symbol = comp_pkg.new_symbol;
+let SymbolTable = comp_pkg.SymbolTable;
+let new_symbol_table = comp_pkg.new_symbol_table;
+let new_enclosed_symbol_table = comp_pkg.new_enclosed_symbol_table;
+let new_enclosed_block_symbol_table = comp_pkg.new_enclosed_block_symbol_table;
+
+let CompiledFunction = comp_pkg.CompiledFunction;
+let new_compiled_function = comp_pkg.new_compiled_function;
+let Bytecode = comp_pkg.Bytecode;
+let new_bytecode = comp_pkg.new_bytecode;
+
+let fold_constants = comp_pkg.fold_constants;
+let optimize_bytecode = comp_pkg.optimize_bytecode;
+
+let Compiler = comp_pkg.Compiler;
+let new_compiler = comp_pkg.new_compiler;
+let new_optimizing_compiler = comp_pkg.new_optimizing_compiler;
+
+// Convenience function to compile Srishti source code into Bytecode
+let compile = fn(source_code, filename) {
+    let program = parse(source_code, filename);
+    return comp_pkg.compile(program);
 };

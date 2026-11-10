@@ -176,7 +176,7 @@ let SYMBOL_OPERATORS = {
 
 // Resolves a single identifier to its keyword token type or TOKEN_IDENTIFIER
 let lookup_keyword = fn(ident) {
-    if KEYWORDS[ident] != null {
+    if contains(KEYWORDS, ident) {
         return KEYWORDS[ident];
     }
     return TOKEN_IDENTIFIER;
@@ -184,7 +184,7 @@ let lookup_keyword = fn(ident) {
 
 // Resolves a multi-word phrase to its compound keyword token type or null
 let lookup_compound_keyword = fn(phrase) {
-    if COMPOUND_KEYWORDS[phrase] != null {
+    if contains(COMPOUND_KEYWORDS, phrase) {
         return COMPOUND_KEYWORDS[phrase];
     }
     return null;
@@ -192,7 +192,7 @@ let lookup_compound_keyword = fn(phrase) {
 
 // Checks if an identifier string is a registered single-word keyword
 let is_keyword = fn(ident) {
-    return KEYWORDS[ident] != null;
+    return contains(KEYWORDS, ident);
 };
 
 // Checks if a word is eligible to start a multi-word compound keyword

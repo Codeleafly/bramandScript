@@ -1,0 +1,305 @@
+// Srishti Programming Language :: AST & Bytecode Optimizer
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "../ast/ast" as ast_base
+import "../ast/expressions" as ast_exp
+import "./opcode" as opc
+
+// Compile-Time Constant Folding on AST Nodes
+let fold_constants = fn(node) {
+    if node == null {
+        return null;
+    }
+
+    let nt = node.node_type;
+
+    if nt == ast_base.NODE_PROGRAM {
+        let i = 0;
+        let new_stmts = [];
+        while i < len(node.statements) {
+            new_stmts = push(new_stmts, fold_constants(node.statements[i]));
+            i = i + 1;
+        }
+        node["statements"] = new_stmts;
+        return node;
+    }
+
+    if nt == ast_base.NODE_EXPRESSION_STMT {
+        node["expression"] = fold_constants(node.expression);
+        return node;
+    }
+
+    if nt == ast_base.NODE_LET {
+        node["value"] = fold_constants(node.value);
+        return node;
+    }
+
+    if nt == ast_base.NODE_SET {
+        node["value"] = fold_constants(node.value);
+        return node;
+    }
+
+    if nt == ast_base.NODE_RETURN {
+        if node.return_value != null {
+            node["return_value"] = fold_constants(node.return_value);
+        }
+        return node;
+    }
+
+    if nt == ast_base.NODE_DISPLAY {
+        node["expression"] = fold_constants(node.expression);
+        return node;
+    }
+
+    if nt == ast_base.NODE_BLOCK {
+        let i = 0;
+        let new_stmts = [];
+        while i < len(node.statements) {
+            new_stmts = push(new_stmts, fold_constants(node.statements[i]));
+            i = i + 1;
+        }
+        node["statements"] = new_stmts;
+        return node;
+    }
+
+    if nt == ast_base.NODE_IF {
+        node["condition"] = fold_constants(node.condition);
+        node["consequence"] = fold_constants(node.consequence);
+        if node.alternative != null {
+            node["alternative"] = fold_constants(node.alternative);
+        }
+        return node;
+    }
+
+    if nt == ast_base.NODE_REPEAT_WHILE {
+        node["condition"] = fold_constants(node.condition);
+        node["body"] = fold_constants(node.body);
+        return node;
+    }
+
+    if nt == ast_base.NODE_PREFIX_EXPR {
+        node["right"] = fold_constants(node.right);
+        let r = node.right;
+
+        if node.operator == "not" && r.node_type == ast_base.NODE_BOOLEAN_LITERAL {
+            return ast_exp.new_boolean_literal(node.token, !r.value);
+        }
+        if node.operator == "-" && r.node_type == ast_base.NODE_INTEGER_LITERAL {
+            return ast_exp.new_integer_literal(node.token, -r.value);
+        }
+        if node.operator == "-" && r.node_type == ast_base.NODE_FLOAT_LITERAL {
+            return ast_exp.new_float_literal(node.token, -r.value);
+        }
+        return node;
+    }
+
+    if nt == ast_base.NODE_INFIX_EXPR {
+        node["left"] = fold_constants(node.left);
+        node["right"] = fold_constants(node.right);
+        let l = node.left;
+        let r = node.right;
+        let op = node.operator;
+
+        // Integer op Integer folding
+        if l.node_type == ast_base.NODE_INTEGER_LITERAL && r.node_type == ast_base.NODE_INTEGER_LITERAL {
+            let v1 = l.value;
+            let v2 = r.value;
+
+            if op == "plus" || op == "+" {
+                return ast_exp.new_integer_literal(node.token, v1 + v2);
+            }
+            if op == "minus" || op == "-" {
+                return ast_exp.new_integer_literal(node.token, v1 - v2);
+            }
+            if op == "times" || op == "*" {
+                return ast_exp.new_integer_literal(node.token, v1 * v2);
+            }
+            if ((op == "divided by" || op == "/") && v2 != 0) {
+                return ast_exp.new_integer_literal(node.token, int(v1 / v2));
+            }
+            if ((op == "modulo" || op == "%") && v2 != 0) {
+                return ast_exp.new_integer_literal(node.token, v1 % v2);
+            }
+            if ((op == "raised to" || op == "**") && v2 >= 0 && v2 <= 30) {
+                let res = 1;
+                let k = 0;
+                while k < v2 {
+                    res = res * v1;
+                    k = k + 1;
+                }
+                return ast_exp.new_integer_literal(node.token, res);
+            }
+
+            // Relational comparisons
+            if op == "is equal to" || op == "==" {
+                return ast_exp.new_boolean_literal(node.token, v1 == v2);
+            }
+            if op == "is not equal to" || op == "!=" {
+                return ast_exp.new_boolean_literal(node.token, v1 != v2);
+            }
+            if op == "is greater than" || op == ">" {
+                return ast_exp.new_boolean_literal(node.token, v1 > v2);
+            }
+            if op == "is less than" || op == "<" {
+                return ast_exp.new_boolean_literal(node.token, v1 < v2);
+            }
+            if op == "is greater than or equal to" || op == ">=" {
+                return ast_exp.new_boolean_literal(node.token, v1 >= v2);
+            }
+            if op == "is less than or equal to" || op == "<=" {
+                return ast_exp.new_boolean_literal(node.token, v1 <= v2);
+            }
+        }
+
+        // Float op Float folding
+        if l.node_type == ast_base.NODE_FLOAT_LITERAL && r.node_type == ast_base.NODE_FLOAT_LITERAL {
+            let v1 = l.value;
+            let v2 = r.value;
+
+            if op == "plus" || op == "+" {
+                return ast_exp.new_float_literal(node.token, v1 + v2);
+            }
+            if op == "minus" || op == "-" {
+                return ast_exp.new_float_literal(node.token, v1 - v2);
+            }
+            if op == "times" || op == "*" {
+                return ast_exp.new_float_literal(node.token, v1 * v2);
+            }
+            if ((op == "divided by" || op == "/") && v2 != 0.0) {
+                return ast_exp.new_float_literal(node.token, v1 / v2);
+            }
+            if op == "is equal to" || op == "==" {
+                return ast_exp.new_boolean_literal(node.token, v1 == v2);
+            }
+            if op == "is not equal to" || op == "!=" {
+                return ast_exp.new_boolean_literal(node.token, v1 != v2);
+            }
+        }
+
+        // String combined with String
+        if l.node_type == ast_base.NODE_STRING_LITERAL && r.node_type == ast_base.NODE_STRING_LITERAL {
+            if op == "combined with" || op == "+" {
+                return ast_exp.new_string_literal(node.token, l.value + r.value);
+            }
+            if op == "is equal to" || op == "==" {
+                return ast_exp.new_boolean_literal(node.token, l.value == r.value);
+            }
+            if op == "is not equal to" || op == "!=" {
+                return ast_exp.new_boolean_literal(node.token, l.value != r.value);
+            }
+        }
+
+        // Boolean and / or Boolean
+        if l.node_type == ast_base.NODE_BOOLEAN_LITERAL && r.node_type == ast_base.NODE_BOOLEAN_LITERAL {
+            if op == "and" {
+                return ast_exp.new_boolean_literal(node.token, l.value && r.value);
+            }
+            if op == "or" {
+                return ast_exp.new_boolean_literal(node.token, l.value || r.value);
+            }
+            if op == "is equal to" || op == "==" {
+                return ast_exp.new_boolean_literal(node.token, l.value == r.value);
+            }
+            if op == "is not equal to" || op == "!=" {
+                return ast_exp.new_boolean_literal(node.token, l.value != r.value);
+            }
+        }
+
+        return node;
+    }
+
+    return node;
+};
+
+// Peephole Optimizer on Bytecode Instructions
+let optimize_bytecode = fn(instructions) {
+    if len(instructions) < 2 {
+        return instructions;
+    }
+
+    let out = [];
+    let offset_map = [];
+    let i = 0;
+    while i <= len(instructions) {
+        offset_map = push(offset_map, 0);
+        i = i + 1;
+    }
+
+    i = 0;
+    while i < len(instructions) {
+        let op = instructions[i];
+        let def = opc.lookup_opcode(op);
+
+        if def == null {
+            offset_map[i] = len(out);
+            out = push(out, op);
+            i = i + 1;
+        } else {
+            let ins_len = 1;
+            let k = 0;
+            while k < len(def.operand_widths) {
+                ins_len = ins_len + def.operand_widths[k];
+                k = k + 1;
+            }
+
+            if i + ins_len > len(instructions) {
+                let rem = i;
+                while rem < len(instructions) {
+                    offset_map[rem] = len(out);
+                    out = push(out, instructions[rem]);
+                    rem = rem + 1;
+                }
+                break;
+            }
+
+            // Peephole: OP_DUP followed immediately by OP_POP -> eliminate both
+            if (op == opc.OP_DUP && (i + ins_len < len(instructions)) && (instructions[i + ins_len] == opc.OP_POP)) {
+                let skip = 0;
+                while skip < ins_len + 1 {
+                    offset_map[i + skip] = len(out);
+                    skip = skip + 1;
+                }
+                i = i + ins_len + 1;
+            } else {
+                let copy_idx = 0;
+                while copy_idx < ins_len {
+                    offset_map[i + copy_idx] = len(out) + copy_idx;
+                    out = push(out, instructions[i + copy_idx]);
+                    copy_idx = copy_idx + 1;
+                }
+                i = i + ins_len;
+            }
+        }
+    }
+    offset_map[len(instructions)] = len(out);
+
+    // Pass 2: Re-target all jumps according to offset_map
+    let j = 0;
+    while j < len(out) {
+        let op = out[j];
+        let def = opc.lookup_opcode(op);
+        if def == null {
+            j = j + 1;
+        } else {
+            let ins_len = 1;
+            let k = 0;
+            while k < len(def.operand_widths) {
+                ins_len = ins_len + def.operand_widths[k];
+                k = k + 1;
+            }
+
+            if ((op == opc.OP_JUMP || op == opc.OP_JUMP_NOT_TRUTHY) && (j + 3 <= len(out))) {
+                let old_target = (out[j + 1] << 8) | out[j + 2];
+                if old_target <= len(instructions) {
+                    let new_target = offset_map[old_target];
+                    out[j + 1] = (new_target >> 8) & 255;
+                    out[j + 2] = new_target & 255;
+                }
+            }
+            j = j + ins_len;
+        }
+    }
+
+    return out;
+};

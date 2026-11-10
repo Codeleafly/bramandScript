@@ -1,0 +1,136 @@
+// Srishti Programming Language :: Lexical Scoping & Symbol Table
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Symbol Scope Constants
+let SCOPE_GLOBAL = "GLOBAL";
+let SCOPE_LOCAL = "LOCAL";
+let SCOPE_FREE = "FREE";
+let SCOPE_BUILTIN = "BUILTIN";
+let SCOPE_FUNCTION = "FUNCTION";
+
+// Symbol Representation
+struct Symbol {
+    name,
+    scope,
+    index,
+    is_constant,
+
+    fn to_string() {
+        let const_str = "";
+        if is_constant {
+            const_str = " (const)";
+        }
+        return "Symbol(" + name + ", " + scope + ", idx=" + str(index) + const_str + ")";
+    }
+
+    fn inspect() {
+        return to_string();
+    }
+}
+
+// Symbol Constructor Helper
+let new_symbol = fn(name, scope, index, is_constant) {
+    if is_constant == null {
+        is_constant = false;
+    }
+    return Symbol(name, scope, index, is_constant);
+};
+
+// Symbol Table Structure
+struct SymbolTable {
+    outer,
+    store,
+    num_definitions,
+    free_symbols,
+    is_block,
+
+    // Define a new symbol in the current scope
+    fn define(name, is_constant) {
+        if is_constant == null {
+            is_constant = false;
+        }
+
+        let scope = SCOPE_GLOBAL;
+        if outer != null {
+            scope = SCOPE_LOCAL;
+        }
+
+        let symbol = Symbol(name, scope, num_definitions, is_constant);
+        store[name] = symbol;
+        num_definitions = num_definitions + 1;
+        return symbol;
+    }
+
+    // Define a built-in function or identifier
+    fn define_builtin(index, name) {
+        let symbol = Symbol(name, SCOPE_BUILTIN, index, true);
+        store[name] = symbol;
+        return symbol;
+    }
+
+    // Define recursive function name reference inside its own body
+    fn define_function_name(name) {
+        let symbol = Symbol(name, SCOPE_FUNCTION, 0, true);
+        store[name] = symbol;
+        return symbol;
+    }
+
+    // Capture and define a free variable from an outer scope
+    fn define_free(original) {
+        let i = 0;
+        while i < len(free_symbols) {
+            if free_symbols[i].name == original.name {
+                return store[original.name];
+            }
+            i = i + 1;
+        }
+
+        free_symbols = push(free_symbols, original);
+        let free_index = len(free_symbols) - 1;
+        let symbol = Symbol(original.name, SCOPE_FREE, free_index, original.is_constant);
+        store[original.name] = symbol;
+        return symbol;
+    }
+
+    // Resolve an identifier through the lexical scope hierarchy
+    fn resolve(name) {
+        if contains(store, name) {
+            return store[name];
+        }
+
+        if outer == null {
+            return null;
+        }
+
+        let obj = outer.resolve(name);
+        if obj == null {
+            return null;
+        }
+
+        if obj.scope == SCOPE_GLOBAL || obj.scope == SCOPE_BUILTIN {
+            return obj;
+        }
+
+        if is_block {
+            return obj;
+        }
+
+        return define_free(obj);
+    }
+}
+
+// Constructor: Root (Global) Symbol Table
+let new_symbol_table = fn() {
+    return SymbolTable(null, {}, 0, [], false);
+};
+
+// Constructor: Enclosed (Function) Child Symbol Table
+let new_enclosed_symbol_table = fn(outer) {
+    return SymbolTable(outer, {}, 0, [], false);
+};
+
+// Constructor: Enclosed Block Scope Symbol Table
+let new_enclosed_block_symbol_table = fn(outer) {
+    return SymbolTable(outer, {}, 0, [], true);
+};

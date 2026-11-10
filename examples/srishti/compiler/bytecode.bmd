@@ -1,0 +1,158 @@
+// Srishti Programming Language :: Bytecode Representation & Disassembler
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./opcode" as opc
+
+// Compiled Function Struct
+struct CompiledFunction {
+    name,
+    instructions,
+    num_locals,
+    num_parameters,
+
+    fn to_string() {
+        return "CompiledFunction(" + name + ", " + str(len(instructions)) + " bytes, " + str(num_locals) + " locals)";
+    }
+
+    fn inspect() {
+        return to_string();
+    }
+}
+
+let new_compiled_function = fn(name, instructions, num_locals, num_parameters) {
+    if name == null {
+        name = "<anonymous>";
+    }
+    if instructions == null {
+        instructions = [];
+    }
+    if num_locals == null {
+        num_locals = 0;
+    }
+    if num_parameters == null {
+        num_parameters = 0;
+    }
+    return CompiledFunction(name, instructions, num_locals, num_parameters);
+};
+
+// Disassemble instruction list with constant annotations
+let disassemble_instructions = fn(ins, consts, indent) {
+    if indent == null {
+        indent = "";
+    }
+    let out = "";
+    let i = 0;
+
+    while i < len(ins) {
+        let op = ins[i];
+        let def = opc.lookup_opcode(op);
+
+        if def == null {
+            out = out + indent + opc.format_offset(i) + " ERROR: Unknown opcode " + str(op) + "\n";
+            i = i + 1;
+        } else {
+            let res = opc.read_operands(def, ins, i + 1);
+            let operands = res["operands"];
+            let bytes_read = res["bytes_read"];
+
+            let comment = "";
+            if op == opc.OP_CONSTANT && len(operands) > 0 {
+                let const_index = operands[0];
+                if const_index < len(consts) {
+                    let val = consts[const_index];
+                    if val == null {
+                        comment = " // null";
+                    } else if type(val) == "STRING" {
+                        comment = " // \"" + val + "\"";
+                    } else {
+                        comment = " // " + str(val);
+                    }
+                }
+            } else if ((op == opc.OP_PROPERTY_GET || op == opc.OP_PROPERTY_SET) && len(operands) > 0) {
+                let prop_index = operands[0];
+                if prop_index < len(consts) {
+                    comment = " // ." + str(consts[prop_index]);
+                }
+            } else if op == opc.OP_STRUCT_DEF && len(operands) > 0 {
+                let name_index = operands[0];
+                if name_index < len(consts) {
+                    comment = " // struct " + str(consts[name_index]);
+                }
+            }
+
+            out = out + indent + opc.format_offset(i) + " " + opc.format_instruction(def, operands) + comment + "\n";
+            i = i + 1 + bytes_read;
+        }
+    }
+
+    return out;
+};
+
+// Bytecode Artifact Container
+struct Bytecode {
+    instructions,
+    constants,
+    symbol_table,
+
+    // Disassembles entire bytecode unit including constant pool annotations
+    fn disassemble() {
+        let out = "=== Srishti Bytecode Disassembly ===\n";
+        out = out + "Constants (" + str(len(constants)) + " entries):\n";
+
+        let c_idx = 0;
+        while c_idx < len(constants) {
+            let c = constants[c_idx];
+            let c_str = "";
+            if c == null {
+                c_str = "null";
+            } else if type(c) == "STRING" {
+                c_str = "\"" + c + "\"";
+            } else if ((type(c) == "HASH" || type(c) == "STRUCT") && contains(c, "to_string")) {
+                c_str = c.to_string();
+            } else {
+                c_str = str(c);
+            }
+            out = out + "  [" + str(c_idx) + "] " + c_str + "\n";
+            c_idx = c_idx + 1;
+        }
+
+        out = out + "\nInstructions (" + str(len(instructions)) + " bytes):\n";
+        out = out + disassemble_instructions(instructions, constants, "  ");
+
+        // Inspect compiled functions in constant pool
+        let f_idx = 0;
+        while f_idx < len(constants) {
+            let const_item = constants[f_idx];
+            if (const_item != null && (type(const_item) == "HASH" || type(const_item) == "STRUCT")) {
+                // Check if this is a CompiledFunction
+                if (contains(const_item, "num_locals") && contains(const_item, "num_parameters")) {
+                    out = out + "\n--- Function: " + const_item.name + " (" + str(const_item.num_parameters) + " params, " + str(const_item.num_locals) + " locals) ---\n";
+                    out = out + disassemble_instructions(const_item.instructions, constants, "  ");
+                }
+            }
+            f_idx = f_idx + 1;
+        }
+
+        return out;
+    }
+
+    fn to_string() {
+        return "Bytecode(" + str(len(instructions)) + " instructions, " + str(len(constants)) + " constants)";
+    }
+
+    fn inspect() {
+        return to_string();
+    }
+}
+
+// Bytecode Constructor Helper
+let new_bytecode = fn(instructions, constants, symbol_table) {
+    if instructions == null {
+        instructions = [];
+    }
+    if constants == null {
+        constants = [];
+    }
+    return Bytecode(instructions, constants, symbol_table);
+};

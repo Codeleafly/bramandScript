@@ -1,0 +1,721 @@
+// Srishti Programming Language :: Bytecode Compiler Engine
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "../ast/ast" as ast_base
+import "./opcode" as opc
+import "./symbol_table" as sym_pkg
+import "./bytecode" as bc_pkg
+import "./optimizer" as opt
+
+// Pre-defined built-in names
+let BUILTINS = ["len", "print", "println", "str", "int", "float", "type", "push", "slice", "input"];
+
+// Emitted Instruction Tracking
+struct EmittedInstruction {
+    opcode,
+    position,
+}
+
+// Compilation Scope for Function Boundaries
+struct CompilationScope {
+    instructions,
+    last_instruction,
+    previous_instruction,
+}
+
+let new_compilation_scope = fn() {
+    return CompilationScope([], null, null);
+};
+
+// Srishti Bytecode Compiler
+struct Compiler {
+    constants,
+    symbol_table,
+    scopes,
+    scope_index,
+    optimize,
+    errors,
+
+    // Return current active scope instructions
+    fn current_instructions() {
+        return scopes[scope_index].instructions;
+    }
+
+    // Append instruction bytes to active scope
+    fn add_instruction(ins) {
+        let pos = len(current_instructions());
+        scopes[scope_index]["instructions"] = current_instructions() + ins;
+        return pos;
+    }
+
+    // Track last emitted instruction for return replacement & pop removal
+    fn set_last_instruction(op, pos) {
+        let prev = scopes[scope_index].last_instruction;
+        scopes[scope_index]["previous_instruction"] = prev;
+        scopes[scope_index]["last_instruction"] = EmittedInstruction(op, pos);
+    }
+
+    // Emit an instruction with operands into the active scope
+    fn emit(op, operands) {
+        if operands == null {
+            operands = [];
+        }
+        let ins = opc.make_instruction(op, operands);
+        let pos = add_instruction(ins);
+        set_last_instruction(op, pos);
+        return pos;
+    }
+
+    // Check if the last emitted instruction is of given opcode
+    fn last_instruction_is(op) {
+        if len(current_instructions()) == 0 {
+            return false;
+        }
+        let last = scopes[scope_index].last_instruction;
+        if last == null {
+            return false;
+        }
+        return last.opcode == op;
+    }
+
+    // Remove last emitted POP instruction
+    fn remove_last_pop() {
+        let last = scopes[scope_index].last_instruction;
+        if last != null && last.opcode == opc.OP_POP {
+            scopes[scope_index]["instructions"] = slice(current_instructions(), 0, last.position);
+            scopes[scope_index]["last_instruction"] = scopes[scope_index].previous_instruction;
+        }
+    }
+
+    // Replace instructions at pos
+    fn replace_instruction(pos, new_ins) {
+        let ins = scopes[scope_index].instructions;
+        let k = 0;
+        while k < len(new_ins) {
+            ins[pos + k] = new_ins[k];
+            k = k + 1;
+        }
+    }
+
+    // Replace trailing POP with RETURN_VALUE
+    fn replace_last_pop_with_return() {
+        let last = scopes[scope_index].last_instruction;
+        if last != null {
+            let last_pos = last.position;
+            replace_instruction(last_pos, opc.make_instruction(opc.OP_RETURN_VALUE, []));
+            scopes[scope_index].last_instruction["opcode"] = opc.OP_RETURN_VALUE;
+        }
+    }
+
+    // Backpatch operand of instruction at op_pos
+    fn change_operand(op_pos, operand) {
+        let op = scopes[scope_index].instructions[op_pos];
+        let new_ins = opc.make_instruction(op, [operand]);
+        replace_instruction(op_pos, new_ins);
+    }
+
+    // Enter a new nested function compilation scope
+    fn enter_scope() {
+        let scope = new_compilation_scope();
+        scopes = push(scopes, scope);
+        scope_index = scope_index + 1;
+        symbol_table = sym_pkg.new_enclosed_symbol_table(symbol_table);
+    }
+
+    // Leave the current nested scope and return its instructions
+    fn leave_scope() {
+        let ins = current_instructions();
+        scopes = slice(scopes, 0, len(scopes) - 1);
+        scope_index = scope_index - 1;
+        symbol_table = symbol_table.outer;
+        return ins;
+    }
+
+    // Enter enclosed block scope
+    fn enter_block_scope() {
+        symbol_table = sym_pkg.new_enclosed_block_symbol_table(symbol_table);
+    }
+
+    // Leave enclosed block scope
+    fn leave_block_scope() {
+        if symbol_table.outer != null {
+            symbol_table = symbol_table.outer;
+        }
+    }
+
+    // Add object to constant pool, returning 16-bit constant index
+    fn add_constant(obj) {
+        constants = push(constants, obj);
+        return len(constants) - 1;
+    }
+
+    // Load symbol into runtime evaluation stack
+    fn load_symbol(sym) {
+        if sym.scope == sym_pkg.SCOPE_GLOBAL {
+            emit(opc.OP_GET_GLOBAL, [sym.index]);
+        } else if sym.scope == sym_pkg.SCOPE_LOCAL {
+            emit(opc.OP_GET_LOCAL, [sym.index]);
+        } else if sym.scope == sym_pkg.SCOPE_FREE {
+            emit(opc.OP_GET_FREE, [sym.index]);
+        } else if sym.scope == sym_pkg.SCOPE_BUILTIN {
+            emit(opc.OP_GET_BUILTIN, [sym.index]);
+        }
+    }
+
+    // Add compiler diagnostic error message
+    fn add_error(msg) {
+        errors = push(errors, msg);
+    }
+
+    // Main AST Node Compiler Dispatcher
+    fn compile(node) {
+        if node == null {
+            return null;
+        }
+
+        if optimize {
+            node = opt.fold_constants(node);
+        }
+
+        let nt = node.node_type;
+
+        // Root Program
+        if nt == ast_base.NODE_PROGRAM {
+            let i = 0;
+            while i < len(node.statements) {
+                compile(node.statements[i]);
+                i = i + 1;
+            }
+            return null;
+        }
+
+        // Expression Statement
+        if nt == ast_base.NODE_EXPRESSION_STMT {
+            compile(node.expression);
+            emit(opc.OP_POP, []);
+            return null;
+        }
+
+        // Let Statement (Variables & Constants)
+        if nt == ast_base.NODE_LET {
+            compile(node.value);
+            let sym = symbol_table.define(node.name.value, node.is_constant);
+            if sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [sym.index]);
+            }
+            return null;
+        }
+
+        // Set Statement (Assignment)
+        if nt == ast_base.NODE_SET {
+            let target_nt = node.target.node_type;
+
+            if target_nt == ast_base.NODE_IDENTIFIER {
+                let sym = symbol_table.resolve(node.target.value);
+                if sym == null {
+                    add_error("undefined variable '" + node.target.value + "'");
+                    return null;
+                }
+                if sym.is_constant {
+                    add_error("cannot assign to constant variable '" + sym.name + "'");
+                    return null;
+                }
+
+                compile(node.value);
+
+                if sym.scope == sym_pkg.SCOPE_GLOBAL {
+                    emit(opc.OP_SET_GLOBAL, [sym.index]);
+                } else if sym.scope == sym_pkg.SCOPE_LOCAL {
+                    emit(opc.OP_SET_LOCAL, [sym.index]);
+                } else if sym.scope == sym_pkg.SCOPE_FREE {
+                    emit(opc.OP_SET_FREE, [sym.index]);
+                }
+                return null;
+            }
+
+            if target_nt == ast_base.NODE_PROPERTY_EXPR {
+                compile(node.target.object);
+                compile(node.value);
+                let prop_idx = add_constant(node.target.property.value);
+                emit(opc.OP_PROPERTY_SET, [prop_idx]);
+                return null;
+            }
+
+            if target_nt == ast_base.NODE_INDEX_EXPR {
+                compile(node.target.left);
+                compile(node.target.index);
+                compile(node.value);
+                emit(opc.OP_INDEX_SET, []);
+                return null;
+            }
+
+            add_error("invalid assignment target");
+            return null;
+        }
+
+        // Define Function Statement
+        if nt == ast_base.NODE_DEFINE_FUNCTION {
+            let fn_name = node.name.value;
+            let fn_sym = null;
+
+            if scope_index == 0 {
+                fn_sym = symbol_table.define(fn_name, false);
+            }
+
+            enter_scope();
+
+            if fn_name != "" {
+                symbol_table.define_function_name(fn_name);
+            }
+
+            let p_idx = 0;
+            while p_idx < len(node.parameters) {
+                let p = node.parameters[p_idx];
+                symbol_table.define(p.value, false);
+                p_idx = p_idx + 1;
+            }
+
+            compile(node.body);
+
+            if last_instruction_is(opc.OP_POP) {
+                replace_last_pop_with_return();
+            }
+            if !last_instruction_is(opc.OP_RETURN_VALUE) {
+                emit(opc.OP_RETURN, []);
+            }
+
+            let free_symbols = symbol_table.free_symbols;
+            let num_locals = symbol_table.num_definitions;
+            let fn_instructions = leave_scope();
+
+            if optimize {
+                fn_instructions = opt.optimize_bytecode(fn_instructions);
+            }
+
+            let compiled_fn = bc_pkg.new_compiled_function(fn_name, fn_instructions, num_locals, len(node.parameters));
+            let fn_idx = add_constant(compiled_fn);
+
+            if len(free_symbols) > 0 {
+                let f_idx = 0;
+                while f_idx < len(free_symbols) {
+                    load_symbol(free_symbols[f_idx]);
+                    f_idx = f_idx + 1;
+                }
+                emit(opc.OP_CLOSURE, [fn_idx, len(free_symbols)]);
+            } else {
+                emit(opc.OP_CONSTANT, [fn_idx]);
+            }
+
+            if scope_index == 0 {
+                emit(opc.OP_SET_GLOBAL, [fn_sym.index]);
+            } else {
+                let local_fn_sym = symbol_table.define(fn_name, false);
+                emit(opc.OP_SET_LOCAL, [local_fn_sym.index]);
+            }
+
+            return null;
+        }
+
+        // Create Struct Statement
+        if nt == ast_base.NODE_CREATE_STRUCT {
+            let name_idx = add_constant(node.name.value);
+            let f_idx = 0;
+            while f_idx < len(node.fields) {
+                let field_idx = add_constant(node.fields[f_idx].value);
+                emit(opc.OP_CONSTANT, [field_idx]);
+                f_idx = f_idx + 1;
+            }
+
+            emit(opc.OP_STRUCT_DEF, [name_idx, len(node.fields)]);
+            let sym = symbol_table.define(node.name.value, true);
+
+            if sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [sym.index]);
+            }
+            return null;
+        }
+
+        // If Statement
+        if nt == ast_base.NODE_IF {
+            compile(node.condition);
+            let jump_not_truthy = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+
+            compile(node.consequence);
+
+            if node.alternative != null {
+                let jump_end = emit(opc.OP_JUMP, [9999]);
+                change_operand(jump_not_truthy, len(current_instructions()));
+                compile(node.alternative);
+                change_operand(jump_end, len(current_instructions()));
+            } else {
+                change_operand(jump_not_truthy, len(current_instructions()));
+            }
+            return null;
+        }
+
+        // Repeat While Statement
+        if nt == ast_base.NODE_REPEAT_WHILE {
+            let loop_start = len(current_instructions());
+            compile(node.condition);
+
+            let exit_jump = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+            compile(node.body);
+
+            emit(opc.OP_JUMP, [loop_start]);
+            change_operand(exit_jump, len(current_instructions()));
+            return null;
+        }
+
+        // Iterate Statement (Collection Loop)
+        if nt == ast_base.NODE_ITERATE {
+            compile(node.collection);
+            let coll_sym = symbol_table.define("__coll_" + str(len(constants)), false);
+            if coll_sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [coll_sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [coll_sym.index]);
+            }
+
+            let zero_idx = add_constant(0);
+            emit(opc.OP_CONSTANT, [zero_idx]);
+            let idx_sym = symbol_table.define("__idx_" + str(len(constants)), false);
+            if idx_sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [idx_sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [idx_sym.index]);
+            }
+
+            let item_sym = symbol_table.define(node.item_name.value, false);
+
+            let loop_start = len(current_instructions());
+
+            // Compare: idx < len(coll)
+            load_symbol(idx_sym);
+            let len_builtin = symbol_table.resolve("len");
+            load_symbol(len_builtin);
+            load_symbol(coll_sym);
+            emit(opc.OP_CALL, [1]);
+            emit(opc.OP_LESS_THAN, []);
+
+            let exit_jump = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+
+            // item = coll[idx]
+            load_symbol(coll_sym);
+            load_symbol(idx_sym);
+            emit(opc.OP_INDEX_GET, []);
+            if item_sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [item_sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [item_sym.index]);
+            }
+
+            compile(node.body);
+
+            // idx = idx + 1
+            load_symbol(idx_sym);
+            let one_idx = add_constant(1);
+            emit(opc.OP_CONSTANT, [one_idx]);
+            emit(opc.OP_ADD, []);
+            if idx_sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [idx_sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [idx_sym.index]);
+            }
+
+            emit(opc.OP_JUMP, [loop_start]);
+            change_operand(exit_jump, len(current_instructions()));
+            return null;
+        }
+
+        // Match Statement
+        if nt == ast_base.NODE_MATCH {
+            compile(node.expression);
+            let subj_sym = symbol_table.define("__match_" + str(len(constants)), false);
+            if subj_sym.scope == sym_pkg.SCOPE_GLOBAL {
+                emit(opc.OP_SET_GLOBAL, [subj_sym.index]);
+            } else {
+                emit(opc.OP_SET_LOCAL, [subj_sym.index]);
+            }
+
+            let end_jumps = [];
+            let c_idx = 0;
+            while c_idx < len(node.cases) {
+                let case_item = node.cases[c_idx];
+                load_symbol(subj_sym);
+                compile(case_item.pattern_value);
+                emit(opc.OP_EQUAL, []);
+
+                let next_jump = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+                compile(case_item.body);
+                let j_end = emit(opc.OP_JUMP, [9999]);
+                end_jumps = push(end_jumps, j_end);
+
+                change_operand(next_jump, len(current_instructions()));
+                c_idx = c_idx + 1;
+            }
+
+            if node.default_case != null {
+                compile(node.default_case);
+            }
+
+            let ej_idx = 0;
+            while ej_idx < len(end_jumps) {
+                change_operand(end_jumps[ej_idx], len(current_instructions()));
+                ej_idx = ej_idx + 1;
+            }
+            return null;
+        }
+
+        // Return Statement
+        if nt == ast_base.NODE_RETURN {
+            if node.return_value != null {
+                compile(node.return_value);
+                emit(opc.OP_RETURN_VALUE, []);
+            } else {
+                emit(opc.OP_RETURN, []);
+            }
+            return null;
+        }
+
+        // Spawn Task Statement
+        if nt == ast_base.NODE_SPAWN_TASK {
+            let call = node.call_expression;
+            compile(call.function);
+            let a_idx = 0;
+            while a_idx < len(call.arguments) {
+                compile(call.arguments[a_idx]);
+                a_idx = a_idx + 1;
+            }
+            emit(opc.OP_SPAWN, [len(call.arguments)]);
+            return null;
+        }
+
+        // Display Statement
+        if nt == ast_base.NODE_DISPLAY {
+            compile(node.expression);
+            emit(opc.OP_DISPLAY, []);
+            return null;
+        }
+
+        // Block Statement
+        if nt == ast_base.NODE_BLOCK {
+            let s_idx = 0;
+            while s_idx < len(node.statements) {
+                compile(node.statements[s_idx]);
+                s_idx = s_idx + 1;
+            }
+            return null;
+        }
+
+        // Identifier
+        if nt == ast_base.NODE_IDENTIFIER {
+            let sym = symbol_table.resolve(node.value);
+            if sym == null {
+                add_error("undefined variable '" + node.value + "'");
+                return null;
+            }
+            load_symbol(sym);
+            return null;
+        }
+
+        // Integer Literal
+        if nt == ast_base.NODE_INTEGER_LITERAL {
+            let const_idx = add_constant(node.value);
+            emit(opc.OP_CONSTANT, [const_idx]);
+            return null;
+        }
+
+        // Float Literal
+        if nt == ast_base.NODE_FLOAT_LITERAL {
+            let const_idx = add_constant(node.value);
+            emit(opc.OP_CONSTANT, [const_idx]);
+            return null;
+        }
+
+        // String Literal
+        if nt == ast_base.NODE_STRING_LITERAL {
+            let const_idx = add_constant(node.value);
+            emit(opc.OP_CONSTANT, [const_idx]);
+            return null;
+        }
+
+        // Boolean Literal
+        if nt == ast_base.NODE_BOOLEAN_LITERAL {
+            if node.value {
+                emit(opc.OP_TRUE, []);
+            } else {
+                emit(opc.OP_FALSE, []);
+            }
+            return null;
+        }
+
+        // Null Literal
+        if nt == ast_base.NODE_NULL_LITERAL {
+            emit(opc.OP_NULL, []);
+            return null;
+        }
+
+        // Prefix Expression
+        if nt == ast_base.NODE_PREFIX_EXPR {
+            compile(node.right);
+            if node.operator == "not" {
+                emit(opc.OP_NOT, []);
+            } else if node.operator == "-" {
+                emit(opc.OP_MINUS, []);
+            } else {
+                add_error("unknown prefix operator '" + node.operator + "'");
+            }
+            return null;
+        }
+
+        // Infix Expression
+        if nt == ast_base.NODE_INFIX_EXPR {
+            let op = node.operator;
+
+            // Short-circuit logical AND
+            if op == "and" {
+                compile(node.left);
+                let jump_not_truthy = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+                compile(node.right);
+                let jump_end = emit(opc.OP_JUMP, [9999]);
+                change_operand(jump_not_truthy, len(current_instructions()));
+                emit(opc.OP_FALSE, []);
+                change_operand(jump_end, len(current_instructions()));
+                return null;
+            }
+
+            // Short-circuit logical OR
+            if op == "or" {
+                compile(node.left);
+                let jump_not_truthy = emit(opc.OP_JUMP_NOT_TRUTHY, [9999]);
+                emit(opc.OP_TRUE, []);
+                let jump_end = emit(opc.OP_JUMP, [9999]);
+                change_operand(jump_not_truthy, len(current_instructions()));
+                compile(node.right);
+                change_operand(jump_end, len(current_instructions()));
+                return null;
+            }
+
+            compile(node.left);
+            compile(node.right);
+
+            if op == "plus" || op == "+" {
+                emit(opc.OP_ADD, []);
+            } else if op == "minus" || op == "-" {
+                emit(opc.OP_SUB, []);
+            } else if op == "times" || op == "*" {
+                emit(opc.OP_MUL, []);
+            } else if op == "divided by" || op == "/" {
+                emit(opc.OP_DIV, []);
+            } else if op == "modulo" || op == "%" {
+                emit(opc.OP_MOD, []);
+            } else if (op == "raised to" || op == "**" || op == "^") {
+                emit(opc.OP_POW, []);
+            } else if op == "is equal to" || op == "==" {
+                emit(opc.OP_EQUAL, []);
+            } else if op == "is not equal to" || op == "!=" {
+                emit(opc.OP_NOT_EQUAL, []);
+            } else if op == "is greater than" || op == ">" {
+                emit(opc.OP_GREATER_THAN, []);
+            } else if op == "is less than" || op == "<" {
+                emit(opc.OP_LESS_THAN, []);
+            } else if op == "is greater than or equal to" || op == ">=" {
+                emit(opc.OP_GREATER_EQUAL, []);
+            } else if op == "is less than or equal to" || op == "<=" {
+                emit(opc.OP_LESS_EQUAL, []);
+            } else if op == "combined with" {
+                emit(opc.OP_CONCAT, []);
+            } else {
+                add_error("unknown infix operator '" + op + "'");
+            }
+            return null;
+        }
+
+        // Call Expression
+        if nt == ast_base.NODE_CALL_EXPR {
+            compile(node.function);
+            let a_idx = 0;
+            while a_idx < len(node.arguments) {
+                compile(node.arguments[a_idx]);
+                a_idx = a_idx + 1;
+            }
+            emit(opc.OP_CALL, [len(node.arguments)]);
+            return null;
+        }
+
+        // Index Expression
+        if nt == ast_base.NODE_INDEX_EXPR {
+            compile(node.left);
+            compile(node.index);
+            emit(opc.OP_INDEX_GET, []);
+            return null;
+        }
+
+        // Property Expression
+        if nt == ast_base.NODE_PROPERTY_EXPR {
+            compile(node.object);
+            let prop_idx = add_constant(node.property.value);
+            emit(opc.OP_PROPERTY_GET, [prop_idx]);
+            return null;
+        }
+
+        // Array Literal
+        if nt == ast_base.NODE_ARRAY_LITERAL {
+            let el_idx = 0;
+            while el_idx < len(node.elements) {
+                compile(node.elements[el_idx]);
+                el_idx = el_idx + 1;
+            }
+            emit(opc.OP_ARRAY, [len(node.elements)]);
+            return null;
+        }
+
+        add_error("unhandled AST node type '" + str(nt) + "'");
+        return null;
+    }
+
+    // Produce Complete Bytecode Artifact
+    fn bytecode() {
+        let ins = current_instructions();
+        if optimize {
+            ins = opt.optimize_bytecode(ins);
+        }
+        return bc_pkg.new_bytecode(ins, constants, symbol_table);
+    }
+}
+
+// Compiler Constructor Helper
+let new_compiler = fn() {
+    let main_scope = new_compilation_scope();
+    let sym_tab = sym_pkg.new_symbol_table();
+
+    let b_idx = 0;
+    while b_idx < len(BUILTINS) {
+        sym_tab.define_builtin(b_idx, BUILTINS[b_idx]);
+        b_idx = b_idx + 1;
+    }
+
+    return Compiler([], sym_tab, [main_scope], 0, false, []);
+};
+
+// Optimizing Compiler Constructor Helper
+let new_optimizing_compiler = fn() {
+    let c = new_compiler();
+    c["optimize"] = true;
+    return c;
+};
+
+// Convenience Helper to Compile AST Program
+let compile = fn(ast_node) {
+    let c = new_compiler();
+    c.compile(ast_node);
+    if len(c.errors) > 0 {
+        return { "bytecode": null, "errors": c.errors };
+    }
+    return { "bytecode": c.bytecode(), "errors": [] };
+};

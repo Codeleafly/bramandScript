@@ -1,0 +1,97 @@
+// Srishti Programming Language :: Compiler Subsystem Master Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./opcode" as opc
+import "./symbol_table" as sym_pkg
+import "./bytecode" as bc_pkg
+import "./optimizer" as opt_pkg
+import "./compiler" as comp_pkg
+
+// --- Opcode Constants ---
+let OP_CONSTANT = opc.OP_CONSTANT;
+let OP_POP = opc.OP_POP;
+let OP_ADD = opc.OP_ADD;
+let OP_SUB = opc.OP_SUB;
+let OP_MUL = opc.OP_MUL;
+let OP_DIV = opc.OP_DIV;
+let OP_MOD = opc.OP_MOD;
+let OP_POW = opc.OP_POW;
+let OP_EQUAL = opc.OP_EQUAL;
+let OP_NOT_EQUAL = opc.OP_NOT_EQUAL;
+let OP_GREATER_THAN = opc.OP_GREATER_THAN;
+let OP_LESS_THAN = opc.OP_LESS_THAN;
+let OP_GREATER_EQUAL = opc.OP_GREATER_EQUAL;
+let OP_LESS_EQUAL = opc.OP_LESS_EQUAL;
+let OP_CONCAT = opc.OP_CONCAT;
+let OP_TRUE = opc.OP_TRUE;
+let OP_FALSE = opc.OP_FALSE;
+let OP_NULL = opc.OP_NULL;
+let OP_MINUS = opc.OP_MINUS;
+let OP_NOT = opc.OP_NOT;
+let OP_JUMP = opc.OP_JUMP;
+let OP_JUMP_NOT_TRUTHY = opc.OP_JUMP_NOT_TRUTHY;
+let OP_SET_GLOBAL = opc.OP_SET_GLOBAL;
+let OP_GET_GLOBAL = opc.OP_GET_GLOBAL;
+let OP_SET_LOCAL = opc.OP_SET_LOCAL;
+let OP_GET_LOCAL = opc.OP_GET_LOCAL;
+let OP_ARRAY = opc.OP_ARRAY;
+let OP_INDEX_GET = opc.OP_INDEX_GET;
+let OP_INDEX_SET = opc.OP_INDEX_SET;
+let OP_PROPERTY_GET = opc.OP_PROPERTY_GET;
+let OP_PROPERTY_SET = opc.OP_PROPERTY_SET;
+let OP_CALL = opc.OP_CALL;
+let OP_RETURN_VALUE = opc.OP_RETURN_VALUE;
+let OP_RETURN = opc.OP_RETURN;
+let OP_CLOSURE = opc.OP_CLOSURE;
+let OP_GET_FREE = opc.OP_GET_FREE;
+let OP_SET_FREE = opc.OP_SET_FREE;
+let OP_GET_BUILTIN = opc.OP_GET_BUILTIN;
+let OP_STRUCT_DEF = opc.OP_STRUCT_DEF;
+let OP_SPAWN = opc.OP_SPAWN;
+let OP_DISPLAY = opc.OP_DISPLAY;
+let OP_DUP = opc.OP_DUP;
+
+// --- Opcode Definitions & Utilities ---
+let OpcodeDefinition = opc.OpcodeDefinition;
+let opcode_definitions = opc.opcode_definitions;
+let lookup_opcode = opc.lookup_opcode;
+let make_instruction = opc.make_instruction;
+let read_operands = opc.read_operands;
+let disassemble = opc.disassemble;
+let format_instruction = opc.format_instruction;
+let format_offset = opc.format_offset;
+
+// --- Symbol Table & Lexical Scopes ---
+let SCOPE_GLOBAL = sym_pkg.SCOPE_GLOBAL;
+let SCOPE_LOCAL = sym_pkg.SCOPE_LOCAL;
+let SCOPE_FREE = sym_pkg.SCOPE_FREE;
+let SCOPE_BUILTIN = sym_pkg.SCOPE_BUILTIN;
+let SCOPE_FUNCTION = sym_pkg.SCOPE_FUNCTION;
+
+let Symbol = sym_pkg.Symbol;
+let new_symbol = sym_pkg.new_symbol;
+let SymbolTable = sym_pkg.SymbolTable;
+let new_symbol_table = sym_pkg.new_symbol_table;
+let new_enclosed_symbol_table = sym_pkg.new_enclosed_symbol_table;
+let new_enclosed_block_symbol_table = sym_pkg.new_enclosed_block_symbol_table;
+
+// --- Bytecode & Compiled Function ---
+let CompiledFunction = bc_pkg.CompiledFunction;
+let new_compiled_function = bc_pkg.new_compiled_function;
+let Bytecode = bc_pkg.Bytecode;
+let new_bytecode = bc_pkg.new_bytecode;
+let disassemble_instructions = bc_pkg.disassemble_instructions;
+
+// --- Optimizer ---
+let fold_constants = opt_pkg.fold_constants;
+let optimize_bytecode = opt_pkg.optimize_bytecode;
+
+// --- Compiler Engine ---
+let EmittedInstruction = comp_pkg.EmittedInstruction;
+let CompilationScope = comp_pkg.CompilationScope;
+let new_compilation_scope = comp_pkg.new_compilation_scope;
+let Compiler = comp_pkg.Compiler;
+let new_compiler = comp_pkg.new_compiler;
+let new_optimizing_compiler = comp_pkg.new_optimizing_compiler;
+let compile = comp_pkg.compile;

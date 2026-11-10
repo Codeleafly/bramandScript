@@ -1,0 +1,506 @@
+// Srishti Programming Language :: Bytecode Compiler Automated Test Suite
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Verifies bytecode generation, constant pooling, symbol scoping, jumps, and optimization.
+
+import "../index" as sri
+
+// Helper function to compile Srishti source code and assert 0 errors
+let compile_clean = fn(source_code, test_name) {
+    let res = sri.compile(source_code, test_name);
+    if len(res.errors) > 0 {
+        let i = 0;
+        while i < len(res.errors) {
+            println("COMPILER ERROR in " + test_name + ": " + res.errors[i]);
+            i = i + 1;
+        }
+    }
+    assert(len(res.errors) == 0, "Expected 0 compiler errors in " + test_name);
+    return res.bytecode;
+};
+
+describe("Primitive Literals and Constant Pool", fn() {
+        test("Integer, Float, and String constants", fn() {
+                let bc = compile_clean("42\n3.14159\n\"Hello, Srishti!\"", "test_literals.sri");
+                assert_eq(len(bc.constants), 3);
+                assert_eq(bc.constants[0], 42);
+                assert_eq(bc.constants[1], 3.14159);
+                assert_eq(bc.constants[2], "Hello, Srishti!");
+
+                // Instruction stream checks: OP_CONSTANT 0, OP_POP, OP_CONSTANT 1, OP_POP, OP_CONSTANT 2, OP_POP
+                assert_eq(bc.instructions[0], sri.OP_CONSTANT);
+                assert_eq(bc.instructions[3], sri.OP_POP);
+                assert_eq(bc.instructions[4], sri.OP_CONSTANT);
+                assert_eq(bc.instructions[7], sri.OP_POP);
+                assert_eq(bc.instructions[8], sri.OP_CONSTANT);
+                assert_eq(bc.instructions[11], sri.OP_POP);
+        });
+
+        test("Boolean and Null literal opcodes", fn() {
+                let bc = compile_clean("true\nfalse\nnull", "test_bool_null.sri");
+                assert_eq(len(bc.constants), 0);
+                assert_eq(bc.instructions[0], sri.OP_TRUE);
+                assert_eq(bc.instructions[1], sri.OP_POP);
+                assert_eq(bc.instructions[2], sri.OP_FALSE);
+                assert_eq(bc.instructions[3], sri.OP_POP);
+                assert_eq(bc.instructions[4], sri.OP_NULL);
+                assert_eq(bc.instructions[5], sri.OP_POP);
+        });
+});
+
+describe("Arithmetic Operator Bytecodes", fn() {
+        test("Infix addition and subtraction", fn() {
+                let bc = compile_clean("10 plus 20\n50 minus 15", "test_add_sub.sri");
+                assert_eq(len(bc.constants), 4);
+                assert_eq(bc.constants[0], 10);
+                assert_eq(bc.constants[1], 20);
+                assert_eq(bc.instructions[6], sri.OP_ADD);
+                assert_eq(bc.instructions[7], sri.OP_POP);
+                assert_eq(bc.instructions[14], sri.OP_SUB);
+                assert_eq(bc.instructions[15], sri.OP_POP);
+        });
+
+        test("Infix multiplication, division, modulo, and power", fn() {
+                let bc = compile_clean("6 times 7\n100 divided by 4\n17 modulo 5\n2 raised to 8", "test_math.sri");
+                assert_eq(len(bc.constants), 8);
+                assert_eq(bc.instructions[6], sri.OP_MUL);
+                assert_eq(bc.instructions[14], sri.OP_DIV);
+                assert_eq(bc.instructions[22], sri.OP_MOD);
+                assert_eq(bc.instructions[30], sri.OP_POW);
+        });
+
+        test("Prefix minus and not operators", fn() {
+                let bc = compile_clean("not true\nlet x be 5\n-x", "test_prefix.sri");
+                assert_eq(bc.instructions[0], sri.OP_TRUE);
+                assert_eq(bc.instructions[1], sri.OP_NOT);
+                assert_eq(bc.instructions[2], sri.OP_POP);
+        });
+});
+
+describe("Relational Comparisons and String Combinator", fn() {
+        test("Equality and inequality opcodes", fn() {
+                let bc = compile_clean("5 is equal to 5\n10 is not equal to 20", "test_equal.sri");
+                assert_eq(bc.instructions[6], sri.OP_EQUAL);
+                assert_eq(bc.instructions[14], sri.OP_NOT_EQUAL);
+        });
+
+        test("Relational comparison opcodes", fn() {
+                let bc = compile_clean("10 is greater than 5\n3 is less than 8\n10 is greater than or equal to 10\n4 is less than or equal to 9", "test_relational.sri");
+                assert_eq(bc.instructions[6], sri.OP_GREATER_THAN);
+                assert_eq(bc.instructions[14], sri.OP_LESS_THAN);
+                assert_eq(bc.instructions[22], sri.OP_GREATER_EQUAL);
+                assert_eq(bc.instructions[30], sri.OP_LESS_EQUAL);
+        });
+
+        test("String combinator OP_CONCAT", fn() {
+                let bc = compile_clean("\"Hello, \" combined with \"World!\"", "test_concat.sri");
+                assert_eq(bc.instructions[6], sri.OP_CONCAT);
+                assert_eq(bc.instructions[7], sri.OP_POP);
+        });
+});
+
+describe("Logical Short-Circuit Jump Bytecodes", fn() {
+        test("Logical AND short-circuit jump emission", fn() {
+                let bc = compile_clean("true and false", "test_and.sri");
+                // true -> OP_JUMP_NOT_TRUTHY -> false -> OP_JUMP -> OP_FALSE
+                assert_eq(bc.instructions[0], sri.OP_TRUE);
+                assert_eq(bc.instructions[1], sri.OP_JUMP_NOT_TRUTHY);
+                assert_eq(bc.instructions[4], sri.OP_FALSE);
+                assert_eq(bc.instructions[5], sri.OP_JUMP);
+                assert_eq(bc.instructions[8], sri.OP_FALSE);
+                assert_eq(bc.instructions[9], sri.OP_POP);
+        });
+
+        test("Logical OR short-circuit jump emission", fn() {
+                let bc = compile_clean("false or true", "test_or.sri");
+                assert_eq(bc.instructions[0], sri.OP_FALSE);
+                assert_eq(bc.instructions[1], sri.OP_JUMP_NOT_TRUTHY);
+                assert_eq(bc.instructions[4], sri.OP_TRUE);
+                assert_eq(bc.instructions[5], sri.OP_JUMP);
+                assert_eq(bc.instructions[8], sri.OP_TRUE);
+                assert_eq(bc.instructions[9], sri.OP_POP);
+        });
+});
+
+describe("Variable and Constant Bindings", fn() {
+        test("Global variable definition and resolution", fn() {
+                let bc = compile_clean("let x be 100\nlet y be x plus 50", "test_vars.sri");
+                assert_eq(bc.instructions[0], sri.OP_CONSTANT);
+                assert_eq(bc.instructions[3], sri.OP_SET_GLOBAL);
+                assert_eq(bc.instructions[6], sri.OP_GET_GLOBAL);
+                assert_eq(bc.instructions[9], sri.OP_CONSTANT);
+                assert_eq(bc.instructions[12], sri.OP_ADD);
+                assert_eq(bc.instructions[13], sri.OP_SET_GLOBAL);
+        });
+
+        test("Constant definition and reassignment error", fn() {
+                let bc = compile_clean("constant PI be 3.14159", "test_const.sri");
+                assert_eq(bc.constants[0], 3.14159);
+                assert_eq(bc.instructions[3], sri.OP_SET_GLOBAL);
+
+                // Attempting to reassign a constant must produce an error
+                let res = sri.compile("constant MAX be 10\nset MAX to 20", "test_const_err.sri");
+                assert(len(res.errors) > 0, "Reassigning constant must produce a compiler error");
+                assert_eq(res.errors[0], "cannot assign to constant variable 'MAX'");
+        });
+
+        test("Global variable reassignment", fn() {
+                let bc = compile_clean("let count be 0\nset count to count plus 1", "test_set.sri");
+                assert_eq(bc.instructions[3], sri.OP_SET_GLOBAL);
+                assert_eq(bc.instructions[6], sri.OP_GET_GLOBAL);
+                assert_eq(bc.instructions[12], sri.OP_ADD);
+                assert_eq(bc.instructions[13], sri.OP_SET_GLOBAL);
+        });
+
+        test("Undefined variable resolution error", fn() {
+                let res = sri.compile("display unknown_identifier", "test_undef.sri");
+                assert(len(res.errors) > 0, "Resolving undefined variable must produce error");
+                assert_eq(res.errors[0], "undefined variable 'unknown_identifier'");
+        });
+});
+
+describe("Data Structures, Properties, and Indexing", fn() {
+        test("Array literal bytecodes", fn() {
+                let bc = compile_clean("[10, 20, 30]", "test_array.sri");
+                assert_eq(len(bc.constants), 3);
+                assert_eq(bc.instructions[9], sri.OP_ARRAY);
+                // Operand width 2: array size 3
+                let size = (bc.instructions[10] << 8) | bc.instructions[11];
+                assert_eq(size, 3);
+        });
+
+        test("Index get and set bytecodes", fn() {
+                let bc = compile_clean("let arr be [1, 2, 3]\nlet first be arr[0]\nset arr[1] to 99", "test_index.sri");
+                assert_eq(bc.instructions[21], sri.OP_INDEX_GET);
+                assert_eq(bc.instructions[34], sri.OP_INDEX_SET);
+        });
+
+        test("Property get and set bytecodes", fn() {
+                let bc = compile_clean("create struct User with name, age:\nlet u be User(\"Alice\", 30)\nlet a be u.age\nset u.name to \"Bob\"", "test_prop.sri");
+                // Verify OP_PROPERTY_GET and OP_PROPERTY_SET
+                let has_prop_get = false;
+                let has_prop_set = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_PROPERTY_GET {
+                        has_prop_get = true;
+                    }
+                    if bc.instructions[i] == sri.OP_PROPERTY_SET {
+                        has_prop_set = true;
+                    }
+                    i = i + 1;
+                }
+                assert(has_prop_get, "Bytecode must contain OP_PROPERTY_GET");
+                assert(has_prop_set, "Bytecode must contain OP_PROPERTY_SET");
+        });
+
+        test("Struct declaration opcode OP_STRUCT_DEF", fn() {
+                let bc = compile_clean("create struct Point with x, y:", "test_struct.sri");
+                assert_eq(bc.constants[0], "Point");
+                assert_eq(bc.constants[1], "x");
+                assert_eq(bc.constants[2], "y");
+                assert_eq(bc.instructions[6], sri.OP_STRUCT_DEF);
+        });
+});
+
+describe("Functions, Closures, and Scoping", fn() {
+        test("Function definition and local variables", fn() {
+                let bc = compile_clean("define function multiply with a, b:\n    let temp be a times b\n    return temp", "test_fn.sri");
+                assert_eq(len(bc.constants), 1);
+                let fn_const = bc.constants[0];
+                assert_eq(fn_const.name, "multiply");
+                assert_eq(fn_const.num_parameters, 2);
+                assert_eq(fn_const.num_locals, 3);  // a, b, temp
+
+                // Check local variable opcodes in compiled function
+                let fn_ins = fn_const.instructions;
+                assert_eq(fn_ins[0], sri.OP_GET_LOCAL);
+                assert_eq(fn_ins[2], sri.OP_GET_LOCAL);
+                assert_eq(fn_ins[4], sri.OP_MUL);
+                assert_eq(fn_ins[5], sri.OP_SET_LOCAL);
+                assert_eq(fn_ins[7], sri.OP_GET_LOCAL);
+                assert_eq(fn_ins[9], sri.OP_RETURN_VALUE);
+        });
+
+        test("Function calls with arguments OP_CALL", fn() {
+                let bc = compile_clean("define function square with n: return n times n\nlet res be square(5)", "test_call.sri");
+                // Calls OP_CALL with 1 argument
+                let has_call = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_CALL {
+                        has_call = true;
+                        assert_eq(bc.instructions[i + 1], 1);  // 1 arg
+                    }
+                    i = i + 1;
+                }
+                assert(has_call, "Bytecode must contain OP_CALL");
+        });
+
+        test("Lexical closure capturing outer free variable", fn() {
+                let bc = compile_clean("define function make_adder with base:\n    define function adder with x:\n        return base plus x\n    return adder", "test_closure.sri");
+                assert_eq(len(bc.constants), 2);
+                let inner_fn = bc.constants[0];
+                let outer_fn = bc.constants[1];
+
+                assert_eq(inner_fn.name, "adder");
+                assert_eq(outer_fn.name, "make_adder");
+
+                // Inner function must access 'base' via OP_GET_FREE
+                assert_eq(inner_fn.instructions[0], sri.OP_GET_FREE);
+                assert_eq(inner_fn.instructions[1], 0);
+
+                // Outer function must emit OP_CLOSURE
+                let has_closure = false;
+                let i = 0;
+                while i < len(outer_fn.instructions) {
+                    if outer_fn.instructions[i] == sri.OP_CLOSURE {
+                        has_closure = true;
+                    }
+                    i = i + 1;
+                }
+                assert(has_closure, "Outer function must emit OP_CLOSURE for captured free variables");
+        });
+
+        test("Void return function emits OP_RETURN", fn() {
+                let bc = compile_clean("define function log_info with msg:\n    display msg", "test_void_fn.sri");
+                let fn_const = bc.constants[0];
+                let last_op = fn_const.instructions[len(fn_const.instructions) - 1];
+                assert_eq(last_op, sri.OP_RETURN);
+        });
+});
+
+describe("Conditionals, Loops, and Control Flow", fn() {
+        test("If-Then statement jump offsets", fn() {
+                let bc = compile_clean("if 10 is greater than 5 then:\n    display \"YES\"", "test_if.sri");
+                assert_eq(bc.instructions[6], sri.OP_GREATER_THAN);
+                assert_eq(bc.instructions[7], sri.OP_JUMP_NOT_TRUTHY);
+
+                // Target of jump must equal end of instructions
+                let jump_target = (bc.instructions[8] << 8) | bc.instructions[9];
+                assert_eq(jump_target, len(bc.instructions));
+        });
+
+        test("If-Then-Otherwise statement jump backpatching", fn() {
+                let bc = compile_clean("if 1 is equal to 2 then:\n    display \"EQUAL\"\notherwise:\n    display \"NOT EQUAL\"", "test_if_else.sri");
+                assert_eq(bc.instructions[6], sri.OP_EQUAL);
+                assert_eq(bc.instructions[7], sri.OP_JUMP_NOT_TRUTHY);
+                let alt_pos = (bc.instructions[8] << 8) | bc.instructions[9];
+
+                // Ensure alternative jump lands exactly on otherwise block
+                assert_eq(bc.instructions[alt_pos], sri.OP_CONSTANT);
+        });
+
+        test("Repeat-While loop backward jump offsets", fn() {
+                let bc = compile_clean("let i be 0\nrepeat while i is less than 5:\n    display i\n    set i to i plus 1", "test_while.sri");
+                let has_backward_jump = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_JUMP {
+                        let target = (bc.instructions[i + 1] << 8) | bc.instructions[i + 2];
+                        // Loop jump jumps back to condition check (offset 6)
+                        if target == 6 {
+                            has_backward_jump = true;
+                        }
+                    }
+                    i = i + 1;
+                }
+                assert(has_backward_jump, "Repeat-While loop must emit backward OP_JUMP to condition check");
+        });
+
+        test("Iterate-Through collection traversal loop", fn() {
+                let bc = compile_clean("let items be [1, 2, 3]\niterate x through items:\n    display x", "test_iterate.sri");
+                // Must contain collection indexing and loop backward jump
+                let has_index_get = false;
+                let has_jump = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_INDEX_GET {
+                        has_index_get = true;
+                    }
+                    if bc.instructions[i] == sri.OP_JUMP {
+                        has_jump = true;
+                    }
+                    i = i + 1;
+                }
+                assert(has_index_get, "Iterate loop must emit OP_INDEX_GET for element traversal");
+                assert(has_jump, "Iterate loop must emit OP_JUMP for loop iteration");
+        });
+
+        test("Match-When pattern matching jumps", fn() {
+                let bc = compile_clean("let code be 2\nmatch code:\n    when 1:\n        display \"ONE\"\n    when 2:\n        display \"TWO\"\n    otherwise:\n        display \"OTHER\"", "test_match.sri");
+                let has_equal = false;
+                let has_cond_jump = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_EQUAL {
+                        has_equal = true;
+                    }
+                    if bc.instructions[i] == sri.OP_JUMP_NOT_TRUTHY {
+                        has_cond_jump = true;
+                    }
+                    i = i + 1;
+                }
+                assert(has_equal, "Match must emit OP_EQUAL for pattern value matching");
+                assert(has_cond_jump, "Match must emit OP_JUMP_NOT_TRUTHY for case dispatching");
+        });
+});
+
+describe("Concurrency, I/O, and Built-ins", fn() {
+        test("Spawn task statement OP_SPAWN", fn() {
+                let bc = compile_clean("define function worker with x: display x\nspawn task worker(42)", "test_spawn.sri");
+                let has_spawn = false;
+                let i = 0;
+                while i < len(bc.instructions) {
+                    if bc.instructions[i] == sri.OP_SPAWN {
+                        has_spawn = true;
+                        assert_eq(bc.instructions[i + 1], 1);  // 1 arg
+                    }
+                    i = i + 1;
+                }
+                assert(has_spawn, "Bytecode must contain OP_SPAWN");
+        });
+
+        test("Display statement OP_DISPLAY", fn() {
+                let bc = compile_clean("display \"Hello, Antigravity!\"", "test_display.sri");
+                assert_eq(bc.instructions[3], sri.OP_DISPLAY);
+        });
+
+        test("Built-in function symbol resolution", fn() {
+                let bc = compile_clean("let n be len([1, 2, 3])", "test_builtin.sri");
+                assert_eq(bc.instructions[0], sri.OP_GET_BUILTIN);
+                assert_eq(bc.instructions[1], 0);  // 'len' is builtin index 0
+                assert_eq(bc.instructions[14], sri.OP_CALL);
+        });
+});
+
+describe("Optimizer and Disassembler Verification", fn() {
+        test("Peephole redundant DUP and POP elimination", fn() {
+                let ins = sri.make_instruction(sri.OP_DUP, []) + sri.make_instruction(sri.OP_POP, []) + sri.make_instruction(sri.OP_TRUE, []);
+                let opt_ins = sri.optimize_bytecode(ins);
+                assert_eq(len(opt_ins), 1);
+                assert_eq(opt_ins[0], sri.OP_TRUE);
+        });
+
+        test("AST compile-time constant folding", fn() {
+                let compiler = sri.new_optimizing_compiler();
+                let program = sri.parse("let result be 10 plus 20");
+                compiler.compile(program);
+                let bc = compiler.bytecode();
+
+                // 10 plus 20 should be folded into single constant 30!
+                assert_eq(len(bc.constants), 1);
+                assert_eq(bc.constants[0], 30);
+        });
+
+        test("Disassembler output formatting inspection", fn() {
+                let bc = compile_clean("let x be 42\ndisplay x", "test_disasm.sri");
+                let dis = bc.disassemble();
+                assert(contains(dis, "=== Srishti Bytecode Disassembly ==="), "Must contain header");
+                assert(contains(dis, "OP_CONSTANT"), "Must contain OP_CONSTANT");
+                assert(contains(dis, "OP_SET_GLOBAL"), "Must contain OP_SET_GLOBAL");
+                assert(contains(dis, "OP_GET_GLOBAL"), "Must contain OP_GET_GLOBAL");
+                assert(contains(dis, "OP_DISPLAY"), "Must contain OP_DISPLAY");
+                assert(contains(dis, "// 42"), "Must contain annotated constant value");
+        });
+});
+
+describe("Full Realistic Srishti Banking Program (50+ Lines)", fn() {
+        test("End-to-end compilation of simulation script into complete valid bytecode", fn() {
+                let sample_program = "---
+                Srishti Simulation Engine
+                Demonstrates OOP structs, algorithms, pattern matching, concurrency, and arithmetic.
+                ---
+
+                constant MAX_TRANSACTIONS be 1000
+                constant BANK_NAME be \"Srishti National Bank\"
+
+                create struct Account with id, owner, balance, is_active:
+
+                define function create_account with id, owner, initial_balance:
+                let acc be Account(id, owner, initial_balance, true)
+                return acc
+
+                define function deposit with account, amount:
+                if amount is less than or equal to 0 then:
+                display \"Deposit amount must be positive\"
+                return false
+                otherwise:
+                set account.balance to account.balance plus amount
+                display \"Deposited successfully\"
+                return true
+
+                define function withdraw with account, amount:
+                if amount is greater than account.balance then:
+                display \"Insufficient funds\"
+                return false
+                otherwise:
+                set account.balance to account.balance minus amount
+                return true
+
+                define function calculate_interest with principal, rate, years:
+                let factor be 1.0 plus(rate divided by 100.0)
+                let compounded be factor raised to years
+                let total be principal times compounded
+                return total
+
+                define function process_transaction with tx_code, account, amount:
+                match tx_code:
+                when 1:
+                deposit(account, amount)
+                when 2:
+                withdraw(account, amount)
+                when 3:
+                display \"Account balance: \" combined with account.balance
+
+                define function audit_accounts with accounts_list:
+                iterate acc through accounts_list:
+                if acc.balance is greater than or equal to 100000 then:
+                display \"VIP Account: \" combined with acc.owner
+                otherwise:
+                display \"Standard Account: \" combined with acc.owner
+
+                define function main:
+                let my_account be create_account(101, \"Aryabhata\", 50000.0)
+                process_transaction(1, my_account, 15000.0)
+                process_transaction(2, my_account, 5000.0)
+                let future_wealth be calculate_interest(my_account.balance, 7.5, 5)
+                display \"Projected balance: \" combined with future_wealth
+
+                repeat while my_account.is_active is equal to true:
+                spawn task audit_accounts([my_account])
+                set my_account.is_active to false
+
+                display \"Audit complete for \" combined with BANK_NAME
+                ";
+
+                let res = sri.compile(sample_program, "srishti_simulation.sri");
+                assert_eq(len(res.errors), 0);
+                let bc = res.bytecode;
+
+                // Verify root bytecode artifacts
+                assert(len(bc.constants) >= 40, "Simulation script should have at least 40 pooled constants");
+                assert(len(bc.instructions) >= 60, "Simulation script should have at least 60 instructions");
+
+                // Verify compiled functions stored in constant pool
+                let fn_count = 0;
+                let c_i = 0;
+                while c_i < len(bc.constants) {
+                    let item = bc.constants[c_i];
+                    if (item != null && (type(item) == "HASH" || type(item) == "STRUCT")) {
+                        if (contains(item, "num_locals") && contains(item, "num_parameters")) {
+                            fn_count = fn_count + 1;
+                        }
+                    }
+                    c_i = c_i + 1;
+                }
+                assert_eq(fn_count, 7);  // create_account, deposit, withdraw, calculate_interest, process_transaction, audit_accounts, main
+
+                // Disassemble entire program without crashing
+                let full_disasm = bc.disassemble();
+                assert(len(full_disasm) > 500, "Full program disassembly must be extensive and detailed");
+                assert(contains(full_disasm, "Function: create_account"), "Disassembly must detail create_account");
+                assert(contains(full_disasm, "Function: deposit"), "Disassembly must detail deposit");
+                assert(contains(full_disasm, "Function: calculate_interest"), "Disassembly must detail calculate_interest");
+                assert(contains(full_disasm, "Function: main"), "Disassembly must detail main");
+        });
+});

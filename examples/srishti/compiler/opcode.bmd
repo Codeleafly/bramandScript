@@ -1,0 +1,233 @@
+// Srishti Programming Language :: Opcode Specifications & Bytecode Encodings
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Opcode Byte Constants
+let OP_CONSTANT = 1;
+let OP_POP = 2;
+
+// Arithmetic Operators
+let OP_ADD = 3;
+let OP_SUB = 4;
+let OP_MUL = 5;
+let OP_DIV = 6;
+let OP_MOD = 7;
+let OP_POW = 8;
+
+// Comparisons & Relational Operators
+let OP_EQUAL = 9;
+let OP_NOT_EQUAL = 10;
+let OP_GREATER_THAN = 11;
+let OP_LESS_THAN = 12;
+let OP_GREATER_EQUAL = 13;
+let OP_LESS_EQUAL = 14;
+
+// String Operations
+let OP_CONCAT = 15;
+
+// Literals
+let OP_TRUE = 16;
+let OP_FALSE = 17;
+let OP_NULL = 18;
+
+// Unary Operators
+let OP_MINUS = 19;
+let OP_NOT = 20;
+
+// Control Flow & Branching Jumps
+let OP_JUMP = 21;
+let OP_JUMP_NOT_TRUTHY = 22;
+
+// Global & Local Variable Bindings
+let OP_SET_GLOBAL = 23;
+let OP_GET_GLOBAL = 24;
+let OP_SET_LOCAL = 25;
+let OP_GET_LOCAL = 26;
+
+// Data Structures
+let OP_ARRAY = 27;
+let OP_INDEX_GET = 28;
+let OP_INDEX_SET = 29;
+let OP_PROPERTY_GET = 30;
+let OP_PROPERTY_SET = 31;
+
+// Functions, Closures, Calls & Return
+let OP_CALL = 32;
+let OP_RETURN_VALUE = 33;
+let OP_RETURN = 34;
+let OP_CLOSURE = 35;
+let OP_GET_FREE = 36;
+let OP_SET_FREE = 37;
+let OP_GET_BUILTIN = 38;
+
+// Structs, Concurrency & Built-in Commands
+let OP_STRUCT_DEF = 39;
+let OP_SPAWN = 40;
+let OP_DISPLAY = 41;
+let OP_DUP = 42;
+
+// Opcode Definition Structure
+struct OpcodeDefinition {
+    name,
+    operand_widths,
+}
+
+// Opcode Definitions Table
+let opcode_definitions = {
+    1: OpcodeDefinition("OP_CONSTANT", [2]),
+    2: OpcodeDefinition("OP_POP", []),
+    3: OpcodeDefinition("OP_ADD", []),
+    4: OpcodeDefinition("OP_SUB", []),
+    5: OpcodeDefinition("OP_MUL", []),
+    6: OpcodeDefinition("OP_DIV", []),
+    7: OpcodeDefinition("OP_MOD", []),
+    8: OpcodeDefinition("OP_POW", []),
+    9: OpcodeDefinition("OP_EQUAL", []),
+    10: OpcodeDefinition("OP_NOT_EQUAL", []),
+    11: OpcodeDefinition("OP_GREATER_THAN", []),
+    12: OpcodeDefinition("OP_LESS_THAN", []),
+    13: OpcodeDefinition("OP_GREATER_EQUAL", []),
+    14: OpcodeDefinition("OP_LESS_EQUAL", []),
+    15: OpcodeDefinition("OP_CONCAT", []),
+    16: OpcodeDefinition("OP_TRUE", []),
+    17: OpcodeDefinition("OP_FALSE", []),
+    18: OpcodeDefinition("OP_NULL", []),
+    19: OpcodeDefinition("OP_MINUS", []),
+    20: OpcodeDefinition("OP_NOT", []),
+    21: OpcodeDefinition("OP_JUMP", [2]),
+    22: OpcodeDefinition("OP_JUMP_NOT_TRUTHY", [2]),
+    23: OpcodeDefinition("OP_SET_GLOBAL", [2]),
+    24: OpcodeDefinition("OP_GET_GLOBAL", [2]),
+    25: OpcodeDefinition("OP_SET_LOCAL", [1]),
+    26: OpcodeDefinition("OP_GET_LOCAL", [1]),
+    27: OpcodeDefinition("OP_ARRAY", [2]),
+    28: OpcodeDefinition("OP_INDEX_GET", []),
+    29: OpcodeDefinition("OP_INDEX_SET", []),
+    30: OpcodeDefinition("OP_PROPERTY_GET", [2]),
+    31: OpcodeDefinition("OP_PROPERTY_SET", [2]),
+    32: OpcodeDefinition("OP_CALL", [1]),
+    33: OpcodeDefinition("OP_RETURN_VALUE", []),
+    34: OpcodeDefinition("OP_RETURN", []),
+    35: OpcodeDefinition("OP_CLOSURE", [2, 1]),
+    36: OpcodeDefinition("OP_GET_FREE", [1]),
+    37: OpcodeDefinition("OP_SET_FREE", [1]),
+    38: OpcodeDefinition("OP_GET_BUILTIN", [1]),
+    39: OpcodeDefinition("OP_STRUCT_DEF", [2, 1]),
+    40: OpcodeDefinition("OP_SPAWN", [1]),
+    41: OpcodeDefinition("OP_DISPLAY", []),
+    42: OpcodeDefinition("OP_DUP", []),
+};
+
+// Lookup Opcode Definition by Opcode byte
+let lookup_opcode = fn(op) {
+    if contains(opcode_definitions, op) {
+        return opcode_definitions[op];
+    }
+    return null;
+};
+
+// Make Instruction Bytecode from Opcode and Operands
+let make_instruction = fn(op, operands) {
+    if operands == null {
+        operands = [];
+    }
+    let def = lookup_opcode(op);
+    if def == null {
+        return [];
+    }
+
+    let ins = [op];
+    let i = 0;
+    while i < len(operands) && i < len(def.operand_widths) {
+        let width = def.operand_widths[i];
+        let val = operands[i];
+
+        if width == 1 {
+            ins = push(ins, val & 255);
+        } else if width == 2 {
+            ins = push(ins, (val >> 8) & 255);
+            ins = push(ins, val & 255);
+        }
+        i = i + 1;
+    }
+    return ins;
+};
+
+// Read Operands from Instruction Stream at Given Offset
+let read_operands = fn(def, instructions, offset) {
+    let operands = [];
+    let bytes_read = 0;
+    let i = 0;
+
+    while i < len(def.operand_widths) {
+        let width = def.operand_widths[i];
+        if offset + width > len(instructions) {
+            return { "operands": operands, "bytes_read": bytes_read };
+        }
+
+        if width == 1 {
+            operands = push(operands, instructions[offset]);
+            offset = offset + 1;
+            bytes_read = bytes_read + 1;
+        } else if width == 2 {
+            let high = instructions[offset];
+            let low = instructions[offset + 1];
+            let val = (high << 8) | low;
+            operands = push(operands, val);
+            offset = offset + 2;
+            bytes_read = bytes_read + 2;
+        }
+        i = i + 1;
+    }
+
+    return { "operands": operands, "bytes_read": bytes_read };
+};
+
+// Helper to Format Offset as 4-Digit Zero-Padded String
+let format_offset = fn(n) {
+    let s = str(n);
+    while len(s) < 4 {
+        s = "0" + s;
+    }
+    return s;
+};
+
+// Helper to Format an Instruction and its Operands
+let format_instruction = fn(def, operands) {
+    let num_ops = len(operands);
+    if num_ops == 0 {
+        return def.name;
+    }
+    if num_ops == 1 {
+        return def.name + " " + str(operands[0]);
+    }
+    if num_ops == 2 {
+        return def.name + " " + str(operands[0]) + " " + str(operands[1]);
+    }
+    return def.name;
+};
+
+// Disassemble Instructions Array into Human-Readable Assembly
+let disassemble = fn(instructions) {
+    let out = "";
+    let i = 0;
+
+    while i < len(instructions) {
+        let op = instructions[i];
+        let def = lookup_opcode(op);
+
+        if def == null {
+            out = out + format_offset(i) + " ERROR: Unknown opcode " + str(op) + "\n";
+            i = i + 1;
+        } else {
+            let res = read_operands(def, instructions, i + 1);
+            let operands = res["operands"];
+            let bytes_read = res["bytes_read"];
+
+            out = out + format_offset(i) + " " + format_instruction(def, operands) + "\n";
+            i = i + 1 + bytes_read;
+        }
+    }
+
+    return out;
+};
