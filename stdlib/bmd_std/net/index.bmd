@@ -37,3 +37,183 @@ let SSE_HEADERS = sse.SSE_HEADERS;
 let RoomHub = ws_room.RoomHub;
 let new_room_hub = ws_room.new_room_hub;
 let create_room_hub = ws_room.create_room_hub;
+
+// --- Raw Networking Engine Wrapper (Socket, Server, UDP) ---
+
+let Socket = fn(raw_conn) {
+    let self = {
+        "raw": raw_conn,
+        "write": fn(data) {
+            return tcp_write(raw_conn, data);
+        },
+        "read": fn(max_bytes = 4096) {
+            return tcp_read(raw_conn, max_bytes);
+        },
+        "read_line": fn() {
+            return tcp_read_line(raw_conn);
+        },
+        "set_timeout": fn(ms) {
+            return tcp_set_timeout(raw_conn, ms);
+        },
+        "close": fn() {
+            return tcp_close(raw_conn);
+        },
+        "remote_addr": fn() {
+            return tcp_remote_addr(raw_conn);
+        },
+        "local_addr": fn() {
+            return tcp_local_addr(raw_conn);
+        }
+    };
+    return self;
+};
+
+let create_server = fn(arg1, arg2 = null) {
+    let handler = null;
+    let initial_addr = null;
+
+    let t1 = type(arg1);
+    if (t1 == "CLOSURE" || t1 == "FUNCTION" || t1 == "BUILTIN") {
+        handler = arg1;
+    } else {
+        initial_addr = arg1;
+        handler = arg2;
+    }
+
+    let srv_obj = {
+        "raw": null,
+        "is_listening": false
+    };
+
+    srv_obj["listen"] = fn(addr, on_listening = null) {
+        let target_addr = addr;
+        if (type(target_addr) == "INTEGER") {
+            target_addr = "127.0.0.1:" + str(target_addr);
+        }
+        let raw_srv = net_listen_tcp(target_addr);
+        if (type(raw_srv) == "ERROR") {
+            return raw_srv;
+        }
+        srv_obj["raw"] = raw_srv;
+        srv_obj["is_listening"] = true;
+
+        if (on_listening != null) {
+            on_listening(srv_obj);
+        }
+
+        spawn fn() {
+            while (srv_obj["is_listening"]) {
+                let raw_conn = tcp_accept(srv_obj["raw"]);
+                if (raw_conn != null && type(raw_conn) != "ERROR") {
+                    let sock = Socket(raw_conn);
+                    if (handler != null) {
+                        spawn fn() {
+                            handler(sock);
+                        }();
+                    }
+                } else {
+                    if (!srv_obj["is_listening"]) {
+                        break;
+                    }
+                }
+            }
+        }();
+
+        return srv_obj;
+    };
+
+    srv_obj["close"] = fn() {
+        srv_obj["is_listening"] = false;
+        if (srv_obj["raw"] != null) {
+            tcp_close(srv_obj["raw"]);
+            srv_obj["raw"] = null;
+        }
+        return true;
+    };
+
+    srv_obj["addr"] = fn() {
+        if (srv_obj["raw"] != null) {
+            return srv_obj["raw"].addr;
+        }
+        return "";
+    };
+
+    if (initial_addr != null) {
+        let res = srv_obj["listen"](initial_addr);
+        if (type(res) == "ERROR") {
+            return res;
+        }
+    }
+
+    return srv_obj;
+};
+
+let connect = fn(host, port = null, on_connect = null) {
+    let addr = "";
+    let cb = null;
+
+    let tp = type(port);
+    if (tp == "CLOSURE" || tp == "FUNCTION" || tp == "BUILTIN") {
+        cb = port;
+        addr = host;
+    } else if (port != null) {
+        addr = str(host) + ":" + str(port);
+        cb = on_connect;
+    } else {
+        addr = host;
+        cb = on_connect;
+    }
+
+    let raw_conn = net_dial_tcp(addr);
+    if (type(raw_conn) == "ERROR") {
+        return raw_conn;
+    }
+
+    let sock = Socket(raw_conn);
+    if (cb != null) {
+        cb(sock);
+    }
+    return sock;
+};
+
+let create_udp_socket = fn(port_or_addr = null) {
+    let addr = "127.0.0.1:0";
+    if (port_or_addr != null) {
+        if (type(port_or_addr) == "INTEGER") {
+            addr = "127.0.0.1:" + str(port_or_addr);
+        } else {
+            addr = str(port_or_addr);
+        }
+    }
+
+    let raw_sock = net_listen_udp(addr);
+    if (type(raw_sock) == "ERROR") {
+        return raw_sock;
+    }
+
+    let self = {
+        "raw": raw_sock,
+        "send_to": fn(data, dest_addr) {
+            return udp_send_to(raw_sock, data, dest_addr);
+        },
+        "recv_from": fn(max_bytes = 4096) {
+            return udp_recv_from(raw_sock, max_bytes);
+        },
+        "set_timeout": fn(ms) {
+            return udp_set_timeout(raw_sock, ms);
+        },
+        "close": fn() {
+            return udp_close(raw_sock);
+        },
+        "local_addr": fn() {
+            return raw_sock.local_addr;
+        }
+    };
+    return self;
+};
+
+// Aliases for low-level socket primitives
+let listen_tcp = net_listen_tcp;
+let dial_tcp = net_dial_tcp;
+let listen_udp = net_listen_udp;
+let dial_tls = tls_dial;

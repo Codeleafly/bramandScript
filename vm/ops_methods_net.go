@@ -42,14 +42,22 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 			return true, fmt.Errorf("unknown method '%s' on TcpServer", prop)
 		}
 
-	case left.Type() == object.TCP_CONN_OBJ && index.Type() == object.STRING_OBJ:
-		c := left.(*object.TcpConn)
+	case (left.Type() == object.TCP_CONN_OBJ || left.Type() == object.TLS_CONN_OBJ) && index.Type() == object.STRING_OBJ:
+		c := left.(object.NetConn)
 		prop := index.(*object.String).Value
 		switch prop {
 		case "local_addr":
-			return true, vm.push(&object.String{Value: c.LocalAddr()})
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.String{Value: c.LocalAddr()}
+				},
+			})
 		case "remote_addr":
-			return true, vm.push(&object.String{Value: c.RemoteAddr()})
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					return &object.String{Value: c.RemoteAddr()}
+				},
+			})
 		case "write", "send":
 			return true, vm.push(&object.Builtin{
 				Fn: func(args ...object.Object) object.Object {
@@ -59,6 +67,8 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 					var data []byte
 					if strObj, ok := args[0].(*object.String); ok {
 						data = []byte(strObj.Value)
+					} else if bytesObj, ok := args[0].(*object.Bytes); ok {
+						data = bytesObj.Value
 					} else {
 						data = []byte(args[0].Inspect())
 					}
@@ -123,7 +133,7 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 				},
 			})
 		default:
-			return true, fmt.Errorf("unknown method '%s' on TcpConn", prop)
+			return true, fmt.Errorf("unknown method '%s' on %s", prop, left.Type())
 		}
 
 	case left.Type() == object.UDP_SOCKET_OBJ && index.Type() == object.STRING_OBJ:
@@ -145,6 +155,8 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 					var data []byte
 					if strObj, ok := args[0].(*object.String); ok {
 						data = []byte(strObj.Value)
+					} else if bytesObj, ok := args[0].(*object.Bytes); ok {
+						data = bytesObj.Value
 					} else {
 						data = []byte(args[0].Inspect())
 					}
@@ -185,6 +197,8 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 					var data []byte
 					if strObj, ok := args[0].(*object.String); ok {
 						data = []byte(strObj.Value)
+					} else if bytesObj, ok := args[0].(*object.Bytes); ok {
+						data = bytesObj.Value
 					} else {
 						data = []byte(args[0].Inspect())
 					}
@@ -209,6 +223,18 @@ func (vm *VM) executeNetMethod(left object.Object, index object.Object) (bool, e
 						return &object.Error{Message: err.Error()}
 					}
 					return &object.String{Value: string(data)}
+				},
+			})
+		case "set_timeout":
+			return true, vm.push(&object.Builtin{
+				Fn: func(args ...object.Object) object.Object {
+					if len(args) != 1 {
+						return &object.Error{Message: "set_timeout requires 1 argument (ms)"}
+					}
+					if intObj, ok := args[0].(*object.Integer); ok {
+						u.SetTimeout(intObj.Value)
+					}
+					return Null
 				},
 			})
 		case "close":

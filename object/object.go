@@ -33,6 +33,7 @@ const (
 	MATRIX_OBJ               = "MATRIX"
 	TCP_SERVER_OBJ           = "TCP_SERVER"
 	TCP_CONN_OBJ             = "TCP_CONN"
+	TLS_CONN_OBJ             = "TLS_CONN"
 	UDP_SOCKET_OBJ           = "UDP_SOCKET"
 	HTTP_SERVER_OBJ          = "HTTP_SERVER"
 	HTTP_RESPONSE_WRITER_OBJ = "HTTP_RESPONSE_WRITER"

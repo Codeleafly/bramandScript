@@ -19,6 +19,21 @@ import (
 )
 
 // ============================================================================
+// Raw Network Connection Interface
+// ============================================================================
+
+type NetConn interface {
+	Object
+	Read(maxBytes int) ([]byte, error)
+	ReadLine() (string, error)
+	Write(data []byte) (int, error)
+	Close() error
+	SetTimeout(ms int64)
+	LocalAddr() string
+	RemoteAddr() string
+}
+
+// ============================================================================
 // TCP Server & Connection
 // ============================================================================
 
@@ -165,6 +180,135 @@ func (c *TcpConn) Close() error {
 }
 
 // ============================================================================
+// TLS Connection
+// ============================================================================
+
+type TlsConn struct {
+	Conn     net.Conn
+	Reader   *bufio.Reader
+	Timeout  time.Duration
+	HostName string
+	mu       sync.Mutex
+}
+
+func (t *TlsConn) Type() ObjectType { return TLS_CONN_OBJ }
+func (t *TlsConn) Inspect() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.Conn != nil {
+		return fmt.Sprintf("tls_conn(%s -> %s)", t.localAddrLocked(), t.remoteAddrLocked())
+	}
+	return "tls_conn(closed)"
+}
+
+func (t *TlsConn) LocalAddr() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.localAddrLocked()
+}
+
+func (t *TlsConn) localAddrLocked() string {
+	if t.Conn != nil {
+		return t.Conn.LocalAddr().String()
+	}
+	return ""
+}
+
+func (t *TlsConn) RemoteAddr() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.remoteAddrLocked()
+}
+
+func (t *TlsConn) remoteAddrLocked() string {
+	if t.Conn != nil {
+		return t.Conn.RemoteAddr().String()
+	}
+	return ""
+}
+
+func (t *TlsConn) Write(data []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.Conn == nil {
+		return 0, fmt.Errorf("connection is closed")
+	}
+	if t.Timeout > 0 {
+		_ = t.Conn.SetWriteDeadline(time.Now().Add(t.Timeout))
+	}
+	return t.Conn.Write(data)
+}
+
+func (t *TlsConn) Read(maxBytes int) ([]byte, error) {
+	t.mu.Lock()
+	if t.Conn == nil {
+		t.mu.Unlock()
+		return nil, fmt.Errorf("connection is closed")
+	}
+	if t.Timeout > 0 {
+		_ = t.Conn.SetReadDeadline(time.Now().Add(t.Timeout))
+	}
+	r := t.Reader
+	t.mu.Unlock()
+
+	if maxBytes <= 0 {
+		maxBytes = 4096
+	}
+	buf := make([]byte, maxBytes)
+	n, err := r.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
+func (t *TlsConn) ReadLine() (string, error) {
+	t.mu.Lock()
+	if t.Conn == nil {
+		t.mu.Unlock()
+		return "", fmt.Errorf("connection is closed")
+	}
+	if t.Timeout > 0 {
+		_ = t.Conn.SetReadDeadline(time.Now().Add(t.Timeout))
+	}
+	r := t.Reader
+	t.mu.Unlock()
+
+	line, err := r.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	return strings.TrimRight(line, "\r\n"), nil
+}
+
+func (t *TlsConn) SetTimeout(ms int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if ms > 0 {
+		t.Timeout = time.Duration(ms) * time.Millisecond
+		if t.Conn != nil {
+			_ = t.Conn.SetDeadline(time.Now().Add(t.Timeout))
+		}
+	} else {
+		t.Timeout = 0
+		if t.Conn != nil {
+			_ = t.Conn.SetDeadline(time.Time{})
+		}
+	}
+}
+
+func (t *TlsConn) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.Conn != nil {
+		err := t.Conn.Close()
+		t.Conn = nil
+		return err
+	}
+	return nil
+}
+
+// ============================================================================
 // UDP Socket
 // ============================================================================
 
@@ -244,6 +388,21 @@ func (u *UdpSocket) Read(maxBytes int) ([]byte, error) {
 		return buf[:n], nil
 	}
 	return nil, fmt.Errorf("socket is not connected")
+}
+
+func (u *UdpSocket) SetTimeout(ms int64) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	var d time.Time
+	if ms > 0 {
+		d = time.Now().Add(time.Duration(ms) * time.Millisecond)
+	}
+	if u.PacketConn != nil {
+		_ = u.PacketConn.SetDeadline(d)
+	}
+	if u.Conn != nil {
+		_ = u.Conn.SetDeadline(d)
+	}
 }
 
 func (u *UdpSocket) Close() error {

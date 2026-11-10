@@ -1267,8 +1267,8 @@ func (vm *VM) runLoop() error {
 			}
 
 		case code.OpGetBuiltin:
-			builtinIndex := int(ins[ip+1])
-			vm.currentFrame().ip += 1
+			builtinIndex := int(binary.BigEndian.Uint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 
 			definition := compiler.Builtins[builtinIndex]
 			builtin := getBuiltinByName(definition.Name)

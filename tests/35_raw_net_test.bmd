@@ -1,0 +1,185 @@
+// tests/35_raw_net_test.bmd
+// BramandScript System Verification :: Raw Networking Engine (Agent 5)
+// Validates Low-Level Raw TCP/UDP/TLS Socket Primitives & Standard Library Wrappers
+
+import "std/net" as net;
+
+describe("Raw TCP Socket Primitives", fn() {
+    test("Raw TCP Server and Client duplex communication", fn() {
+        let srv = net_listen_tcp("127.0.0.1:28301");
+        assert(len(srv.addr) > 0);
+        let srv_local = tcp_local_addr(srv);
+        assert(len(srv_local) > 0);
+
+        spawn fn() {
+            let conn = tcp_accept(srv);
+            assert(conn != null);
+            let client_remote = tcp_remote_addr(conn);
+            assert(len(client_remote) > 0);
+
+            let msg = tcp_read_line(conn);
+            tcp_write(conn, "PONG:" + msg + "\n");
+            tcp_close(conn);
+        }();
+
+        sleep(30);
+
+        let client = net_dial_tcp("127.0.0.1:28301", 5000);
+        assert(client != null);
+        assert(len(tcp_remote_addr(client)) > 0);
+        assert(len(tcp_local_addr(client)) > 0);
+
+        let bytes_sent = tcp_write(client, "HELO_TCP\n");
+        assert(bytes_sent > 0);
+
+        let response = tcp_read_line(client);
+        assert_eq(response, "PONG:HELO_TCP");
+
+        tcp_close(client);
+        tcp_close(srv);
+    });
+
+    test("Raw TCP read with max_bytes buffer limit", fn() {
+        let srv = net_listen_tcp("127.0.0.1:28308");
+
+        spawn fn() {
+            let conn = tcp_accept(srv);
+            tcp_write(conn, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            tcp_close(conn);
+        }();
+
+        sleep(30);
+
+        let client = net_dial_tcp("127.0.0.1:28308", 5000);
+        let chunk1 = tcp_read(client, 4);
+        assert_eq(chunk1, "ABCD");
+        let chunk2 = tcp_read(client, 4);
+        assert_eq(chunk2, "EFGH");
+
+        tcp_close(client);
+        tcp_close(srv);
+    });
+});
+
+describe("Raw UDP Socket Primitives", fn() {
+    test("Raw UDP datagram sending and receiving", fn() {
+        let u_recv = net_listen_udp("127.0.0.1:28302");
+        let u_send = net_listen_udp("127.0.0.1:28303");
+
+        assert(len(u_recv.local_addr) > 0);
+        assert(len(u_send.local_addr) > 0);
+
+        let n = udp_send_to(u_send, "BRAMAND_DATAGRAM", "127.0.0.1:28302");
+        assert(n > 0);
+
+        let pkt = udp_recv_from(u_recv, 1024);
+        assert_eq(pkt["data"], "BRAMAND_DATAGRAM");
+        assert(len(pkt["addr"]) > 0);
+
+        udp_close(u_recv);
+        udp_close(u_send);
+    });
+});
+
+describe("Socket Timeouts and Non-Blocking Error Handling", fn() {
+    test("TCP read timeout returns error on idle connection", fn() {
+        let srv = net_listen_tcp("127.0.0.1:28304");
+
+        spawn fn() {
+            let conn = tcp_accept(srv);
+            // Wait without sending anything to trigger timeout on client
+            sleep(200);
+            tcp_close(conn);
+        }();
+
+        sleep(30);
+
+        let client = net_dial_tcp("127.0.0.1:28304", 5000);
+        tcp_set_timeout(client, 50);
+
+        let res = tcp_read_line(client);
+        assert_eq(type(res), "ERROR");
+
+        tcp_close(client);
+        tcp_close(srv);
+    });
+});
+
+describe("Standard Library Wrapper (std/net)", fn() {
+    test("net.create_server and net.connect with Socket class", fn() {
+        let server = net.create_server(fn(socket) {
+            assert(len(socket.remote_addr()) > 0);
+            assert(len(socket.local_addr()) > 0);
+
+            let line = socket.read_line();
+            socket.write("ECHO:" + line + "\n");
+            socket.close();
+        });
+
+        server.listen("127.0.0.1:28305");
+        assert(server.is_listening);
+        assert(len(server.addr()) > 0);
+
+        sleep(30);
+
+        let client_sock = net.connect("127.0.0.1", 28305);
+        assert(client_sock != null);
+        assert(len(client_sock.remote_addr()) > 0);
+
+        client_sock.write("HELLO_WRAPPER\n");
+        let resp = client_sock.read_line();
+        assert_eq(resp, "ECHO:HELLO_WRAPPER");
+
+        client_sock.close();
+        server.close();
+        assert_eq(server.is_listening, false);
+    });
+
+    test("net.create_udp_socket ergonomic wrapper", fn() {
+        let u1 = net.create_udp_socket("127.0.0.1:28306");
+        let u2 = net.create_udp_socket();
+
+        assert(len(u1.local_addr()) > 0);
+        assert(len(u2.local_addr()) > 0);
+
+        u2.send_to("UDP_PACKET_WRAPPER", "127.0.0.1:28306");
+        let pkt = u1.recv_from();
+
+        assert_eq(pkt["data"], "UDP_PACKET_WRAPPER");
+        assert(len(pkt["addr"]) > 0);
+
+        u1.close();
+        u2.close();
+    });
+});
+
+describe("Raw TLS Socket Primitives", fn() {
+    test("TLS Dial and encrypted communication with SNI", fn() {
+        let tls_srv = tls_listen("127.0.0.1:28307");
+        assert(len(tls_srv.addr) > 0);
+
+        spawn fn() {
+            let conn = tcp_accept(tls_srv);
+            assert(conn != null);
+            let msg = tcp_read_line(conn);
+            tcp_write(conn, "TLS_OK:" + msg + "\n");
+            tcp_close(conn);
+        }();
+
+        sleep(40);
+
+        // Connect with SNI "localhost" and insecure_skip_verify: true for self-signed test cert
+        let client = tls_dial("127.0.0.1:28307", "localhost", 5000, { "insecure_skip_verify": true });
+        assert(client != null);
+        assert_eq(type(client), "TLS_CONN");
+        assert(len(tcp_remote_addr(client)) > 0);
+        assert(len(tcp_local_addr(client)) > 0);
+
+        tcp_write(client, "SECRET_MESSAGE\n");
+        let reply = tcp_read_line(client);
+        assert_eq(reply, "TLS_OK:SECRET_MESSAGE");
+
+        tcp_close(client);
+        tcp_close(tls_srv);
+    });
+});

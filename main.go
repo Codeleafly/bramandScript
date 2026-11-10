@@ -10,6 +10,7 @@ import (
 	"bramandscript/repl"
 	"bramandscript/testrunner"
 	"bramandscript/vm"
+	_ "bramandscript/stdlib/go_std"
 	"encoding/binary"
 	"fmt"
 	"os"

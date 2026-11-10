@@ -325,4 +325,24 @@ var Builtins = []BuiltinDef{
 	// Day 35 Benchmarking and Fuzz Testing Framework
 	{Name: "bench"},
 	{Name: "fuzz"},
+
+	// Raw Networking Engine (Agent 5)
+	{Name: "net_listen_tcp"},
+	{Name: "tcp_accept"},
+	{Name: "net_dial_tcp"},
+	{Name: "tcp_dial"},
+	{Name: "tcp_read"},
+	{Name: "tcp_read_line"},
+	{Name: "tcp_write"},
+	{Name: "tcp_close"},
+	{Name: "tcp_set_timeout"},
+	{Name: "tcp_remote_addr"},
+	{Name: "tcp_local_addr"},
+	{Name: "net_listen_udp"},
+	{Name: "udp_send_to"},
+	{Name: "udp_recv_from"},
+	{Name: "udp_close"},
+	{Name: "udp_set_timeout"},
+	{Name: "tls_dial"},
+	{Name: "tls_listen"},
 }
