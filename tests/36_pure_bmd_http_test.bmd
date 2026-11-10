@@ -1,0 +1,320 @@
+// tests/36_pure_bmd_http_test.bmd
+// BramandScript System Verification :: Pure BramandScript HTTP Engine (Agent 6)
+// Validates 100% Self-Hosted HTTP/1.1 Wire Parser, Server, Client, and Router Integration.
+
+import "std/http" as http;
+import "std/http/parser" as parser;
+
+describe("Pure BramandScript Wire Protocol Parser (std/http/parser)", fn() {
+    test("parse_request parses method, path, query parameters, and headers", fn() {
+        let wire = "GET /api/v1/search?query=bramand&limit=10&active=true HTTP/1.1\r\nHost: api.bramand.org\r\nAccept: application/json\r\nUser-Agent: BMD-TestRunner\r\n\r\n";
+        let req = parser.parse_request(wire);
+
+        assert(req != null);
+        assert_eq(req["method"], "GET");
+        assert_eq(req["path"], "/api/v1/search");
+        assert_eq(req["url"], "/api/v1/search?query=bramand&limit=10&active=true");
+        assert_eq(req["version"], "HTTP/1.1");
+
+        // Query parameters
+        assert_eq(req["query"]["query"], "bramand");
+        assert_eq(req["query"]["limit"], "10");
+        assert_eq(req["query"]["active"], "true");
+
+        // Lowercase normalized headers
+        assert_eq(req["headers"]["host"], "api.bramand.org");
+        assert_eq(req["headers"]["accept"], "application/json");
+        assert_eq(req["headers"]["user-agent"], "BMD-TestRunner");
+        assert_eq(req["body"], "");
+    });
+
+    test("parse_request parses POST body accurately based on Content-Length", fn() {
+        let payload = "{\"username\": \"aryabhata\", \"role\": \"astronomer\"}";
+        let wire = "POST /api/users HTTP/1.1\r\nHost: localhost:8080\r\nContent-Type: application/json\r\nContent-Length: " + str(len(payload)) + "\r\n\r\n" + payload;
+
+        let req = parser.parse_request(wire);
+        assert(req != null);
+        assert_eq(req["method"], "POST");
+        assert_eq(req["path"], "/api/users");
+        assert_eq(req["headers"]["content-type"], "application/json");
+        assert_eq(req["headers"]["content-length"], str(len(payload)));
+        assert_eq(req["body"], payload);
+    });
+
+    test("parse_response parses status line, headers, and body", fn() {
+        let wire = "HTTP/1.1 201 Created\r\nContent-Type: text/plain\r\nServer: BramandScript/1.0\r\nContent-Length: 16\r\n\r\nResource Created";
+        let res = parser.parse_response(wire);
+
+        assert(res != null);
+        assert_eq(res["version"], "HTTP/1.1");
+        assert_eq(res["status"], 201);
+        assert_eq(res["status_text"], "Created");
+        assert_eq(res["headers"]["content-type"], "text/plain");
+        assert_eq(res["headers"]["server"], "BramandScript/1.0");
+        assert_eq(res["body"], "Resource Created");
+    });
+
+    test("format_request and format_response serialize valid RFC 7230 protocol", fn() {
+        let req_wire = parser.format_request({
+            "method": "POST",
+            "path": "/submit",
+            "headers": {
+                "Host": "localhost:3000",
+                "X-Custom-ID": "bmd-123"
+            },
+            "body": "DATA_PAYLOAD"
+        });
+
+        assert(contains(req_wire, "POST /submit HTTP/1.1\r\n"));
+        assert(contains(req_wire, "Host: localhost:3000\r\n"));
+        assert(contains(req_wire, "X-Custom-ID: bmd-123\r\n"));
+        assert(contains(req_wire, "Content-Length: 12\r\n"));
+        assert(contains(req_wire, "\r\n\r\nDATA_PAYLOAD"));
+
+        let res_wire = parser.format_response(200, {
+            "Content-Type": "text/html; charset=utf-8"
+        }, "<h1>Bramand</h1>");
+
+        assert(contains(res_wire, "HTTP/1.1 200 OK\r\n"));
+        assert(contains(res_wire, "Content-Type: text/html; charset=utf-8\r\n"));
+        assert(contains(res_wire, "Content-Length: 16\r\n"));
+        assert(contains(res_wire, "Connection: close\r\n"));
+        assert(contains(res_wire, "\r\n\r\n<h1>Bramand</h1>"));
+    });
+});
+
+describe("Pure BramandScript HTTP Server & Client (std/http)", fn() {
+    test("HTTP GET request and 200 OK text response", fn() {
+        let server = http.create_server(fn(req, res) {
+            assert_eq(req.method, "GET");
+            assert_eq(req.path, "/greeting");
+            res.status(200).send("Welcome to BramandScript HTTP Engine!");
+        });
+
+        let port = 29501;
+        server.listen(port);
+        assert(server.is_listening);
+
+        sleep(40);
+
+        let res = http.get("http://127.0.0.1:" + str(port) + "/greeting");
+        assert_eq(res["status"], 200);
+        assert_eq(res["status_text"], "OK");
+        assert_eq(res["body"], "Welcome to BramandScript HTTP Engine!");
+        assert_eq(res.text(), "Welcome to BramandScript HTTP Engine!");
+
+        server.close();
+        assert_eq(server.is_listening, false);
+    });
+
+    test("HTTP POST request with JSON body, server req.json(), and res.json() response", fn() {
+        let server = http.create_server(fn(req, res) {
+            assert_eq(req.method, "POST");
+            assert_eq(req.path, "/api/calculate");
+
+            let data = req.json();
+            assert(data != null);
+            let a = data["a"];
+            let b = data["b"];
+
+            res.json({
+                "sum": a + b,
+                "product": a * b,
+                "verified": true
+            });
+        });
+
+        let port = 29502;
+        server.listen(port);
+        sleep(40);
+
+        let client_res = http.post("http://127.0.0.1:" + str(port) + "/api/calculate", {
+            "a": 25,
+            "b": 4
+        });
+
+        assert_eq(client_res["status"], 200);
+        assert(contains(client_res["headers"]["content-type"], "application/json"));
+
+        let json_body = client_res.json();
+        assert(json_body != null);
+        assert_eq(json_body["sum"], 29);
+        assert_eq(json_body["product"], 100);
+        assert_eq(json_body["verified"], true);
+
+        server.close();
+    });
+
+    test("HTTP 404 Not Found error handling for unregistered routes", fn() {
+        let server = http.create_server(fn(req, res) {
+            if (req.path == "/valid") {
+                res.send("VALID_ENDPOINT");
+            } else {
+                res.status(404).send("Endpoint not found");
+            }
+        });
+
+        let port = 29503;
+        server.listen(port);
+        sleep(40);
+
+        let res404 = http.get("http://127.0.0.1:" + str(port) + "/non_existent");
+        assert_eq(res404["status"], 404);
+        assert_eq(res404["status_text"], "Not Found");
+        assert_eq(res404["body"], "Endpoint not found");
+
+        let res200 = http.get("http://127.0.0.1:" + str(port) + "/valid");
+        assert_eq(res200["status"], 200);
+        assert_eq(res200["body"], "VALID_ENDPOINT");
+
+        server.close();
+    });
+
+    test("HTTP query string parsing and custom header dispatch", fn() {
+        let server = http.create_server(fn(req, res) {
+            let filter = req.query["filter"];
+            let page = req.query["page"];
+
+            res.set_header("X-Engine-Name", "BramandNet");
+            res.set_header("X-Page-Number", page);
+            res.send("Filtered for " + filter);
+        });
+
+        let port = 29504;
+        server.listen(port);
+        sleep(40);
+
+        let res = http.get("http://127.0.0.1:" + str(port) + "/items?filter=active&page=3");
+        assert_eq(res["status"], 200);
+        assert_eq(res["body"], "Filtered for active");
+        assert_eq(res["headers"]["x-engine-name"], "BramandNet");
+        assert_eq(res["headers"]["x-page-number"], "3");
+
+        server.close();
+    });
+
+    test("Case-insensitive request header inspection", fn() {
+        let server = http.create_server(fn(req, res) {
+            let auth1 = req.header("authorization");
+            let auth2 = req.header("Authorization");
+            let auth3 = req.header("AUTHORIZATION");
+
+            assert_eq(auth1, "Bearer token_secret_123");
+            assert_eq(auth2, "Bearer token_secret_123");
+            assert_eq(auth3, "Bearer token_secret_123");
+
+            res.send("AUTH_VERIFIED");
+        });
+
+        let port = 29505;
+        server.listen(port);
+        sleep(40);
+
+        let res = http.request({
+            "url": "http://127.0.0.1:" + str(port) + "/secure",
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer token_secret_123"
+            }
+        });
+
+        assert_eq(res["status"], 200);
+        assert_eq(res["body"], "AUTH_VERIFIED");
+
+        server.close();
+    });
+});
+
+describe("HTTP Router and Grouping Interoperability", fn() {
+    test("Mounting router directly on http.create_server with parameterized routes", fn() {
+        let r = http.create_router();
+
+        r.get("/users/:id", fn(req, res) {
+            let user_id = req.params["id"];
+            res.json({
+                "id": user_id,
+                "name": "User_" + user_id,
+                "found": true
+            });
+        });
+
+        r.post("/users", fn(req, res) {
+            let body = req.json();
+            res.status(201).json({
+                "id": "1001",
+                "name": body["name"],
+                "created": true
+            });
+        });
+
+        let server = http.create_server(r);
+        let port = 29506;
+        server.listen(port);
+        sleep(40);
+
+        // GET /users/42 parameterized lookup
+        let get_res = http.get("http://127.0.0.1:" + str(port) + "/users/42");
+        assert_eq(get_res["status"], 200);
+        let user = get_res.json();
+        assert_eq(user["id"], "42");
+        assert_eq(user["name"], "User_42");
+
+        // POST /users create
+        let post_res = http.post("http://127.0.0.1:" + str(port) + "/users", {
+            "name": "BramandArchitect"
+        });
+        assert_eq(post_res["status"], 201);
+        let created = post_res.json();
+        assert_eq(created["id"], "1001");
+        assert_eq(created["created"], true);
+
+        // Unmatched route returns 404
+        let res404 = http.get("http://127.0.0.1:" + str(port) + "/non_existent");
+        assert_eq(res404["status"], 404);
+
+        // Method not allowed returns 405
+        let res405 = http.put("http://127.0.0.1:" + str(port) + "/users/42", "dummy");
+        assert_eq(res405["status"], 405);
+
+        server.close();
+    });
+
+    test("HTTP Client convenience methods: get, post, put, delete, patch", fn() {
+        let server = http.create_server(fn(req, res) {
+            if (req.method == "GET") {
+                res.send("METHOD:GET");
+            } else if (req.method == "POST") {
+                res.send("METHOD:POST:" + req.body);
+            } else if (req.method == "PUT") {
+                res.send("METHOD:PUT:" + req.body);
+            } else if (req.method == "DELETE") {
+                res.send("METHOD:DELETE");
+            } else if (req.method == "PATCH") {
+                res.send("METHOD:PATCH:" + req.body);
+            }
+        });
+
+        let port = 29507;
+        server.listen(port);
+        sleep(40);
+
+        let base = "http://127.0.0.1:" + str(port);
+
+        let r_get = http.get(base + "/res");
+        assert_eq(r_get["body"], "METHOD:GET");
+
+        let r_post = http.post(base + "/res", "DATA_POST");
+        assert_eq(r_post["body"], "METHOD:POST:DATA_POST");
+
+        let r_put = http.put(base + "/res", "DATA_PUT");
+        assert_eq(r_put["body"], "METHOD:PUT:DATA_PUT");
+
+        let r_del = http.delete_req(base + "/res");
+        assert_eq(r_del["body"], "METHOD:DELETE");
+
+        let r_patch = http.patch(base + "/res", "DATA_PATCH");
+        assert_eq(r_patch["body"], "METHOD:PATCH:DATA_PATCH");
+
+        server.close();
+    });
+});

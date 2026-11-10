@@ -1,0 +1,394 @@
+// BramandScript Standard Library :: HTTP Wire Protocol Parser (std/http/parser)
+// Pure BramandScript RFC 7230 HTTP/1.1 wire protocol request and response parser and formatter.
+
+let get_status_text = fn(code) {
+    if (code == 200) { return "OK"; }
+    if (code == 201) { return "Created"; }
+    if (code == 202) { return "Accepted"; }
+    if (code == 204) { return "No Content"; }
+    if (code == 301) { return "Moved Permanently"; }
+    if (code == 302) { return "Found"; }
+    if (code == 304) { return "Not Modified"; }
+    if (code == 400) { return "Bad Request"; }
+    if (code == 401) { return "Unauthorized"; }
+    if (code == 403) { return "Forbidden"; }
+    if (code == 404) { return "Not Found"; }
+    if (code == 405) { return "Method Not Allowed"; }
+    if (code == 408) { return "Request Timeout"; }
+    if (code == 409) { return "Conflict"; }
+    if (code == 413) { return "Payload Too Large"; }
+    if (code == 422) { return "Unprocessable Entity"; }
+    if (code == 429) { return "Too Many Requests"; }
+    if (code == 500) { return "Internal Server Error"; }
+    if (code == 501) { return "Not Implemented"; }
+    if (code == 502) { return "Bad Gateway"; }
+    if (code == 503) { return "Service Unavailable"; }
+    if (code == 504) { return "Gateway Timeout"; }
+    return "OK";
+};
+
+let safe_url_decode = fn(s) {
+    let res = url_decode(s);
+    if (type(res) == "ERROR") {
+        return s;
+    }
+    return res;
+};
+
+// Parse URL query string into key-value map: "a=1&b=two%20words&c"
+let parse_query_string = fn(qs) {
+    let result = {};
+    if (qs == null || len(qs) == 0) {
+        return result;
+    }
+    let pairs = split(qs, "&");
+    let i = 0;
+    while (i < len(pairs)) {
+        let pair = pairs[i];
+        if (len(pair) > 0) {
+            let eq_idx = -1;
+            let k = 0;
+            while (k < len(pair)) {
+                if (pair[k] == "=") {
+                    eq_idx = k;
+                    break;
+                }
+                k = k + 1;
+            }
+            if (eq_idx >= 0) {
+                let key = slice(pair, 0, eq_idx);
+                let val = slice(pair, eq_idx + 1, len(pair));
+                key = safe_url_decode(key);
+                val = safe_url_decode(val);
+                result[key] = val;
+            } else {
+                let key = safe_url_decode(pair);
+                result[key] = "";
+            }
+        }
+        i = i + 1;
+    }
+    return result;
+};
+
+// Split raw HTTP message into header section and body section
+let find_header_split = fn(text) {
+    let t_len = len(text);
+    // Search for "\r\n\r\n"
+    let i = 0;
+    while (i <= t_len - 4) {
+        if (text[i] == "\r" && text[i + 1] == "\n" && text[i + 2] == "\r" && text[i + 3] == "\n") {
+            return [slice(text, 0, i), slice(text, i + 4, t_len)];
+        }
+        i = i + 1;
+    }
+    // Search for "\n\n"
+    i = 0;
+    while (i <= t_len - 2) {
+        if (text[i] == "\n" && text[i + 1] == "\n") {
+            return [slice(text, 0, i), slice(text, i + 2, t_len)];
+        }
+        i = i + 1;
+    }
+    return [text, ""];
+};
+
+// Parse raw HTTP request wire text into structured Hash
+let parse_request = fn(raw_text) {
+    if (raw_text == null || len(raw_text) == 0) {
+        return null;
+    }
+
+    let split_res = find_header_split(raw_text);
+    let header_sec = split_res[0];
+    let raw_body = split_res[1];
+
+    // Clean CR from header section for reliable line splitting
+    let clean_hdr = replace(header_sec, "\r", "");
+    let raw_lines = split(clean_hdr, "\n");
+    let lines = [];
+    let l_idx = 0;
+    while (l_idx < len(raw_lines)) {
+        let ln = trim(raw_lines[l_idx]);
+        if (len(ln) > 0) {
+            push(lines, ln);
+        }
+        l_idx = l_idx + 1;
+    }
+
+    if (len(lines) == 0) {
+        return null;
+    }
+
+    // 1. Request Line: METHOD TARGET VERSION
+    let req_line = lines[0];
+    let req_parts = split(req_line, " ");
+    let method = "GET";
+    if (len(req_parts) > 0) {
+        method = to_upper(trim(req_parts[0]));
+    }
+    let target = "/";
+    if (len(req_parts) > 1) {
+        target = trim(req_parts[1]);
+    }
+    let version = "HTTP/1.1";
+    if (len(req_parts) > 2) {
+        version = trim(req_parts[2]);
+    }
+
+    // Extract path and query from target URI
+    let q_idx = -1;
+    let j = 0;
+    while (j < len(target)) {
+        if (target[j] == "?") {
+            q_idx = j;
+            break;
+        }
+        j = j + 1;
+    }
+
+    let path = target;
+    let query = {};
+    if (q_idx >= 0) {
+        path = slice(target, 0, q_idx);
+        let q_str = slice(target, q_idx + 1, len(target));
+        query = parse_query_string(q_str);
+    }
+
+    // 2. Parse Headers into map with lowercase keys
+    let headers = {};
+    let h_idx = 1;
+    while (h_idx < len(lines)) {
+        let line = lines[h_idx];
+        let col_idx = -1;
+        let c = 0;
+        while (c < len(line)) {
+            if (line[c] == ":") {
+                col_idx = c;
+                break;
+            }
+            c = c + 1;
+        }
+        if (col_idx > 0) {
+            let h_key = to_lower(trim(slice(line, 0, col_idx)));
+            let h_val = trim(slice(line, col_idx + 1, len(line)));
+            headers[h_key] = h_val;
+        }
+        h_idx = h_idx + 1;
+    }
+
+    // 3. Body slicing based on content-length
+    let body = raw_body;
+    if (headers["content-length"] != null) {
+        let cl = int(headers["content-length"]);
+        if (cl >= 0 && len(body) > cl) {
+            body = slice(body, 0, cl);
+        }
+    }
+
+    return {
+        "method": method,
+        "url": target,
+        "path": path,
+        "version": version,
+        "headers": headers,
+        "query": query,
+        "body": body
+    };
+};
+
+// Parse raw HTTP response wire text into structured Hash
+let parse_response = fn(raw_text) {
+    if (raw_text == null || len(raw_text) == 0) {
+        return null;
+    }
+
+    let split_res = find_header_split(raw_text);
+    let header_sec = split_res[0];
+    let raw_body = split_res[1];
+
+    let clean_hdr = replace(header_sec, "\r", "");
+    let raw_lines = split(clean_hdr, "\n");
+    let lines = [];
+    let l_idx = 0;
+    while (l_idx < len(raw_lines)) {
+        let ln = trim(raw_lines[l_idx]);
+        if (len(ln) > 0) {
+            push(lines, ln);
+        }
+        l_idx = l_idx + 1;
+    }
+
+    if (len(lines) == 0) {
+        return null;
+    }
+
+    // 1. Status Line: VERSION STATUS STATUS_TEXT
+    let status_line = lines[0];
+    let status_parts = split(status_line, " ");
+    let version = "HTTP/1.1";
+    if (len(status_parts) > 0) {
+        version = trim(status_parts[0]);
+    }
+    let status = 200;
+    if (len(status_parts) > 1) {
+        status = int(trim(status_parts[1]));
+    }
+    let status_text = "OK";
+    if (len(status_parts) > 2) {
+        let rest = [];
+        let r = 2;
+        while (r < len(status_parts)) {
+            push(rest, status_parts[r]);
+            r = r + 1;
+        }
+        status_text = join(rest, " ");
+    } else {
+        status_text = get_status_text(status);
+    }
+
+    // 2. Parse Headers
+    let headers = {};
+    let h_idx = 1;
+    while (h_idx < len(lines)) {
+        let line = lines[h_idx];
+        let col_idx = -1;
+        let c = 0;
+        while (c < len(line)) {
+            if (line[c] == ":") {
+                col_idx = c;
+                break;
+            }
+            c = c + 1;
+        }
+        if (col_idx > 0) {
+            let h_key = to_lower(trim(slice(line, 0, col_idx)));
+            let h_val = trim(slice(line, col_idx + 1, len(line)));
+            headers[h_key] = h_val;
+        }
+        h_idx = h_idx + 1;
+    }
+
+    // 3. Body slicing based on content-length
+    let body = raw_body;
+    if (headers["content-length"] != null) {
+        let cl = int(headers["content-length"]);
+        if (cl >= 0 && len(body) > cl) {
+            body = slice(body, 0, cl);
+        }
+    }
+
+    return {
+        "version": version,
+        "status": status,
+        "status_text": status_text,
+        "headers": headers,
+        "body": body
+    };
+};
+
+// Format request options into RFC 7230 HTTP/1.1 wire string
+let format_request = fn(opts) {
+    if (opts == null) { opts = {}; }
+
+    let method = "GET";
+    if (opts["method"] != null) { method = to_upper(str(opts["method"])); }
+
+    let target = "/";
+    if (opts["url"] != null) { target = str(opts["url"]); }
+    else if (opts["path"] != null) { target = str(opts["path"]); }
+
+    let version = "HTTP/1.1";
+    if (opts["version"] != null) { version = str(opts["version"]); }
+
+    let body = "";
+    if (opts["body"] != null) { body = str(opts["body"]); }
+
+    let hdrs = {};
+    if (opts["headers"] != null) {
+        let hk = keys(opts["headers"]);
+        let i = 0;
+        while (i < len(hk)) {
+            let k = hk[i];
+            hdrs[k] = opts["headers"][k];
+            i = i + 1;
+        }
+    }
+
+    // Calculate Content-Length if body is present and not explicitly provided
+    let has_cl = false;
+    let hk = keys(hdrs);
+    let i = 0;
+    while (i < len(hk)) {
+        if (to_lower(hk[i]) == "content-length") {
+            has_cl = true;
+            break;
+        }
+        i = i + 1;
+    }
+    if (!has_cl && len(body) > 0) {
+        hdrs["Content-Length"] = "" + len(body);
+    }
+
+    let wire = method + " " + target + " " + version + "\r\n";
+    hk = keys(hdrs);
+    i = 0;
+    while (i < len(hk)) {
+        let k = hk[i];
+        wire = wire + k + ": " + str(hdrs[k]) + "\r\n";
+        i = i + 1;
+    }
+    wire = wire + "\r\n" + body;
+    return wire;
+};
+
+// Format response status, headers, and body into RFC 7230 HTTP/1.1 wire string
+let format_response = fn(status, headers = {}, body = "") {
+    let code = 200;
+    if (status != null) { code = int(status); }
+
+    let st = get_status_text(code);
+
+    let body_str = "";
+    if (body != null) { body_str = str(body); }
+
+    let hdrs = {};
+    if (headers != null) {
+        let hk = keys(headers);
+        let i = 0;
+        while (i < len(hk)) {
+            let k = hk[i];
+            hdrs[k] = headers[k];
+            i = i + 1;
+        }
+    }
+
+    let has_cl = false;
+    let has_conn = false;
+    let hk = keys(hdrs);
+    let i = 0;
+    while (i < len(hk)) {
+        let lk = to_lower(hk[i]);
+        if (lk == "content-length") { has_cl = true; }
+        if (lk == "connection") { has_conn = true; }
+        i = i + 1;
+    }
+
+    if (!has_cl) {
+        hdrs["Content-Length"] = "" + len(body_str);
+    }
+    if (!has_conn) {
+        hdrs["Connection"] = "close";
+    }
+
+    let wire = "HTTP/1.1 " + str(code) + " " + st + "\r\n";
+    hk = keys(hdrs);
+    i = 0;
+    while (i < len(hk)) {
+        let k = hk[i];
+        wire = wire + k + ": " + str(hdrs[k]) + "\r\n";
+        i = i + 1;
+    }
+    wire = wire + "\r\n" + body_str;
+    return wire;
+};

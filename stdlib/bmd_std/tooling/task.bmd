@@ -11,7 +11,7 @@ let GREEN = "\x1b[32m";
 let YELLOW = "\x1b[33m";
 let CYAN = "\x1b[36m";
 
-let week_names = ["First", "Second", "Third", "Fourth", "Fifth"];
+let week_names = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"];
 
 let is_digit = fn(ch) {
     return ch == "0" || ch == "1" || ch == "2" || ch == "3" || ch == "4" ||
@@ -329,8 +329,8 @@ let cmd_init_week = fn(week_num, mmyy) {
     }
 
     let num = safe_int(week_num, 2);
-    if num < 1 || num > 5 {
-        eprintln(RED + "[ERROR] Week number must be between 1 and 5" + RESET);
+    if num < 1 || num > 6 {
+        eprintln(RED + "[ERROR] Week number must be between 1 and 6" + RESET);
         exit(1);
     }
 
@@ -441,7 +441,7 @@ let get_active_task_file = fn(week_arg, auto_create) {
 
     if week_arg != null && week_arg != "" {
         let num = safe_int(week_arg, -1);
-        if num >= 1 && num <= 5 {
+        if num >= 1 && num <= 6 {
             target_file = path_join(month_dir, week_names[num - 1] + "_week_task.md");
             if !file_exists(target_file) && auto_create {
                 cmd_init_week(str(num), latest_month);
@@ -766,14 +766,14 @@ let cmd_help = fn() {
     println("  bmd-task uncheck <id | text>                         Mark task as pending [ ]");
     println("  bmd-task edit <id | text> \"New Task Text\"            Update existing task text");
     println("  bmd-task add \"Title\" --desc=\"...\" [--day=N]          Add new task (" + BOLD + "detailed --desc is COMPULSORY" + RESET + ")");
-    println("  bmd-task init-week <1-5>                             Initialize weekly task file (e.g., 'bmd-task init-week 2' for Days 8-14)");
+    println("  bmd-task init-week <1-6>                             Initialize weekly task file (e.g., 'bmd-task init-week 2' for Days 8-14)");
     println("  bmd-task init [MMYY | week_number]                   Initialize monthly tracking folder or week file");
     println("  bmd-task help                                        Display this help manual\n");
     println(BOLD + "Flags for 'add' command:" + RESET);
     println("  " + CYAN + "--desc=\"...\"" + RESET + "       " + BOLD + "[COMPULSORY]" + RESET + " Detailed description of what must be implemented (min 15 chars).");
     println("  " + CYAN + "--includes=\"...\"" + RESET + "   " + DIM + "[RECOMMENDED]" + RESET + " Deliverables, components, or test scopes.");
     println("  " + CYAN + "--day=N" + RESET + "            Target day number (e.g., --day=8 automatically targets Week 2).");
-    println("  " + CYAN + "--week=N" + RESET + "           Target week number (1 to 5).\n");
+    println("  " + CYAN + "--week=N" + RESET + "           Target week number (1 to 6).\n");
 };
 
 let run_task_cli = fn(cli_args) {

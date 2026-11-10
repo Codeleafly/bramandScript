@@ -1,0 +1,228 @@
+// BramandScript Standard Library :: Pure HTTP Server (std/http/server)
+// 100% Self-Hosted HTTP/1.1 Server implementation on top of raw TCP sockets (std/net).
+
+import "std/http/parser" as parser;
+
+let starts_with = fn(s, prefix) {
+    if (s == null || prefix == null) { return false; }
+    if (len(prefix) > len(s)) { return false; }
+    return slice(s, 0, len(prefix)) == prefix;
+};
+
+let handle_client_connection = fn(conn, handler) {
+    // Set 10-second idle timeout for request reception
+    tcp_set_timeout(conn, 10000);
+
+    let raw_req = tcp_read(conn, 4096);
+    if (raw_req == null || type(raw_req) == "ERROR" || len(raw_req) == 0) {
+        tcp_close(conn);
+        return;
+    }
+
+    // Accumulate header bytes until double newline delimiter is found
+    while (!contains(raw_req, "\r\n\r\n") && !contains(raw_req, "\n\n")) {
+        let chunk = tcp_read(conn, 4096);
+        if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+            break;
+        }
+        raw_req = raw_req + chunk;
+    }
+
+    let parsed = parser.parse_request(raw_req);
+    if (parsed == null) {
+        tcp_close(conn);
+        return;
+    }
+
+    // Read full body if content-length header was specified
+    if (parsed["headers"]["content-length"] != null) {
+        let expected_len = int(parsed["headers"]["content-length"]);
+        while (len(parsed["body"]) < expected_len) {
+            let chunk = tcp_read(conn, 4096);
+            if (chunk == null || type(chunk) == "ERROR" || len(chunk) == 0) {
+                break;
+            }
+            parsed["body"] = parsed["body"] + chunk;
+        }
+    }
+
+    // Construct Request Object
+    let req = {
+        "method": parsed["method"],
+        "url": parsed["url"],
+        "path": parsed["path"],
+        "query": parsed["query"],
+        "headers": parsed["headers"],
+        "body": parsed["body"],
+        "version": parsed["version"],
+        "params": {},
+        "remote_addr": tcp_remote_addr(conn),
+        "json": fn() {
+            if (len(parsed["body"]) == 0) {
+                return null;
+            }
+            return json_parse(parsed["body"]);
+        },
+        "header": fn(name) {
+            return parsed["headers"][to_lower(name)];
+        }
+    };
+
+    // Construct Response Object
+    let res_status = 200;
+    let res_headers = {};
+    let is_sent = false;
+
+    let res = {
+        "is_sent": false
+    };
+
+    res["status"] = fn(code) {
+        res_status = int(code);
+        return res;
+    };
+
+    res["set_header"] = fn(name, val) {
+        res_headers[name] = str(val);
+        return res;
+    };
+
+    res["header"] = fn(name, val) {
+        res_headers[name] = str(val);
+        return res;
+    };
+
+    res["send"] = fn(data = "") {
+        if (is_sent) { return false; }
+        is_sent = true;
+        res["is_sent"] = true;
+
+        let wire = parser.format_response(res_status, res_headers, data);
+        tcp_write(conn, wire);
+        tcp_close(conn);
+        return true;
+    };
+
+    res["json"] = fn(data) {
+        res_headers["Content-Type"] = "application/json; charset=utf-8";
+        let body_str = json_stringify(data);
+        return res["send"](body_str);
+    };
+
+    res["html"] = fn(html) {
+        res_headers["Content-Type"] = "text/html; charset=utf-8";
+        return res["send"](html);
+    };
+
+    res["text"] = fn(text) {
+        res_headers["Content-Type"] = "text/plain; charset=utf-8";
+        return res["send"](text);
+    };
+
+    res["redirect"] = fn(target_url, status_code = 302) {
+        res_status = int(status_code);
+        res_headers["Location"] = target_url;
+        return res["send"]("");
+    };
+
+    // Dispatch to handler (Supports function or Router struct/hash with .lookup)
+    if (type(handler) == "HASH" || type(handler) == "STRUCT") {
+        if (handler["lookup"] != null) {
+            let route_match = handler.lookup(req["method"], req["path"]);
+            if (route_match["found"]) {
+                req["params"] = route_match["params"];
+                route_match["handler"](req, res);
+            } else if (route_match["status"] == 405) {
+                res.status(405).send("Method Not Allowed");
+            } else {
+                res.status(404).send("Not Found");
+            }
+            return;
+        }
+    }
+
+    if (handler != null) {
+        let handler_res = handler(req, res);
+        // Automatically send string or json if returned from handler and not yet sent
+        if (!is_sent && handler_res != null) {
+            let hr_type = type(handler_res);
+            if (hr_type == "STRING") {
+                res.send(handler_res);
+            } else if (hr_type == "HASH" || hr_type == "ARRAY") {
+                res.json(handler_res);
+            }
+        }
+    }
+};
+
+let Server = fn(handler) {
+    let srv_obj = {
+        "raw_server": null,
+        "is_listening": false,
+        "target_addr": ""
+    };
+
+    srv_obj["listen"] = fn(port_or_addr, on_listening = null) {
+        let addr = "127.0.0.1:0";
+        if (type(port_or_addr) == "INTEGER") {
+            addr = "127.0.0.1:" + str(port_or_addr);
+        } else if (port_or_addr != null) {
+            addr = str(port_or_addr);
+            if (!contains(addr, ":")) {
+                addr = "127.0.0.1:" + addr;
+            }
+        }
+
+        let raw = net_listen_tcp(addr);
+        if (type(raw) == "ERROR") {
+            return raw;
+        }
+
+        srv_obj["raw_server"] = raw;
+        srv_obj["is_listening"] = true;
+        srv_obj["target_addr"] = raw.addr;
+
+        if (on_listening != null) {
+            on_listening(srv_obj);
+        }
+
+        spawn fn() {
+            while (srv_obj["is_listening"]) {
+                let conn = tcp_accept(srv_obj["raw_server"]);
+                if (conn != null && type(conn) != "ERROR") {
+                    spawn fn() {
+                        handle_client_connection(conn, handler);
+                    }();
+                } else {
+                    if (!srv_obj["is_listening"]) {
+                        break;
+                    }
+                }
+            }
+        }();
+
+        return srv_obj;
+    };
+
+    srv_obj["close"] = fn() {
+        srv_obj["is_listening"] = false;
+        if (srv_obj["raw_server"] != null) {
+            tcp_close(srv_obj["raw_server"]);
+            srv_obj["raw_server"] = null;
+        }
+        return true;
+    };
+
+    srv_obj["addr"] = fn() {
+        if (srv_obj["raw_server"] != null) {
+            return srv_obj["raw_server"].addr;
+        }
+        return srv_obj["target_addr"];
+    };
+
+    return srv_obj;
+};
+
+let create_server = fn(handler) {
+    return Server(handler);
+};
