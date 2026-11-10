@@ -20,10 +20,11 @@ Agents must strictly follow the repository's date-based progress tracking system
    - `First_week_task.md`: Tasks for Days 1 to 7.
    - `Second_week_task.md`: Tasks for Days 8 to 14.
    - Subsequent weeks follow the same convention.
-3. **Mandatory CLI Task Tool (`bmd-task` / `node tools/task.js`)**:
+3. **Mandatory CLI Task Tool (`bmd-task` / `bramand run tools/task.bmd`)**:
    - AI agents MUST NOT manually edit markdown task files to avoid syntax corruption or formatting errors.
+   - The task tracking engine is written in 100% pure native BramandScript (`tools/task.bmd` and `std/tooling/task`) with zero Node.js/npm dependencies, making the development workflow completely self-hosted.
    - Always execute the built-in task tool to inspect and update task items:
-     - View tasks: `bmd-task list` or `bmd-task list Day 2`
+     - View tasks: `bmd-task list` or `bmd-task list Day 2` (or `./bramand run tools/task.bmd list`)
      - View task details: `bmd-task view <task_number_or_keyword>`
      - Mark task complete: `bmd-task check <task_number_or_keyword>`
      - Mark task pending: `bmd-task uncheck <task_number_or_keyword>`

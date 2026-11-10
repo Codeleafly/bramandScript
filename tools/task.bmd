@@ -1,0 +1,9 @@
+// BramandScript Project Task Runner (100% Native BramandScript)
+// Dispatches project task and todo CLI commands with zero Node.js dependencies.
+
+import "std/tooling/task" as task_tool;
+
+let run_task_cli = task_tool.run_task_cli;
+let cli_args = args();
+let code = run_task_cli(cli_args);
+exit(code);

@@ -114,9 +114,15 @@ if [ "$BUILD_FROM_SOURCE" = true ]; then
     mv -f "${INSTALL_DIR}/${BINARY_NAME}.new" "${INSTALL_DIR}/${BINARY_NAME}"
     ln -sf "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/bmd"
 
-    if [ -f "tools/task.js" ]; then
-      chmod +x tools/task.js
-      ln -sf "$(pwd)/tools/task.js" "${INSTALL_DIR}/bmd-task"
+    if [ -f "tools/task.bmd" ]; then
+      REPO_DIR_ABS="$(pwd)"
+      cat << EOF_BMD_TASK > "${INSTALL_DIR}/bmd-task"
+#!/bin/sh
+# BramandScript Project Task Runner (100% Native BramandScript)
+REPO_DIR="${REPO_DIR_ABS}"
+exec "\${REPO_DIR}/bramand" run "\${REPO_DIR}/tools/task.bmd" "\$@"
+EOF_BMD_TASK
+      chmod +x "${INSTALL_DIR}/bmd-task"
     fi
   else
     error "Go compiler not found to build from source."

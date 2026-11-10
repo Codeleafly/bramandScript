@@ -1,0 +1,847 @@
+// BramandScript Standard Library :: Project Task Management CLI (std/tooling/task)
+// 100% Native BramandScript task & todo tracker for development progress and verification.
+// Zero Node.js / npm dependencies.
+
+// ANSI Color and Style Codes
+let RESET = "\x1b[0m";
+let BOLD = "\x1b[1m";
+let DIM = "\x1b[2m";
+let RED = "\x1b[31m";
+let GREEN = "\x1b[32m";
+let YELLOW = "\x1b[33m";
+let CYAN = "\x1b[36m";
+
+let week_names = ["First", "Second", "Third", "Fourth", "Fifth"];
+
+let is_digit = fn(ch) {
+    return ch == "0" || ch == "1" || ch == "2" || ch == "3" || ch == "4" ||
+           ch == "5" || ch == "6" || ch == "7" || ch == "8" || ch == "9";
+};
+
+let safe_int = fn(s, def_val) {
+    if s == null || type(s) != "STRING" || len(s) == 0 { return def_val; }
+    let st = trim(s);
+    if len(st) == 0 { return def_val; }
+    let i = 0;
+    while i < len(st) {
+        if !is_digit(st[i]) { return def_val; }
+        i = i + 1;
+    }
+    return int(st);
+};
+
+let starts_with = fn(s, prefix) {
+    if s == null || prefix == null { return false; }
+    if len(prefix) > len(s) { return false; }
+    return substring(s, 0, len(prefix)) == prefix;
+};
+
+let ends_with = fn(s, suffix) {
+    if s == null || suffix == null { return false; }
+    if len(suffix) > len(s) { return false; }
+    return substring(s, len(s) - len(suffix), len(s)) == suffix;
+};
+
+let capitalize = fn(s) {
+    if s == null || len(s) == 0 { return ""; }
+    let first = to_upper(substring(s, 0, 1));
+    let rest = to_lower(substring(s, 1, len(s)));
+    return first + rest;
+};
+
+let repeat_char = fn(ch, count) {
+    if count <= 0 { return ""; }
+    let res = "";
+    let i = 0;
+    while i < count {
+        res = res + ch;
+        i = i + 1;
+    }
+    return res;
+};
+
+let pad_2 = fn(n) {
+    if n < 10 {
+        return "0" + str(n);
+    }
+    return str(n);
+};
+
+let sort_descending = fn(arr) {
+    let n = len(arr);
+    let i = 0;
+    while i < n {
+        let j = i + 1;
+        while j < n {
+            if arr[i] < arr[j] {
+                let tmp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = tmp;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return arr;
+};
+
+let array_insert = fn(arr, idx, item) {
+    let out = [];
+    let i = 0;
+    while i < len(arr) {
+        if i == idx {
+            push(out, item);
+        }
+        push(out, arr[i]);
+        i = i + 1;
+    }
+    if idx >= len(arr) {
+        push(out, item);
+    }
+    return out;
+};
+
+let find_date_dir = fn() {
+    // 1. Check local directory
+    if file_exists("date") && is_dir("date") { return "date"; }
+    // 2. Check parent directories
+    if file_exists("../date") && is_dir("../date") { return "../date"; }
+    if file_exists("../../date") && is_dir("../../date") { return "../../date"; }
+    if file_exists("../../../date") && is_dir("../../../date") { return "../../../date"; }
+    if file_exists("../../../../date") && is_dir("../../../../date") { return "../../../../date"; }
+
+    // 3. Check environment variable
+    let env_date = env("BMD_DATE_DIR");
+    if env_date != null && env_date != "" && file_exists(env_date) && is_dir(env_date) {
+        return env_date;
+    }
+
+    // 4. Default repository root path
+    let default_repo_date = "/data/data/com.termux/files/home/bramandScript/date";
+    if file_exists(default_repo_date) && is_dir(default_repo_date) {
+        return default_repo_date;
+    }
+
+    return "date";
+};
+
+let extract_day_num = fn(s) {
+    if s == null { return -1; }
+    let low = to_lower(s);
+    let idx = -1;
+    let i = 0;
+    while i <= len(low) - 3 {
+        if substring(low, i, i + 3) == "day" {
+            idx = i + 3;
+            break;
+        }
+        i = i + 1;
+    }
+    if idx == -1 { return -1; }
+    while idx < len(low) && low[idx] == " " {
+        idx = idx + 1;
+    }
+    let digits = "";
+    while idx < len(low) && is_digit(low[idx]) {
+        digits = digits + low[idx];
+        idx = idx + 1;
+    }
+    if len(digits) > 0 {
+        return safe_int(digits, -1);
+    }
+    return -1;
+};
+
+let extract_week_num = fn(s) {
+    if s == null { return -1; }
+    let low = to_lower(s);
+    let idx = -1;
+    let i = 0;
+    while i <= len(low) - 4 {
+        if substring(low, i, i + 4) == "week" {
+            idx = i + 4;
+            break;
+        }
+        i = i + 1;
+    }
+    if idx == -1 { return -1; }
+    while idx < len(low) && low[idx] == " " {
+        idx = idx + 1;
+    }
+    let digits = "";
+    while idx < len(low) && is_digit(low[idx]) {
+        digits = digits + low[idx];
+        idx = idx + 1;
+    }
+    if len(digits) > 0 {
+        return safe_int(digits, -1);
+    }
+    return -1;
+};
+
+let parse_task_line = fn(line) {
+    let t = trim(line);
+    if !starts_with(t, "-") { return null; }
+    let after_dash = trim(substring(t, 1, len(t)));
+    if !starts_with(after_dash, "[") { return null; }
+    let close_idx = -1;
+    let i = 1;
+    while i < len(after_dash) {
+        if after_dash[i] == "]" {
+            close_idx = i;
+            break;
+        }
+        i = i + 1;
+    }
+    if close_idx == -1 { return null; }
+    let mark = trim(substring(after_dash, 1, close_idx));
+    let text = trim(substring(after_dash, close_idx + 1, len(after_dash)));
+    let is_done = (to_lower(mark) == "x");
+    return { "done": is_done, "text": text };
+};
+
+let parse_tasks = fn(content) {
+    let clean = replace(content, "\r\n", "\n");
+    let lines = split(clean, "\n");
+    let tasks = [];
+    let current_day = "General";
+
+    let i = 0;
+    while i < len(lines) {
+        let line = lines[i];
+        let tline = trim(line);
+        if starts_with(tline, "##") {
+            let rest = trim(substring(tline, 2, len(tline)));
+            if starts_with(to_lower(rest), "day") {
+                if ends_with(rest, ":") {
+                    rest = trim(substring(rest, 0, len(rest) - 1));
+                }
+                current_day = rest;
+            }
+        } else {
+            let task_info = parse_task_line(line);
+            if task_info != null {
+                push(tasks, {
+                    "index": len(tasks) + 1,
+                    "line_index": i,
+                    "day": current_day,
+                    "done": task_info["done"],
+                    "text": task_info["text"]
+                });
+            }
+        }
+        i = i + 1;
+    }
+
+    return { "lines": lines, "tasks": tasks };
+};
+
+let parse_flags = fn(raw_args) {
+    let flags = {
+        "pos": [],
+        "day": null,
+        "desc": null,
+        "includes": null,
+        "week": null
+    };
+
+    let i = 0;
+    while i < len(raw_args) {
+        let arg = raw_args[i];
+        if starts_with(arg, "--day=") {
+            flags["day"] = substring(arg, 6, len(arg));
+        } else if arg == "--day" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["day"] = raw_args[i];
+        } else if starts_with(arg, "--week=") {
+            flags["week"] = substring(arg, 7, len(arg));
+        } else if arg == "--week" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["week"] = raw_args[i];
+        } else if starts_with(arg, "--desc=") {
+            flags["desc"] = substring(arg, 7, len(arg));
+        } else if arg == "--desc" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["desc"] = raw_args[i];
+        } else if starts_with(arg, "--description=") {
+            flags["desc"] = substring(arg, 14, len(arg));
+        } else if arg == "--description" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["desc"] = raw_args[i];
+        } else if starts_with(arg, "--includes=") {
+            flags["includes"] = substring(arg, 11, len(arg));
+        } else if arg == "--includes" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["includes"] = raw_args[i];
+        } else if starts_with(arg, "--include=") {
+            flags["includes"] = substring(arg, 10, len(arg));
+        } else if arg == "--include" && i + 1 < len(raw_args) {
+            i = i + 1;
+            flags["includes"] = raw_args[i];
+        } else if !starts_with(arg, "--") {
+            push(flags["pos"], arg);
+        }
+        i = i + 1;
+    }
+    return flags;
+};
+
+let print_progress_bar = fn(done, total) {
+    let width = 30;
+    let filled = 0;
+    if total > 0 {
+        filled = int((done * width) / total);
+    }
+    if filled > width { filled = width; }
+    let empty = width - filled;
+    let bar = GREEN + repeat_char("█", filled) + RESET + DIM + repeat_char("░", empty) + RESET;
+    println("[" + bar + "]");
+};
+
+let cmd_init_week = fn(week_num, mmyy) {
+    let date_dir = find_date_dir();
+    if !file_exists(date_dir) {
+        fs_mkdir(date_dir, true);
+    }
+
+    let raw_entries = list_dir(date_dir);
+    let months = [];
+    let i = 0;
+    while i < len(raw_entries) {
+        let entry = raw_entries[i];
+        if is_dir(path_join(date_dir, entry)) { push(months, entry); }
+        i = i + 1;
+    }
+    months = sort_descending(months);
+
+    let latest_month = mmyy;
+    if latest_month == null || latest_month == "" {
+        if len(months) > 0 {
+            latest_month = months[0];
+        } else {
+            latest_month = date_format(now(), "0106");
+        }
+    }
+
+    let target_dir = path_join(date_dir, latest_month);
+    if !file_exists(target_dir) {
+        fs_mkdir(target_dir, true);
+    }
+
+    let num = safe_int(week_num, 2);
+    if num < 1 || num > 5 {
+        eprintln(RED + "[ERROR] Week number must be between 1 and 5" + RESET);
+        exit(1);
+    }
+
+    let week_name = week_names[num - 1];
+    let target_file = path_join(target_dir, week_name + "_week_task.md");
+
+    if file_exists(target_file) {
+        println(YELLOW + "[WARN] Task file already exists: " + target_file + RESET);
+        return;
+    }
+
+    let start_day = (num - 1) * 7 + 1;
+    let end_day = num * 7;
+    let days_content = "";
+    let d = start_day;
+    while d <= end_day {
+        days_content = days_content + "## Day " + str(d) + "\n\n";
+        d = d + 1;
+    }
+
+    let template = "# BramandScript — Month " + latest_month + ": " + week_name + " Week Task (Days " + str(start_day) + " to " + str(end_day) + ")\n\n" + days_content;
+    write_file(target_file, template);
+    println(BOLD + GREEN + "[OK]" + RESET + " Initialized " + week_name + " Week task file (Days " + str(start_day) + " to " + str(end_day) + "):\n  " + DIM + target_file + RESET);
+};
+
+let cmd_init = fn(arg1, arg2) {
+    let week_num = safe_int(arg1, -1);
+    if week_num >= 1 && week_num <= 5 {
+        cmd_init_week(str(week_num), arg2);
+        return;
+    }
+
+    let lower_names = ["first", "second", "third", "fourth", "fifth"];
+    if arg1 != null {
+        let l1 = to_lower(arg1);
+        let i = 0;
+        while i < len(lower_names) {
+            if lower_names[i] == l1 {
+                cmd_init_week(str(i + 1), arg2);
+                return;
+            }
+            i = i + 1;
+        }
+    }
+
+    let default_mmyy = date_format(now(), "0106");
+    let target_mmyy = default_mmyy;
+    if arg1 != null && arg1 != "" {
+        target_mmyy = arg1;
+    }
+
+    let target_dir = path_join(find_date_dir(), target_mmyy);
+    if !file_exists(target_dir) {
+        fs_mkdir(target_dir, true);
+    }
+
+    let target_file = path_join(target_dir, "First_week_task.md");
+    if file_exists(target_file) {
+        println(YELLOW + "[WARN] Task file already exists: " + target_file + RESET);
+        return;
+    }
+
+    let template = "# BramandScript — Month " + target_mmyy + ": First Week Task\n\n## Day 1: Foundation\n- [ ] Initialize project\n";
+    write_file(target_file, template);
+    println(BOLD + GREEN + "[OK]" + RESET + " Initialized new tracking directory: " + target_file);
+};
+
+let get_active_task_file = fn(week_arg, auto_create) {
+    let date_dir = find_date_dir();
+    if !file_exists(date_dir) {
+        if auto_create {
+            fs_mkdir(date_dir, true);
+        } else {
+            eprintln(RED + "[ERROR] 'date/' directory not found in " + path_abs(".") + RESET);
+            exit(1);
+        }
+    }
+
+    let raw_entries = list_dir(date_dir);
+    let months = [];
+    let i = 0;
+    while i < len(raw_entries) {
+        let entry = raw_entries[i];
+        let p = path_join(date_dir, entry);
+        if is_dir(p) {
+            push(months, entry);
+        }
+        i = i + 1;
+    }
+
+    if len(months) == 0 {
+        if auto_create {
+            let def_month = date_format(now(), "0106");
+            let new_dir = path_join(date_dir, def_month);
+            fs_mkdir(new_dir, true);
+            push(months, def_month);
+        } else {
+            eprintln(RED + "[ERROR] No month directory found inside 'date/'" + RESET);
+            exit(1);
+        }
+    }
+
+    months = sort_descending(months);
+    let latest_month = months[0];
+    let month_dir = path_join(date_dir, latest_month);
+
+    let target_file = null;
+
+    if week_arg != null && week_arg != "" {
+        let num = safe_int(week_arg, -1);
+        if num >= 1 && num <= 5 {
+            target_file = path_join(month_dir, week_names[num - 1] + "_week_task.md");
+            if !file_exists(target_file) && auto_create {
+                cmd_init_week(str(num), latest_month);
+            }
+        } else {
+            let cap = capitalize(week_arg);
+            target_file = path_join(month_dir, cap + "_week_task.md");
+        }
+    } else {
+        let wi = len(week_names) - 1;
+        while wi >= 0 {
+            let cand = path_join(month_dir, week_names[wi] + "_week_task.md");
+            if file_exists(cand) {
+                target_file = cand;
+                break;
+            }
+            wi = wi - 1;
+        }
+        if target_file == null {
+            target_file = path_join(month_dir, "First_week_task.md");
+            if !file_exists(target_file) && auto_create {
+                cmd_init_week("1", latest_month);
+            }
+        }
+    }
+
+    if !file_exists(target_file) {
+        eprintln(RED + "[ERROR] Task file not found: " + target_file + RESET);
+        eprintln(YELLOW + "[HINT] You can initialize it with: bmd-task init-week <week_number>" + RESET);
+        exit(1);
+    }
+
+    return { "file_path": target_file, "month": latest_month };
+};
+
+let find_target_task = fn(tasks, target) {
+    let num = safe_int(target, -1);
+    if num != -1 {
+        let i = 0;
+        while i < len(tasks) {
+            if tasks[i]["index"] == num {
+                return tasks[i];
+            }
+            i = i + 1;
+        }
+    }
+    let q = to_lower(target);
+    let i = 0;
+    while i < len(tasks) {
+        if contains(to_lower(tasks[i]["text"]), q) {
+            return tasks[i];
+        }
+        i = i + 1;
+    }
+    return null;
+};
+
+let cmd_list = fn(raw_args) {
+    let flags = parse_flags(raw_args);
+    let week_filter = flags["week"];
+    let day_filter = flags["day"];
+
+    let pos = trim(join(flags["pos"], " "));
+    if len(pos) > 0 {
+        let low_pos = to_lower(pos);
+        if starts_with(low_pos, "week") {
+            let w = extract_week_num(pos);
+            if w != -1 { week_filter = str(w); }
+        } else if starts_with(low_pos, "day") {
+            day_filter = pos;
+            let d = extract_day_num(pos);
+            if d != -1 {
+                if week_filter == null || week_filter == "" {
+                    week_filter = str(int((d + 6) / 7));
+                }
+            }
+        } else if pos == "1" || pos == "2" || pos == "3" || pos == "4" || pos == "5" {
+            week_filter = pos;
+        } else {
+            day_filter = pos;
+        }
+    }
+
+    if day_filter != null && day_filter != "" {
+        if week_filter == null || week_filter == "" {
+            let d = extract_day_num(day_filter);
+            if d != -1 {
+                week_filter = str(int((d + 6) / 7));
+            }
+        }
+    }
+
+    let active_info = get_active_task_file(week_filter, false);
+    let file_path = active_info["file_path"];
+    let month = active_info["month"];
+
+    let content = read_file(file_path);
+    let parsed = parse_tasks(content);
+    let tasks = parsed["tasks"];
+
+    println("\n" + BOLD + CYAN + "✦ BramandScript Task Dashboard (Month: " + month + ")" + RESET);
+    println(DIM + "File: " + file_path + RESET + "\n");
+
+    let current_day = "";
+    let completed = 0;
+    let matched_tasks = 0;
+
+    let i = 0;
+    while i < len(tasks) {
+        let t = tasks[i];
+        if t["done"] { completed = completed + 1; }
+
+        let day_matches = true;
+        if day_filter != null && day_filter != "" {
+            if !contains(to_lower(t["day"]), to_lower(day_filter)) {
+                day_matches = false;
+            }
+        }
+
+        if day_matches {
+            matched_tasks = matched_tasks + 1;
+            if t["day"] != current_day {
+                current_day = t["day"];
+                println("\n" + BOLD + current_day + RESET);
+                println(DIM + repeat_char("─", 45) + RESET);
+            }
+
+            let status_badge = YELLOW + "[· PENDING ]" + RESET;
+            if t["done"] {
+                status_badge = GREEN + "[OK COMPLETE]" + RESET;
+            }
+
+            let num = pad_2(t["index"]);
+            let task_text = t["text"];
+            if t["done"] {
+                task_text = DIM + task_text + RESET;
+            }
+            println("  " + DIM + num + "." + RESET + " " + status_badge + " " + task_text);
+        }
+        i = i + 1;
+    }
+
+    let total = len(tasks);
+    let pct = 0;
+    if total > 0 {
+        pct = int((completed * 100) / total);
+    }
+
+    println("\n" + DIM + repeat_char("═", 45) + RESET);
+    if day_filter != null && day_filter != "" {
+        println(BOLD + "Showing:" + RESET + " " + str(matched_tasks) + " task(s) matching \"" + day_filter + "\"");
+    }
+    println(BOLD + "Progress:" + RESET + " " + str(completed) + "/" + str(total) + " tasks completed (" + str(pct) + "%)");
+    print_progress_bar(completed, total);
+    println();
+};
+
+let cmd_view = fn(target) {
+    let active_info = get_active_task_file(null, false);
+    let file_path = active_info["file_path"];
+    let content = read_file(file_path);
+    let parsed = parse_tasks(content);
+    let target_task = find_target_task(parsed["tasks"], target);
+
+    if target_task == null {
+        eprintln(RED + "[ERROR] No task found matching query: \"" + target + "\"" + RESET);
+        exit(1);
+    }
+
+    let status_badge = YELLOW + "[· PENDING ]" + RESET;
+    if target_task["done"] {
+        status_badge = GREEN + "[OK COMPLETE]" + RESET;
+    }
+
+    println("\n" + BOLD + CYAN + "✦ Task Details — #" + str(target_task["index"]) + RESET);
+    println(BOLD + "Day:" + RESET + "         " + target_task["day"]);
+    println(BOLD + "Status:" + RESET + "      " + status_badge);
+    println(BOLD + "Specification:" + RESET + " " + target_task["text"] + "\n");
+};
+
+let cmd_check = fn(target, mark_done) {
+    let active_info = get_active_task_file(null, false);
+    let file_path = active_info["file_path"];
+    let content = read_file(file_path);
+    let parsed = parse_tasks(content);
+    let lines = parsed["lines"];
+    let target_task = find_target_task(parsed["tasks"], target);
+
+    if target_task == null {
+        eprintln(RED + "[ERROR] No task found matching query: \"" + target + "\"" + RESET);
+        exit(1);
+    }
+
+    let mark = " ";
+    if mark_done { mark = "x"; }
+    lines[target_task["line_index"]] = "- [" + mark + "] " + target_task["text"];
+
+    write_file(file_path, join(lines, "\n"));
+    let action = YELLOW + "unmarked [ ]" + RESET;
+    if mark_done {
+        action = GREEN + "checked [x]" + RESET;
+    }
+    println(BOLD + "[OK]" + RESET + " Task #" + str(target_task["index"]) + " (\"" + target_task["text"] + "\") " + action);
+};
+
+let cmd_edit = fn(target, new_text) {
+    let active_info = get_active_task_file(null, false);
+    let file_path = active_info["file_path"];
+    let content = read_file(file_path);
+    let parsed = parse_tasks(content);
+    let lines = parsed["lines"];
+    let target_task = find_target_task(parsed["tasks"], target);
+
+    if target_task == null {
+        eprintln(RED + "[ERROR] No task found matching query: \"" + target + "\"" + RESET);
+        exit(1);
+    }
+
+    let mark = " ";
+    if target_task["done"] { mark = "x"; }
+    lines[target_task["line_index"]] = "- [" + mark + "] " + new_text;
+
+    write_file(file_path, join(lines, "\n"));
+    println(BOLD + GREEN + "[OK]" + RESET + " Task #" + str(target_task["index"]) + " updated: \"" + new_text + "\"");
+};
+
+let cmd_add = fn(title, day_arg, desc_arg, includes_arg, week_arg) {
+    if title == null || len(trim(title)) == 0 {
+        eprintln(RED + "[ERROR] Task title cannot be empty!" + RESET);
+        eprintln(YELLOW + "Usage: bmd-task add \"Task title\" --desc=\"Detailed description\" [--includes=\"...\"] [--day=N] [--week=N]" + RESET);
+        exit(1);
+    }
+
+    if desc_arg == null || len(trim(desc_arg)) < 15 {
+        eprintln("\n" + RED + BOLD + "✦ [ERROR] Compulsory Requirement Missing: Detailed Description Required!" + RESET);
+        eprintln(YELLOW + "Every new task MUST include a detailed description and scope specification (minimum 15 characters)." + RESET + "\n");
+        eprintln(BOLD + "Required Command Syntax:" + RESET);
+        eprintln("  bmd-task add \"Task Title\" --desc=\"Detailed explanation of the task\" [--includes=\"spec1, spec2, ...\"] [--day=N]\n");
+        eprintln(BOLD + "Flags:" + RESET);
+        eprintln("  " + CYAN + "--desc=\"...\"" + RESET + "       : " + BOLD + "[COMPULSORY]" + RESET + " Detailed description of what must be built.");
+        eprintln("  " + CYAN + "--includes=\"...\"" + RESET + "   : " + DIM + "[RECOMMENDED]" + RESET + " Specific deliverables, components, or test scopes.");
+        eprintln("  " + CYAN + "--day=N" + RESET + "            : Target day (e.g., --day=8).\n");
+        eprintln(BOLD + "Example:" + RESET);
+        eprintln("  bmd-task add \"Standard HTTP Router\" --day=8 \\");
+        eprintln("    --desc=\"Build high-performance multiplexer with route matching and middleware support\" \\");
+        eprintln("    --includes=\"Route tree, pattern matching, handler context\"\n");
+        exit(1);
+    }
+
+    let target_week = week_arg;
+    if target_week == null || target_week == "" {
+        if day_arg != null && day_arg != "" {
+            let d = safe_int(day_arg, -1);
+            if d > 0 {
+                target_week = str(int((d + 6) / 7));
+            }
+        }
+    }
+
+    let active_info = get_active_task_file(target_week, true);
+    let file_path = active_info["file_path"];
+    let content = read_file(file_path);
+    let clean = replace(content, "\r\n", "\n");
+    let lines = split(clean, "\n");
+
+    let target_day = "Day 1";
+    if day_arg != null && day_arg != "" {
+        target_day = "Day " + day_arg;
+    }
+
+    let insert_index = -1;
+    let i = 0;
+    while i < len(lines) {
+        if contains(lines[i], "## " + target_day) {
+            insert_index = i + 1;
+            while insert_index < len(lines) && !starts_with(lines[insert_index], "##") && !starts_with(lines[insert_index], "---") {
+                insert_index = insert_index + 1;
+            }
+            break;
+        }
+        i = i + 1;
+    }
+
+    let formatted_task = trim(title);
+    let clean_desc = trim(desc_arg);
+
+    if contains(formatted_task, ":") {
+        formatted_task = formatted_task + " — " + clean_desc;
+    } else {
+        formatted_task = formatted_task + ": " + clean_desc;
+    }
+
+    if includes_arg != null && len(trim(includes_arg)) > 0 {
+        formatted_task = formatted_task + " (Includes: " + trim(includes_arg) + ")";
+    }
+
+    if insert_index == -1 {
+        push(lines, "");
+        push(lines, "## " + target_day);
+        push(lines, "- [ ] " + formatted_task);
+    } else {
+        lines = array_insert(lines, insert_index, "- [ ] " + formatted_task);
+    }
+
+    write_file(file_path, join(lines, "\n"));
+    println(BOLD + GREEN + "[OK]" + RESET + " Task added to " + target_day + " in " + path_base(file_path) + ":");
+    println("  " + BOLD + "Title:" + RESET + "         " + trim(title));
+    println("  " + BOLD + "Description:" + RESET + "   " + clean_desc);
+    if includes_arg != null && len(trim(includes_arg)) > 0 {
+        println("  " + BOLD + "Includes:" + RESET + "      " + trim(includes_arg));
+    }
+};
+
+
+
+let cmd_help = fn() {
+    println("\n" + BOLD + "✦ BramandScript Task & Todo CLI Tool (100% Native BramandScript)" + RESET + "\n");
+    println(BOLD + "Commands:" + RESET);
+    println("  bmd-task list [day | week]                           List tasks (e.g., 'bmd-task list', 'bmd-task list Day 8', 'bmd-task list 2')");
+    println("  bmd-task view <id | text>                            View task full description & details");
+    println("  bmd-task check <id | text>                           Mark task as complete [x]");
+    println("  bmd-task uncheck <id | text>                         Mark task as pending [ ]");
+    println("  bmd-task edit <id | text> \"New Task Text\"            Update existing task text");
+    println("  bmd-task add \"Title\" --desc=\"...\" [--day=N]          Add new task (" + BOLD + "detailed --desc is COMPULSORY" + RESET + ")");
+    println("  bmd-task init-week <1-5>                             Initialize weekly task file (e.g., 'bmd-task init-week 2' for Days 8-14)");
+    println("  bmd-task init [MMYY | week_number]                   Initialize monthly tracking folder or week file");
+    println("  bmd-task help                                        Display this help manual\n");
+    println(BOLD + "Flags for 'add' command:" + RESET);
+    println("  " + CYAN + "--desc=\"...\"" + RESET + "       " + BOLD + "[COMPULSORY]" + RESET + " Detailed description of what must be implemented (min 15 chars).");
+    println("  " + CYAN + "--includes=\"...\"" + RESET + "   " + DIM + "[RECOMMENDED]" + RESET + " Deliverables, components, or test scopes.");
+    println("  " + CYAN + "--day=N" + RESET + "            Target day number (e.g., --day=8 automatically targets Week 2).");
+    println("  " + CYAN + "--week=N" + RESET + "           Target week number (1 to 5).\n");
+};
+
+let run_task_cli = fn(cli_args) {
+    let command = "list";
+    let sub_args = [];
+    if len(cli_args) > 0 {
+        command = cli_args[0];
+        let i = 1;
+        while i < len(cli_args) {
+            push(sub_args, cli_args[i]);
+            i = i + 1;
+        }
+    }
+
+    if command == "list" || command == "ls" {
+        cmd_list(sub_args);
+    } else if command == "view" || command == "show" || command == "info" {
+        if len(sub_args) == 0 {
+            eprintln(RED + "Usage: bmd-task view <task-number | \"search text\">" + RESET);
+            return 1;
+        }
+        cmd_view(join(sub_args, " "));
+    } else if command == "check" || command == "done" || command == "complete" {
+        if len(sub_args) == 0 {
+            eprintln(RED + "Usage: bmd-task check <task-number | \"search text\">" + RESET);
+            return 1;
+        }
+        cmd_check(join(sub_args, " "), true);
+    } else if command == "uncheck" || command == "undo" {
+        if len(sub_args) == 0 {
+            eprintln(RED + "Usage: bmd-task uncheck <task-number | \"search text\">" + RESET);
+            return 1;
+        }
+        cmd_check(join(sub_args, " "), false);
+    } else if command == "edit" || command == "update" {
+        if len(sub_args) < 2 {
+            eprintln(RED + "Usage: bmd-task edit <task-number | \"search text\"> \"New Task Text\"" + RESET);
+            return 1;
+        }
+        let target = sub_args[0];
+        let rest_words = [];
+        let i = 1;
+        while i < len(sub_args) {
+            push(rest_words, sub_args[i]);
+            i = i + 1;
+        }
+        cmd_edit(target, join(rest_words, " "));
+    } else if command == "add" {
+        let flags = parse_flags(sub_args);
+        let title_arg = join(flags["pos"], " ");
+        cmd_add(title_arg, flags["day"], flags["desc"], flags["includes"], flags["week"]);
+    } else if command == "init-week" || command == "new-week" || command == "add-week" {
+        let arg1 = null;
+        let arg2 = null;
+        if len(sub_args) > 0 { arg1 = sub_args[0]; }
+        if len(sub_args) > 1 { arg2 = sub_args[1]; }
+        cmd_init_week(arg1, arg2);
+    } else if command == "init" {
+        let arg1 = null;
+        let arg2 = null;
+        if len(sub_args) > 0 { arg1 = sub_args[0]; }
+        if len(sub_args) > 1 { arg2 = sub_args[1]; }
+        cmd_init(arg1, arg2);
+    } else if command == "help" || command == "--help" || command == "-h" {
+        cmd_help();
+    } else {
+        eprintln(RED + "Unknown command: " + command + RESET + ". Run 'bmd-task help' for usage.");
+        return 1;
+    }
+    return 0;
+};

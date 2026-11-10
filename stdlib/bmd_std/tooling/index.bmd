@@ -8,6 +8,7 @@ import "std/tooling/test_runner" as test_runner_pkg
 import "std/tooling/pkg" as pkg_pkg
 import "std/tooling/disasm" as disasm_pkg
 import "std/tooling/fmt" as fmt_pkg
+import "std/tooling/task" as task_pkg
 
 let start_repl = repl_pkg.start_repl;
 let run_cli = cli_pkg.run_cli_main;
@@ -16,3 +17,4 @@ let run_pkg = pkg_pkg.run_pkg_cli;
 let disassemble = disasm_pkg.disassemble_target;
 let format_source = fmt_pkg.format_source;
 let run_fmt = fmt_pkg.run_fmt_cli;
+let run_task = task_pkg.run_task_cli;

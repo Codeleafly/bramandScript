@@ -33,7 +33,7 @@ Please read this document carefully before proposing architectural changes, fili
 ### Prerequisites
 - **Go 1.20+** installed on your system or Termux environment.
 - Git.
-- Optional: Node.js 16+ (for `tools/task.js` / `bmd-task` development roadmap tracker).
+- 100% self-hosted: zero external dependencies, zero Node.js/npm requirements.
 
 ### Clone the Repository
 ```bash
@@ -106,7 +106,7 @@ bramandScript/
 ├── diagnostics/   ✦ Rust/Clang-style visual error engine with context window
 ├── repl/          ✦ Interactive terminal REPL and multi-line :editor mode
 ├── examples/      ✦ Standard reference programs (.bmd)
-├── tools/         ✦ Internal developer CLI utilities (task.js)
+├── tools/         ✦ Internal developer CLI utilities (task.bmd)
 ├── date/          ✦ Roadmap and task tracking logs (MMYY format)
 ├── docs/          ✦ Official web documentation portal
 ├── main.go        ✦ CLI entrypoint (run, repl, version, help)
@@ -120,11 +120,11 @@ bramandScript/
 All active developments are logged in `./date/MMYY/First_week_task.md` following project tracking standards.
 
 - Do **not** manually edit markdown checkboxes in `date/MMYY/*.md`.
-- Always use the provided tool:
+- Always use the provided native tool (`bmd-task` or `./bramand run tools/task.bmd`):
   ```bash
-  node tools/task.js list           # View current tasks and progress
-  node tools/task.js check <number> # Mark task as complete [x] after tests pass
-  node tools/task.js add "..."      # Add a new task item
+  bmd-task list           # View current tasks and progress
+  bmd-task check <number> # Mark task as complete [x] after tests pass
+  bmd-task add "..."      # Add a new task item (detailed --desc is compulsory)
   ```
 
 ---

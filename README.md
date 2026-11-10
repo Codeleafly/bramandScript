@@ -390,7 +390,32 @@ bmd replay trace.json
 # Commands: [s]tep, [b]ack/step_back, [p]rint/inspect, [h]istory, [g]oto <step>, [q]uit
 ```
 
-### 5. Run All Automated Unit Tests
+### 5. Native Project Task & Roadmap CLI (`bmd-task`)
+BramandScript includes a 100% self-hosted, native task and roadmap tracking engine written in pure `.bmd` (`tools/task.bmd` & `std/tooling/task`) with zero Node.js/npm dependencies:
+```bash
+# View active tasks and sprint progress
+bmd-task list
+# or
+./bramand run tools/task.bmd list
+
+# Filter tasks by day or week
+bmd-task list Day 35
+bmd-task list week 5
+
+# View detailed task specification
+bmd-task view 22
+
+# Mark task as complete or pending
+bmd-task check 22
+bmd-task uncheck 22
+
+# Add a new task (compulsory --desc of 15+ characters)
+bmd-task add "Standard HTTP Router" --day=8 \
+  --desc="Build high-performance multiplexer with route matching and middleware support" \
+  --includes="Route tree, pattern matching, handler context"
+```
+
+### 6. Run All Automated Unit Tests
 ```bash
 # Pure Go test suite
 go test ./... -v

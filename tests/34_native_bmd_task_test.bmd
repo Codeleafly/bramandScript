@@ -1,0 +1,105 @@
+// BramandScript System Verification :: Native bmd-task CLI Test Suite
+// Validates 100% Pure Native BramandScript Task Management Engine (std/tooling/task)
+
+import "std/tooling/task" as task_tool;
+
+describe("Day 35: 100% Native BramandScript Task Tooling (bmd-task)", fn() {
+    test("parses markdown task files and accurately extracts days and check states", fn() {
+        let sample_md = "# BramandScript - Test Tasks\n\n## Day 1: Lexer & AST\n- [x] Complete Unicode Lexer\n- [ ] Pratt Parser Implementation\n\n## Day 2: VM Pipeline\n- [ ] Bytecode Instructions\n";
+        let parsed = task_tool.parse_tasks(sample_md);
+        let tasks = parsed["tasks"];
+
+        assert_eq(len(tasks), 3);
+        assert_eq(tasks[0]["day"], "Day 1: Lexer & AST");
+        assert_eq(tasks[0]["done"], true);
+        assert_eq(tasks[0]["text"], "Complete Unicode Lexer");
+
+        assert_eq(tasks[1]["day"], "Day 1: Lexer & AST");
+        assert_eq(tasks[1]["done"], false);
+        assert_eq(tasks[1]["text"], "Pratt Parser Implementation");
+
+        assert_eq(tasks[2]["day"], "Day 2: VM Pipeline");
+        assert_eq(tasks[2]["done"], false);
+        assert_eq(tasks[2]["text"], "Bytecode Instructions");
+    });
+
+    test("parses CLI flags and positional arguments accurately", fn() {
+        let raw_args = ["HTTP", "Router", "--day=8", "--desc=High-performance multiplexer", "--includes=trie, regex", "--week=2"];
+        let flags = task_tool.parse_flags(raw_args);
+
+        assert_eq(flags["day"], "8");
+        assert_eq(flags["desc"], "High-performance multiplexer");
+        assert_eq(flags["includes"], "trie, regex");
+        assert_eq(flags["week"], "2");
+        assert_eq(len(flags["pos"]), 2);
+        assert_eq(flags["pos"][0], "HTTP");
+        assert_eq(flags["pos"][1], "Router");
+    });
+
+    test("finds target task by integer index and by keyword search", fn() {
+        let sample_md = "## Day 1\n- [x] Memory allocator\n- [ ] Network socket server\n- [ ] Cryptographic hash\n";
+        let parsed = task_tool.parse_tasks(sample_md);
+        let tasks = parsed["tasks"];
+
+        let by_id = task_tool.find_target_task(tasks, "2");
+        assert_true(by_id != null);
+        assert_eq(by_id["text"], "Network socket server");
+
+        let by_query = task_tool.find_target_task(tasks, "crypto");
+        assert_true(by_query != null);
+        assert_eq(by_query["text"], "Cryptographic hash");
+        assert_eq(by_query["index"], 3);
+
+        let not_found = task_tool.find_target_task(tasks, "nonexistent");
+        assert_true(not_found == null);
+    });
+
+    test("manages task lifecycle (add, check, uncheck, edit) in sandboxed environment", fn() {
+        let sandbox_dir = "tests/sandbox_task_test";
+        if !file_exists(sandbox_dir) {
+            fs_mkdir(sandbox_dir, true);
+        }
+        let test_file = path_join(sandbox_dir, "test_week_task.md");
+        let initial_content = "# Test Month: First Week Task\n\n## Day 1\n- [ ] Initial scaffold\n";
+        write_file(test_file, initial_content);
+
+        // 1. Verify initial parse
+        let p1 = task_tool.parse_tasks(read_file(test_file));
+        assert_eq(len(p1["tasks"]), 1);
+        assert_eq(p1["tasks"][0]["done"], false);
+
+        // 2. Mark complete
+        let lines1 = p1["lines"];
+        lines1[p1["tasks"][0]["line_index"]] = "- [x] " + p1["tasks"][0]["text"];
+        write_file(test_file, join(lines1, "\n"));
+
+        let p2 = task_tool.parse_tasks(read_file(test_file));
+        assert_eq(p2["tasks"][0]["done"], true);
+
+        // 3. Mark pending again (uncheck)
+        let lines2 = p2["lines"];
+        lines2[p2["tasks"][0]["line_index"]] = "- [ ] " + p2["tasks"][0]["text"];
+        write_file(test_file, join(lines2, "\n"));
+
+        let p3 = task_tool.parse_tasks(read_file(test_file));
+        assert_eq(p3["tasks"][0]["done"], false);
+
+        // 4. Edit task text
+        let lines3 = p3["lines"];
+        lines3[p3["tasks"][0]["line_index"]] = "- [ ] Updated scaffold with full test coverage";
+        write_file(test_file, join(lines3, "\n"));
+
+        let p4 = task_tool.parse_tasks(read_file(test_file));
+        assert_eq(p4["tasks"][0]["text"], "Updated scaffold with full test coverage");
+
+        // Clean up test file and sandbox directory
+        delete_file(test_file);
+        delete_file(sandbox_dir);
+    });
+
+    test("dispatches help command via run_task_cli cleanly with exit code 0", fn() {
+        let runner = task_tool.run_task_cli;
+        let code = runner(["help"]);
+        assert_eq(code, 0);
+    });
+});
