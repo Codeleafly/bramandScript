@@ -1,0 +1,17 @@
+// Srishti Programming Language :: Virtual Machine Package Index
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./frame" as frame_base
+import "./vm" as vm_base
+
+// Call Frame
+let Frame = frame_base.Frame;
+let new_frame = frame_base.new_frame;
+
+// Virtual Machine
+let VM = vm_base.VM;
+let new_vm = vm_base.new_vm;
+let new_vm_with_globals = vm_base.new_vm_with_globals;
+let new_vm_with_state = vm_base.new_vm_with_state;
+let execute_bytecode = vm_base.execute_bytecode;

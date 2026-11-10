@@ -1,0 +1,363 @@
+// Srishti Programming Language :: Virtual Machine & Runtime Execution Test Suite
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Verifies full bytecode VM execution, stack frames, closures, structs, builtins, and control flow.
+
+import "../index" as sri
+
+// Helper to compile and execute Srishti code asserting 0 errors
+let run_clean = fn(source_code, test_name) {
+    let res = sri.run(source_code, test_name);
+    if (len(res.errors) > 0) {
+        let i = 0;
+        while (i < len(res.errors)) {
+            println("EXECUTION ERROR in " + test_name + ": " + str(res.errors[i]));
+            i = i + 1;
+        }
+    }
+    assert(len(res.errors) == 0, "Expected 0 runtime errors in " + test_name);
+    return res.result;
+};
+
+// Helper to execute and unwrap to native BramandScript value
+let eval_native = fn(source_code, test_name) {
+    let res = run_clean(source_code, test_name);
+    return sri.to_native(res);
+};
+
+describe("Arithmetic Expressions & Precedence", fn() {
+        test("Operator precedence: multiplication before addition", fn() {
+                let val = eval_native("10 plus 20 times 3", "test_arith_precedence.sri");
+                assert_eq(val, 70);
+        });
+
+        test("Infix division of integers", fn() {
+                let val = eval_native("100 divided by 4", "test_div.sri");
+                assert_eq(val, 25);
+        });
+
+        test("Power operator (raised to) exponentiation", fn() {
+                let val = eval_native("2 raised to 8", "test_pow.sri");
+                assert_eq(val, 256);
+        });
+
+        test("Modulo arithmetic operator", fn() {
+                let val = eval_native("17 modulo 5", "test_mod.sri");
+                assert_eq(val, 2);
+        });
+
+        test("Parenthesized expression override", fn() {
+                let val = eval_native("(10 plus 5) times 2", "test_paren.sri");
+                assert_eq(val, 30);
+        });
+
+        test("Unary minus with addition", fn() {
+                let val = eval_native("-42 plus 50", "test_unary_minus.sri");
+                assert_eq(val, 8);
+        });
+
+        test("Floating-point arithmetic evaluation", fn() {
+                let val = eval_native("3.5 plus 2.5 times 2.0", "test_float_arith.sri");
+                assert_eq(val, 8.5);
+        });
+});
+
+describe("Relational Comparisons and English Operators", fn() {
+        test("English relational comparisons: greater and less than", fn() {
+                let val1 = eval_native("10 is greater than 5", "test_gt.sri");
+                let val2 = eval_native("5 is less than 10", "test_lt.sri");
+                assert_eq(val1, true);
+                assert_eq(val2, true);
+        });
+
+        test("Equality and inequality multi-word phrases", fn() {
+                let val1 = eval_native("10 is equal to 10", "test_eq.sri");
+                let val2 = eval_native("10 is not equal to 20", "test_neq.sri");
+                assert_eq(val1, true);
+                assert_eq(val2, true);
+        });
+
+        test("Boundary comparisons: greater/less than or equal to", fn() {
+                let val1 = eval_native("10 is greater than or equal to 10", "test_gte.sri");
+                let val2 = eval_native("5 is less than or equal to 10", "test_lte.sri");
+                assert_eq(val1, true);
+                assert_eq(val2, true);
+        });
+
+        test("Logical keywords: and, or, not with short-circuit evaluation", fn() {
+                let val1 = eval_native("not (10 is equal to 20)", "test_not.sri");
+                let val2 = eval_native("true and (5 is less than 10)", "test_and.sri");
+                let val3 = eval_native("false or (10 is greater than 2)", "test_or.sri");
+                assert_eq(val1, true);
+                assert_eq(val2, true);
+                assert_eq(val3, true);
+        });
+});
+
+describe("String Operations and Combinator", fn() {
+        test("String combinator combined with", fn() {
+                let val = eval_native("\"Hello \" combined with \"World\"", "test_concat.sri");
+                assert_eq(val, "Hello World");
+        });
+
+        test("String combinator with number conversion", fn() {
+                let val = eval_native("\"Answer: \" combined with str(42)", "test_concat_str.sri");
+                assert_eq(val, "Answer: 42");
+        });
+});
+
+describe("Global Variable Bindings & Mutation", fn() {
+        test("Global variable declaration and mutation with set-to", fn() {
+                let code = "let count be 10\nset count to count plus 5\ncount";
+                let val = eval_native(code, "test_global_set.sri");
+                assert_eq(val, 15);
+        });
+
+        test("Multiple variable interaction", fn() {
+                let code = "let a be 20\nlet b be 30\nlet c be a plus b\nc";
+                let val = eval_native(code, "test_multiple_vars.sri");
+                assert_eq(val, 50);
+        });
+});
+
+describe("Conditional Branching (If-Then-Otherwise)", fn() {
+        test("If-then-otherwise true branch evaluation", fn() {
+                let code = "if 10 is greater than 5 then:\n    100\notherwise:\n    200";
+                let val = eval_native(code, "test_if_true.sri");
+                assert_eq(val, 100);
+        });
+
+        test("If-then-otherwise false branch evaluation", fn() {
+                let code = "if 3 is greater than 5 then:\n    100\notherwise:\n    200";
+                let val = eval_native(code, "test_if_false.sri");
+                assert_eq(val, 200);
+        });
+
+        test("If statement mutating state without otherwise", fn() {
+                let code = "let res be 0\nif true then:\n    set res to 42\nres";
+                let val = eval_native(code, "test_if_mut.sri");
+                assert_eq(val, 42);
+        });
+});
+
+describe("Looping Constructs (Repeat-While & Iterate-Through)", fn() {
+        test("Repeat-while accumulation loop", fn() {
+                let code = "let i be 0\nlet sum be 0\nrepeat while i is less than 5:\n    set sum to sum plus i\n    set i to i plus 1\nsum";
+                let val = eval_native(code, "test_repeat_while.sri");
+                assert_eq(val, 10);
+        });
+
+        test("Iterate-through array collection traversal", fn() {
+                let code = "let sum be 0\nlet nums be [10, 20, 30]\niterate item through nums:\n    set sum to sum plus item\nsum";
+                let val = eval_native(code, "test_iterate.sri");
+                assert_eq(val, 60);
+        });
+});
+
+describe("Functions, CallFrames & Recursion", fn() {
+        test("Function with multiple parameters and explicit return", fn() {
+                let code = "define function add with a, b:\n    return a plus b\nadd(15, 27)";
+                let val = eval_native(code, "test_func_add.sri");
+                assert_eq(val, 42);
+        });
+
+        test("Recursive factorial function execution", fn() {
+                let code = "define function factorial with n:\n    if n is less than or equal to 1 then:\n        return 1\n    otherwise:\n        return n times factorial(n minus 1)\nfactorial(5)";
+                let val = eval_native(code, "test_recursive_fact.sri");
+                assert_eq(val, 120);
+        });
+
+        test("Recursive fibonacci calculation", fn() {
+                let code = "define function fib with n:\n    if n is less than or equal to 1 then:\n        return n\n    otherwise:\n        return fib(n minus 1) plus fib(n minus 2)\nfib(7)";
+                let val = eval_native(code, "test_recursive_fib.sri");
+                assert_eq(val, 13);
+        });
+});
+
+describe("Lexical Closures and Free Variables", fn() {
+        test("Function returning closure capturing outer variable", fn() {
+                let code = "define function make_adder with x:\n    define function adder with y:\n        return x plus y\n    return adder\nlet add10 be make_adder(10)\nadd10(25)";
+                let val = eval_native(code, "test_closure_capture.sri");
+                assert_eq(val, 35);
+        });
+
+        test("Stateful closure mutating captured free variable", fn() {
+                let code = "define function make_counter:\n    let count be 0\n    define function inc:\n        set count to count plus 1\n        return count\n    return inc\nlet c be make_counter()\nc()\nc()";
+                let val = eval_native(code, "test_stateful_closure.sri");
+                assert_eq(val, 2);
+        });
+});
+
+describe("Struct Definitions & Instance Property Access", fn() {
+        test("Struct instantiation and property read access", fn() {
+                let code = "create struct Point with x, y:\nlet pt be Point(10, 20)\npt.x plus pt.y";
+                let val = eval_native(code, "test_struct_read.sri");
+                assert_eq(val, 30);
+        });
+
+        test("Struct property mutation with set-to", fn() {
+                let code = "create struct Point with x, y:\nlet pt be Point(10, 20)\nset pt.x to 100\npt.x";
+                let val = eval_native(code, "test_struct_write.sri");
+                assert_eq(val, 100);
+        });
+});
+
+describe("Array Operations & Indexing", fn() {
+        test("Array index read access", fn() {
+                let code = "let arr be [100, 200, 300]\narr[1]";
+                let val = eval_native(code, "test_array_index_read.sri");
+                assert_eq(val, 200);
+        });
+
+        test("Array index mutation with set-to", fn() {
+                let code = "let arr be [1, 2, 3]\nset arr[0] to 99\narr[0]";
+                let val = eval_native(code, "test_array_index_write.sri");
+                assert_eq(val, 99);
+        });
+});
+
+describe("Pattern Matching (Match-When)", fn() {
+        test("Match-when matching target branch", fn() {
+                let code = "let code be 2\nlet result be 0\nmatch code:\nwhen 1:\n    set result to 10\nwhen 2:\n    set result to 20\notherwise:\n    set result to 99\nresult";
+                let val = eval_native(code, "test_match_hit.sri");
+                assert_eq(val, 20);
+        });
+
+        test("Match-when fallback to otherwise default branch", fn() {
+                let code = "let code be 9\nlet result be 0\nmatch code:\nwhen 1:\n    set result to 10\nwhen 2:\n    set result to 20\notherwise:\n    set result to 99\nresult";
+                let val = eval_native(code, "test_match_default.sri");
+                assert_eq(val, 99);
+        });
+});
+
+describe("Built-in Functions", fn() {
+        test("len on array and string", fn() {
+                let v1 = eval_native("len([10, 20, 30, 40])", "test_len_arr.sri");
+                let v2 = eval_native("len(\"Srishti\")", "test_len_str.sri");
+                assert_eq(v1, 4);
+                assert_eq(v2, 7);
+        });
+
+        test("type identification on runtime values", fn() {
+                let t1 = eval_native("type(42)", "test_type_int.sri");
+                let t2 = eval_native("type(\"test\")", "test_type_str.sri");
+                let t3 = eval_native("type([1, 2])", "test_type_arr.sri");
+                assert_eq(t1, "INTEGER");
+                assert_eq(t2, "STRING");
+                assert_eq(t3, "ARRAY");
+        });
+
+        test("type conversions: str, int, float", fn() {
+                let s = eval_native("str(123)", "test_str.sri");
+                let i = eval_native("int(\"42\")", "test_int.sri");
+                let f = eval_native("float(\"3.14\")", "test_float.sri");
+                assert_eq(s, "123");
+                assert_eq(i, 42);
+                assert_eq(f, 3.14);
+        });
+
+        test("push appending elements to array", fn() {
+                let res = eval_native("let arr be [1, 2]\npush(arr, 3)\narr", "test_push.sri");
+                assert_eq(len(res), 3);
+                assert_eq(res[0], 1);
+                assert_eq(res[1], 2);
+                assert_eq(res[2], 3);
+        });
+
+        test("slice on array and string", fn() {
+                let arr_slice = eval_native("slice([10, 20, 30, 40], 1, 3)", "test_slice_arr.sri");
+                let str_slice = eval_native("slice(\"Srishti\", 0, 3)", "test_slice_str.sri");
+                assert_eq(len(arr_slice), 2);
+                assert_eq(arr_slice[0], 20);
+                assert_eq(arr_slice[1], 30);
+                assert_eq(str_slice, "Sri");
+        });
+});
+
+describe("Special Statements: Display and Spawn", fn() {
+        test("Display statement execution without runtime error", fn() {
+                let val = eval_native("display \"Srishti VM operational\"\n42", "test_display.sri");
+                assert_eq(val, 42);
+        });
+});
+
+describe("Full Realistic Srishti Banking Program (50+ Lines)", fn() {
+        test("End-to-end execution of banking simulation script with zero runtime errors", fn() {
+                let join_lines = fn(arr) {
+                    let res = "";
+                    let i = 0;
+                    while i < len(arr) {
+                        res = res + arr[i] + "\n";
+                        i = i + 1;
+                    }
+                    return res;
+                };
+
+                let banking_program = join_lines([
+                        "constant BANK_NAME be \"Srishti National Bank\"",
+                        "",
+                        "create struct Account with id, owner, balance, is_active:",
+                        "",
+                        "define function create_account with id, owner, initial_balance:",
+                        "    let acc be Account(id, owner, initial_balance, true)",
+                        "    return acc",
+                        "",
+                        "define function deposit with account, amount:",
+                        "    if amount is less than or equal to 0 then:",
+                        "        display \"Deposit amount must be positive\"",
+                        "        return false",
+                        "    otherwise:",
+                        "        set account.balance to account.balance plus amount",
+                        "        display \"Deposited successfully\"",
+                        "        return true",
+                        "",
+                        "define function withdraw with account, amount:",
+                        "    if amount is greater than account.balance then:",
+                        "        display \"Insufficient funds\"",
+                        "        return false",
+                        "    otherwise:",
+                        "        set account.balance to account.balance minus amount",
+                        "        return true",
+                        "",
+                        "define function calculate_interest with principal, rate, years:",
+                        "    let factor be 1.0 plus (rate divided by 100.0)",
+                        "    let compounded be factor raised to years",
+                        "    let total be principal times compounded",
+                        "    return total",
+                        "",
+                        "define function process_transaction with tx_code, account, amount:",
+                        "    match tx_code:",
+                        "        when 1:",
+                        "            deposit(account, amount)",
+                        "        when 2:",
+                        "            withdraw(account, amount)",
+                        "        when 3:",
+                        "            display \"Account balance: \" combined with str(account.balance)",
+                        "",
+                        "define function audit_accounts with accounts_list:",
+                        "    iterate acc through accounts_list:",
+                        "        if acc.balance is greater than or equal to 100000 then:",
+                        "            display \"VIP Account: \" combined with acc.owner",
+                        "        otherwise:",
+                        "            display \"Standard Account: \" combined with acc.owner",
+                        "",
+                        "define function run_simulation:",
+                        "    let my_account be create_account(101, \"Aryabhata\", 50000.0)",
+                        "    process_transaction(1, my_account, 15000.0)",
+                        "    process_transaction(2, my_account, 5000.0)",
+                        "    let future_wealth be calculate_interest(my_account.balance, 7.5, 5)",
+                        "    display \"Projected balance: \" combined with str(future_wealth)",
+                        "",
+                        "    repeat while my_account.is_active is equal to true:",
+                        "        spawn task audit_accounts([my_account])",
+                        "        set my_account.is_active to false",
+                        "",
+                        "    display \"Audit complete for \" combined with BANK_NAME",
+                        "    return my_account.balance",
+                        "",
+                        "run_simulation()"
+                ]);
+                let final_balance = eval_native(banking_program, "srishti_banking_simulation.sri");
+                // 50,000 + 15,000 - 5,000 = 60,000.0
+                assert_eq(final_balance, 60000.0);
+        });
+});

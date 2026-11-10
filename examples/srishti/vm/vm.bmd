@@ -1,0 +1,1054 @@
+// Srishti Programming Language :: Stack-Based Virtual Machine Engine
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "../compiler/opcode" as opc
+import "../compiler/bytecode" as bc_pkg
+import "../object/index" as obj_pkg
+import "./frame" as frame_pkg
+
+let array_push = push;
+let STACK_SIZE = 4096;
+let MAX_FRAMES = 1024;
+let GLOBALS_SIZE = 4096;
+
+let new_vm_with_state = null;
+
+// Srishti Virtual Machine
+struct VM {
+    constants,
+    globals,
+    stack,
+    sp,
+    frames,
+    frames_index,
+    last_popped,
+
+    // Return the currently active call frame
+    fn current_frame() {
+        if (frames_index <= 0) {
+            return null;
+        }
+        return frames[frames_index - 1];
+    }
+
+    // Push an object onto the VM evaluation stack (for external callers)
+    fn push(obj) {
+        if (obj == null) {
+            obj = obj_pkg.NULL;
+        }
+        if (sp >= len(stack)) {
+            stack = array_push(stack, obj);
+        } else {
+            stack[sp] = obj;
+        }
+        sp = sp + 1;
+        return null;
+    }
+
+    // Pop the topmost object from the evaluation stack (for external callers)
+    fn pop() {
+        if (sp <= 0) {
+            return obj_pkg.NULL;
+        }
+        sp = sp - 1;
+        let val = stack[sp];
+        last_popped = val;
+        return val;
+    }
+
+    // Return the last popped stack element or top of stack
+    fn last_popped_stack_elem() {
+        if (sp > 0) {
+            return stack[sp - 1];
+        }
+        if (last_popped != null) {
+            return last_popped;
+        }
+        return obj_pkg.NULL;
+    }
+
+    // Main VM Opcode Execution Loop
+    fn run() {
+        while (frames_index > 0) {
+            let f = frames[frames_index - 1];
+            let ins = f.instructions();
+            let ip = f.ip;
+
+            if (ip >= len(ins)) {
+                // Reached end of frame instructions without explicit return
+                frames_index = frames_index - 1;
+                if (frames_index > 0) {
+                    sp = f.base_pointer - 1;
+                    if (sp >= len(stack)) {
+                        stack = array_push(stack, obj_pkg.NULL);
+                    } else {
+                        stack[sp] = obj_pkg.NULL;
+                    }
+                    sp = sp + 1;
+                }
+                continue;
+            }
+
+            let op = ins[ip];
+            f["ip"] = ip + 1;
+
+            // 1. OP_CONSTANT: Load constant from pool onto stack
+            if (op == opc.OP_CONSTANT) {
+                let const_idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                let c = constants[const_idx];
+                let obj = obj_pkg.to_object(c);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, obj);
+                } else {
+                    stack[sp] = obj;
+                }
+                sp = sp + 1;
+            }
+
+            // 2. OP_POP: Pop value from evaluation stack
+            else if (op == opc.OP_POP) {
+                if (sp > 0) {
+                    sp = sp - 1;
+                    last_popped = stack[sp];
+                }
+            }
+
+            // 3. OP_DUP: Duplicate top stack value
+            else if (op == opc.OP_DUP) {
+                let top = stack[sp - 1];
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, top);
+                } else {
+                    stack[sp] = top;
+                }
+                sp = sp + 1;
+            }
+
+            // 4. OP_ADD: Infix addition or string concatenation
+            else if (op == opc.OP_ADD) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+
+                let res = null;
+                if (ta == obj_pkg.OBJ_STRING || tb == obj_pkg.OBJ_STRING) {
+                    let sa = (ta == obj_pkg.OBJ_STRING) ? left.value : obj_pkg.inspect(left);
+                    let sb = (tb == obj_pkg.OBJ_STRING) ? right.value : obj_pkg.inspect(right);
+                    res = obj_pkg.StringObject(sa + sb);
+                } else if (ta == obj_pkg.OBJ_ARRAY && tb == obj_pkg.OBJ_ARRAY) {
+                    let ea = obj_pkg.get_elements(left);
+                    let eb = obj_pkg.get_elements(right);
+                    res = obj_pkg.ArrayObject(ea + eb);
+                } else if (ta == obj_pkg.OBJ_INT && tb == obj_pkg.OBJ_INT) {
+                    let va = obj_pkg.get_val(left);
+                    let vb = obj_pkg.get_val(right);
+                    res = obj_pkg.IntegerObject(va + vb);
+                } else {
+                    let va = obj_pkg.get_val(left);
+                    let vb = obj_pkg.get_val(right);
+                    res = obj_pkg.FloatObject(float(va) + float(vb));
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 5. OP_SUB: Infix subtraction
+            else if (op == opc.OP_SUB) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let res = null;
+                if (ta == obj_pkg.OBJ_INT && tb == obj_pkg.OBJ_INT) {
+                    res = obj_pkg.IntegerObject(va - vb);
+                } else {
+                    res = obj_pkg.FloatObject(float(va) - float(vb));
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 6. OP_MUL: Infix multiplication
+            else if (op == opc.OP_MUL) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let res = null;
+                if (ta == obj_pkg.OBJ_INT && tb == obj_pkg.OBJ_INT) {
+                    res = obj_pkg.IntegerObject(va * vb);
+                } else {
+                    res = obj_pkg.FloatObject(float(va) * float(vb));
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 7. OP_DIV: Infix division
+            else if (op == opc.OP_DIV) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                if (vb == 0 || vb == 0.0) {
+                    return "Runtime Error: division by zero";
+                }
+
+                let res = null;
+                if (ta == obj_pkg.OBJ_INT && tb == obj_pkg.OBJ_INT && (va % vb == 0)) {
+                    res = obj_pkg.IntegerObject(va / vb);
+                } else {
+                    res = obj_pkg.FloatObject(float(va) / float(vb));
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 8. OP_MOD: Infix modulo
+            else if (op == opc.OP_MOD) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                if (vb == 0) {
+                    return "Runtime Error: modulo by zero";
+                }
+                let res = obj_pkg.IntegerObject(va % vb);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 9. OP_POW: Infix power (raised to)
+            else if (op == opc.OP_POW) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let res = null;
+                if (ta == obj_pkg.OBJ_INT && tb == obj_pkg.OBJ_INT && vb >= 0) {
+                    let r = 1;
+                    let base_v = va;
+                    let exp_v = vb;
+                    while (exp_v > 0) {
+                        if ((exp_v & 1) == 1) {
+                            r = r * base_v;
+                        }
+                        base_v = base_v * base_v;
+                        exp_v = exp_v >> 1;
+                    }
+                    res = obj_pkg.IntegerObject(r);
+                } else {
+                    res = obj_pkg.FloatObject(pow(float(va), float(vb)));
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 10. OP_EQUAL: Relational equality
+            else if (op == opc.OP_EQUAL) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let eq = obj_pkg.objects_equal(left, right);
+                let res = obj_pkg.new_boolean(eq);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 11. OP_NOT_EQUAL: Relational inequality
+            else if (op == opc.OP_NOT_EQUAL) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let eq = obj_pkg.objects_equal(left, right);
+                let res = obj_pkg.new_boolean(!eq);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 12. OP_GREATER_THAN: Relational greater than
+            else if (op == opc.OP_GREATER_THAN) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let is_num_a = (ta == obj_pkg.OBJ_INT || ta == obj_pkg.OBJ_FLOAT);
+                let is_num_b = (tb == obj_pkg.OBJ_INT || tb == obj_pkg.OBJ_FLOAT);
+                let res = obj_pkg.FALSE;
+                if (is_num_a && is_num_b) {
+                    res = obj_pkg.new_boolean(float(va) > float(vb));
+                } else if (ta == obj_pkg.OBJ_STRING && tb == obj_pkg.OBJ_STRING) {
+                    res = obj_pkg.new_boolean(va > vb);
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 13. OP_LESS_THAN: Relational less than
+            else if (op == opc.OP_LESS_THAN) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let is_num_a = (ta == obj_pkg.OBJ_INT || ta == obj_pkg.OBJ_FLOAT);
+                let is_num_b = (tb == obj_pkg.OBJ_INT || tb == obj_pkg.OBJ_FLOAT);
+                let res = obj_pkg.FALSE;
+                if (is_num_a && is_num_b) {
+                    res = obj_pkg.new_boolean(float(va) < float(vb));
+                } else if (ta == obj_pkg.OBJ_STRING && tb == obj_pkg.OBJ_STRING) {
+                    res = obj_pkg.new_boolean(va < vb);
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 14. OP_GREATER_EQUAL: Relational greater than or equal to
+            else if (op == opc.OP_GREATER_EQUAL) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let is_num_a = (ta == obj_pkg.OBJ_INT || ta == obj_pkg.OBJ_FLOAT);
+                let is_num_b = (tb == obj_pkg.OBJ_INT || tb == obj_pkg.OBJ_FLOAT);
+                let res = obj_pkg.FALSE;
+                if (is_num_a && is_num_b) {
+                    res = obj_pkg.new_boolean(float(va) >= float(vb));
+                } else if (ta == obj_pkg.OBJ_STRING && tb == obj_pkg.OBJ_STRING) {
+                    res = obj_pkg.new_boolean(va >= vb);
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 15. OP_LESS_EQUAL: Relational less than or equal to
+            else if (op == opc.OP_LESS_EQUAL) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let va = obj_pkg.get_val(left);
+                let vb = obj_pkg.get_val(right);
+
+                let is_num_a = (ta == obj_pkg.OBJ_INT || ta == obj_pkg.OBJ_FLOAT);
+                let is_num_b = (tb == obj_pkg.OBJ_INT || tb == obj_pkg.OBJ_FLOAT);
+                let res = obj_pkg.FALSE;
+                if (is_num_a && is_num_b) {
+                    res = obj_pkg.new_boolean(float(va) <= float(vb));
+                } else if (ta == obj_pkg.OBJ_STRING && tb == obj_pkg.OBJ_STRING) {
+                    res = obj_pkg.new_boolean(va <= vb);
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 16. OP_CONCAT: String combinator (combined with)
+            else if (op == opc.OP_CONCAT) {
+                sp = sp - 1;
+                let right = stack[sp];
+                sp = sp - 1;
+                let left = stack[sp];
+                let ta = obj_pkg.get_object_type(left);
+                let tb = obj_pkg.get_object_type(right);
+                let sa = (ta == obj_pkg.OBJ_STRING) ? left.value : obj_pkg.inspect(left);
+                let sb = (tb == obj_pkg.OBJ_STRING) ? right.value : obj_pkg.inspect(right);
+                let res = obj_pkg.StringObject(sa + sb);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 17. OP_TRUE: Push TRUE singleton
+            else if (op == opc.OP_TRUE) {
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, obj_pkg.TRUE);
+                } else {
+                    stack[sp] = obj_pkg.TRUE;
+                }
+                sp = sp + 1;
+            }
+
+            // 18. OP_FALSE: Push FALSE singleton
+            else if (op == opc.OP_FALSE) {
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, obj_pkg.FALSE);
+                } else {
+                    stack[sp] = obj_pkg.FALSE;
+                }
+                sp = sp + 1;
+            }
+
+            // 19. OP_NULL: Push NULL singleton
+            else if (op == opc.OP_NULL) {
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, obj_pkg.NULL);
+                } else {
+                    stack[sp] = obj_pkg.NULL;
+                }
+                sp = sp + 1;
+            }
+
+            // 20. OP_MINUS: Unary arithmetic minus
+            else if (op == opc.OP_MINUS) {
+                sp = sp - 1;
+                let val = stack[sp];
+                let ot = obj_pkg.get_object_type(val);
+                let v = obj_pkg.get_val(val);
+                let res = null;
+                if (ot == obj_pkg.OBJ_INT) {
+                    res = obj_pkg.IntegerObject(-v);
+                } else if (ot == obj_pkg.OBJ_FLOAT) {
+                    res = obj_pkg.FloatObject(-v);
+                } else {
+                    return "Runtime Error: unsupported operand for unary minus: " + ot;
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 21. OP_NOT: Unary logical negation
+            else if (op == opc.OP_NOT) {
+                sp = sp - 1;
+                let val = stack[sp];
+                let res = obj_pkg.new_boolean(!obj_pkg.is_truthy(val));
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 22. OP_JUMP: Unconditional jump to target offset
+            else if (op == opc.OP_JUMP) {
+                let target = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = target;
+            }
+
+            // 23. OP_JUMP_NOT_TRUTHY: Conditional branch if top of stack is falsy
+            else if (op == opc.OP_JUMP_NOT_TRUTHY) {
+                let target = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                sp = sp - 1;
+                let cond = stack[sp];
+                if (!obj_pkg.is_truthy(cond)) {
+                    f["ip"] = target;
+                }
+            }
+
+            // 24. OP_SET_GLOBAL: Store top of stack into global variable
+            else if (op == opc.OP_SET_GLOBAL) {
+                let idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                sp = sp - 1;
+                let val = stack[sp];
+                while (len(globals) <= idx) {
+                    globals = array_push(globals, obj_pkg.NULL);
+                }
+                globals[idx] = val;
+            }
+
+            // 25. OP_GET_GLOBAL: Load global variable onto stack
+            else if (op == opc.OP_GET_GLOBAL) {
+                let idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                let val = obj_pkg.NULL;
+                if (idx < len(globals) && globals[idx] != null) {
+                    val = globals[idx];
+                }
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, val);
+                } else {
+                    stack[sp] = val;
+                }
+                sp = sp + 1;
+            }
+
+            // 26. OP_SET_LOCAL: Store top of stack into local frame variable
+            else if (op == opc.OP_SET_LOCAL) {
+                let idx = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                sp = sp - 1;
+                let val = stack[sp];
+                let target_sp = f.base_pointer + idx;
+                while (len(stack) <= target_sp) {
+                    stack = array_push(stack, obj_pkg.NULL);
+                }
+                stack[target_sp] = val;
+            }
+
+            // 27. OP_GET_LOCAL: Load local frame variable onto stack
+            else if (op == opc.OP_GET_LOCAL) {
+                let idx = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                let target_sp = f.base_pointer + idx;
+                let val = obj_pkg.NULL;
+                if (target_sp < len(stack) && stack[target_sp] != null) {
+                    val = stack[target_sp];
+                }
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, val);
+                } else {
+                    stack[sp] = val;
+                }
+                sp = sp + 1;
+            }
+
+            // 28. OP_ARRAY: Construct ArrayObject from stack elements
+            else if (op == opc.OP_ARRAY) {
+                let num_elems = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                let elems = slice(stack, sp - num_elems, sp);
+                sp = sp - num_elems;
+                let arr_obj = obj_pkg.ArrayObject(elems);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, arr_obj);
+                } else {
+                    stack[sp] = arr_obj;
+                }
+                sp = sp + 1;
+            }
+
+            // 29. OP_INDEX_GET: Index get on array, string, or struct instance
+            else if (op == opc.OP_INDEX_GET) {
+                sp = sp - 1;
+                let idx_obj = stack[sp];
+                sp = sp - 1;
+                let left_obj = stack[sp];
+                let ot = obj_pkg.get_object_type(left_obj);
+
+                let res = obj_pkg.NULL;
+                if (ot == obj_pkg.OBJ_ARRAY) {
+                    let elems = obj_pkg.get_elements(left_obj);
+                    let idx = int(obj_pkg.get_val(idx_obj));
+                    if (idx >= 0 && idx < len(elems)) {
+                        res = elems[idx];
+                    }
+                } else if (ot == obj_pkg.OBJ_STRING) {
+                    let s = (type(left_obj) == "STRING") ? left_obj : left_obj.value;
+                    let idx = int(obj_pkg.get_val(idx_obj));
+                    if (idx >= 0 && idx < len(s)) {
+                        res = obj_pkg.StringObject(slice(s, idx, idx + 1));
+                    }
+                } else if (ot == obj_pkg.OBJ_STRUCT_INSTANCE) {
+                    let prop = str(obj_pkg.get_val(idx_obj));
+                    if (contains(left_obj.fields, prop)) {
+                        res = left_obj.fields[prop];
+                    }
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 30. OP_INDEX_SET: Index assignment into array or struct instance
+            else if (op == opc.OP_INDEX_SET) {
+                sp = sp - 1;
+                let val = stack[sp];
+                sp = sp - 1;
+                let idx_obj = stack[sp];
+                sp = sp - 1;
+                let left_obj = stack[sp];
+                let ot = obj_pkg.get_object_type(left_obj);
+
+                if (ot == obj_pkg.OBJ_ARRAY) {
+                    let idx = int(obj_pkg.get_val(idx_obj));
+                    if (idx >= 0 && idx < len(left_obj.elements)) {
+                        left_obj.elements[idx] = val;
+                    }
+                } else if (ot == obj_pkg.OBJ_STRUCT_INSTANCE) {
+                    let prop = str(obj_pkg.get_val(idx_obj));
+                    left_obj.fields[prop] = val;
+                    left_obj[prop] = val;
+                }
+            }
+
+            // 31. OP_PROPERTY_GET: Struct instance property retrieval
+            else if (op == opc.OP_PROPERTY_GET) {
+                let prop_idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                let prop_name = constants[prop_idx];
+                sp = sp - 1;
+                let obj = stack[sp];
+                let ot = obj_pkg.get_object_type(obj);
+
+                let res = obj_pkg.NULL;
+                if (ot == obj_pkg.OBJ_STRUCT_INSTANCE) {
+                    if (contains(obj.fields, prop_name)) {
+                        res = obj.fields[prop_name];
+                    }
+                }
+
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, res);
+                } else {
+                    stack[sp] = res;
+                }
+                sp = sp + 1;
+            }
+
+            // 32. OP_PROPERTY_SET: Struct instance property assignment
+            else if (op == opc.OP_PROPERTY_SET) {
+                let prop_idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                f["ip"] = f.ip + 2;
+                let prop_name = constants[prop_idx];
+                sp = sp - 1;
+                let val = stack[sp];
+                sp = sp - 1;
+                let obj = stack[sp];
+                let ot = obj_pkg.get_object_type(obj);
+
+                if (ot == obj_pkg.OBJ_STRUCT_INSTANCE) {
+                    obj.fields[prop_name] = val;
+                    obj[prop_name] = val;
+                }
+            }
+
+            // 33. OP_CALL: Function, closure, or builtin invocation
+            else if (op == opc.OP_CALL) {
+                let num_args = ins[f.ip];
+                f["ip"] = f.ip + 1;
+
+                let callee = stack[sp - 1 - num_args];
+                if (callee == null) {
+                    return "Runtime Error: calling null or undefined value";
+                }
+
+                let ot = obj_pkg.get_object_type(callee);
+
+                // Case 1: Builtin function call
+                if (ot == obj_pkg.OBJ_BUILTIN) {
+                    let args = slice(stack, sp - num_args, sp);
+                    sp = sp - 1 - num_args;
+                    let res = callee.fn_impl(args);
+                    if (res == null) {
+                        res = obj_pkg.NULL;
+                    }
+                    if (sp >= len(stack)) {
+                        stack = array_push(stack, res);
+                    } else {
+                        stack[sp] = res;
+                    }
+                    sp = sp + 1;
+                    continue;
+                }
+
+                // Case 2: Struct Definition instantiation (Point(x, y))
+                if (ot == obj_pkg.OBJ_STRUCT_DEF) {
+                    let args = slice(stack, sp - num_args, sp);
+                    sp = sp - 1 - num_args;
+                    let fields_map = {};
+                    let k = 0;
+                    while (k < len(callee.fields)) {
+                        let f_name = callee.fields[k];
+                        if (k < len(args)) {
+                            fields_map[f_name] = args[k];
+                        } else {
+                            fields_map[f_name] = obj_pkg.NULL;
+                        }
+                        k = k + 1;
+                    }
+                    let inst = obj_pkg.StructInstanceObject(callee, fields_map);
+                    if (sp >= len(stack)) {
+                        stack = array_push(stack, inst);
+                    } else {
+                        stack[sp] = inst;
+                    }
+                    sp = sp + 1;
+                    continue;
+                }
+
+                // Case 3: CompiledFunction (auto-wrap to Closure)
+                if (ot == obj_pkg.OBJ_COMPILED_FUNCTION) {
+                    callee = obj_pkg.ClosureObject(callee, []);
+                    stack[sp - 1 - num_args] = callee;
+                    ot = obj_pkg.OBJ_CLOSURE;
+                }
+
+                // Case 4: Closure call
+                if (ot == obj_pkg.OBJ_CLOSURE) {
+                    let compiled_fn = (callee.fn != null) ? callee.fn : callee.function;
+                    if (num_args > compiled_fn.num_parameters) {
+                        return "Runtime Error: wrong number of arguments: want=" + str(compiled_fn.num_parameters) + ", got=" + str(num_args);
+                    }
+
+                    // Pad default nulls for missing parameters
+                    while (num_args < compiled_fn.num_parameters) {
+                        if (sp >= len(stack)) {
+                            stack = array_push(stack, obj_pkg.NULL);
+                        } else {
+                            stack[sp] = obj_pkg.NULL;
+                        }
+                        sp = sp + 1;
+                        num_args = num_args + 1;
+                    }
+
+                    if (frames_index >= MAX_FRAMES) {
+                        return "Runtime Error: call stack overflow: maximum frame depth exceeded";
+                    }
+
+                    let base_ptr = sp - num_args;
+                    let new_f = frame_pkg.new_frame(callee, base_ptr);
+                    if (frames_index >= len(frames)) {
+                        frames = array_push(frames, new_f);
+                    } else {
+                        frames[frames_index] = new_f;
+                    }
+                    frames_index = frames_index + 1;
+
+                    // Reserve space for locals
+                    let loc_idx = num_args;
+                    while (loc_idx < compiled_fn.num_locals) {
+                        let target_sp = base_ptr + loc_idx;
+                        if (target_sp >= len(stack)) {
+                            stack = array_push(stack, obj_pkg.NULL);
+                        } else {
+                            stack[target_sp] = obj_pkg.NULL;
+                        }
+                        loc_idx = loc_idx + 1;
+                    }
+                    sp = base_ptr + compiled_fn.num_locals;
+                    continue;
+                }
+
+                return "Runtime Error: calling non-function and non-builtin: " + ot;
+            }
+
+            // 34. OP_RETURN_VALUE: Return explicit value from frame
+            else if (op == opc.OP_RETURN_VALUE) {
+                sp = sp - 1;
+                let return_val = stack[sp];
+                last_popped = return_val;
+                if (frames_index == 1) {
+                    frames_index = 0;
+                    return null;
+                }
+                frames_index = frames_index - 1;
+                sp = f.base_pointer - 1;
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, return_val);
+                } else {
+                    stack[sp] = return_val;
+                }
+                sp = sp + 1;
+            }
+
+            // 35. OP_RETURN: Void return (implicit null)
+            else if (op == opc.OP_RETURN) {
+                last_popped = obj_pkg.NULL;
+                if (frames_index == 1) {
+                    frames_index = 0;
+                    return null;
+                }
+                frames_index = frames_index - 1;
+                sp = f.base_pointer - 1;
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, obj_pkg.NULL);
+                } else {
+                    stack[sp] = obj_pkg.NULL;
+                }
+                sp = sp + 1;
+            }
+
+            // 36. OP_CLOSURE: Instantiate closure capturing free variables
+            else if (op == opc.OP_CLOSURE) {
+                let const_idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                let num_free = ins[f.ip + 2];
+                f["ip"] = f.ip + 3;
+
+                let fn_def = constants[const_idx];
+                let free_vars = slice(stack, sp - num_free, sp);
+                sp = sp - num_free;
+                let cl = obj_pkg.ClosureObject(fn_def, free_vars);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, cl);
+                } else {
+                    stack[sp] = cl;
+                }
+                sp = sp + 1;
+            }
+
+            // 37. OP_GET_FREE: Load captured free variable from active closure
+            else if (op == opc.OP_GET_FREE) {
+                let free_idx = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                let cl = f.closure;
+                let val = obj_pkg.NULL;
+                if (free_idx < len(cl.free)) {
+                    val = cl.free[free_idx];
+                }
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, val);
+                } else {
+                    stack[sp] = val;
+                }
+                sp = sp + 1;
+            }
+
+            // 38. OP_SET_FREE: Mutate captured free variable in active closure
+            else if (op == opc.OP_SET_FREE) {
+                let free_idx = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                sp = sp - 1;
+                let val = stack[sp];
+                let cl = f.closure;
+                cl.free[free_idx] = val;
+            }
+
+            // 39. OP_GET_BUILTIN: Load builtin function object
+            else if (op == opc.OP_GET_BUILTIN) {
+                let b_idx = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                let blt = obj_pkg.get_builtin_by_index(b_idx);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, blt);
+                } else {
+                    stack[sp] = blt;
+                }
+                sp = sp + 1;
+            }
+
+            // 40. OP_STRUCT_DEF: Construct Struct Definition from pooled name and fields
+            else if (op == opc.OP_STRUCT_DEF) {
+                let name_idx = (ins[f.ip] << 8) | ins[f.ip + 1];
+                let num_fields = ins[f.ip + 2];
+                f["ip"] = f.ip + 3;
+
+                let struct_name = constants[name_idx];
+                let field_names = [];
+                let f_pos = sp - num_fields;
+                while (f_pos < sp) {
+                    let f_item = stack[f_pos];
+                    let f_str = ((type(f_item) == "HASH" || type(f_item) == "STRUCT") && contains(f_item, "value")) ? f_item.value : str(f_item);
+                    field_names = array_push(field_names, f_str);
+                    f_pos = f_pos + 1;
+                }
+                sp = sp - num_fields;
+                let def = obj_pkg.StructDefObject(struct_name, field_names);
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, def);
+                } else {
+                    stack[sp] = def;
+                }
+                sp = sp + 1;
+            }
+
+            // 41. OP_SPAWN: Concurrently spawn task execution
+            else if (op == opc.OP_SPAWN) {
+                let num_args = ins[f.ip];
+                f["ip"] = f.ip + 1;
+                let task_args = slice(stack, sp - num_args, sp);
+                let task_callee = stack[sp - 1 - num_args];
+                sp = sp - 1 - num_args;
+
+                // Concurrently run spawned task
+                let task_constants = constants;
+                let task_globals = globals;
+                spawn fn() {
+                    let task_vm = new_vm_with_state(task_callee, task_args, task_constants, task_globals);
+                    task_vm.run();
+                }();
+            }
+
+            // 42. OP_DISPLAY: Display statement execution (stdout output)
+            else if (op == opc.OP_DISPLAY) {
+                sp = sp - 1;
+                let val = stack[sp];
+                let out_str = ((type(val) == "HASH" || type(val) == "STRUCT") && contains(val, "type") && val.type == obj_pkg.OBJ_STRING) ? val.value : obj_pkg.inspect(val);
+                println(out_str);
+            }
+
+            // 43. OP_CURRENT_CLOSURE: Self-referencing recursive closure
+            else if (op == opc.OP_CURRENT_CLOSURE) {
+                let cl = f.closure;
+                if (sp >= len(stack)) {
+                    stack = array_push(stack, cl);
+                } else {
+                    stack[sp] = cl;
+                }
+                sp = sp + 1;
+            }
+
+            else {
+                return "Runtime Error: unknown opcode " + str(op) + " at offset " + str(f.ip - 1);
+            }
+        }
+
+        return null;
+    }
+}
+
+// VM Constructor: Initialize VM with compiled Bytecode unit
+let new_vm = fn(bytecode) {
+    let main_fn = bc_pkg.new_compiled_function("<main>", bytecode.instructions, 0, 0);
+    let main_cl = obj_pkg.ClosureObject(main_fn, []);
+    let main_frame = frame_pkg.new_frame(main_cl, 0);
+
+    let stack = [];
+    let i = 0;
+    while (i < 256) {
+        stack = array_push(stack, obj_pkg.NULL);
+        i = i + 1;
+    }
+
+    let globals = [];
+    let g = 0;
+    while (g < 256) {
+        globals = array_push(globals, obj_pkg.NULL);
+        g = g + 1;
+    }
+
+    return VM(bytecode.constants, globals, stack, 0, [main_frame], 1, null);
+};
+
+// VM Constructor with custom globals store
+let new_vm_with_globals = fn(bytecode, shared_globals) {
+    let vm = new_vm(bytecode);
+    vm["globals"] = shared_globals;
+    return vm;
+};
+
+// VM Constructor for spawned background child task
+new_vm_with_state = fn(callee, args, constants, shared_globals) {
+    let compiled_fn = (callee.fn != null) ? callee.fn : callee.function;
+    let base_ptr = 0;
+    let main_frame = frame_pkg.new_frame(callee, base_ptr);
+
+    let stack = [];
+    let k = 0;
+    while (k < len(args)) {
+        stack = array_push(stack, args[k]);
+        k = k + 1;
+    }
+    while (len(stack) < compiled_fn.num_locals) {
+        stack = array_push(stack, obj_pkg.NULL);
+    }
+
+    let sp = compiled_fn.num_locals;
+    return VM(constants, shared_globals, stack, sp, [main_frame], 1, null);
+};
+
+// Convenience execution helper: executes bytecode and returns result artifact
+let execute_bytecode = fn(bytecode) {
+    let vm = new_vm(bytecode);
+    let err = vm.run();
+    if (err != null) {
+        return { "result": null, "error": err, "vm": vm };
+    }
+    return { "result": vm.last_popped_stack_elem(), "error": null, "vm": vm };
+};

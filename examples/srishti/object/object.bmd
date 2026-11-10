@@ -1,0 +1,612 @@
+// Srishti Programming Language :: Runtime Object System & Core Value Models
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// Object Type Constants
+let OBJ_INT = "INTEGER";
+let OBJ_FLOAT = "FLOAT";
+let OBJ_STRING = "STRING";
+let OBJ_BOOLEAN = "BOOLEAN";
+let OBJ_NULL = "NULL";
+let OBJ_ARRAY = "ARRAY";
+let OBJ_CLOSURE = "CLOSURE";
+let OBJ_COMPILED_FUNCTION = "COMPILED_FUNCTION";
+let OBJ_STRUCT_DEF = "STRUCT_DEF";
+let OBJ_STRUCT_INSTANCE = "STRUCT_INSTANCE";
+let OBJ_BUILTIN = "BUILTIN";
+let OBJ_ERROR = "ERROR";
+
+// Value Extraction Helpers
+let get_val = fn(obj) {
+    if (obj == null) {
+        return null;
+    }
+    let t = type(obj);
+    if ((t == "HASH" || t == "STRUCT") && contains(obj, "value")) {
+        return obj.value;
+    }
+    return obj;
+};
+
+let get_elements = fn(obj) {
+    if (obj == null) {
+        return [];
+    }
+    let t = type(obj);
+    if ((t == "HASH" || t == "STRUCT") && contains(obj, "elements")) {
+        return obj.elements;
+    }
+    return obj;
+};
+
+// --- Integer Object ---
+struct IntegerObj {
+    type,
+    value,
+
+    fn inspect() {
+        return str(value);
+    }
+
+    fn to_string() {
+        return str(value);
+    }
+}
+
+let IntegerObject = fn(a, b) {
+    if (b != null) {
+        return IntegerObj(a, b);
+    }
+    return IntegerObj(OBJ_INT, a);
+};
+let new_integer = fn(val) {
+    return IntegerObject(val);
+};
+
+// --- Float Object ---
+struct FloatObj {
+    type,
+    value,
+
+    fn inspect() {
+        let s = str(value);
+        if (!contains(s, ".")) {
+            s = s + ".0";
+        }
+        return s;
+    }
+
+    fn to_string() {
+        return str(value);
+    }
+}
+
+let FloatObject = fn(a, b) {
+    if (b != null) {
+        return FloatObj(a, b);
+    }
+    return FloatObj(OBJ_FLOAT, a);
+};
+let new_float = fn(val) {
+    return FloatObject(val);
+};
+
+// --- String Object ---
+struct StringObj {
+    type,
+    value,
+
+    fn inspect() {
+        return value;
+    }
+
+    fn to_string() {
+        return value;
+    }
+}
+
+let StringObject = fn(a, b) {
+    if (b != null) {
+        return StringObj(a, b);
+    }
+    return StringObj(OBJ_STRING, a);
+};
+let new_string = fn(val) {
+    return StringObject(val);
+};
+
+// --- Boolean Object ---
+struct BooleanObj {
+    type,
+    value,
+
+    fn inspect() {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let TRUE = BooleanObj(OBJ_BOOLEAN, true);
+let FALSE = BooleanObj(OBJ_BOOLEAN, false);
+
+let BooleanObject = fn(val) {
+    if (val == true) {
+        return TRUE;
+    }
+    return FALSE;
+};
+let new_boolean = BooleanObject;
+
+// --- Null Object ---
+struct NullObj {
+    type,
+    value,
+
+    fn inspect() {
+        return "null";
+    }
+
+    fn to_string() {
+        return "null";
+    }
+}
+
+let NULL = NullObj(OBJ_NULL, null);
+
+let NullObject = fn() {
+    return NULL;
+};
+let new_null = NullObject;
+
+// --- Array Object ---
+struct ArrayObj {
+    type,
+    elements,
+
+    fn inspect() {
+        let parts = [];
+        let i = 0;
+        while (i < len(elements)) {
+            let el = elements[i];
+            if (el == null) {
+                parts = push(parts, "null");
+            } else if ((type(el) == "HASH" || type(el) == "STRUCT") && contains(el, "inspect")) {
+                parts = push(parts, el.inspect());
+            } else {
+                parts = push(parts, str(el));
+            }
+            i = i + 1;
+        }
+        return "[" + join(parts, ", ") + "]";
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let ArrayObject = fn(elements) {
+    if (elements == null) {
+        elements = [];
+    }
+    return ArrayObj(OBJ_ARRAY, elements);
+};
+let new_array = ArrayObject;
+
+// --- Closure Object ---
+struct ClosureObj {
+    type,
+    function,
+    free,
+
+    fn inspect() {
+        let name = "<anonymous>";
+        if (function != null && function.name != null) {
+            name = function.name;
+        }
+        return "closure(" + name + ")";
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let ClosureObject = fn(function, free) {
+    if (free == null) {
+        free = [];
+    }
+    let cl = ClosureObj(OBJ_CLOSURE, function, free);
+    cl["fn"] = function;
+    return cl;
+};
+let new_closure = ClosureObject;
+
+// --- Struct Definition Object ---
+struct StructDefObj {
+    type,
+    name,
+    fields,
+
+    fn inspect() {
+        return "struct " + name + " with " + join(fields, ", ");
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let StructDefObject = fn(name, fields) {
+    if (fields == null) {
+        fields = [];
+    }
+    return StructDefObj(OBJ_STRUCT_DEF, name, fields);
+};
+let new_struct_def = StructDefObject;
+
+// --- Struct Instance Object ---
+struct StructInstanceObj {
+    type,
+    struct_def,
+    fields,
+
+    fn inspect() {
+        let parts = [];
+        let i = 0;
+        while (i < len(struct_def.fields)) {
+            let f_name = struct_def.fields[i];
+            let val = fields[f_name];
+            let val_str = "null";
+            if (val != null) {
+                if ((type(val) == "HASH" || type(val) == "STRUCT") && contains(val, "inspect")) {
+                    val_str = val.inspect();
+                } else {
+                    val_str = str(val);
+                }
+            }
+            parts = push(parts, f_name + ": " + val_str);
+            i = i + 1;
+        }
+        return struct_def.name + "{" + join(parts, ", ") + "}";
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let StructInstanceObject = fn(struct_def, fields) {
+    if (fields == null) {
+        fields = {};
+    }
+    let inst = StructInstanceObj(OBJ_STRUCT_INSTANCE, struct_def, fields);
+    let i = 0;
+    while (i < len(struct_def.fields)) {
+        let f_name = struct_def.fields[i];
+        if (contains(fields, f_name)) {
+            inst[f_name] = fields[f_name];
+        }
+        i = i + 1;
+    }
+    return inst;
+};
+let new_struct_instance = StructInstanceObject;
+
+// --- Builtin Object ---
+struct BuiltinObj {
+    type,
+    fn_impl,
+    name,
+
+    fn inspect() {
+        return "builtin function " + name;
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let BuiltinObject = fn(fn_impl, name) {
+    if (name == null) {
+        name = "<anonymous>";
+    }
+    return BuiltinObj(OBJ_BUILTIN, fn_impl, name);
+};
+let new_builtin = BuiltinObject;
+
+// --- Error Object ---
+struct ErrorObj {
+    type,
+    message,
+
+    fn inspect() {
+        return "Runtime Error: " + message;
+    }
+
+    fn to_string() {
+        return inspect();
+    }
+}
+
+let ErrorObject = fn(message) {
+    return ErrorObj(OBJ_ERROR, message);
+};
+let new_error = ErrorObject;
+
+// --- Type Resolution Helper ---
+let get_object_type = fn(obj) {
+    if (obj == null) {
+        return OBJ_NULL;
+    }
+    let t = type(obj);
+    if (t == "HASH" || t == "STRUCT") {
+        if (contains(obj, "type") && obj.type != null) {
+            return obj.type;
+        }
+        if (contains(obj, "instructions")) {
+            return OBJ_COMPILED_FUNCTION;
+        }
+    }
+    if (t == "INTEGER") {
+        return OBJ_INT;
+    }
+    if (t == "FLOAT") {
+        return OBJ_FLOAT;
+    }
+    if (t == "STRING") {
+        return OBJ_STRING;
+    }
+    if (t == "BOOLEAN") {
+        return OBJ_BOOLEAN;
+    }
+    if (t == "ARRAY") {
+        return OBJ_ARRAY;
+    }
+    return t;
+};
+
+// --- Truthiness Semantics ---
+// null, false, 0, 0.0, "", and empty array [] are falsy.
+// Everything else is truthy.
+let is_truthy = fn(obj) {
+    if (obj == null) {
+        return false;
+    }
+    if (obj == false) {
+        return false;
+    }
+    if (obj == true) {
+        return true;
+    }
+
+    let ot = get_object_type(obj);
+
+    if (ot == OBJ_NULL) {
+        return false;
+    }
+    if (ot == OBJ_BOOLEAN) {
+        return obj.value == true;
+    }
+    if (ot == OBJ_INT) {
+        let v = get_val(obj);
+        return v != 0;
+    }
+    if (ot == OBJ_FLOAT) {
+        let v = get_val(obj);
+        return v != 0.0;
+    }
+    if (ot == OBJ_STRING) {
+        let v = get_val(obj);
+        return len(v) > 0;
+    }
+    if (ot == OBJ_ARRAY) {
+        let elems = get_elements(obj);
+        return len(elems) > 0;
+    }
+
+    return true;
+};
+
+// --- Value Inspection Helper ---
+let inspect = fn(obj) {
+    if (obj == null) {
+        return "null";
+    }
+    let t = type(obj);
+    if (t == "HASH" || t == "STRUCT") {
+        if (contains(obj, "inspect")) {
+            return obj.inspect();
+        }
+        if (contains(obj, "to_string")) {
+            return obj.to_string();
+        }
+    }
+    if (t == "BOOLEAN") {
+        if (obj) {
+            return "true";
+        }
+        return "false";
+    }
+    if (t == "ARRAY") {
+        let parts = [];
+        let i = 0;
+        while (i < len(obj)) {
+            parts = push(parts, inspect(obj[i]));
+            i = i + 1;
+        }
+        return "[" + join(parts, ", ") + "]";
+    }
+    return str(obj);
+};
+
+// --- Object Equality Checking Helper ---
+let objects_equal = fn(a, b) {
+    if (a == b) {
+        return true;
+    }
+    if (a == null || b == null) {
+        return false;
+    }
+
+    let ta = get_object_type(a);
+    let tb = get_object_type(b);
+
+    // Number equality across int and float
+    let is_num_a = (ta == OBJ_INT || ta == OBJ_FLOAT);
+    let is_num_b = (tb == OBJ_INT || tb == OBJ_FLOAT);
+    if (is_num_a && is_num_b) {
+        let va = get_val(a);
+        let vb = get_val(b);
+        return va == vb;
+    }
+
+    if (ta != tb) {
+        return false;
+    }
+
+    if (ta == OBJ_NULL) {
+        return true;
+    }
+    if (ta == OBJ_BOOLEAN) {
+        return get_val(a) == get_val(b);
+    }
+    if (ta == OBJ_STRING) {
+        return get_val(a) == get_val(b);
+    }
+    if (ta == OBJ_ARRAY) {
+        let ea = get_elements(a);
+        let eb = get_elements(b);
+        if (len(ea) != len(eb)) {
+            return false;
+        }
+        let i = 0;
+        while (i < len(ea)) {
+            if (!objects_equal(ea[i], eb[i])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+    if (ta == OBJ_STRUCT_DEF) {
+        if (a.name != b.name) {
+            return false;
+        }
+        if (len(a.fields) != len(b.fields)) {
+            return false;
+        }
+        let i = 0;
+        while (i < len(a.fields)) {
+            if (a.fields[i] != b.fields[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+    if (ta == OBJ_STRUCT_INSTANCE) {
+        if (a.struct_def.name != b.struct_def.name) {
+            return false;
+        }
+        let i = 0;
+        while (i < len(a.struct_def.fields)) {
+            let f_name = a.struct_def.fields[i];
+            let val_a = a.fields[f_name];
+            let val_b = b.fields[f_name];
+            if (!objects_equal(val_a, val_b)) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+    if (ta == OBJ_CLOSURE) {
+        return a.fn == b.fn;
+    }
+    if (ta == OBJ_BUILTIN) {
+        return a.name == b.name;
+    }
+    if (ta == OBJ_ERROR) {
+        return a.message == b.message;
+    }
+
+    return false;
+};
+
+// --- Conversion to Srishti Runtime Object ---
+let to_object = fn(val) {
+    if (val == null) {
+        return NULL;
+    }
+    let t = type(val);
+    if (t == "HASH" || t == "STRUCT") {
+        if (contains(val, "type") && val.type != null) {
+            return val;
+        }
+        if (contains(val, "instructions")) {
+            return ClosureObject(val, []);
+        }
+        return val;
+    }
+    if (t == "INTEGER") {
+        return IntegerObject(val);
+    }
+    if (t == "FLOAT") {
+        return FloatObject(val);
+    }
+    if (t == "STRING") {
+        return StringObject(val);
+    }
+    if (t == "BOOLEAN") {
+        return BooleanObject(val);
+    }
+    if (t == "ARRAY") {
+        let wrapped = [];
+        let i = 0;
+        while (i < len(val)) {
+            wrapped = push(wrapped, to_object(val[i]));
+            i = i + 1;
+        }
+        return ArrayObject(wrapped);
+    }
+    return val;
+};
+
+// --- Conversion from Srishti Runtime Object to Native Value ---
+let to_native = fn(obj) {
+    if (obj == null) {
+        return null;
+    }
+    let t = type(obj);
+    if (t != "HASH" && t != "STRUCT") {
+        return obj;
+    }
+    if (!contains(obj, "type")) {
+        return obj;
+    }
+    let ot = obj.type;
+    if (ot == OBJ_NULL) {
+        return null;
+    }
+    if (ot == OBJ_INT || ot == OBJ_FLOAT || ot == OBJ_STRING || ot == OBJ_BOOLEAN) {
+        return obj.value;
+    }
+    if (ot == OBJ_ARRAY) {
+        let unwrapped = [];
+        let i = 0;
+        while (i < len(obj.elements)) {
+            unwrapped = push(unwrapped, to_native(obj.elements[i]));
+            i = i + 1;
+        }
+        return unwrapped;
+    }
+    return obj;
+};

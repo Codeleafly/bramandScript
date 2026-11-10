@@ -1,0 +1,32 @@
+// Srishti Programming Language :: Call Frame & Activation Record
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+// CallFrame represents a single function activation record in the VM call stack
+struct Frame {
+    closure,
+    ip,
+    base_pointer,
+
+    // Returns instruction bytecode stream from the frame's compiled function
+    fn instructions() {
+        if closure == null {
+            return [];
+        }
+        if closure.fn != null {
+            return closure.fn.instructions;
+        }
+        if closure.function != null {
+            return closure.function.instructions;
+        }
+        return [];
+    }
+}
+
+// Constructor: Creates a new CallFrame with instruction pointer initialized to 0
+let new_frame = fn(closure, base_pointer) {
+    if base_pointer == null {
+        base_pointer = 0;
+    }
+    return Frame(closure, 0, base_pointer);
+};

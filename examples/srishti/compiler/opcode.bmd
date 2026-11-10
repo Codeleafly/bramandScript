@@ -65,6 +65,7 @@ let OP_STRUCT_DEF = 39;
 let OP_SPAWN = 40;
 let OP_DISPLAY = 41;
 let OP_DUP = 42;
+let OP_CURRENT_CLOSURE = 43;
 
 // Opcode Definition Structure
 struct OpcodeDefinition {
@@ -116,6 +117,7 @@ let opcode_definitions = {
     40: OpcodeDefinition("OP_SPAWN", [1]),
     41: OpcodeDefinition("OP_DISPLAY", []),
     42: OpcodeDefinition("OP_DUP", []),
+    43: OpcodeDefinition("OP_CURRENT_CLOSURE", []),
 };
 
 // Lookup Opcode Definition by Opcode byte

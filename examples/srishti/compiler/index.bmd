@@ -51,6 +51,7 @@ let OP_STRUCT_DEF = opc.OP_STRUCT_DEF;
 let OP_SPAWN = opc.OP_SPAWN;
 let OP_DISPLAY = opc.OP_DISPLAY;
 let OP_DUP = opc.OP_DUP;
+let OP_CURRENT_CLOSURE = opc.OP_CURRENT_CLOSURE;
 
 // --- Opcode Definitions & Utilities ---
 let OpcodeDefinition = opc.OpcodeDefinition;

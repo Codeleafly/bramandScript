@@ -7,6 +7,8 @@ import "./lexer/index" as lex_pkg
 import "./ast/index" as ast_pkg
 import "./parser/index" as parse_pkg
 import "./compiler/index" as comp_pkg
+import "./object/index" as obj_pkg
+import "./vm/index" as vm_pkg
 
 // --- Token Specifications & Coordinates ---
 let Position = tok_pkg.Position;
@@ -271,6 +273,7 @@ let OP_STRUCT_DEF = comp_pkg.OP_STRUCT_DEF;
 let OP_SPAWN = comp_pkg.OP_SPAWN;
 let OP_DISPLAY = comp_pkg.OP_DISPLAY;
 let OP_DUP = comp_pkg.OP_DUP;
+let OP_CURRENT_CLOSURE = comp_pkg.OP_CURRENT_CLOSURE;
 
 let OpcodeDefinition = comp_pkg.OpcodeDefinition;
 let opcode_definitions = comp_pkg.opcode_definitions;
@@ -304,8 +307,90 @@ let Compiler = comp_pkg.Compiler;
 let new_compiler = comp_pkg.new_compiler;
 let new_optimizing_compiler = comp_pkg.new_optimizing_compiler;
 
+// --- Runtime Object System ---
+let OBJ_INT = obj_pkg.OBJ_INT;
+let OBJ_FLOAT = obj_pkg.OBJ_FLOAT;
+let OBJ_STRING = obj_pkg.OBJ_STRING;
+let OBJ_BOOLEAN = obj_pkg.OBJ_BOOLEAN;
+let OBJ_NULL = obj_pkg.OBJ_NULL;
+let OBJ_ARRAY = obj_pkg.OBJ_ARRAY;
+let OBJ_CLOSURE = obj_pkg.OBJ_CLOSURE;
+let OBJ_COMPILED_FUNCTION = obj_pkg.OBJ_COMPILED_FUNCTION;
+let OBJ_STRUCT_DEF = obj_pkg.OBJ_STRUCT_DEF;
+let OBJ_STRUCT_INSTANCE = obj_pkg.OBJ_STRUCT_INSTANCE;
+let OBJ_BUILTIN = obj_pkg.OBJ_BUILTIN;
+let OBJ_ERROR = obj_pkg.OBJ_ERROR;
+
+let IntegerObject = obj_pkg.IntegerObject;
+let new_integer = obj_pkg.new_integer;
+let FloatObject = obj_pkg.FloatObject;
+let new_float = obj_pkg.new_float;
+let StringObject = obj_pkg.StringObject;
+let new_string = obj_pkg.new_string;
+let BooleanObject = obj_pkg.BooleanObject;
+let new_boolean = obj_pkg.new_boolean;
+let TRUE = obj_pkg.TRUE;
+let FALSE = obj_pkg.FALSE;
+let NullObject = obj_pkg.NullObject;
+let new_null = obj_pkg.new_null;
+let NULL = obj_pkg.NULL;
+let ArrayObject = obj_pkg.ArrayObject;
+let new_array = obj_pkg.new_array;
+let ClosureObject = obj_pkg.ClosureObject;
+let new_closure = obj_pkg.new_closure;
+let StructDefObject = obj_pkg.StructDefObject;
+let new_struct_def = obj_pkg.new_struct_def;
+let StructInstanceObject = obj_pkg.StructInstanceObject;
+let new_struct_instance = obj_pkg.new_struct_instance;
+let BuiltinObject = obj_pkg.BuiltinObject;
+let new_builtin = obj_pkg.new_builtin;
+let ErrorObject = obj_pkg.ErrorObject;
+let new_error = obj_pkg.new_error;
+
+let get_val = obj_pkg.get_val;
+let get_elements = obj_pkg.get_elements;
+let get_object_type = obj_pkg.get_object_type;
+let is_truthy = obj_pkg.is_truthy;
+let inspect = obj_pkg.inspect;
+let objects_equal = obj_pkg.objects_equal;
+let to_object = obj_pkg.to_object;
+let to_native = obj_pkg.to_native;
+
+let BUILTINS_TABLE = obj_pkg.BUILTINS_TABLE;
+let get_builtin_by_index = obj_pkg.get_builtin_by_index;
+let get_builtin_by_name = obj_pkg.get_builtin_by_name;
+
+// --- Virtual Machine & Call Frames ---
+let Frame = vm_pkg.Frame;
+let new_frame = vm_pkg.new_frame;
+let VM = vm_pkg.VM;
+let new_vm = vm_pkg.new_vm;
+let new_vm_with_globals = vm_pkg.new_vm_with_globals;
+let new_vm_with_state = vm_pkg.new_vm_with_state;
+
 // Convenience function to compile Srishti source code into Bytecode
 let compile = fn(source_code, filename) {
     let program = parse(source_code, filename);
     return comp_pkg.compile(program);
+};
+
+// Convenience function to execute Bytecode directly on Srishti VM
+let execute = fn(bytecode) {
+    return vm_pkg.execute_bytecode(bytecode);
+};
+
+// End-to-end runner: tokenizes, parses, compiles, and executes Srishti source code
+let run = fn(source_code, filename) {
+    if filename == null {
+        filename = "main.sri";
+    }
+    let res = compile(source_code, filename);
+    if len(res.errors) > 0 {
+        return { "result": null, "errors": res.errors, "vm": null };
+    }
+    let exec_res = execute(res.bytecode);
+    if exec_res.error != null {
+        return { "result": null, "errors": [exec_res.error], "vm": exec_res.vm };
+    }
+    return { "result": exec_res.result, "errors": [], "vm": exec_res.vm };
 };

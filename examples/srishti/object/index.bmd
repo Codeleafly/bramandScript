@@ -1,0 +1,93 @@
+// Srishti Programming Language :: Object System Package Index
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./object" as obj_base
+import "./builtins" as blt_base
+
+// Object Types
+let OBJ_INT = obj_base.OBJ_INT;
+let OBJ_FLOAT = obj_base.OBJ_FLOAT;
+let OBJ_STRING = obj_base.OBJ_STRING;
+let OBJ_BOOLEAN = obj_base.OBJ_BOOLEAN;
+let OBJ_NULL = obj_base.OBJ_NULL;
+let OBJ_ARRAY = obj_base.OBJ_ARRAY;
+let OBJ_CLOSURE = obj_base.OBJ_CLOSURE;
+let OBJ_COMPILED_FUNCTION = obj_base.OBJ_COMPILED_FUNCTION;
+let OBJ_STRUCT_DEF = obj_base.OBJ_STRUCT_DEF;
+let OBJ_STRUCT_INSTANCE = obj_base.OBJ_STRUCT_INSTANCE;
+let OBJ_BUILTIN = obj_base.OBJ_BUILTIN;
+let OBJ_ERROR = obj_base.OBJ_ERROR;
+
+// Runtime Value Structs & Constructors
+let IntegerObj = obj_base.IntegerObj;
+let IntegerObject = obj_base.IntegerObject;
+let new_integer = obj_base.new_integer;
+
+let FloatObj = obj_base.FloatObj;
+let FloatObject = obj_base.FloatObject;
+let new_float = obj_base.new_float;
+
+let StringObj = obj_base.StringObj;
+let StringObject = obj_base.StringObject;
+let new_string = obj_base.new_string;
+
+let BooleanObj = obj_base.BooleanObj;
+let BooleanObject = obj_base.BooleanObject;
+let new_boolean = obj_base.new_boolean;
+let TRUE = obj_base.TRUE;
+let FALSE = obj_base.FALSE;
+
+let NullObj = obj_base.NullObj;
+let NullObject = obj_base.NullObject;
+let new_null = obj_base.new_null;
+let NULL = obj_base.NULL;
+
+let ArrayObj = obj_base.ArrayObj;
+let ArrayObject = obj_base.ArrayObject;
+let new_array = obj_base.new_array;
+
+let ClosureObj = obj_base.ClosureObj;
+let ClosureObject = obj_base.ClosureObject;
+let new_closure = obj_base.new_closure;
+
+let StructDefObj = obj_base.StructDefObj;
+let StructDefObject = obj_base.StructDefObject;
+let new_struct_def = obj_base.new_struct_def;
+
+let StructInstanceObj = obj_base.StructInstanceObj;
+let StructInstanceObject = obj_base.StructInstanceObject;
+let new_struct_instance = obj_base.new_struct_instance;
+
+let BuiltinObj = obj_base.BuiltinObj;
+let BuiltinObject = obj_base.BuiltinObject;
+let new_builtin = obj_base.new_builtin;
+
+let ErrorObj = obj_base.ErrorObj;
+let ErrorObject = obj_base.ErrorObject;
+let new_error = obj_base.new_error;
+
+// Helper Functions
+let get_val = obj_base.get_val;
+let get_elements = obj_base.get_elements;
+let get_object_type = obj_base.get_object_type;
+let is_truthy = obj_base.is_truthy;
+let inspect = obj_base.inspect;
+let objects_equal = obj_base.objects_equal;
+let to_object = obj_base.to_object;
+let to_native = obj_base.to_native;
+
+// Built-ins Registry & Lookups
+let BUILTINS_TABLE = blt_base.BUILTINS_TABLE;
+let get_builtin_by_index = blt_base.get_builtin_by_index;
+let get_builtin_by_name = blt_base.get_builtin_by_name;
+let builtin_len = blt_base.builtin_len;
+let builtin_print = blt_base.builtin_print;
+let builtin_println = blt_base.builtin_println;
+let builtin_str = blt_base.builtin_str;
+let builtin_int = blt_base.builtin_int;
+let builtin_float = blt_base.builtin_float;
+let builtin_type = blt_base.builtin_type;
+let builtin_push = blt_base.builtin_push;
+let builtin_slice = blt_base.builtin_slice;
+let builtin_input = blt_base.builtin_input;

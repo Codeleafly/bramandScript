@@ -160,6 +160,8 @@ struct Compiler {
             emit(opc.OP_GET_FREE, [sym.index]);
         } else if sym.scope == sym_pkg.SCOPE_BUILTIN {
             emit(opc.OP_GET_BUILTIN, [sym.index]);
+        } else if sym.scope == sym_pkg.SCOPE_FUNCTION {
+            emit(opc.OP_CURRENT_CLOSURE, []);
         }
     }
 

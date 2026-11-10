@@ -1,0 +1,243 @@
+// Srishti Programming Language :: Built-in Functions & Standard Commands
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// 100% Pure BramandScript implementation with zero external dependencies.
+
+import "./object" as obj_pkg
+
+// Built-in Function Implementations
+
+// len(arg): Returns length of string or array
+let builtin_len = fn(args) {
+    if (len(args) != 1) {
+        return obj_pkg.ErrorObject("wrong number of arguments to len: want=1, got=" + str(len(args)));
+    }
+    let arg = args[0];
+    if (arg == null) {
+        return obj_pkg.IntegerObject(0);
+    }
+    let ot = obj_pkg.get_object_type(arg);
+    if (ot == obj_pkg.OBJ_STRING) {
+        if (type(arg) == "STRING") {
+            return obj_pkg.IntegerObject(len(arg));
+        }
+        return obj_pkg.IntegerObject(len(arg.value));
+    }
+    if (ot == obj_pkg.OBJ_ARRAY) {
+        if (type(arg) == "ARRAY") {
+            return obj_pkg.IntegerObject(len(arg));
+        }
+        return obj_pkg.IntegerObject(len(arg.elements));
+    }
+    return obj_pkg.ErrorObject("argument to 'len' not supported: " + obj_pkg.inspect(arg));
+};
+
+// print(...args): Prints inspected values without trailing newline
+let builtin_print = fn(args) {
+    let out = [];
+    let i = 0;
+    while (i < len(args)) {
+        let arg = args[i];
+        if (arg != null && (type(arg) == "HASH" || type(arg) == "STRUCT") && contains(arg, "type") && arg.type == obj_pkg.OBJ_STRING) {
+            out = push(out, arg.value);
+        } else {
+            out = push(out, obj_pkg.inspect(arg));
+        }
+        i = i + 1;
+    }
+    print(join(out, " "));
+    return obj_pkg.NULL;
+};
+
+// println(...args): Prints inspected values with trailing newline
+let builtin_println = fn(args) {
+    let out = [];
+    let i = 0;
+    while (i < len(args)) {
+        let arg = args[i];
+        if (arg != null && (type(arg) == "HASH" || type(arg) == "STRUCT") && contains(arg, "type") && arg.type == obj_pkg.OBJ_STRING) {
+            out = push(out, arg.value);
+        } else {
+            out = push(out, obj_pkg.inspect(arg));
+        }
+        i = i + 1;
+    }
+    println(join(out, " "));
+    return obj_pkg.NULL;
+};
+
+// str(arg): Converts any object into its string representation
+let builtin_str = fn(args) {
+    if (len(args) != 1) {
+        return obj_pkg.ErrorObject("wrong number of arguments to str: want=1, got=" + str(len(args)));
+    }
+    let arg = args[0];
+    if (arg != null && (type(arg) == "HASH" || type(arg) == "STRUCT") && contains(arg, "type") && arg.type == obj_pkg.OBJ_STRING) {
+        return arg;
+    }
+    return obj_pkg.StringObject(obj_pkg.inspect(arg));
+};
+
+// int(arg): Converts numeric or string object into an integer
+let builtin_int = fn(args) {
+    if (len(args) != 1) {
+        return obj_pkg.ErrorObject("wrong number of arguments to int: want=1, got=" + str(len(args)));
+    }
+    let arg = args[0];
+    if (arg == null) {
+        return obj_pkg.IntegerObject(0);
+    }
+    let ot = obj_pkg.get_object_type(arg);
+    if (ot == obj_pkg.OBJ_INT) {
+        if (type(arg) == "INTEGER") {
+            return obj_pkg.IntegerObject(arg);
+        }
+        return arg;
+    }
+    if (ot == obj_pkg.OBJ_FLOAT) {
+        let v = obj_pkg.get_val(arg);
+        return obj_pkg.IntegerObject(int(v));
+    }
+    if (ot == obj_pkg.OBJ_STRING) {
+        let v = obj_pkg.get_val(arg);
+        return obj_pkg.IntegerObject(int(v));
+    }
+    if (ot == obj_pkg.OBJ_BOOLEAN) {
+        let v = obj_pkg.get_val(arg);
+        return obj_pkg.IntegerObject(v ? 1 : 0);
+    }
+    return obj_pkg.ErrorObject("cannot convert " + ot + " to integer");
+};
+
+// float(arg): Converts numeric or string object into a floating-point number
+let builtin_float = fn(args) {
+    if (len(args) != 1) {
+        return obj_pkg.ErrorObject("wrong number of arguments to float: want=1, got=" + str(len(args)));
+    }
+    let arg = args[0];
+    if (arg == null) {
+        return obj_pkg.FloatObject(0.0);
+    }
+    let ot = obj_pkg.get_object_type(arg);
+    if (ot == obj_pkg.OBJ_FLOAT) {
+        if (type(arg) == "FLOAT") {
+            return obj_pkg.FloatObject(arg);
+        }
+        return arg;
+    }
+    if (ot == obj_pkg.OBJ_INT) {
+        let v = obj_pkg.get_val(arg);
+        return obj_pkg.FloatObject(float(v));
+    }
+    if (ot == obj_pkg.OBJ_STRING) {
+        let v = obj_pkg.get_val(arg);
+        return obj_pkg.FloatObject(float(v));
+    }
+    return obj_pkg.ErrorObject("cannot convert " + ot + " to float");
+};
+
+// type(arg): Returns the runtime type name string of any object
+let builtin_type = fn(args) {
+    if (len(args) != 1) {
+        return obj_pkg.ErrorObject("wrong number of arguments to type: want=1, got=" + str(len(args)));
+    }
+    return obj_pkg.StringObject(obj_pkg.get_object_type(args[0]));
+};
+
+// push(arr, item): Appends item to array and returns array
+let builtin_push = fn(args) {
+    if (len(args) != 2) {
+        return obj_pkg.ErrorObject("wrong number of arguments to push: want=2, got=" + str(len(args)));
+    }
+    let arr = args[0];
+    let val = args[1];
+    let ot = obj_pkg.get_object_type(arr);
+    if (ot == obj_pkg.OBJ_ARRAY) {
+        if (type(arr) == "ARRAY") {
+            return obj_pkg.ArrayObject(push(arr, val));
+        }
+        arr["elements"] = push(arr.elements, val);
+        return arr;
+    }
+    return obj_pkg.ErrorObject("argument to 'push' must be ARRAY, got " + ot);
+};
+
+// slice(coll, start, end): Slices string or array
+let builtin_slice = fn(args) {
+    let argc = len(args);
+    if (argc < 2 || argc > 3) {
+        return obj_pkg.ErrorObject("wrong number of arguments to slice: want 2 or 3, got=" + str(argc));
+    }
+    let coll = args[0];
+    let s_arg = args[1];
+    let start_idx = int(obj_pkg.get_val(s_arg));
+    let end_idx = null;
+    if (argc == 3) {
+        let e_arg = args[2];
+        end_idx = int(obj_pkg.get_val(e_arg));
+    }
+
+    let ot = obj_pkg.get_object_type(coll);
+    if (ot == obj_pkg.OBJ_ARRAY) {
+        let elems = obj_pkg.get_elements(coll);
+        if (end_idx == null) {
+            end_idx = len(elems);
+        }
+        return obj_pkg.ArrayObject(slice(elems, start_idx, end_idx));
+    }
+    if (ot == obj_pkg.OBJ_STRING) {
+        let s = (type(coll) == "STRING") ? coll : coll.value;
+        if (end_idx == null) {
+            end_idx = len(s);
+        }
+        return obj_pkg.StringObject(slice(s, start_idx, end_idx));
+    }
+    return obj_pkg.ErrorObject("argument to 'slice' must be ARRAY or STRING, got " + ot);
+};
+
+// input(prompt): Reads input from terminal/stdin with optional prompt
+let builtin_input = fn(args) {
+    if (len(args) > 0) {
+        let prompt_str = (obj_pkg.get_object_type(args[0]) == obj_pkg.OBJ_STRING) ? obj_pkg.get_val(args[0]) : obj_pkg.inspect(args[0]);
+        print(prompt_str);
+    }
+    let res = input();
+    if (res == null) {
+        res = "";
+    }
+    return obj_pkg.StringObject(res);
+};
+
+// Builtin Objects Registry Table
+// Order strictly aligns with compiler BUILTINS indices (0 to 9)
+let BUILTINS_TABLE = [
+    obj_pkg.BuiltinObject(builtin_len, "len"),
+    obj_pkg.BuiltinObject(builtin_print, "print"),
+    obj_pkg.BuiltinObject(builtin_println, "println"),
+    obj_pkg.BuiltinObject(builtin_str, "str"),
+    obj_pkg.BuiltinObject(builtin_int, "int"),
+    obj_pkg.BuiltinObject(builtin_float, "float"),
+    obj_pkg.BuiltinObject(builtin_type, "type"),
+    obj_pkg.BuiltinObject(builtin_push, "push"),
+    obj_pkg.BuiltinObject(builtin_slice, "slice"),
+    obj_pkg.BuiltinObject(builtin_input, "input")
+];
+
+// Lookup Builtin Object by index (0-based)
+let get_builtin_by_index = fn(idx) {
+    if (idx >= 0 && idx < len(BUILTINS_TABLE)) {
+        return BUILTINS_TABLE[idx];
+    }
+    return obj_pkg.ErrorObject("unknown builtin index: " + str(idx));
+};
+
+// Lookup Builtin Object by name
+let get_builtin_by_name = fn(name) {
+    let i = 0;
+    while (i < len(BUILTINS_TABLE)) {
+        if (BUILTINS_TABLE[i].name == name) {
+            return BUILTINS_TABLE[i];
+        }
+        i = i + 1;
+    }
+    return null;
+};
