@@ -1,0 +1,30 @@
+// Srishti Programming Language :: Lexer Package Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Re-exports character classifiers, diagnostic error formatters, and the Lexer engine.
+
+import "./unicode" as uni_pkg
+import "./errors" as err_pkg
+import "./lexer" as lex_pkg
+
+// --- Unicode & Character Classifier Exports ---
+let is_letter = uni_pkg.is_letter;
+let is_digit = uni_pkg.is_digit;
+let is_hex_digit = uni_pkg.is_hex_digit;
+let is_binary_digit = uni_pkg.is_binary_digit;
+let is_octal_digit = uni_pkg.is_octal_digit;
+let is_whitespace = uni_pkg.is_whitespace;
+let is_newline = uni_pkg.is_newline;
+let is_identifier_start = uni_pkg.is_identifier_start;
+let is_identifier_part = uni_pkg.is_identifier_part;
+let is_symbol = uni_pkg.is_symbol;
+
+// --- Diagnostics & Errors Exports ---
+let LexError = err_pkg.LexError;
+let new_lex_error = err_pkg.new_lex_error;
+let format_lex_error = err_pkg.format_lex_error;
+let extract_source_line = err_pkg.extract_source_line;
+
+// --- Scanner Engine Exports ---
+let Lexer = lex_pkg.Lexer;
+let new_lexer = lex_pkg.new_lexer;
+let create_lexer = lex_pkg.create_lexer;

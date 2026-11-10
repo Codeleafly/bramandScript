@@ -1,0 +1,116 @@
+// Srishti Programming Language :: Source Position and Span System
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Provides source coordinates, character offsets, and compiler diagnostic spans.
+
+// Position represents an exact single-point coordinate in source code.
+struct Position {
+    line,
+    col,
+    offset,
+    filename,
+
+    // Formats the position into standard "filename:line:col" or "line:col".
+    fn to_string() {
+        let l_str = str(line);
+        let c_str = str(col);
+        if filename != null && filename != "" {
+            return filename + ":" + l_str + ":" + c_str;
+        }
+        return l_str + ":" + c_str;
+    }
+
+    // Creates an independent deep clone of the position coordinate.
+    fn clone() {
+        return Position(line, col, offset, filename);
+    }
+
+    // Compares if this position occurs strictly before another position in source order.
+    fn is_before(other) {
+        if other == null { return false; }
+        if line < other.line { return true; }
+        if line > other.line { return false; }
+        return col < other.col;
+    }
+
+    // Compares if this position occurs strictly after another position in source order.
+    fn is_after(other) {
+        if other == null { return false; }
+        if line > other.line { return true; }
+        if line < other.line { return false; }
+        return col > other.col;
+    }
+}
+
+// Constructor function for Position instances.
+let new_position = fn(line, col, offset, filename) {
+    if filename == null {
+        filename = "";
+    }
+    return Position(line, col, offset, filename);
+};
+
+// Span represents a continuous contiguous source range between two positions.
+// Essential for compiler error reporting, IDE diagnostic underlining, and AST location tags.
+struct Span {
+    start_pos,
+    end_pos,
+
+    // Formats the span into human-readable range representation.
+    fn to_string() {
+        let s_str = "?";
+        let e_str = "?";
+        if start_pos != null { s_str = start_pos.to_string(); }
+        if end_pos != null { e_str = end_pos.to_string(); }
+        return s_str + " to " + e_str;
+    }
+
+    // Returns the character length covered by this span.
+    fn length() {
+        if start_pos == null || end_pos == null { return 0; }
+        let diff = end_pos.offset - start_pos.offset;
+        if diff < 0 { return 0; }
+        return diff;
+    }
+
+    // Combines this span with another span to produce an enclosing outer span.
+    fn merge(other_span) {
+        if other_span == null {
+            return Span(start_pos, end_pos);
+        }
+
+        let new_start = start_pos;
+        if other_span.start_pos != null {
+            if start_pos == null || other_span.start_pos.is_before(start_pos) {
+                new_start = other_span.start_pos;
+            }
+        }
+
+        let new_end = end_pos;
+        if other_span.end_pos != null {
+            if end_pos == null || other_span.end_pos.is_after(end_pos) {
+                new_end = other_span.end_pos;
+            }
+        }
+
+        return Span(new_start, new_end);
+    }
+
+    // Checks whether a given position falls within the closed interval [start_pos, end_pos].
+    fn contains(pos) {
+        if pos == null || start_pos == null || end_pos == null { return false; }
+        let after_start = (pos.line > start_pos.line) || (pos.line == start_pos.line && pos.col >= start_pos.col);
+        let before_end = (pos.line < end_pos.line) || (pos.line == end_pos.line && pos.col <= end_pos.col);
+        return after_start && before_end;
+    }
+}
+
+// Constructor function for Span instances.
+let new_span = fn(start_pos, end_pos) {
+    return Span(start_pos, end_pos);
+};
+
+// Generates an empty / synthetic span for synthesized compiler tokens.
+let empty_span = fn() {
+    let p = new_position(0, 0, 0, "");
+    return Span(p, p);
+};

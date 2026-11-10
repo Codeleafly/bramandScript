@@ -1,0 +1,517 @@
+// Srishti Programming Language :: Lexical Scanner Engine (examples/srishti/lexer/lexer)
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// High-performance, modular scanner with multi-word lookahead, comments, strings, and diagnostics.
+
+import "../token/index" as tok_pkg
+import "./unicode" as uni_pkg
+import "./errors" as err_pkg
+
+// Advances the reading pointer by one UTF-8 character, updating line & column coordinates
+let lex_read_char = fn(l) {
+    if l["ch"] == "\n" {
+        l["line"] = l["line"] + 1;
+        l["col"] = 0;
+    }
+    let r_pos = l["read_position"];
+    let inp = l["input"];
+    if r_pos >= len(inp) {
+        l["ch"] = "";
+    } else {
+        l["ch"] = inp[r_pos];
+    }
+    l["position"] = r_pos;
+    l["read_position"] = r_pos + 1;
+    l["col"] = l["col"] + 1;
+};
+
+// Inspects the next character without advancing the scanning pointer
+let lex_peek_char = fn(l) {
+    let r_pos = l["read_position"];
+    let inp = l["input"];
+    if r_pos >= len(inp) {
+        return "";
+    }
+    return inp[r_pos];
+};
+
+// Inspects character at an arbitrary relative offset from current position
+let lex_peek_at = fn(l, offset) {
+    let idx = l["position"] + offset;
+    let inp = l["input"];
+    if idx < 0 || idx >= len(inp) {
+        return "";
+    }
+    return inp[idx];
+};
+
+// Skips horizontal whitespace characters (spaces, tabs, carriage returns)
+let lex_skip_whitespace = fn(l) {
+    while uni_pkg.is_whitespace(l["ch"]) {
+        lex_read_char(l);
+    }
+};
+
+// Skips comments: single-line (-- comment) and multi-line block (--- comment ---)
+let lex_skip_comments = fn(l) {
+    if l["ch"] == "-" && lex_peek_char(l) == "-" {
+        // Check if third character is also '-' for multi-line block comment
+        if lex_peek_at(l, 2) == "-" {
+            // Multi-line block comment: '---'
+            let start_line = l["line"];
+            let start_col = l["col"];
+            // Consume opening '---'
+            lex_read_char(l);
+            lex_read_char(l);
+            lex_read_char(l);
+
+            let closed = false;
+            while l["ch"] != "" {
+                if l["ch"] == "-" && lex_peek_char(l) == "-" && lex_peek_at(l, 2) == "-" {
+                    closed = true;
+                    // Consume closing '---'
+                    lex_read_char(l);
+                    lex_read_char(l);
+                    lex_read_char(l);
+                    break;
+                }
+                lex_read_char(l);
+            }
+
+            if !closed {
+                let src_line = err_pkg.extract_source_line(l["input"], start_line);
+                let err = err_pkg.new_lex_error("Unterminated block comment '---'", l["filename"], start_line, start_col, src_line, 3);
+                push(l["errors"], err);
+            }
+        } else {
+            // Single-line comment: '--'
+            lex_read_char(l);
+            lex_read_char(l);
+            while l["ch"] != "" && l["ch"] != "\n" {
+                lex_read_char(l);
+            }
+        }
+    }
+};
+
+// Loops until next non-whitespace, non-comment character or EOF
+let lex_skip_whitespace_and_comments = fn(l) {
+    while l["ch"] != "" {
+        if uni_pkg.is_whitespace(l["ch"]) || l["ch"] == "\n" {
+            lex_read_char(l);
+        } else if l["ch"] == "-" && lex_peek_char(l) == "-" {
+            lex_skip_comments(l);
+        } else {
+            break;
+        }
+    }
+};
+
+// Scans a contiguous identifier or keyword name
+let lex_read_identifier_text = fn(l) {
+    let start = l["position"];
+    let inp = l["input"];
+    while uni_pkg.is_identifier_part(l["ch"]) {
+        lex_read_char(l);
+    }
+    return slice(inp, start, l["position"]);
+};
+
+// Scans identifier and inspects for multi-word compound keywords with lookahead
+let lex_read_identifier_or_compound = fn(l) {
+    let filename = l["filename"];
+    let start_line = l["line"];
+    let start_col = l["col"];
+    let start_offset = l["position"];
+    let start_pos = tok_pkg.new_position(start_line, start_col, start_offset, filename);
+
+    let first_word = lex_read_identifier_text(l);
+
+    // Check if first word can begin a multi-word compound keyword
+    if tok_pkg.is_compound_starter(first_word) {
+        let saved_pos = l["position"];
+        let saved_rpos = l["read_position"];
+        let saved_ch = l["ch"];
+        let saved_line = l["line"];
+        let saved_col = l["col"];
+
+        let candidates = tok_pkg.COMPOUND_CANDIDATES[first_word];
+        if candidates != null {
+            let ci = 0;
+            let matched_cand = null;
+            while ci < len(candidates) {
+                let cand = candidates[ci];
+                // Restore to checkpoint state immediately following first word
+                l["position"] = saved_pos;
+                l["read_position"] = saved_rpos;
+                l["ch"] = saved_ch;
+                l["line"] = saved_line;
+                l["col"] = saved_col;
+
+                let words = cand.words;
+                let wi = 0;
+                let all_matched = true;
+                while wi < len(words) {
+                    let target_word = words[wi];
+                    // Skip horizontal whitespace (must be on the same statement line)
+                    while uni_pkg.is_whitespace(l["ch"]) {
+                        lex_read_char(l);
+                    }
+                    if !uni_pkg.is_identifier_start(l["ch"]) {
+                        all_matched = false;
+                        break;
+                    }
+                    let next_w = lex_read_identifier_text(l);
+                    if next_w != target_word {
+                        all_matched = false;
+                        break;
+                    }
+                    wi += 1;
+                }
+
+                if all_matched {
+                    matched_cand = cand;
+                    break;
+                }
+                ci += 1;
+            }
+
+            if matched_cand != null {
+                let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+                let span = tok_pkg.new_span(start_pos, end_pos);
+                return tok_pkg.new_token(matched_cand.type, matched_cand.phrase, start_pos.line, start_pos.col, span);
+            }
+
+            // If lookahead failed to match, restore to checkpoint after first word
+            l["position"] = saved_pos;
+            l["read_position"] = saved_rpos;
+            l["ch"] = saved_ch;
+            l["line"] = saved_line;
+            l["col"] = saved_col;
+        }
+    }
+
+    // Single-word keyword lookup or identifier
+    let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+    let span = tok_pkg.new_span(start_pos, end_pos);
+    let tok_type = tok_pkg.lookup_keyword(first_word);
+    return tok_pkg.new_token(tok_type, first_word, start_pos.line, start_pos.col, span);
+};
+
+// Scans numerical literals (integers, floating-point numbers, and exponents)
+let lex_read_number = fn(l) {
+    let filename = l["filename"];
+    let inp = l["input"];
+    let start_line = l["line"];
+    let start_col = l["col"];
+    let start_offset = l["position"];
+    let start_pos = tok_pkg.new_position(start_line, start_col, start_offset, filename);
+    let start = l["position"];
+
+    while uni_pkg.is_digit(l["ch"]) {
+        lex_read_char(l);
+    }
+
+    let is_float = false;
+    // Check for fractional decimal part
+    if l["ch"] == "." && uni_pkg.is_digit(lex_peek_char(l)) {
+        is_float = true;
+        lex_read_char(l);  // consume '.'
+        while uni_pkg.is_digit(l["ch"]) {
+            lex_read_char(l);
+        }
+    }
+
+    // Check for optional scientific exponent 'e' or 'E'
+    if l["ch"] == "e" || l["ch"] == "E" {
+        let nxt = lex_peek_char(l);
+        let is_valid_exp = false;
+        if uni_pkg.is_digit(nxt) {
+            is_valid_exp = true;
+        } else if ((nxt == "+" || nxt == "-") && uni_pkg.is_digit(lex_peek_at(l, 2))) {
+            is_valid_exp = true;
+        }
+
+        if is_valid_exp {
+            is_float = true;
+            lex_read_char(l);  // consume e/E
+            if l["ch"] == "+" || l["ch"] == "-" {
+                lex_read_char(l);  // consume sign
+            }
+            while uni_pkg.is_digit(l["ch"]) {
+                lex_read_char(l);
+            }
+        }
+    }
+
+    let num_str = slice(inp, start, l["position"]);
+    let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+    let span = tok_pkg.new_span(start_pos, end_pos);
+    let t_type = tok_pkg.TOKEN_INT;
+    if is_float {
+        t_type = tok_pkg.TOKEN_FLOAT;
+    }
+    return tok_pkg.new_token(t_type, num_str, start_pos.line, start_pos.col, span);
+};
+
+// Scans double-quoted strings with escape sequences (\", \n, \t, \\, \r, \0)
+let lex_read_string = fn(l) {
+    let filename = l["filename"];
+    let inp = l["input"];
+    let start_line = l["line"];
+    let start_col = l["col"];
+    let start_offset = l["position"];
+    let start_pos = tok_pkg.new_position(start_line, start_col, start_offset, filename);
+
+    lex_read_char(l);  // consume opening '"'
+    let str_val = "";
+    let closed = false;
+
+    while l["ch"] != "" {
+        if l["ch"] == "\"" {
+            closed = true;
+            lex_read_char(l);  // consume closing '"'
+            break;
+        }
+        if l["ch"] == "\\" {
+            lex_read_char(l);  // consume backslash
+            let esc = l["ch"];
+            if esc == "\"" {
+                str_val = str_val + "\"";
+            } else if esc == "\\" {
+                str_val = str_val + "\\";
+            } else if esc == "n" {
+                str_val = str_val + "\n";
+            } else if esc == "t" {
+                str_val = str_val + "\t";
+            } else if esc == "r" {
+                str_val = str_val + "\r";
+            } else if esc == "0" {
+                str_val = str_val + "\0";
+            } else {
+                str_val = str_val + "\\" + esc;
+            }
+            lex_read_char(l);
+        } else if l["ch"] == "\n" {
+            // Unterminated string before unescaped newline
+            break;
+        } else {
+            str_val = str_val + l["ch"];
+            lex_read_char(l);
+        }
+    }
+
+    let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+    let span = tok_pkg.new_span(start_pos, end_pos);
+
+    if !closed {
+        let src_line = err_pkg.extract_source_line(inp, start_pos.line);
+        let span_len = len(str_val) + 1;
+        let err = err_pkg.new_lex_error("Unterminated string literal", filename, start_pos.line, start_pos.col, src_line, span_len);
+        push(l["errors"], err);
+        return tok_pkg.new_token(tok_pkg.TOKEN_ILLEGAL, str_val, start_pos.line, start_pos.col, span);
+    }
+
+    return tok_pkg.new_token(tok_pkg.TOKEN_STRING, str_val, start_pos.line, start_pos.col, span);
+};
+
+// Scans and returns the next Token from source input
+let lex_next_token = fn(l) {
+    lex_skip_whitespace_and_comments(l);
+
+    let filename = l["filename"];
+    let inp = l["input"];
+    let start_line = l["line"];
+    let start_col = l["col"];
+    let start_offset = l["position"];
+    let start_pos = tok_pkg.new_position(start_line, start_col, start_offset, filename);
+    let ch = l["ch"];
+
+    // Check for End of File
+    if ch == "" {
+        let span = tok_pkg.new_span(start_pos, start_pos);
+        return tok_pkg.new_token(tok_pkg.TOKEN_EOF, "", start_line, start_col, span);
+    }
+
+    // Punctuation & Delimiters
+    if ch == ":" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_COLON, ":", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "," {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_COMMA, ",", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "(" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_LPAREN, "(", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == ")" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_RPAREN, ")", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "[" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_LBRACKET, "[", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "]" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_RBRACKET, "]", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "." {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_DOT, ".", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+
+    // Mathematical & Comparison Symbols (Secondary syntax support)
+    if ch == "+" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_PLUS, "+", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "-" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_MINUS, "-", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "*" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_TIMES, "*", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "/" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_DIVIDED_BY, "/", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "%" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_MODULO, "%", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "^" {
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_RAISED_TO, "^", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "=" {
+        if lex_peek_char(l) == "=" {
+            lex_read_char(l);
+            lex_read_char(l);
+            let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+            return tok_pkg.new_token(tok_pkg.TOKEN_IS_EQUAL_TO, "==", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+        }
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_BE, "=", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "!" {
+        if lex_peek_char(l) == "=" {
+            lex_read_char(l);
+            lex_read_char(l);
+            let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+            return tok_pkg.new_token(tok_pkg.TOKEN_IS_NOT_EQUAL_TO, "!=", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+        }
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_NOT, "!", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == ">" {
+        if lex_peek_char(l) == "=" {
+            lex_read_char(l);
+            lex_read_char(l);
+            let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+            return tok_pkg.new_token(tok_pkg.TOKEN_IS_GREATER_THAN_OR_EQUAL, ">=", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+        }
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_IS_GREATER_THAN, ">", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+    if ch == "<" {
+        if lex_peek_char(l) == "=" {
+            lex_read_char(l);
+            lex_read_char(l);
+            let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+            return tok_pkg.new_token(tok_pkg.TOKEN_IS_LESS_THAN_OR_EQUAL, "<=", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+        }
+        lex_read_char(l);
+        let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+        return tok_pkg.new_token(tok_pkg.TOKEN_IS_LESS_THAN, "<", start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+    }
+
+    // String literals
+    if ch == "\"" {
+        return lex_read_string(l);
+    }
+
+    // Numerical literals (integer and floating-point)
+    if uni_pkg.is_digit(ch) {
+        return lex_read_number(l);
+    }
+
+    // Identifiers and keywords (including multi-word compounds)
+    if uni_pkg.is_identifier_start(ch) {
+        return lex_read_identifier_or_compound(l);
+    }
+
+    // Unrecognized / Illegal Character
+    let bad_ch = ch;
+    let src_line = err_pkg.extract_source_line(inp, start_line);
+    let err = err_pkg.new_lex_error("Unrecognized character '" + bad_ch + "'", filename, start_line, start_col, src_line, 1);
+    push(l["errors"], err);
+    lex_read_char(l);
+    let end_pos = tok_pkg.new_position(l["line"], l["col"], l["position"], filename);
+    return tok_pkg.new_token(tok_pkg.TOKEN_ILLEGAL, bad_ch, start_line, start_col, tok_pkg.new_span(start_pos, end_pos));
+};
+
+// Scans all tokens sequentially until EOF, returning complete token list
+let lex_tokenize_all = fn(l) {
+    let tokens = [];
+    let tok = lex_next_token(l);
+    while tok.type != tok_pkg.TOKEN_EOF {
+        push(tokens, tok);
+        tok = lex_next_token(l);
+    }
+    push(tokens, tok);  // append EOF token
+    return tokens;
+};
+
+// Constructor function creating an initialized Lexer instance
+let new_lexer = fn(input, filename) {
+    if filename == null {
+        filename = "<input>";
+    }
+    let l = {
+        "input": input,
+        "filename": filename,
+        "position": 0,
+        "read_position": 0,
+        "ch": "",
+        "line": 1,
+        "col": 0,
+        "errors": []
+    };
+
+    lex_read_char(l);
+
+    l["read_char"] = fn() { return lex_read_char(l); };
+    l["peek_char"] = fn() { return lex_peek_char(l); };
+    l["peek_at"] = fn(offset) { return lex_peek_at(l, offset); };
+    l["next_token"] = fn() { return lex_next_token(l); };
+    l["tokenize_all"] = fn() { return lex_tokenize_all(l); };
+    l["tokenize"] = fn() { return lex_tokenize_all(l); };
+    l["has_errors"] = fn() { return len(l["errors"]) > 0; };
+    l["get_errors"] = fn() { return l["errors"]; };
+
+    return l;
+};
+
+// Top-level factory aliases
+let create_lexer = new_lexer;
+let Lexer = new_lexer;

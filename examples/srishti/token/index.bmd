@@ -1,0 +1,101 @@
+// Srishti Programming Language :: Token Package Entrypoint
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Exports position tracking, token types, keywords, and token factory functions.
+
+import "./position" as pos_pkg
+import "./token" as tok_pkg
+
+// --- Position and Span Exports ---
+let Position = pos_pkg.Position;
+let new_position = pos_pkg.new_position;
+let Span = pos_pkg.Span;
+let new_span = pos_pkg.new_span;
+let empty_span = pos_pkg.empty_span;
+
+// --- Token Types Exports ---
+let TOKEN_INT = tok_pkg.TOKEN_INT;
+let TOKEN_FLOAT = tok_pkg.TOKEN_FLOAT;
+let TOKEN_STRING = tok_pkg.TOKEN_STRING;
+let TOKEN_BOOLEAN = tok_pkg.TOKEN_BOOLEAN;
+let TOKEN_NULL = tok_pkg.TOKEN_NULL;
+let TOKEN_IDENTIFIER = tok_pkg.TOKEN_IDENTIFIER;
+
+// Single-word Keywords
+let TOKEN_LET = tok_pkg.TOKEN_LET;
+let TOKEN_BE = tok_pkg.TOKEN_BE;
+let TOKEN_SET = tok_pkg.TOKEN_SET;
+let TOKEN_TO = tok_pkg.TOKEN_TO;
+let TOKEN_CONSTANT = tok_pkg.TOKEN_CONSTANT;
+let TOKEN_DEFINE = tok_pkg.TOKEN_DEFINE;
+let TOKEN_FUNCTION = tok_pkg.TOKEN_FUNCTION;
+let TOKEN_WITH = tok_pkg.TOKEN_WITH;
+let TOKEN_METHOD = tok_pkg.TOKEN_METHOD;
+let TOKEN_CREATE = tok_pkg.TOKEN_CREATE;
+let TOKEN_STRUCT = tok_pkg.TOKEN_STRUCT;
+let TOKEN_IF = tok_pkg.TOKEN_IF;
+let TOKEN_THEN = tok_pkg.TOKEN_THEN;
+let TOKEN_OTHERWISE = tok_pkg.TOKEN_OTHERWISE;
+let TOKEN_REPEAT = tok_pkg.TOKEN_REPEAT;
+let TOKEN_WHILE = tok_pkg.TOKEN_WHILE;
+let TOKEN_ITERATE = tok_pkg.TOKEN_ITERATE;
+let TOKEN_THROUGH = tok_pkg.TOKEN_THROUGH;
+let TOKEN_MATCH = tok_pkg.TOKEN_MATCH;
+let TOKEN_WHEN = tok_pkg.TOKEN_WHEN;
+let TOKEN_RETURN = tok_pkg.TOKEN_RETURN;
+let TOKEN_SPAWN = tok_pkg.TOKEN_SPAWN;
+let TOKEN_TASK = tok_pkg.TOKEN_TASK;
+let TOKEN_TRUE = tok_pkg.TOKEN_TRUE;
+let TOKEN_FALSE = tok_pkg.TOKEN_FALSE;
+let TOKEN_AND = tok_pkg.TOKEN_AND;
+let TOKEN_OR = tok_pkg.TOKEN_OR;
+let TOKEN_NOT = tok_pkg.TOKEN_NOT;
+let TOKEN_DISPLAY = tok_pkg.TOKEN_DISPLAY;
+let TOKEN_IS = tok_pkg.TOKEN_IS;
+
+// English Operator Keywords
+let TOKEN_PLUS = tok_pkg.TOKEN_PLUS;
+let TOKEN_MINUS = tok_pkg.TOKEN_MINUS;
+let TOKEN_TIMES = tok_pkg.TOKEN_TIMES;
+let TOKEN_DIVIDED_BY = tok_pkg.TOKEN_DIVIDED_BY;
+let TOKEN_MODULO = tok_pkg.TOKEN_MODULO;
+let TOKEN_RAISED_TO = tok_pkg.TOKEN_RAISED_TO;
+
+// Multi-word Comparisons
+let TOKEN_IS_EQUAL_TO = tok_pkg.TOKEN_IS_EQUAL_TO;
+let TOKEN_IS_NOT_EQUAL_TO = tok_pkg.TOKEN_IS_NOT_EQUAL_TO;
+let TOKEN_IS_GREATER_THAN_OR_EQUAL = tok_pkg.TOKEN_IS_GREATER_THAN_OR_EQUAL;
+let TOKEN_IS_LESS_THAN_OR_EQUAL = tok_pkg.TOKEN_IS_LESS_THAN_OR_EQUAL;
+let TOKEN_IS_GREATER_THAN = tok_pkg.TOKEN_IS_GREATER_THAN;
+let TOKEN_IS_LESS_THAN = tok_pkg.TOKEN_IS_LESS_THAN;
+
+// String Combinator
+let TOKEN_COMBINED_WITH = tok_pkg.TOKEN_COMBINED_WITH;
+
+// Punctuation & Delimiters
+let TOKEN_COLON = tok_pkg.TOKEN_COLON;
+let TOKEN_COMMA = tok_pkg.TOKEN_COMMA;
+let TOKEN_LPAREN = tok_pkg.TOKEN_LPAREN;
+let TOKEN_RPAREN = tok_pkg.TOKEN_RPAREN;
+let TOKEN_LBRACKET = tok_pkg.TOKEN_LBRACKET;
+let TOKEN_RBRACKET = tok_pkg.TOKEN_RBRACKET;
+let TOKEN_DOT = tok_pkg.TOKEN_DOT;
+let TOKEN_EOF = tok_pkg.TOKEN_EOF;
+let TOKEN_ILLEGAL = tok_pkg.TOKEN_ILLEGAL;
+
+// Tables and Dictionaries
+let KEYWORDS = tok_pkg.KEYWORDS;
+let COMPOUND_KEYWORDS = tok_pkg.COMPOUND_KEYWORDS;
+let COMPOUND_STARTERS = tok_pkg.COMPOUND_STARTERS;
+let COMPOUND_CANDIDATES = tok_pkg.COMPOUND_CANDIDATES;
+let SYMBOL_OPERATORS = tok_pkg.SYMBOL_OPERATORS;
+
+// Helper Functions
+let lookup_keyword = tok_pkg.lookup_keyword;
+let lookup_compound_keyword = tok_pkg.lookup_compound_keyword;
+let is_keyword = tok_pkg.is_keyword;
+let is_compound_starter = tok_pkg.is_compound_starter;
+let token_name = tok_pkg.token_name;
+
+// Token Class and Constructor
+let Token = tok_pkg.Token;
+let new_token = tok_pkg.new_token;

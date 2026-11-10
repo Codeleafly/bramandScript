@@ -1,0 +1,279 @@
+// Srishti Programming Language :: Token Specification and Registry
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Defines lexical token types, keywords, multi-word operators, and token constructors.
+
+import "./position" as pos_pkg
+
+// --- Token Types ---
+
+// Literals
+let TOKEN_INT = "INT";
+let TOKEN_FLOAT = "FLOAT";
+let TOKEN_STRING = "STRING";
+let TOKEN_BOOLEAN = "BOOLEAN";
+let TOKEN_NULL = "NULL";
+let TOKEN_IDENTIFIER = "IDENTIFIER";
+
+// Single-word Keywords
+let TOKEN_LET = "LET";
+let TOKEN_BE = "BE";
+let TOKEN_SET = "SET";
+let TOKEN_TO = "TO";
+let TOKEN_CONSTANT = "CONSTANT";
+let TOKEN_DEFINE = "DEFINE";
+let TOKEN_FUNCTION = "FUNCTION";
+let TOKEN_WITH = "WITH";
+let TOKEN_METHOD = "METHOD";
+let TOKEN_CREATE = "CREATE";
+let TOKEN_STRUCT = "STRUCT";
+let TOKEN_IF = "IF";
+let TOKEN_THEN = "THEN";
+let TOKEN_OTHERWISE = "OTHERWISE";
+let TOKEN_REPEAT = "REPEAT";
+let TOKEN_WHILE = "WHILE";
+let TOKEN_ITERATE = "ITERATE";
+let TOKEN_THROUGH = "THROUGH";
+let TOKEN_MATCH = "MATCH";
+let TOKEN_WHEN = "WHEN";
+let TOKEN_RETURN = "RETURN";
+let TOKEN_SPAWN = "SPAWN";
+let TOKEN_TASK = "TASK";
+let TOKEN_TRUE = "TRUE";
+let TOKEN_FALSE = "FALSE";
+let TOKEN_AND = "AND";
+let TOKEN_OR = "OR";
+let TOKEN_NOT = "NOT";
+let TOKEN_DISPLAY = "DISPLAY";
+let TOKEN_IS = "IS";
+
+// English Operator Keywords
+// Arithmetic
+let TOKEN_PLUS = "PLUS";
+let TOKEN_MINUS = "MINUS";
+let TOKEN_TIMES = "TIMES";
+let TOKEN_DIVIDED_BY = "DIVIDED_BY";
+let TOKEN_MODULO = "MODULO";
+let TOKEN_RAISED_TO = "RAISED_TO";
+
+// Multi-word Comparisons
+let TOKEN_IS_EQUAL_TO = "IS_EQUAL_TO";
+let TOKEN_IS_NOT_EQUAL_TO = "IS_NOT_EQUAL_TO";
+let TOKEN_IS_GREATER_THAN_OR_EQUAL = "IS_GREATER_THAN_OR_EQUAL";
+let TOKEN_IS_LESS_THAN_OR_EQUAL = "IS_LESS_THAN_OR_EQUAL";
+let TOKEN_IS_GREATER_THAN = "IS_GREATER_THAN";
+let TOKEN_IS_LESS_THAN = "IS_LESS_THAN";
+
+// String Combinator
+let TOKEN_COMBINED_WITH = "COMBINED_WITH";
+
+// Punctuation & Delimiters
+let TOKEN_COLON = "COLON";
+let TOKEN_COMMA = "COMMA";
+let TOKEN_LPAREN = "LPAREN";
+let TOKEN_RPAREN = "RPAREN";
+let TOKEN_LBRACKET = "LBRACKET";
+let TOKEN_RBRACKET = "RBRACKET";
+let TOKEN_DOT = "DOT";
+let TOKEN_EOF = "EOF";
+let TOKEN_ILLEGAL = "ILLEGAL";
+
+// Single-word Keywords Lookup Table
+let KEYWORDS = {
+    "let": TOKEN_LET,
+    "be": TOKEN_BE,
+    "set": TOKEN_SET,
+    "to": TOKEN_TO,
+    "constant": TOKEN_CONSTANT,
+    "define": TOKEN_DEFINE,
+    "function": TOKEN_FUNCTION,
+    "with": TOKEN_WITH,
+    "method": TOKEN_METHOD,
+    "create": TOKEN_CREATE,
+    "struct": TOKEN_STRUCT,
+    "if": TOKEN_IF,
+    "then": TOKEN_THEN,
+    "otherwise": TOKEN_OTHERWISE,
+    "repeat": TOKEN_REPEAT,
+    "while": TOKEN_WHILE,
+    "iterate": TOKEN_ITERATE,
+    "through": TOKEN_THROUGH,
+    "match": TOKEN_MATCH,
+    "when": TOKEN_WHEN,
+    "return": TOKEN_RETURN,
+    "spawn": TOKEN_SPAWN,
+    "task": TOKEN_TASK,
+    "true": TOKEN_BOOLEAN,
+    "false": TOKEN_BOOLEAN,
+    "null": TOKEN_NULL,
+    "and": TOKEN_AND,
+    "or": TOKEN_OR,
+    "not": TOKEN_NOT,
+    "display": TOKEN_DISPLAY,
+    "is": TOKEN_IS,
+    "plus": TOKEN_PLUS,
+    "minus": TOKEN_MINUS,
+    "times": TOKEN_TIMES,
+    "modulo": TOKEN_MODULO
+};
+
+// Multi-word Compound Keywords Lookup Table
+let COMPOUND_KEYWORDS = {
+    "is greater than or equal to": TOKEN_IS_GREATER_THAN_OR_EQUAL,
+    "is less than or equal to": TOKEN_IS_LESS_THAN_OR_EQUAL,
+    "is greater than": TOKEN_IS_GREATER_THAN,
+    "is less than": TOKEN_IS_LESS_THAN,
+    "is equal to": TOKEN_IS_EQUAL_TO,
+    "is not equal to": TOKEN_IS_NOT_EQUAL_TO,
+    "divided by": TOKEN_DIVIDED_BY,
+    "raised to": TOKEN_RAISED_TO,
+    "combined with": TOKEN_COMBINED_WITH
+};
+
+// Starting words for compound keyword lookahead inspection
+let COMPOUND_STARTERS = {
+    "is": true,
+    "divided": true,
+    "raised": true,
+    "combined": true
+};
+
+// Compound keyword candidate specifications ordered by longest word sequence first
+let COMPOUND_CANDIDATES = {
+    "is": [
+        { "words": ["greater", "than", "or", "equal", "to"], "type": TOKEN_IS_GREATER_THAN_OR_EQUAL, "phrase": "is greater than or equal to" },
+        { "words": ["less", "than", "or", "equal", "to"], "type": TOKEN_IS_LESS_THAN_OR_EQUAL, "phrase": "is less than or equal to" },
+        { "words": ["greater", "than"], "type": TOKEN_IS_GREATER_THAN, "phrase": "is greater than" },
+        { "words": ["less", "than"], "type": TOKEN_IS_LESS_THAN, "phrase": "is less than" },
+        { "words": ["not", "equal", "to"], "type": TOKEN_IS_NOT_EQUAL_TO, "phrase": "is not equal to" },
+        { "words": ["equal", "to"], "type": TOKEN_IS_EQUAL_TO, "phrase": "is equal to" }
+    ],
+    "divided": [
+        { "words": ["by"], "type": TOKEN_DIVIDED_BY, "phrase": "divided by" }
+    ],
+    "raised": [
+        { "words": ["to"], "type": TOKEN_RAISED_TO, "phrase": "raised to" }
+    ],
+    "combined": [
+        { "words": ["with"], "type": TOKEN_COMBINED_WITH, "phrase": "combined with" }
+    ]
+};
+
+// Symbolic Operator Mappings (support for standard math/logic symbols)
+let SYMBOL_OPERATORS = {
+    "+": TOKEN_PLUS,
+    "-": TOKEN_MINUS,
+    "*": TOKEN_TIMES,
+    "/": TOKEN_DIVIDED_BY,
+    "%": TOKEN_MODULO,
+    "^": TOKEN_RAISED_TO,
+    "==": TOKEN_IS_EQUAL_TO,
+    "!=": TOKEN_IS_NOT_EQUAL_TO,
+    ">=": TOKEN_IS_GREATER_THAN_OR_EQUAL,
+    "<=": TOKEN_IS_LESS_THAN_OR_EQUAL,
+    ">": TOKEN_IS_GREATER_THAN,
+    "<": TOKEN_IS_LESS_THAN
+};
+
+// Resolves a single identifier to its keyword token type or TOKEN_IDENTIFIER
+let lookup_keyword = fn(ident) {
+    if KEYWORDS[ident] != null {
+        return KEYWORDS[ident];
+    }
+    return TOKEN_IDENTIFIER;
+};
+
+// Resolves a multi-word phrase to its compound keyword token type or null
+let lookup_compound_keyword = fn(phrase) {
+    if COMPOUND_KEYWORDS[phrase] != null {
+        return COMPOUND_KEYWORDS[phrase];
+    }
+    return null;
+};
+
+// Checks if an identifier string is a registered single-word keyword
+let is_keyword = fn(ident) {
+    return KEYWORDS[ident] != null;
+};
+
+// Checks if a word is eligible to start a multi-word compound keyword
+let is_compound_starter = fn(word) {
+    return COMPOUND_STARTERS[word] == true;
+};
+
+// Token struct encapsulates a single lexical unit with source coordinate and span
+struct Token {
+    type,
+    literal,
+    line,
+    col,
+    span,
+
+    // Human-readable debug string representation
+    fn to_string() {
+        let loc = str(line) + ":" + str(col);
+        return "Token(" + type + ", \"" + literal + "\", " + loc + ")";
+    }
+
+    // Diagnostic inspector
+    fn inspect() {
+        return to_string();
+    }
+
+    // Equality check for token type
+    fn is(expected_type) {
+        return type == expected_type;
+    }
+
+    // Checks if token represents a literal value (number, string, boolean, null, identifier)
+    fn is_literal() {
+        return type == TOKEN_INT || type == TOKEN_FLOAT || type == TOKEN_STRING ||
+        type == TOKEN_BOOLEAN || type == TOKEN_NULL || type == TOKEN_IDENTIFIER;
+    }
+
+    // Checks if token represents an arithmetic operator
+    fn is_arithmetic() {
+        return type == TOKEN_PLUS || type == TOKEN_MINUS || type == TOKEN_TIMES ||
+        type == TOKEN_DIVIDED_BY || type == TOKEN_MODULO || type == TOKEN_RAISED_TO;
+    }
+
+    // Checks if token represents a relational comparison operator
+    fn is_comparison() {
+        return type == TOKEN_IS_EQUAL_TO || type == TOKEN_IS_NOT_EQUAL_TO ||
+        type == TOKEN_IS_GREATER_THAN || type == TOKEN_IS_LESS_THAN ||
+        type == TOKEN_IS_GREATER_THAN_OR_EQUAL || type == TOKEN_IS_LESS_THAN_OR_EQUAL;
+    }
+
+    // Checks if token represents any operator (arithmetic, comparison, logical, or combinator)
+    fn is_operator() {
+        return is_arithmetic() || is_comparison() ||
+        type == TOKEN_COMBINED_WITH ||
+        type == TOKEN_AND || type == TOKEN_OR || type == TOKEN_NOT;
+    }
+}
+
+// Constructor function creating Token instances with bidirectional property access
+let new_token = fn(tok_type, literal, line, col, span) {
+    let tok = Token(tok_type, literal, line, col, span);
+    tok["token_type"] = tok_type;
+    return tok;
+};
+
+// Human-friendly description for compiler diagnostics
+let token_name = fn(t_type) {
+    if t_type == TOKEN_INT { return "integer literal"; }
+    if t_type == TOKEN_FLOAT { return "floating-point literal"; }
+    if t_type == TOKEN_STRING { return "string literal"; }
+    if t_type == TOKEN_BOOLEAN { return "boolean literal (true/false)"; }
+    if t_type == TOKEN_NULL { return "null literal"; }
+    if t_type == TOKEN_IDENTIFIER { return "identifier"; }
+    if t_type == TOKEN_COLON { return "colon (:)"; }
+    if t_type == TOKEN_COMMA { return "comma (,)"; }
+    if t_type == TOKEN_LPAREN { return "left parenthesis (("; }
+    if t_type == TOKEN_RPAREN { return "right parenthesis ))"; }
+    if t_type == TOKEN_LBRACKET { return "left bracket ([)"; }
+    if t_type == TOKEN_RBRACKET { return "right bracket (])"; }
+    if t_type == TOKEN_DOT { return "dot (.)"; }
+    if t_type == TOKEN_EOF { return "end of file"; }
+    if t_type == TOKEN_ILLEGAL { return "illegal token"; }
+    return "keyword '" + t_type + "'";
+};

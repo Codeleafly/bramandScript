@@ -1,0 +1,556 @@
+// Srishti Programming Language :: Lexical Scanner Automated Test Suite
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// Verifies token specifications, unicode handling, multi-word lookahead, comments, and diagnostics.
+
+import "../index" as sri
+
+describe("Literals and Primitive Types", fn() {
+        test("Integer literals scanning", fn() {
+                let code = "0 42 1000000 999999999";
+                let tokens = sri.tokenize(code, "test_int.sri");
+                assert_eq(len(tokens), 5);  // 4 ints + EOF
+
+                assert_eq(tokens[0].type, sri.TOKEN_INT);
+                assert_eq(tokens[0].literal, "0");
+
+                assert_eq(tokens[1].type, sri.TOKEN_INT);
+                assert_eq(tokens[1].literal, "42");
+
+                assert_eq(tokens[2].type, sri.TOKEN_INT);
+                assert_eq(tokens[2].literal, "1000000");
+
+                assert_eq(tokens[3].type, sri.TOKEN_INT);
+                assert_eq(tokens[3].literal, "999999999");
+
+                assert_eq(tokens[4].type, sri.TOKEN_EOF);
+        });
+
+        test("Floating-point numbers and exponents", fn() {
+                let code = "3.1415 0.001 100.5 1.5e10 2.0e-3";
+                let tokens = sri.tokenize(code, "test_float.sri");
+                assert_eq(len(tokens), 6);  // 5 floats + EOF
+
+                assert_eq(tokens[0].type, sri.TOKEN_FLOAT);
+                assert_eq(tokens[0].literal, "3.1415");
+
+                assert_eq(tokens[1].type, sri.TOKEN_FLOAT);
+                assert_eq(tokens[1].literal, "0.001");
+
+                assert_eq(tokens[2].type, sri.TOKEN_FLOAT);
+                assert_eq(tokens[2].literal, "100.5");
+
+                assert_eq(tokens[3].type, sri.TOKEN_FLOAT);
+                assert_eq(tokens[3].literal, "1.5e10");
+
+                assert_eq(tokens[4].type, sri.TOKEN_FLOAT);
+                assert_eq(tokens[4].literal, "2.0e-3");
+        });
+
+        test("String literals and escape sequences", fn() {
+                let code = "\"Hello, World!\" \"Line 1\\nLine 2\" \"Tab\\tSeparated\" \"Quote: \\\"Inside\\\"\" \"\"";
+                let tokens = sri.tokenize(code, "test_strings.sri");
+                assert_eq(len(tokens), 6);
+
+                assert_eq(tokens[0].type, sri.TOKEN_STRING);
+                assert_eq(tokens[0].literal, "Hello, World!");
+
+                assert_eq(tokens[1].type, sri.TOKEN_STRING);
+                assert_eq(tokens[1].literal, "Line 1\nLine 2");
+
+                assert_eq(tokens[2].type, sri.TOKEN_STRING);
+                assert_eq(tokens[2].literal, "Tab\tSeparated");
+
+                assert_eq(tokens[3].type, sri.TOKEN_STRING);
+                assert_eq(tokens[3].literal, "Quote: \"Inside\"");
+
+                assert_eq(tokens[4].type, sri.TOKEN_STRING);
+                assert_eq(tokens[4].literal, "");
+        });
+
+        test("Boolean and Null literals", fn() {
+                let code = "true false null";
+                let tokens = sri.tokenize(code, "test_bool_null.sri");
+                assert_eq(len(tokens), 4);
+
+                assert_eq(tokens[0].type, sri.TOKEN_BOOLEAN);
+                assert_eq(tokens[0].literal, "true");
+
+                assert_eq(tokens[1].type, sri.TOKEN_BOOLEAN);
+                assert_eq(tokens[1].literal, "false");
+
+                assert_eq(tokens[2].type, sri.TOKEN_NULL);
+                assert_eq(tokens[2].literal, "null");
+        });
+
+        test("Identifiers and Unicode Devanagari script", fn() {
+                let code = "score total_count Player1 सृष्टि vālue";
+                let tokens = sri.tokenize(code, "test_ident.sri");
+                assert_eq(len(tokens), 6);
+
+                assert_eq(tokens[0].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[0].literal, "score");
+
+                assert_eq(tokens[1].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[1].literal, "total_count");
+
+                assert_eq(tokens[2].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[2].literal, "Player1");
+
+                assert_eq(tokens[3].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[3].literal, "सृष्टि");
+
+                assert_eq(tokens[4].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[4].literal, "vālue");
+        });
+});
+
+describe("English Arithmetic Operators", fn() {
+        test("Single-word arithmetic keywords and multi-word divided by and raised to", fn() {
+                let code = "a plus b minus c times d divided by e modulo f raised to g";
+                let tokens = sri.tokenize(code, "test_arith.sri");
+                assert_eq(len(tokens), 14);
+
+                assert_eq(tokens[0].literal, "a");
+                assert_eq(tokens[1].type, sri.TOKEN_PLUS);
+                assert_eq(tokens[1].literal, "plus");
+
+                assert_eq(tokens[2].literal, "b");
+                assert_eq(tokens[3].type, sri.TOKEN_MINUS);
+                assert_eq(tokens[3].literal, "minus");
+
+                assert_eq(tokens[4].literal, "c");
+                assert_eq(tokens[5].type, sri.TOKEN_TIMES);
+                assert_eq(tokens[5].literal, "times");
+
+                assert_eq(tokens[6].literal, "d");
+                assert_eq(tokens[7].type, sri.TOKEN_DIVIDED_BY);
+                assert_eq(tokens[7].literal, "divided by");
+
+                assert_eq(tokens[8].literal, "e");
+                assert_eq(tokens[9].type, sri.TOKEN_MODULO);
+                assert_eq(tokens[9].literal, "modulo");
+
+                assert_eq(tokens[10].literal, "f");
+                assert_eq(tokens[11].type, sri.TOKEN_RAISED_TO);
+                assert_eq(tokens[11].literal, "raised to");
+
+                assert_eq(tokens[12].literal, "g");
+                assert_eq(tokens[13].type, sri.TOKEN_EOF);
+        });
+
+        test("Secondary symbolic arithmetic operators", fn() {
+                let code = "10 + 20 - 5 * 2 / 4 % 3 ^ 2";
+                let tokens = sri.tokenize(code, "test_math_sym.sri");
+                assert_eq(len(tokens), 14);
+
+                assert_eq(tokens[1].type, sri.TOKEN_PLUS);
+                assert_eq(tokens[3].type, sri.TOKEN_MINUS);
+                assert_eq(tokens[5].type, sri.TOKEN_TIMES);
+                assert_eq(tokens[7].type, sri.TOKEN_DIVIDED_BY);
+                assert_eq(tokens[9].type, sri.TOKEN_MODULO);
+                assert_eq(tokens[11].type, sri.TOKEN_RAISED_TO);
+        });
+});
+
+describe("Multi-word Comparison Expressions", fn() {
+        test("Relational comparison multi-word phrases", fn() {
+                let code = "x is equal to y\na is not equal to b\nc is greater than d\ne is less than f\ng is greater than or equal to h\ni is less than or equal to j";
+                let tokens = sri.tokenize(code, "test_rel.sri");
+
+                assert_eq(tokens[0].literal, "x");
+                assert_eq(tokens[1].type, sri.TOKEN_IS_EQUAL_TO);
+                assert_eq(tokens[1].literal, "is equal to");
+                assert_eq(tokens[2].literal, "y");
+
+                assert_eq(tokens[3].literal, "a");
+                assert_eq(tokens[4].type, sri.TOKEN_IS_NOT_EQUAL_TO);
+                assert_eq(tokens[4].literal, "is not equal to");
+                assert_eq(tokens[5].literal, "b");
+
+                assert_eq(tokens[6].literal, "c");
+                assert_eq(tokens[7].type, sri.TOKEN_IS_GREATER_THAN);
+                assert_eq(tokens[7].literal, "is greater than");
+                assert_eq(tokens[8].literal, "d");
+
+                assert_eq(tokens[9].literal, "e");
+                assert_eq(tokens[10].type, sri.TOKEN_IS_LESS_THAN);
+                assert_eq(tokens[10].literal, "is less than");
+                assert_eq(tokens[11].literal, "f");
+
+                assert_eq(tokens[12].literal, "g");
+                assert_eq(tokens[13].type, sri.TOKEN_IS_GREATER_THAN_OR_EQUAL);
+                assert_eq(tokens[13].literal, "is greater than or equal to");
+                assert_eq(tokens[14].literal, "h");
+
+                assert_eq(tokens[15].literal, "i");
+                assert_eq(tokens[16].type, sri.TOKEN_IS_LESS_THAN_OR_EQUAL);
+                assert_eq(tokens[16].literal, "is less than or equal to");
+                assert_eq(tokens[17].literal, "j");
+        });
+
+        test("String combinator combined with", fn() {
+                let code = "\"Hello \" combined with \"World\"";
+                let tokens = sri.tokenize(code, "test_combinator.sri");
+                assert_eq(len(tokens), 4);
+
+                assert_eq(tokens[0].type, sri.TOKEN_STRING);
+                assert_eq(tokens[0].literal, "Hello ");
+
+                assert_eq(tokens[1].type, sri.TOKEN_COMBINED_WITH);
+                assert_eq(tokens[1].literal, "combined with");
+
+                assert_eq(tokens[2].type, sri.TOKEN_STRING);
+                assert_eq(tokens[2].literal, "World");
+        });
+
+        test("Logical keywords and, or, not", fn() {
+                let code = "not ready and active or pending";
+                let tokens = sri.tokenize(code, "test_logic.sri");
+                assert_eq(len(tokens), 7);
+
+                assert_eq(tokens[0].type, sri.TOKEN_NOT);
+                assert_eq(tokens[1].literal, "ready");
+                assert_eq(tokens[2].type, sri.TOKEN_AND);
+                assert_eq(tokens[3].literal, "active");
+                assert_eq(tokens[4].type, sri.TOKEN_OR);
+                assert_eq(tokens[5].literal, "pending");
+        });
+});
+
+describe("Declarations and Statements", fn() {
+        test("Variable and constant declarations", fn() {
+                let code = "let score be 100\nset score to 200\nconstant MAX_CAPACITY be 500";
+                let tokens = sri.tokenize(code, "test_decl.sri");
+
+                assert_eq(tokens[0].type, sri.TOKEN_LET);
+                assert_eq(tokens[1].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[1].literal, "score");
+                assert_eq(tokens[2].type, sri.TOKEN_BE);
+                assert_eq(tokens[3].type, sri.TOKEN_INT);
+                assert_eq(tokens[3].literal, "100");
+
+                assert_eq(tokens[4].type, sri.TOKEN_SET);
+                assert_eq(tokens[5].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[5].literal, "score");
+                assert_eq(tokens[6].type, sri.TOKEN_TO);
+                assert_eq(tokens[7].type, sri.TOKEN_INT);
+                assert_eq(tokens[7].literal, "200");
+
+                assert_eq(tokens[8].type, sri.TOKEN_CONSTANT);
+                assert_eq(tokens[9].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[9].literal, "MAX_CAPACITY");
+                assert_eq(tokens[10].type, sri.TOKEN_BE);
+                assert_eq(tokens[11].type, sri.TOKEN_INT);
+                assert_eq(tokens[11].literal, "500");
+        });
+
+        test("Function and method headers", fn() {
+                let code = "define function add with a, b:\n    return a plus b\ndefine method render with target:\n    display target";
+                let tokens = sri.tokenize(code, "test_fn.sri");
+
+                assert_eq(tokens[0].type, sri.TOKEN_DEFINE);
+                assert_eq(tokens[1].type, sri.TOKEN_FUNCTION);
+                assert_eq(tokens[2].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[2].literal, "add");
+                assert_eq(tokens[3].type, sri.TOKEN_WITH);
+                assert_eq(tokens[4].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[4].literal, "a");
+                assert_eq(tokens[5].type, sri.TOKEN_COMMA);
+                assert_eq(tokens[6].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[6].literal, "b");
+                assert_eq(tokens[7].type, sri.TOKEN_COLON);
+                assert_eq(tokens[8].type, sri.TOKEN_RETURN);
+                assert_eq(tokens[9].literal, "a");
+                assert_eq(tokens[10].type, sri.TOKEN_PLUS);
+                assert_eq(tokens[11].literal, "b");
+
+                assert_eq(tokens[12].type, sri.TOKEN_DEFINE);
+                assert_eq(tokens[13].type, sri.TOKEN_METHOD);
+                assert_eq(tokens[14].literal, "render");
+                assert_eq(tokens[15].type, sri.TOKEN_WITH);
+                assert_eq(tokens[16].literal, "target");
+                assert_eq(tokens[17].type, sri.TOKEN_COLON);
+                assert_eq(tokens[18].type, sri.TOKEN_DISPLAY);
+                assert_eq(tokens[19].literal, "target");
+        });
+
+        test("Struct declarations", fn() {
+                let code = "create struct Player with name, health, inventory:";
+                let tokens = sri.tokenize(code, "test_struct.sri");
+                assert_eq(len(tokens), 11);  // 10 tokens + 1 EOF
+
+                assert_eq(tokens[0].type, sri.TOKEN_CREATE);
+                assert_eq(tokens[1].type, sri.TOKEN_STRUCT);
+                assert_eq(tokens[2].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[2].literal, "Player");
+                assert_eq(tokens[3].type, sri.TOKEN_WITH);
+                assert_eq(tokens[4].literal, "name");
+                assert_eq(tokens[5].type, sri.TOKEN_COMMA);
+                assert_eq(tokens[6].literal, "health");
+                assert_eq(tokens[7].type, sri.TOKEN_COMMA);
+                assert_eq(tokens[8].literal, "inventory");
+                assert_eq(tokens[9].type, sri.TOKEN_COLON);
+        });
+
+        test("Control flow, loops, and pattern matching", fn() {
+                let code = "if score is greater than 50 then:\n    display \"win\"\notherwise:\n    display \"retry\"\nrepeat while active is equal to true:\n    set count to count plus 1\niterate item through inventory:\n    display item\nmatch status:\n    when 1: display \"one\"\n    when 2: display \"two\"\nspawn task background_job(10)";
+                let tokens = sri.tokenize(code, "test_flow.sri");
+
+                assert_eq(tokens[0].type, sri.TOKEN_IF);
+                assert_eq(tokens[1].literal, "score");
+                assert_eq(tokens[2].type, sri.TOKEN_IS_GREATER_THAN);
+                assert_eq(tokens[3].literal, "50");
+                assert_eq(tokens[4].type, sri.TOKEN_THEN);
+                assert_eq(tokens[5].type, sri.TOKEN_COLON);
+                assert_eq(tokens[6].type, sri.TOKEN_DISPLAY);
+                assert_eq(tokens[7].literal, "win");
+                assert_eq(tokens[8].type, sri.TOKEN_OTHERWISE);
+                assert_eq(tokens[9].type, sri.TOKEN_COLON);
+
+                // Find repeat while
+                let i = 0;
+                let found_repeat = false;
+                let found_iterate = false;
+                let found_match = false;
+                let found_spawn = false;
+
+                while i < len(tokens) {
+                    if tokens[i].type == sri.TOKEN_REPEAT {
+                        assert_eq(tokens[i + 1].type, sri.TOKEN_WHILE);
+                        found_repeat = true;
+                    }
+                    if tokens[i].type == sri.TOKEN_ITERATE {
+                        assert_eq(tokens[i + 2].type, sri.TOKEN_THROUGH);
+                        found_iterate = true;
+                    }
+                    if tokens[i].type == sri.TOKEN_MATCH {
+                        assert_eq(tokens[i + 2].type, sri.TOKEN_COLON);
+                        assert_eq(tokens[i + 3].type, sri.TOKEN_WHEN);
+                        found_match = true;
+                    }
+                    if tokens[i].type == sri.TOKEN_SPAWN {
+                        assert_eq(tokens[i + 1].type, sri.TOKEN_TASK);
+                        found_spawn = true;
+                    }
+                    i += 1;
+                }
+
+                assert(found_repeat, "repeat while must be tokenized");
+                assert(found_iterate, "iterate through must be tokenized");
+                assert(found_match, "match when must be tokenized");
+                assert(found_spawn, "spawn task must be tokenized");
+        });
+});
+
+describe("Comments and Lookahead Resiliency", fn() {
+        test("Single-line comments skipped cleanly", fn() {
+                let code = "-- Top level comment\nlet x be 10 -- end of line comment\n-- another comment\nset x to 20";
+                let tokens = sri.tokenize(code, "test_comment.sri");
+                assert_eq(len(tokens), 9);  // 4 for let, 4 for set, 1 EOF
+
+                assert_eq(tokens[0].type, sri.TOKEN_LET);
+                assert_eq(tokens[1].literal, "x");
+                assert_eq(tokens[2].type, sri.TOKEN_BE);
+                assert_eq(tokens[3].literal, "10");
+
+                assert_eq(tokens[4].type, sri.TOKEN_SET);
+                assert_eq(tokens[5].literal, "x");
+                assert_eq(tokens[6].type, sri.TOKEN_TO);
+                assert_eq(tokens[7].literal, "20");
+        });
+
+        test("Multi-line block comments skipped cleanly", fn() {
+                let code = "let start be 1\n--- This is a multi-line\nblock comment spanning\nmultiple lines ---\nlet finish be 100";
+                let tokens = sri.tokenize(code, "test_block_comment.sri");
+                assert_eq(len(tokens), 9);
+
+                assert_eq(tokens[0].literal, "let");
+                assert_eq(tokens[1].literal, "start");
+                assert_eq(tokens[2].literal, "be");
+                assert_eq(tokens[3].literal, "1");
+
+                assert_eq(tokens[4].literal, "let");
+                assert_eq(tokens[5].literal, "finish");
+                assert_eq(tokens[6].literal, "be");
+                assert_eq(tokens[7].literal, "100");
+
+                // Verify line numbering after multi-line comment
+                assert_eq(tokens[4].line, 5);
+        });
+
+        test("Lookahead backtracking resilience on partial keywords", fn() {
+                let code = "divided divided_count is is_ready is greater 50";
+                let tokens = sri.tokenize(code, "test_lookahead.sri");
+
+                assert_eq(tokens[0].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[0].literal, "divided");
+
+                assert_eq(tokens[1].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[1].literal, "divided_count");
+
+                assert_eq(tokens[2].type, sri.TOKEN_IS);
+                assert_eq(tokens[2].literal, "is");
+
+                assert_eq(tokens[3].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[3].literal, "is_ready");
+
+                // 'is greater 50' lacks 'than', so backtracks 'is' and emits 'greater' and '50'
+                assert_eq(tokens[4].type, sri.TOKEN_IS);
+                assert_eq(tokens[5].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[5].literal, "greater");
+                assert_eq(tokens[6].type, sri.TOKEN_INT);
+                assert_eq(tokens[6].literal, "50");
+        });
+});
+
+describe("Diagnostics and Error Handling", fn() {
+        test("Unterminated string literal error diagnostic", fn() {
+                let code = "let name be \"Unclosed string literal\nlet next be 1";
+                let l = sri.new_lexer(code, "err_test.sri");
+                let tokens = l.tokenize_all();
+
+                assert(l.has_errors(), "Lexer must report lexical error for unterminated string");
+                let errs = l.get_errors();
+                assert_eq(len(errs), 1);
+                assert_eq(errs[0].line, 1);
+                assert_eq(errs[0].col, 13);
+
+                let formatted = errs[0].format();
+                assert(contains(formatted, "✦ error[LexicalError]"), "Formatted error must contain standard header");
+                assert(contains(formatted, "err_test.sri:1:13"), "Formatted error must reference line and column");
+                assert(contains(formatted, "^"), "Formatted error must include pointer arrow");
+        });
+
+        test("Unrecognized illegal character diagnostic", fn() {
+                let code = "let value be @bad";
+                let l = sri.new_lexer(code, "illegal_test.sri");
+                let tokens = l.tokenize_all();
+
+                assert(l.has_errors(), "Lexer must report error for illegal character");
+                let errs = l.get_errors();
+                assert_eq(len(errs), 1);
+                assert(contains(errs[0].message, "@"), "Error message must identify unrecognized character");
+        });
+});
+
+describe("Full Realistic Srishti Program (50+ Lines)", fn() {
+        test("Tokenizing an end-to-end Srishti banking and simulation script", fn() {
+                let sample_program = "---
+                Srishti Simulation Engine
+                Demonstrates OOP structs, algorithms, pattern matching, concurrency, and arithmetic.
+                ---
+
+                constant MAX_TRANSACTIONS be 1000
+                constant BANK_NAME be \"Srishti National Bank\"
+
+                create struct Account with id, owner, balance, is_active:
+
+                define function create_account with id, owner, initial_balance:
+                let acc be Account(id, owner, initial_balance, true)
+                return acc
+
+                define function deposit with account, amount:
+                if amount is less than or equal to 0 then:
+                display \"Deposit amount must be positive\"
+                return false
+                otherwise:
+                set account.balance to account.balance plus amount
+                display \"Deposited successfully\"
+                return true
+
+                define function withdraw with account, amount:
+                if amount is greater than account.balance then:
+                display \"Insufficient funds\"
+                return false
+                otherwise:
+                set account.balance to account.balance minus amount
+                return true
+
+                define function calculate_interest with principal, rate, years:
+                let factor be 1.0 plus(rate divided by 100.0)
+                let compounded be factor raised to years
+                let total be principal times compounded
+                return total
+
+                define function process_transaction with tx_code, account, amount:
+                match tx_code:
+                when 1:
+                deposit(account, amount)
+                when 2:
+                withdraw(account, amount)
+                when 3:
+                display \"Account balance: \" combined with account.balance
+
+                define function audit_accounts with accounts_list:
+                iterate acc through accounts_list:
+                if acc.balance is greater than or equal to 100000 then:
+                display \"VIP Account: \" combined with acc.owner
+                otherwise:
+                display \"Standard Account: \" combined with acc.owner
+
+                define function main:
+                let my_account be create_account(101, \"Aryabhata\", 50000.0)
+                process_transaction(1, my_account, 15000.0)
+                process_transaction(2, my_account, 5000.0)
+                let future_wealth be calculate_interest(my_account.balance, 7.5, 5)
+                display \"Projected balance: \" combined with future_wealth
+
+                repeat while my_account.is_active is equal to true:
+                spawn task audit_accounts([my_account])
+                set my_account.is_active to false
+
+                display \"Audit complete for \" combined with BANK_NAME
+                ";
+
+                let l = sri.new_lexer(sample_program, "srishti_simulation.sri");
+                let tokens = l.tokenize_all();
+
+                assert(!l.has_errors(), "Realistic sample program must have zero lexical errors");
+                assert(len(tokens) > 150, "50-line program must generate over 150 tokens");
+
+                // Verify first and last tokens
+                assert_eq(tokens[0].type, sri.TOKEN_CONSTANT);
+                assert_eq(tokens[0].literal, "constant");
+                assert_eq(tokens[1].type, sri.TOKEN_IDENTIFIER);
+                assert_eq(tokens[1].literal, "MAX_TRANSACTIONS");
+
+                let last_idx = len(tokens) - 1;
+                assert_eq(tokens[last_idx].type, sri.TOKEN_EOF);
+
+                // Verify key structural token occurrences throughout the program
+                let has_struct = false;
+                let has_multi_comp = false;
+                let has_combinator = false;
+                let has_spawn = false;
+                let has_repeat = false;
+                let has_iterate = false;
+                let has_match = false;
+                let has_divided_by = false;
+                let has_raised_to = false;
+
+                let k = 0;
+                while k < len(tokens) {
+                    let t = tokens[k];
+                    if t.type == sri.TOKEN_STRUCT { has_struct = true; }
+                    if t.type == sri.TOKEN_IS_GREATER_THAN_OR_EQUAL { has_multi_comp = true; }
+                    if t.type == sri.TOKEN_COMBINED_WITH { has_combinator = true; }
+                    if t.type == sri.TOKEN_SPAWN { has_spawn = true; }
+                    if t.type == sri.TOKEN_REPEAT { has_repeat = true; }
+                    if t.type == sri.TOKEN_ITERATE { has_iterate = true; }
+                    if t.type == sri.TOKEN_MATCH { has_match = true; }
+                    if t.type == sri.TOKEN_DIVIDED_BY { has_divided_by = true; }
+                    if t.type == sri.TOKEN_RAISED_TO { has_raised_to = true; }
+                    k += 1;
+                }
+
+                assert(has_struct, "Must have STRUCT token");
+                assert(has_multi_comp, "Must have IS_GREATER_THAN_OR_EQUAL token");
+                assert(has_combinator, "Must have COMBINED_WITH token");
+                assert(has_spawn, "Must have SPAWN token");
+                assert(has_repeat, "Must have REPEAT token");
+                assert(has_iterate, "Must have ITERATE token");
+                assert(has_match, "Must have MATCH token");
+                assert(has_divided_by, "Must have DIVIDED_BY token");
+                assert(has_raised_to, "Must have RAISED_TO token");
+        });
+});

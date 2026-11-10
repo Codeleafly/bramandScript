@@ -1,0 +1,121 @@
+// Srishti Programming Language :: Unicode & Character Classifier Subsystem
+// Part of Phase 3: The Srishti (सृष्टि) Programming Language Architecture
+// High-performance rune classifiers with full UTF-8 international script support.
+
+// Checks if character is an ASCII or Unicode letter, or underscore
+let is_letter = fn(ch) {
+    if ch == null || len(ch) == 0 {
+        return false;
+    }
+    let o = ord(ch);
+
+    // Fast-path ASCII Latin letters and underscore
+    if ((o >= 97 && o <= 122) || (o >= 65 && o <= 90) || (o == 95)) {
+        return true;
+    }
+
+    // Extended Latin letters (Accented characters, Umlauts, etc.)
+    if o >= 192 && o <= 591 {
+        return true;
+    }
+
+    // Devanagari script (Hindi, Sanskrit, Marathi - सृष्टि native block)
+    if o >= 2304 && o <= 2431 {  // 0x0900 to 0x097F
+        return true;
+    }
+
+    // Greek and Coptic scripts
+    if o >= 880 && o <= 1023 {  // 0x0370 to 0x03FF
+        return true;
+    }
+
+    // Cyrillic script
+    if o >= 1024 && o <= 1279 {  // 0x0400 to 0x04FF
+        return true;
+    }
+
+    // Arabic script
+    if o >= 1536 && o <= 1791 {  // 0x0600 to 0x06FF
+        return true;
+    }
+
+    // CJK Unified Ideographs (Chinese, Japanese, Korean)
+    if o >= 19968 && o <= 40959 {  // 0x4E00 to 0x9FFF
+        return true;
+    }
+
+    // Other international Unicode alphabetics
+    if ((o >= 160 && o <= 55295) || (o >= 63744 && o <= 65533)) {
+        // Exclude ASCII punctuation / mathematical symbols
+        if ((o >= 8192 && o <= 8303) || (o >= 8592 && o <= 8999)) {
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+};
+
+// Checks if character is an ASCII decimal digit '0'-'9'
+let is_digit = fn(ch) {
+    if ch == null || len(ch) == 0 {
+        return false;
+    }
+    let o = ord(ch);
+    return o >= 48 && o <= 57;
+};
+
+// Checks if character is a valid hexadecimal digit (0-9, a-f, A-F)
+let is_hex_digit = fn(ch) {
+    if ch == null || len(ch) == 0 {
+        return false;
+    }
+    let o = ord(ch);
+    return ((o >= 48 && o <= 57) || (o >= 97 && o <= 102) || (o >= 65 && o <= 70));
+};
+
+// Checks if character is a binary digit ('0' or '1')
+let is_binary_digit = fn(ch) {
+    return ch == "0" || ch == "1";
+};
+
+// Checks if character is an octal digit ('0'-'7')
+let is_octal_digit = fn(ch) {
+    if ch == null || len(ch) == 0 {
+        return false;
+    }
+    let o = ord(ch);
+    return o >= 48 && o <= 55;
+};
+
+// Checks if character is horizontal whitespace (space, tab, carriage return)
+let is_whitespace = fn(ch) {
+    return ch == " " || ch == "\t" || ch == "\r";
+};
+
+// Checks if character is a newline ('\n')
+let is_newline = fn(ch) {
+    return ch == "\n";
+};
+
+// Checks if character is eligible as the first character of an identifier
+let is_identifier_start = fn(ch) {
+    return is_letter(ch);
+};
+
+// Checks if character is eligible as subsequent characters of an identifier
+let is_identifier_part = fn(ch) {
+    return is_letter(ch) || is_digit(ch);
+};
+
+// Checks if character is an operator or delimiter punctuation symbol
+let is_symbol = fn(ch) {
+    if ch == null || len(ch) == 0 {
+        return false;
+    }
+    return ch == ":" || ch == "," || ch == "(" || ch == ")" ||
+    ch == "[" || ch == "]" || ch == "." || ch == "+" ||
+    ch == "-" || ch == "*" || ch == "/" || ch == "%" ||
+    ch == "^" || ch == "=" || ch == "!" || ch == "<" ||
+    ch == ">" || ch == "\"" || ch == "'";
+};
