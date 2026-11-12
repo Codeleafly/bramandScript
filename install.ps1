@@ -22,7 +22,7 @@ try {
     $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
     $Tag = $Release.tag_name
 } catch {
-    $Tag = "v0.2.0"
+    $Tag = "v0.1.2"
 }
 
 $ArchiveName = "bramand-windows-$Arch-$Tag.zip"
