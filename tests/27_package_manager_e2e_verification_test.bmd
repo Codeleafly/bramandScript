@@ -117,7 +117,11 @@ describe("Day 28 (Agent 11): Centralized Package Manager End-to-End System Verif
         assert_eq(file_exists(out_bin), true);
 
         // Execute in an isolated sandbox environment with empty HOME and no source files
-        let iso_sandbox = "/data/data/com.termux/files/usr/tmp/bmd_e2e_sandbox";
+        let tmp_base = "/tmp";
+        if file_exists("/data/data/com.termux/files/usr/tmp") {
+            tmp_base = "/data/data/com.termux/files/usr/tmp";
+        }
+        let iso_sandbox = tmp_base + "/bmd_e2e_sandbox";
         exec("rm -rf " + iso_sandbox);
         exec("mkdir -p " + iso_sandbox + "/empty_home");
         exec("cp " + out_bin + " " + iso_sandbox + "/app_bin");

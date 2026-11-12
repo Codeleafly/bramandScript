@@ -19,31 +19,31 @@ jobs:
           - target: Linux
             runner: ubuntu-latest
             is_android: false
-            go-version: '1.23'
+            go-version: '1.27.3'
           - target: Linux
             runner: ubuntu-latest
             is_android: false
-            go-version: '1.22'
+            go-version: '1.27'
 
           # Windows
           - target: Windows
             runner: windows-latest
             is_android: false
-            go-version: '1.23'
+            go-version: '1.27.3'
           - target: Windows
             runner: windows-latest
             is_android: false
-            go-version: '1.22'
+            go-version: '1.27'
 
           # Android (Termux ARM64)
           - target: Android
             runner: ubuntu-latest
             is_android: true
-            go-version: '1.23'
+            go-version: '1.27.3'
           - target: Android
             runner: ubuntu-latest
             is_android: true
-            go-version: '1.22'
+            go-version: '1.27'
 
     steps:
       - name: Check out repository
