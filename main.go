@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-const VERSION = "0.1.1"
+const VERSION = "0.1.2"
 const DIVIDER = "__________________________________________________________________"
 const StandaloneSignature = "BMD_STANDALONE_1"
 const StandaloneFooterLen = 24

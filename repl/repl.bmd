@@ -8,7 +8,7 @@ import "./commands" as cmd
 import "std/strings" as str_pkg
 
 let start_repl = fn() {
-    println(fmt.c_cyan("✦ ") + fmt.c_bold("BramandScript 0.1.1") + fmt.c_dim(" · High-Performance Native Bytecode VM"));
+    println(fmt.c_cyan("✦ ") + fmt.c_bold("BramandScript 0.1.2") + fmt.c_dim(" · High-Performance Native Bytecode VM"));
     println(fmt.c_dim("  Type :help for documentation, :editor for multi-line, :exit to quit.\n"));
 
     let sess = create_session();
