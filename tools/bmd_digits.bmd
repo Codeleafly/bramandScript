@@ -38,7 +38,15 @@ if !is_digits(base_text) {
 if len(parts) == 1 {
     // For a decimal integer literal, digit count is its text length.
     // This avoids converting it to a machine integer or BigInt.
-    println(str(len(base_text)) + " digits")
+    let first_nonzero = 0
+    while first_nonzero < len(base_text) && substring(base_text, first_nonzero, first_nonzero + 1) == "0" {
+        first_nonzero = first_nonzero + 1
+    }
+    if first_nonzero == len(base_text) {
+        println("1 digit")
+    } else {
+        println(str(len(base_text) - first_nonzero) + " digits")
+    }
 } else {
     let token_index = 1
     while token_index < len(parts) {
