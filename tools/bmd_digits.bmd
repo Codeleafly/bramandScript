@@ -5,6 +5,20 @@
 // It never evaluates the expression and never constructs the huge result.
 // Large power towers are represented symbolically.
 
+let is_digits = fn(value) {
+    if len(value) == 0 {
+        return false
+    }
+    let remaining = value
+    let digit_index = 0
+    let digits = "0123456789"
+    while digit_index < 10 {
+        remaining = replace(remaining, substring(digits, digit_index, digit_index + 1), "")
+        digit_index = digit_index + 1
+    }
+    return len(remaining) == 0
+}
+
 println("bmd-digits — decimal digit estimator")
 let expression = trim(read_line("Expression: "))
 
@@ -16,7 +30,7 @@ if len(expression) == 0 {
 let parts = split(expression, "**")
 let base_text = trim(parts[0])
 
-if len(base_text) == 0 || starts_with(base_text, "-") || starts_with(base_text, "+") {
+if !is_digits(base_text) {
     eprintln("Error: use positive integer literals only.")
     exit(1)
 }
@@ -26,6 +40,15 @@ if len(parts) == 1 {
     // This avoids converting it to a machine integer or BigInt.
     println(str(len(base_text)) + " digits")
 } else {
+    let token_index = 1
+    while token_index < len(parts) {
+        if !is_digits(trim(parts[token_index])) {
+            eprintln("Error: every power must be a non-negative integer literal.")
+            exit(1)
+        }
+        token_index = token_index + 1
+    }
+
     if len(base_text) > 15 {
         eprintln("Error: first-version base must fit in 15 characters.")
         exit(1)
@@ -39,7 +62,7 @@ if len(parts) == 1 {
 
     if len(parts) == 2 && len(trim(parts[1])) <= 15 {
         let exponent = float(trim(parts[1]))
-        if exponent < 0.0 {
+        if !is_digits(trim(parts[1])) {
             eprintln("Error: exponent must be non-negative.")
             exit(1)
         }
