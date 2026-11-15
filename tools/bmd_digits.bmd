@@ -1,14 +1,9 @@
-// bmd-digits: estimate decimal digit counts without constructing huge integers.
+// bmd-digits — lightweight decimal digit-count estimator.
 // Run: bmd run tools/bmd_digits.bmd
-// Enter a positive integer or a right-associative power expression such as 8**8**9**9**9.
+// Input: a positive integer, or a right-associative power chain using **.
 //
-// MVP scope:
-// - Exact digit count for a plain positive integer literal (based on its text).
-// - Approximate digit count for base**exponent when both operands fit safely in Float64.
-// - Symbolic logarithmic estimate for longer power towers.
-// - Never evaluates the user's expression with eval() and never constructs the result.
-//
-// Note: this first version intentionally accepts only positive integer literals and ** chains.
+// It never evaluates the expression and never constructs the huge result.
+// Large power towers are represented symbolically.
 
 println("bmd-digits — decimal digit estimator")
 let expression = trim(read_line("Expression: "))
@@ -19,70 +14,67 @@ if len(expression) == 0 {
 }
 
 let parts = split(expression, "**")
+let base_text = trim(parts[0])
+
+if len(base_text) == 0 || starts_with(base_text, "-") || starts_with(base_text, "+") {
+    eprintln("Error: use positive integer literals only.")
+    exit(1)
+}
 
 if len(parts) == 1 {
-    let literal = trim(parts[0])
-    if starts_with(literal, "-") || starts_with(literal, "+") {
-        eprintln("Error: enter a positive integer without a sign.")
-        exit(1)
-    }
-    if len(literal) == 0 {
-        eprintln("Error: invalid integer literal.")
-        exit(1)
-    }
-    println(str(len(literal)) + " digits")
+    // For a decimal integer literal, digit count is its text length.
+    // This avoids converting it to a machine integer or BigInt.
+    println(str(len(base_text)) + " digits")
 } else {
-    let base_text = trim(parts[0])
-    if len(base_text) == 0 || starts_with(base_text, "-") || starts_with(base_text, "+") {
-        eprintln("Error: base must be a positive integer.")
+    if len(base_text) > 15 {
+        eprintln("Error: first-version base must fit in 15 characters.")
         exit(1)
     }
 
     let base = float(base_text)
     if base <= 1.0 {
-        eprintln("Error: base must be greater than 1 for this estimator.")
+        eprintln("Error: base must be greater than 1.")
         exit(1)
     }
 
-    if len(parts) == 2 && len(base_text) <= 15 && len(trim(parts[1])) <= 15 {
-        let exponent_text = trim(parts[1])
-        let exponent = float(exponent_text)
+    if len(parts) == 2 && len(trim(parts[1])) <= 15 {
+        let exponent = float(trim(parts[1]))
         if exponent < 0.0 {
             eprintln("Error: exponent must be non-negative.")
             exit(1)
         }
 
-        let estimated_digits = floor(exponent * log10(base)) + 1
-
-        if estimated_digits < 1000 {
-            println(str(estimated_digits) + " digits")
-        } else if estimated_digits < 1000000 {
-            println(str(round(estimated_digits / 1000)) + " thousand digits")
-        } else if estimated_digits < 1000000000 {
-            println(str(round(estimated_digits / 1000000)) + " million digits")
-        } else if estimated_digits < 1000000000000 {
-            println(str(round(estimated_digits / 1000000000)) + " billion digits")
-        } else if estimated_digits < 1000000000000000 {
-            println(str(round(estimated_digits / 1000000000000)) + " trillion digits")
+        // digits(b**e) = floor(e * log10(b)) + 1.
+        let digit_estimate = floor(exponent * log10(base)) + 1
+        if digit_estimate < 1000 {
+            println(str(digit_estimate) + " digits")
+        } else if digit_estimate < 1000000 {
+            println(str(round(digit_estimate / 1000)) + " thousand digits (approx.)")
+        } else if digit_estimate < 1000000000 {
+            println(str(round(digit_estimate / 1000000)) + " million digits (approx.)")
+        } else if digit_estimate < 1000000000000 {
+            println(str(round(digit_estimate / 1000000000)) + " billion digits (approx.)")
+        } else if digit_estimate < 1000000000000000 {
+            println(str(round(digit_estimate / 1000000000000)) + " trillion digits (approx.)")
         } else {
-            println("approximately " + str(estimated_digits) + " digits")
+            println("approximately " + str(digit_estimate) + " digits")
         }
     } else {
-        // For a power tower a**b**c..., the digit count is approximately
-        // log10(a) * (b**c**...), because exponentiation is right-associative.
-        // Keep the exponent symbolic instead of evaluating an enormous integer.
+        // ** is right-associative in BramandScript:
+        // a**b**c means a**(b**c).
+        // Therefore log10(a**tower) = log10(a) * tower.
+        // Keep the tower as text: do not calculate or allocate it.
         let exponent_expression = ""
-        for i, part in parts {
-            if i > 0 {
-                if i == 1 {
-                    exponent_expression = trim(part)
-                } else {
-                    exponent_expression = exponent_expression + "**" + trim(part)
-                }
+        let i = 1
+        while i < len(parts) {
+            if i > 1 {
+                exponent_expression = exponent_expression + "**"
             }
+            exponent_expression = exponent_expression + trim(parts[i])
+            i = i + 1
         }
 
         println("Approximately " + str(log10(base)) + " × (" + exponent_expression + ") digits")
-        println("The digit count is too large for a standard named scale; shown symbolically.")
+        println("Symbolic estimate: digit count is too large for million/billion/trillion naming.")
     }
 }
